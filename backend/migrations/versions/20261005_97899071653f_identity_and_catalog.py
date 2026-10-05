@@ -24,7 +24,9 @@ def upgrade() -> None:
         sa.Column("name", sa.String(length=64), nullable=False),
         sa.Column("rank", sa.Integer(), nullable=False),
         sa.PrimaryKeyConstraint("code", name=op.f("pk_grades")),
-        sa.UniqueConstraint("rank", name=op.f("uq_grades_rank")),
+        sa.UniqueConstraint(
+            "rank", name=op.f("uq_grades_rank"), deferrable=True, initially="DEFERRED"
+        ),
     )
     op.create_table(
         "specializations",

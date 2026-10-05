@@ -4,7 +4,7 @@
 Ключ каждой записи — стабильный `code`: на него ссылаются тест, профиль и подбор.
 """
 
-from sqlalchemy import Column, ForeignKey, String, Table
+from sqlalchemy import Column, ForeignKey, String, Table, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db import Base
@@ -21,10 +21,12 @@ technology_topics = Table(
 
 class Grade(Base):
     __tablename__ = "grades"
+    # Уникальность ранга проверяется в конце транзакции: синхронизация переставляет ранги.
+    __table_args__ = (UniqueConstraint("rank", deferrable=True, initially="DEFERRED"),)
 
     code: Mapped[str] = mapped_column(String(32), primary_key=True)
     name: Mapped[str] = mapped_column(String(64))
-    rank: Mapped[int] = mapped_column(unique=True)
+    rank: Mapped[int]
 
 
 class Specialization(Base):

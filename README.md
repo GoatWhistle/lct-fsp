@@ -41,7 +41,7 @@ docker compose run --rm tests
 backend/                 FastAPI + SQLAlchemy + Alembic, PostgreSQL
   app/<модуль>/          models, schemas, service, router одного модуля
   app/assessment/catalog.yaml   справочники: грейды, специализации, темы, технологии
-  config/mechanics.yaml  параметры механик
+  config/mechanics.yaml  параметры механик — те же, что в docs/parameters.md
   migrations/            миграции схемы
   tests/                 тесты через HTTP API
 frontend/                React + TypeScript (Vite), на стенде — nginx
@@ -85,9 +85,10 @@ cd frontend && npm run lint && npm run build
   миграциями. Если после слияния веток у миграций две головы — `uv run alembic merge heads`.
 - **Справочники** — данные в `app/assessment/catalog.yaml`, не в коде. Бэкенд при старте
   синхронизирует их с базой; коды стабильны — на них ссылаются тест, профиль и подбор.
-- **Параметры механик** — раздел в `config/mechanics.yaml` и модель в `app/config.py`
-  (`Mechanics`); в эндпоинт приходят через `MechanicsDep`. Пороги и сроки не пишутся
-  константами в коде: прогон стенда валидации фиксирует этот файл.
+- **Параметры механик** — числа из [`docs/parameters.md`](docs/parameters.md) под теми же
+  именами в `config/mechanics.yaml` и полях `Mechanics` (`app/config.py`); в эндпоинт приходят
+  через `MechanicsDep`. Константами в коде не пишутся. Новый параметр или значение — в доке и
+  конфиге одним PR: `test_mechanics_config.py` сверяет их.
 - **Ошибки** — подкласс `AppError` со `status_code`, `code` и `message` по-русски; эндпоинт
   перечисляет их в `responses=error_responses(...)`, и коды попадают в OpenAPI.
 - **Разделы роли** — роутер с префиксом `/api/candidate` или `/api/employer`,

@@ -1,0 +1,9 @@
+# Переводы строк — всегда LF. Иначе на машине с core.autocrlf=true
+# shell-скрипты и хуки приезжают с CRLF и перестают запускаться.
+* text=auto eol=lf
+*.png binary
+*.jpg binary
+*.pdf binary
+*.docx binary
+*.xlsx binary
+*.zip binary

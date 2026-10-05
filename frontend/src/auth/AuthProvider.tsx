@@ -7,10 +7,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    api.GET('/api/auth/me').then(({ data }) => {
-      setUser(data ?? null)
-      setLoading(false)
-    })
+    api
+      .GET('/api/auth/me')
+      .then(({ data }) => setUser(data ?? null))
+      .finally(() => setLoading(false))
   }, [])
 
   const logout = useCallback(async () => {

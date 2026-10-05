@@ -7,6 +7,26 @@ export type Role = components['schemas']['Role']
 
 export const api = createClient<paths>({ credentials: 'same-origin' })
 
+// Нет связи или сервер ответил не JSON (502 от прокси, 500) — отдаём ошибку в формате API,
+// чтобы формы не зависали и показали понятный текст.
+function unavailable(): Response {
+  const body = { code: 'server_unavailable', message: 'Сервер недоступен — попробуйте ещё раз' }
+  return new Response(JSON.stringify(body), {
+    status: 503,
+    headers: { 'Content-Type': 'application/json' },
+  })
+}
+
+api.use({
+  onResponse({ response }) {
+    const isJson = response.headers.get('Content-Type')?.includes('application/json')
+    if (response.status >= 500 && !isJson) return unavailable()
+  },
+  onError() {
+    return unavailable()
+  },
+})
+
 /** Текст ошибки API для пользователя: `message` от бэкенда или общий запасной. */
 export function errorMessage(error: unknown): string {
   if (error && typeof error === 'object' && 'message' in error && typeof error.message === 'string') {

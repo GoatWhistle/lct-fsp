@@ -66,6 +66,8 @@ services:
       target: test
     environment:
       TEST_DATABASE_URL: postgresql+psycopg://lct:lct@db:5432/postgres
+    volumes:
+      - ./docs:/docs:ro  # тест сверяет конфиг механик с docs/parameters.md
     depends_on:
       db:
         condition: service_healthy

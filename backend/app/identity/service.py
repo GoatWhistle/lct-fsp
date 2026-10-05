@@ -4,7 +4,7 @@ from sqlalchemy import delete, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.config import Mechanics, Settings
+from app.config import Settings
 from app.db import utcnow
 from app.errors import AppError
 from app.identity import security
@@ -46,7 +46,6 @@ def register(
     db: Session,
     mailer: Mailer,
     settings: Settings,
-    mechanics: Mechanics,
     *,
     email: str,
     password: str,
@@ -63,20 +62,18 @@ def register(
         # Тот же адрес успел зарегистрироваться параллельным запросом.
         db.rollback()
         raise EmailTaken() from None
-    mail = _verification_mail(db, settings, mechanics, user)
+    mail = _verification_mail(db, settings, user)
     db.commit()
     mailer.send(mail)
     return user
 
 
-def resend_verification(
-    db: Session, mailer: Mailer, settings: Settings, mechanics: Mechanics, *, email: str
-) -> None:
+def resend_verification(db: Session, mailer: Mailer, settings: Settings, *, email: str) -> None:
     """Для чужих и уже подтверждённых адресов молча ничего не делает — не раскрываем учётки."""
     user = db.scalar(select(User).where(User.email == email.lower()))
     if user is None or user.email_verified:
         return
-    mail = _verification_mail(db, settings, mechanics, user)
+    mail = _verification_mail(db, settings, user)
     db.commit()
     mailer.send(mail)
 
@@ -107,9 +104,9 @@ def authenticate(db: Session, *, email: str, password: str) -> User:
     return user
 
 
-def _verification_mail(db: Session, settings: Settings, mechanics: Mechanics, user: User) -> Mail:
+def _verification_mail(db: Session, settings: Settings, user: User) -> Mail:
     token, token_hash = security.new_email_token()
-    ttl_hours = mechanics.identity.email_token_ttl_hours
+    ttl_hours = settings.email_token_ttl_hours
     db.add(
         EmailVerificationToken(
             user_id=user.id,

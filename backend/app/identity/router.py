@@ -2,7 +2,7 @@ from datetime import timedelta
 
 from fastapi import APIRouter, Response, status
 
-from app.config import MechanicsDep, SettingsDep
+from app.config import SettingsDep
 from app.db import DbSession
 from app.errors import error_responses
 from app.identity import service
@@ -33,10 +33,9 @@ def register(
     db: DbSession,
     mailer: MailerDep,
     settings: SettingsDep,
-    mechanics: MechanicsDep,
 ) -> UserOut:
     user = service.register(
-        db, mailer, settings, mechanics, email=body.email, password=body.password, role=body.role
+        db, mailer, settings, email=body.email, password=body.password, role=body.role
     )
     return UserOut.model_validate(user)
 
@@ -62,16 +61,14 @@ def resend_verification(
     db: DbSession,
     mailer: MailerDep,
     settings: SettingsDep,
-    mechanics: MechanicsDep,
 ) -> None:
-    service.resend_verification(db, mailer, settings, mechanics, email=body.email)
+    service.resend_verification(db, mailer, settings, email=body.email)
 
 
 @router.post(
     "/login",
     summary="Вход",
-    description=f"Ставит httpOnly-cookie `{ACCESS_COOKIE}`; срок — параметр "
-    "`identity.session_ttl_hours` в конфиге механик.",
+    description=f"Ставит httpOnly-cookie `{ACCESS_COOKIE}`; срок — настройка `SESSION_TTL_HOURS`.",
     responses=error_responses(service.InvalidCredentials, service.EmailNotVerified),
 )
 def login(
@@ -79,10 +76,9 @@ def login(
     response: Response,
     db: DbSession,
     settings: SettingsDep,
-    mechanics: MechanicsDep,
 ) -> UserOut:
     user = service.authenticate(db, email=body.email, password=body.password)
-    ttl = timedelta(hours=mechanics.identity.session_ttl_hours)
+    ttl = timedelta(hours=settings.session_ttl_hours)
     response.set_cookie(
         ACCESS_COOKIE,
         issue_access_token(user.id, settings.secret_key, ttl),

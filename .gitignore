@@ -1,0 +1,23 @@
+# IDE
+.idea/
+.vscode/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+
+# Node
+node_modules/
+frontend/dist/
+
+# Env: и .env, и .env.test, и всё, что рядом — там ключи
+.env
+.env.*
+!.env.example
+*.local
+.local/
+
+# Артефакты Windows рядом со скачанными файлами
+*:Zone.Identifier

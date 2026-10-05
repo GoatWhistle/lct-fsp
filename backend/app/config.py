@@ -1,0 +1,148 @@
+"""Конфигурация: окружение стенда и параметры механик.
+
+`Settings` — где что лежит и как работает вход (БД, почта, секреты, адреса, сроки); читается из
+переменных окружения и `.env`. `Mechanics` — числа механик теста, профиля, подбора и рынка из
+`config/mechanics.yaml`; имена и значения — как в `docs/parameters.md`, тест сверяет.
+"""
+
+from pathlib import Path
+from typing import Annotated
+
+import yaml
+from fastapi import Depends, Request
+from pydantic import BaseModel, ConfigDict, Field
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+BACKEND_DIR = Path(__file__).resolve().parent.parent
+
+
+class Settings(BaseSettings):
+    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+
+    database_url: str = "postgresql+psycopg://lct:lct@localhost:5432/lct"
+    # Подпись входа; на стенде — своя случайная строка (`openssl rand -hex 32`).
+    secret_key: str = Field(default="dev-only-secret-key-change-me-on-deploy", min_length=32)
+    frontend_url: str = "http://localhost:3000"
+    cookie_secure: bool = False
+
+    smtp_host: str = "localhost"
+    smtp_port: int = 1025
+    mail_from: str = "Подбор ФСП <no-reply@lct.local>"
+
+    email_token_ttl_hours: int = Field(default=24, gt=0, description="Срок ссылки подтверждения")
+    session_ttl_hours: int = Field(default=168, gt=0, description="Срок входа")
+
+    mechanics_file: Path = BACKEND_DIR / "config" / "mechanics.yaml"
+
+
+class Mechanics(BaseModel):
+    """Параметры механик; смысл, единицы и обоснование — в docs/parameters.md."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    # Шкала и категория
+    grade_thresholds: dict[str, float]
+    grade_confidence: float
+    grade_up_hint_confidence: float
+    theta_prior_sd: float
+    topic_deviation_sd: float
+    grade_change_interval_days: int
+    no_category_retest_days: int
+    confidence_language_bands: list[float]
+
+    # Банк заданий
+    expert_difficulty_by_grade: dict[str, float]
+    expert_discrimination: float
+    bank_min_families_per_topic: int
+    bank_min_families_per_grade: int
+    anchor_families_per_topic: int
+    family_answer_collision_max: float
+    family_instance_difficulty_sd_max: float
+
+    # Адаптивный тест
+    test_min_items: int
+    test_max_items: int
+    test_stop_sd: float
+    test_min_items_per_topic: int
+    test_max_topic_share: float
+    exposure_top_k: int
+    exposure_max_rate: float
+    exposure_window_attempts: int
+    topic_block_items: int
+    topic_block_interval_days: int
+
+    # Калибровка
+    elo_k_initial: float
+    elo_k_half_responses: int
+    elo_k_min: float
+    calibration_refit_min_responses: int
+    calibration_expert_gap_review: float
+
+    # Защита теста
+    drift_shift: float
+    drift_cusum_h: float
+    rt_min_responses: int
+    rt_hard_item_p: float
+    rt_fast_z: float
+    rt_flags_for_verification: int
+    focus_events_for_verification: int
+    verification_items: int
+    verification_time_limit_minutes: int
+    verification_target_p: float
+    verification_mismatch_z: float
+    verification_retest_days: int
+
+    # Профиль навыков и уровни доверия
+    trust_weight_fsp: float
+    trust_weight_verification: float
+    trust_weight_test: float
+    trust_weight_regular_task: float
+    self_reported_stack_cap: float
+    profile_decay_sd_per_year: float
+    profile_stale_days: int
+    topic_low_data_sd: float
+    search_confident_sd: float
+
+    # ФСП
+    fsp_result_difficulty: dict[str, float]
+    fsp_result_discrimination: float
+    fsp_divergence_theta: float
+
+    # Регулярные задания
+    regular_task_interval_days: int
+    regular_task_rubric_offsets: dict[int, float]
+    regular_task_discrimination: float
+
+    # Подбор
+    need_importance_weights: dict[str, float]
+    need_key_topic_min_technologies: int
+    nearby_grade_distance: int
+
+    # Рынок
+    invitation_weekly_budget: int
+    invitation_ttl_days: int
+    acceptance_target_probability: float
+    salary_hint_rounding_rub: int
+
+    # Обратная связь
+    feedback_min_selections: int
+    feedback_period_days: int
+
+    @classmethod
+    def from_yaml(cls, path: Path) -> "Mechanics":
+        with path.open(encoding="utf-8") as f:
+            return cls.model_validate(yaml.safe_load(f))
+
+
+def get_settings(request: Request) -> Settings:
+    settings: Settings = request.app.state.settings
+    return settings
+
+
+def get_mechanics(request: Request) -> Mechanics:
+    mechanics: Mechanics = request.app.state.mechanics
+    return mechanics
+
+
+SettingsDep = Annotated[Settings, Depends(get_settings)]
+MechanicsDep = Annotated[Mechanics, Depends(get_mechanics)]

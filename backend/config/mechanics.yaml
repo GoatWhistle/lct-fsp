@@ -1,0 +1,90 @@
+# Параметры механик. Имена и числа — ровно как в docs/parameters.md: там смысл, единицы и
+# раздел механик с обоснованием. Значение меняется в доке и здесь одним PR — тест сверяет.
+
+# Шкала и категория
+grade_thresholds: {intern: -1.5, junior: -0.5, middle: 0.5, senior: 1.5}
+grade_confidence: 0.8
+grade_up_hint_confidence: 0.5
+theta_prior_sd: 1.0
+topic_deviation_sd: 0.6
+grade_change_interval_days: 90
+no_category_retest_days: 30
+confidence_language_bands: [0.2, 0.5, 0.8]
+
+# Банк заданий
+expert_difficulty_by_grade: {intern: -1.0, junior: 0.0, middle: 1.0, senior: 2.0}
+expert_discrimination: 1.2
+bank_min_families_per_topic: 10
+bank_min_families_per_grade: 2
+anchor_families_per_topic: 2
+family_answer_collision_max: 0.05
+family_instance_difficulty_sd_max: 0.3
+
+# Адаптивный тест
+test_min_items: 12
+test_max_items: 30
+test_stop_sd: 0.35
+test_min_items_per_topic: 2
+test_max_topic_share: 0.35
+exposure_top_k: 5
+exposure_max_rate: 0.5
+exposure_window_attempts: 500
+topic_block_items: 6
+topic_block_interval_days: 30
+
+# Калибровка
+elo_k_initial: 0.4
+elo_k_half_responses: 50
+elo_k_min: 0.03
+calibration_refit_min_responses: 200
+calibration_expert_gap_review: 1.0
+
+# Защита теста
+drift_shift: 1.0
+drift_cusum_h: 4.0
+rt_min_responses: 30
+rt_hard_item_p: 0.5
+rt_fast_z: 2.33
+rt_flags_for_verification: 3
+focus_events_for_verification: 3
+verification_items: 10
+verification_time_limit_minutes: 20
+verification_target_p: 0.65
+verification_mismatch_z: 1.64
+verification_retest_days: 30
+
+# Профиль навыков и уровни доверия
+trust_weight_fsp: 1.0
+trust_weight_verification: 0.9
+trust_weight_test: 0.7
+trust_weight_regular_task: 0.4
+self_reported_stack_cap: 0.10
+profile_decay_sd_per_year: 0.4
+profile_stale_days: 180
+topic_low_data_sd: 0.9
+search_confident_sd: 0.6
+
+# ФСП
+fsp_result_difficulty: {international_prize: 2.0, national_prize: 1.5, national_finalist: 1.0, regional_prize: 0.5}
+fsp_result_discrimination: 2.0
+fsp_divergence_theta: 1.0
+
+# Регулярные задания
+regular_task_interval_days: 14
+regular_task_rubric_offsets: {1: -0.5, 2: 0.0, 3: 0.5}
+regular_task_discrimination: 1.0
+
+# Подбор
+need_importance_weights: {key: 3, important: 2, nice: 1}
+need_key_topic_min_technologies: 2
+nearby_grade_distance: 1
+
+# Рынок
+invitation_weekly_budget: 20
+invitation_ttl_days: 7
+acceptance_target_probability: 0.6
+salary_hint_rounding_rub: 10000
+
+# Обратная связь
+feedback_min_selections: 5
+feedback_period_days: 30

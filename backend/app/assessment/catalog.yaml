@@ -1,0 +1,112 @@
+# Справочники MVP. Коды стабильны: на них ссылаются тест, профиль навыков и подбор.
+# Код темы — `<специализация>.<тема>`. Порядок в списках — порядок показа.
+# После правки: `python -m app.assessment.catalog` (на стенде — при старте бэкенда).
+
+grades:
+  - {code: intern, name: Стажёр, rank: 1}
+  - {code: junior, name: Junior, rank: 2}
+  - {code: middle, name: Middle, rank: 3}
+  - {code: senior, name: Senior, rank: 4}
+
+specializations:
+  - code: backend
+    name: Бэкенд
+    topics:
+      - {code: backend.programming, name: Язык программирования и стандартная библиотека}
+      - {code: backend.algorithms, name: Алгоритмы и структуры данных}
+      - {code: backend.databases, name: Базы данных и SQL}
+      - {code: backend.api, name: HTTP и проектирование API}
+      - {code: backend.concurrency, name: Конкурентность и асинхронность}
+      - {code: backend.distributed, name: "Очереди, кэши и распределённые системы"}
+      - {code: backend.testing, name: Тестирование}
+      - {code: backend.security, name: Безопасность приложений}
+
+  - code: frontend
+    name: Фронтенд
+    topics:
+      - {code: frontend.javascript, name: JavaScript и TypeScript}
+      - {code: frontend.markup, name: "HTML, CSS и вёрстка"}
+      - {code: frontend.frameworks, name: Компонентные фреймворки и состояние}
+      - {code: frontend.browser, name: "Браузер, сеть и производительность"}
+      - {code: frontend.algorithms, name: Алгоритмы и структуры данных}
+      - {code: frontend.testing, name: Тестирование интерфейсов}
+
+  - code: data-ml
+    name: Данные и ML
+    topics:
+      - {code: data-ml.math, name: "Математика, вероятности и статистика"}
+      - {code: data-ml.sql, name: SQL и обработка данных}
+      - {code: data-ml.python, name: Python для анализа данных}
+      - {code: data-ml.ml, name: Классическое машинное обучение}
+      - {code: data-ml.deep-learning, name: Глубокое обучение}
+      - {code: data-ml.mlops, name: Внедрение и эксплуатация моделей}
+
+  - code: qa
+    name: QA
+    topics:
+      - {code: qa.theory, name: Теория тестирования и тест-дизайн}
+      - {code: qa.api, name: Тестирование API}
+      - {code: qa.automation, name: Автоматизация тестирования}
+      - {code: qa.databases, name: Базы данных и SQL}
+      - {code: qa.performance, name: Нагрузочное тестирование}
+
+  - code: devops
+    name: DevOps
+    topics:
+      - {code: devops.linux, name: Linux и сети}
+      - {code: devops.containers, name: Контейнеры и оркестрация}
+      - {code: devops.ci-cd, name: CI/CD}
+      - {code: devops.iac, name: Инфраструктура как код}
+      - {code: devops.observability, name: Мониторинг и логирование}
+      - {code: devops.scripting, name: Скрипты и автоматизация}
+
+# Технология → темы, на которые указывает строка стека в профиле или потребности.
+technologies:
+  - {code: python, name: Python, topics: [backend.programming, data-ml.python, qa.automation, devops.scripting]}
+  - {code: java, name: Java, topics: [backend.programming, qa.automation]}
+  - {code: kotlin, name: Kotlin, topics: [backend.programming]}
+  - {code: go, name: Go, topics: [backend.programming, backend.concurrency, devops.scripting]}
+  - {code: csharp, name: C#, topics: [backend.programming]}
+  - {code: nodejs, name: Node.js, topics: [backend.programming, backend.concurrency]}
+  - {code: javascript, name: JavaScript, topics: [frontend.javascript, qa.automation]}
+  - {code: typescript, name: TypeScript, topics: [frontend.javascript, backend.programming]}
+  - {code: html-css, name: HTML и CSS, topics: [frontend.markup]}
+  - {code: react, name: React, topics: [frontend.frameworks]}
+  - {code: vue, name: Vue, topics: [frontend.frameworks]}
+  - {code: angular, name: Angular, topics: [frontend.frameworks]}
+  - {code: vite, name: Vite, topics: [frontend.browser]}
+  - {code: fastapi, name: FastAPI, topics: [backend.api, backend.concurrency]}
+  - {code: django, name: Django, topics: [backend.api, backend.databases]}
+  - {code: spring, name: Spring, topics: [backend.api, backend.databases]}
+  - {code: postgresql, name: PostgreSQL, topics: [backend.databases, data-ml.sql, qa.databases]}
+  - {code: mysql, name: MySQL, topics: [backend.databases, qa.databases]}
+  - {code: clickhouse, name: ClickHouse, topics: [data-ml.sql]}
+  - {code: redis, name: Redis, topics: [backend.distributed]}
+  - {code: kafka, name: Kafka, topics: [backend.distributed]}
+  - {code: rabbitmq, name: RabbitMQ, topics: [backend.distributed]}
+  - {code: pytest, name: pytest, topics: [backend.testing, qa.automation]}
+  - {code: jest, name: Jest, topics: [frontend.testing]}
+  - {code: playwright, name: Playwright, topics: [frontend.testing, qa.automation]}
+  - {code: selenium, name: Selenium, topics: [qa.automation]}
+  - {code: postman, name: Postman, topics: [qa.api]}
+  - {code: jmeter, name: JMeter, topics: [qa.performance]}
+  - {code: k6, name: k6, topics: [qa.performance]}
+  - {code: pandas, name: pandas, topics: [data-ml.python]}
+  - {code: numpy, name: NumPy, topics: [data-ml.python, data-ml.math]}
+  - {code: scikit-learn, name: scikit-learn, topics: [data-ml.ml]}
+  - {code: catboost, name: CatBoost, topics: [data-ml.ml]}
+  - {code: pytorch, name: PyTorch, topics: [data-ml.deep-learning]}
+  - {code: spark, name: Apache Spark, topics: [data-ml.sql]}
+  - {code: airflow, name: Airflow, topics: [data-ml.mlops]}
+  - {code: mlflow, name: MLflow, topics: [data-ml.mlops]}
+  - {code: linux, name: Linux, topics: [devops.linux]}
+  - {code: bash, name: Bash, topics: [devops.scripting, devops.linux]}
+  - {code: nginx, name: Nginx, topics: [devops.linux]}
+  - {code: docker, name: Docker, topics: [devops.containers, data-ml.mlops]}
+  - {code: kubernetes, name: Kubernetes, topics: [devops.containers]}
+  - {code: gitlab-ci, name: GitLab CI, topics: [devops.ci-cd]}
+  - {code: github-actions, name: GitHub Actions, topics: [devops.ci-cd]}
+  - {code: terraform, name: Terraform, topics: [devops.iac]}
+  - {code: ansible, name: Ansible, topics: [devops.iac]}
+  - {code: prometheus, name: Prometheus, topics: [devops.observability]}
+  - {code: grafana, name: Grafana, topics: [devops.observability]}

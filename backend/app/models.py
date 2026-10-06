@@ -15,10 +15,12 @@ from app.assessment.models import (
 from app.company.models import Company
 from app.identity.models import EmailVerificationToken, User
 from app.matching.models import Need, NeedTopicImportance, need_technologies
+from app.profile.models import CandidateProfile, candidate_technologies
 from app.skills.models import SkillProfile, SkillProfileTopic
 
 __all__ = [
     "CandidateCategory",
+    "CandidateProfile",
     "Company",
     "EmailVerificationToken",
     "Grade",
@@ -34,6 +36,7 @@ __all__ = [
     "TestAttempt",
     "Topic",
     "User",
+    "candidate_technologies",
     "need_technologies",
     "technology_topics",
 ]

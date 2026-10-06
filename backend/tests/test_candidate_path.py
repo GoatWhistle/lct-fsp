@@ -10,13 +10,19 @@ import time_machine
 from fastapi.testclient import TestClient
 from sqlalchemy import Engine, text
 
-from app.assessment.bank import Family, get_family
 from app.identity.models import Role
+from tests.candidate_path import (
+    ITEM,
+    PATH,
+    answer_items,
+    everything,
+    nothing,
+    presented,
+    start,
+    take_survey,
+)
 from tests.conftest import PASSWORD
 
-PATH = "/api/candidate/path"
-ITEM = f"{PATH}/item"
-WRONG = "ответа нет"
 QA_TOPICS = 5
 
 Json = dict[str, Any]
@@ -28,61 +34,12 @@ def candidate(signed_in: SignIn) -> TestClient:
     return signed_in(Role.candidate)
 
 
-def take_survey(c: TestClient, specialization: str = "qa") -> Json:
-    response = c.post(
-        f"{PATH}/survey", json={"industry": "fintech", "specialization": specialization}
-    )
-    assert response.status_code == 200, response.text
-    body: Json = response.json()
-    return body
-
-
-def start(c: TestClient, grade: str) -> Json:
-    response = c.post(f"{PATH}/attempts", json={"grade": grade})
-    assert response.status_code == 200, response.text
-    body: Json = response.json()
-    return body
-
-
-def presented(db_engine: Engine, presentation_id: str) -> tuple[Family, int]:
-    with db_engine.connect() as conn:
-        family_code, seed = conn.execute(
-            text("SELECT family_code, seed FROM presentations WHERE id = :id"),
-            {"id": presentation_id},
-        ).one()
-    return get_family(family_code), seed
-
-
-def answer_items(c: TestClient, db_engine: Engine, correct: Callable[[Family], bool]) -> Json:
-    """Отвечает на задания до остановки попытки; `correct` решает, отвечать ли верно."""
-    path: Json = c.get(PATH).json()
-    while path["stage"] == "test":
-        item = c.get(ITEM).json()
-        assert "id" in item, (item, path)
-        family, seed = presented(db_engine, item["id"])
-        response = family.instance(seed).answer if correct(family) else WRONG
-        answered = c.post(
-            f"{ITEM}/answer", json={"presentation_id": item["id"], "response": response}
-        )
-        assert answered.status_code == 200, answered.text
-        path = answered.json()
-    return path
-
-
 def category_rows(db_engine: Engine) -> list[tuple[str, str]]:
     with db_engine.connect() as conn:
         rows = conn.execute(
             text("SELECT specialization_code, grade_code FROM candidate_categories")
         )
         return [(s, g) for s, g in rows]
-
-
-def everything(_: Family) -> bool:
-    return True
-
-
-def nothing(_: Family) -> bool:
-    return False
 
 
 def test_new_candidate_starts_with_survey_and_has_no_category(

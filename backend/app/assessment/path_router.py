@@ -5,7 +5,7 @@ from fastapi import APIRouter
 
 from app.assessment import service
 from app.assessment.determination import grade_probabilities, grade_up_hint
-from app.assessment.models import AttemptOutcome, TestAttempt, Topic
+from app.assessment.models import AttemptOutcome, TestAttempt
 from app.assessment.schemas import (
     AnswerIn,
     AttemptIn,
@@ -14,22 +14,19 @@ from app.assessment.schemas import (
     CategoryOut,
     GradeProbabilityOut,
     ItemOut,
-    LevelBandOut,
-    LevelOut,
     PathOut,
-    SkillProfileOut,
     SurveyIn,
     SurveyOut,
     TestResultOut,
-    TopicLevelOut,
+    level_out,
+    skill_profile_out,
 )
 from app.config import Mechanics, MechanicsDep
 from app.db import DbSession, utcnow
 from app.errors import error_responses
 from app.identity.deps import ROLE_RESPONSES, CurrentUser, role_guard
 from app.identity.models import Role
-from app.skills.irt import Normal, level_band
-from app.skills.models import SkillProfile
+from app.skills.irt import Normal
 
 router = APIRouter(
     prefix="/api/candidate/path",
@@ -144,7 +141,7 @@ def _path_out(view: service.PathView, mechanics: Mechanics) -> PathOut:
         retest_after=attempt.retest_after if attempt is not None else None,
         category=CategoryOut.model_validate(view.category) if view.category else None,
         result=_result_out(attempt, mechanics) if attempt is not None and finished else None,
-        profile=_profile_out(view.profile, mechanics) if view.profile else None,
+        profile=skill_profile_out(view.profile, mechanics) if view.profile else None,
     )
 
 
@@ -168,35 +165,9 @@ def _result_out(attempt: TestAttempt, mechanics: Mechanics) -> TestResultOut:
         )
     return TestResultOut(
         grade=attempt.grade_code,
-        overall=_level_out(overall, mechanics),
+        overall=level_out(overall, mechanics),
         grade_probabilities=[
             GradeProbabilityOut(grade=g, probability=p) for g, p in probabilities.items()
         ],
         grade_up_hint=hint,
-    )
-
-
-def _profile_out(profile: SkillProfile, mechanics: Mechanics) -> SkillProfileOut:
-    rows: list[tuple[Topic, Normal]] = [
-        (row.topic, Normal(row.theta, row.theta_sd)) for row in profile.topics
-    ]
-    rows.sort(key=lambda row: row[0].position)
-    return SkillProfileOut(
-        overall=_level_out(Normal(profile.overall_theta, profile.overall_theta_sd), mechanics),
-        topics=[
-            TopicLevelOut(
-                topic=CatalogRef.model_validate(topic), level=_level_out(level, mechanics)
-            )
-            for topic, level in rows
-        ],
-        updated_at=profile.updated_at,
-    )
-
-
-def _level_out(level: Normal, mechanics: Mechanics) -> LevelOut:
-    band = level_band(level, mechanics.grade_thresholds, mechanics.grade_confidence)
-    return LevelOut(
-        theta=level.mean,
-        theta_sd=level.sd,
-        band=LevelBandOut(low=band.low, high=band.high, confident=band.confident),
     )

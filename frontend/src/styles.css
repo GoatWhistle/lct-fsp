@@ -525,6 +525,118 @@ h2 {
   font-weight: 600;
 }
 
+.chip-removable {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding-right: 0.35rem;
+}
+
+.chip-removable button {
+  font: inherit;
+  line-height: 1;
+  padding: 0 0.3rem;
+  border: 0;
+  border-radius: 999px;
+  background: none;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.chip-removable button:hover {
+  color: var(--error);
+}
+
+.tag-input,
+.combobox {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  font-weight: 400;
+}
+
+.tag-input input,
+.combobox input {
+  font: inherit;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.tag-input input:focus,
+.combobox input:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: -1px;
+}
+
+.combobox-list {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: 10;
+  max-height: 16rem;
+  overflow-y: auto;
+  margin: 0.25rem 0 0;
+  padding: 0.25rem 0;
+  list-style: none;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgb(20 23 31 / 12%);
+}
+
+.combobox-list li {
+  padding: 0.4rem 0.75rem;
+  cursor: pointer;
+}
+
+.combobox-list li.active {
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.checkbox {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.checkbox input {
+  width: 1.1rem;
+  height: 1.1rem;
+  accent-color: var(--accent);
+}
+
+.narrow-field {
+  max-width: 220px;
+}
+
+.form > h2:not(:first-child) {
+  margin-top: 0.75rem;
+}
+
+.profile-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.profile-card p {
+  margin: 0;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
 details summary {
   cursor: pointer;
   color: var(--accent);

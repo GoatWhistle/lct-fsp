@@ -3,6 +3,7 @@ import { api, errorMessage, type CandidatePath } from '../api/client'
 import { Cabinet } from '../components/Cabinet'
 import { gradeName, useCatalog, type Catalog } from '../candidate/catalog'
 import { GradeStep } from '../candidate/GradeStep'
+import { ProfileCard } from '../candidate/ProfileCard'
 import { SkillProfileView, TestResultView } from '../candidate/Results'
 import { SurveyStep } from '../candidate/SurveyStep'
 import { TestStep } from '../candidate/TestStep'
@@ -50,6 +51,8 @@ export function CandidateCabinet() {
         ))}
       </ol>
       <PathStep catalog={catalog} path={path} onChange={setPath} />
+      {/* Во время теста — только тест; профиль заполняется до или после. */}
+      {path.stage !== 'test' && <ProfileCard />}
     </section>
   )
 }
@@ -153,7 +156,6 @@ function CategoryCabinet({ catalog, path }: { catalog: Catalog; path: CandidateP
     <Cabinet
       title="Кабинет кандидата"
       upcoming={[
-        'Профиль: контакты, стек, ожидания по зарплате и формату',
         'Смена грейда и история тестов',
         'Приглашения от работодателей',
       ]}
@@ -174,6 +176,7 @@ function CategoryCabinet({ catalog, path }: { catalog: Catalog; path: CandidateP
           )}
         </div>
       )}
+      <ProfileCard />
       {path.result && <TestResultView catalog={catalog} result={path.result} />}
       {path.profile && <SkillProfileView profile={path.profile} />}
     </Cabinet>

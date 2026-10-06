@@ -70,11 +70,16 @@ export function TestStep({ onDone }: Props) {
     <form onSubmit={submit} className="card form">
       <div className="item-head">
         <span className="muted">
-          Задание {item.number} из {item.total}
+          Задание {item.number} · не больше {item.max_items}
         </span>
         <span className="tag">{item.topic.name}</span>
       </div>
-      <progress className="progress" value={item.number - 1} max={item.total} />
+      {item.number === 1 && (
+        <p className="muted">
+          Тест подбирает задания под ваш уровень и заканчивается, когда уровень определён с нужной
+          точностью, — обычно раньше лимита.
+        </p>
+      )}
       <p className="prompt">{item.prompt}</p>
       {item.code && <pre className="code">{item.code}</pre>}
       {item.options.length > 0 ? (
@@ -109,7 +114,7 @@ export function TestStep({ onDone }: Props) {
       {error && <p className="error">{error}</p>}
       <div className="actions">
         <button type="submit" className="button" disabled={submitting || !response.trim()}>
-          {item.number === item.total ? 'Ответить и завершить' : 'Ответить'}
+          {item.number === item.max_items ? 'Ответить и завершить' : 'Ответить'}
         </button>
       </div>
     </form>

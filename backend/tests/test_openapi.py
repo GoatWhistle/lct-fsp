@@ -45,7 +45,7 @@ def test_role_apis_document_401_and_403(spec: dict[str, Any]) -> None:
         (
             "POST",
             "/api/candidate/path/survey",
-            {"path_step_unavailable", "unknown_industry", "specialization_without_test"},
+            {"path_step_unavailable", "unknown_specialization", "specialization_without_test"},
         ),
         (
             "POST",
@@ -54,7 +54,11 @@ def test_role_apis_document_401_and_403(spec: dict[str, Any]) -> None:
         ),
         ("GET", "/api/candidate/path/item", {"no_test_in_progress"}),
         ("POST", "/api/candidate/path/item/answer", {"no_test_in_progress", "item_not_current"}),
-        ("PUT", "/api/candidate/profile", {"unknown_technology", "city_required"}),
+        (
+            "PUT",
+            "/api/candidate/profile",
+            {"unknown_technology", "unknown_industry", "city_required"},
+        ),
         ("GET", "/api/candidate/profile/pdf", {"profile_not_found"}),
         ("PUT", "/api/employer/company", {"unknown_industry"}),
         (
@@ -83,3 +87,61 @@ def test_error_codes_are_documented(
     )
     for code in codes:
         assert f"`{code}`" in documented, f"{method} {path}: не описана ошибка {code}"
+
+
+def _schemas_from(spec: dict[str, Any], roots: list[Any]) -> dict[str, dict[str, Any]]:
+    """Компоненты схем, достижимые по `$ref` из `roots`."""
+    components = spec["components"]["schemas"]
+    found: dict[str, dict[str, Any]] = {}
+    stack = list(roots)
+    while stack:
+        node = stack.pop()
+        if isinstance(node, dict):
+            if ref := node.get("$ref"):
+                name = ref.rsplit("/", 1)[-1]
+                if name not in found:
+                    found[name] = components[name]
+                    stack.append(components[name])
+            stack.extend(node.values())
+        elif isinstance(node, list):
+            stack.extend(node)
+    return found
+
+
+def _salary_fields(schema: dict[str, Any]) -> list[str]:
+    return [name for name in schema.get("properties", {}) if name in ("salary_from", "salary_to")]
+
+
+def test_every_response_with_money_says_gross_or_net(spec: dict[str, Any]) -> None:
+    """Организаторы: гросс или нетто — непринципиально, лишь бы подписано. Каждый ответ с
+    суммой несёт `salary_basis`."""
+    responses = [
+        response.get("content", {})
+        for _, _, op in operations(spec)
+        for status, response in op["responses"].items()
+        if status.startswith("2")
+    ]
+    with_money = {
+        name: schema
+        for name, schema in _schemas_from(spec, responses).items()
+        if _salary_fields(schema)
+    }
+
+    assert with_money, "в ответах API не нашлось ни одной суммы"
+    for name, schema in with_money.items():
+        assert "salary_basis" in schema.get("required", []), name
+
+
+def test_every_request_with_money_says_gross_or_net(spec: dict[str, Any]) -> None:
+    bodies = [op["requestBody"]["content"] for _, _, op in operations(spec) if "requestBody" in op]
+    with_money = {
+        name: schema
+        for name, schema in _schemas_from(spec, bodies).items()
+        if _salary_fields(schema)
+    }
+
+    assert with_money, "в запросах API не нашлось ни одной суммы"
+    for name, schema in with_money.items():
+        for field in _salary_fields(schema):
+            description = schema["properties"][field].get("description", "")
+            assert "до вычета НДФЛ" in description, f"{name}.{field}"

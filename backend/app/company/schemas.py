@@ -12,9 +12,7 @@ def _text(min_length: int, max_length: int) -> StringConstraints:
 
 class CompanyIn(BaseModel):
     name: Annotated[str, _text(1, 200)]
-    industry: str = Field(
-        description="Направление деятельности — код отрасли из `/api/catalog/industries`"
-    )
+    industry: str = Field(description="Сфера деятельности — код из `/api/catalog/industries`")
     description: Annotated[str, _text(1, 3000)] = Field(description="Чем занимается компания")
     website: Annotated[str, _text(0, 300)] | None = Field(
         default=None, description="Без схемы адрес дополняется `https://`"

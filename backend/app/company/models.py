@@ -17,7 +17,7 @@ class Company(Base):
         ForeignKey("users.id", ondelete="CASCADE"), primary_key=True
     )
     name: Mapped[str] = mapped_column(String(200))
-    # Направление деятельности — отрасль из того же справочника, что в опросе кандидата.
+    # Сфера деятельности — из того же справочника, что интересные сферы кандидата.
     industry_code: Mapped[str] = mapped_column(ForeignKey("industries.code"))
     description: Mapped[str] = mapped_column(String(3000))
     website: Mapped[str | None] = mapped_column(String(300))

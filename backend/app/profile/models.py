@@ -1,7 +1,8 @@
 """Профиль кандидата — самоописание по форме: кто он, стек, опыт и ожидания (mechanics.md, §11).
 
 Самоописание — низший уровень доверия: категорию определяет только тест, в скор входит один
-стек с потолком вклада. Ожидания — вход модели принятия приглашения (§13).
+стек с потолком вклада. Ожидания — вход модели принятия приглашения (§13): зарплата, формат,
+город, переезд и интересные сферы бизнеса.
 
 Кому что видно: ФИО, контакты и свободный текст — «о себе», роли, софт-скиллы — работодатель
 получает только после раскрытия: принятого приглашения или отклика (§14). В свободный текст
@@ -15,7 +16,7 @@ from datetime import datetime
 from sqlalchemy import ARRAY, CheckConstraint, Column, ForeignKey, String, Table
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.assessment.models import Technology
+from app.assessment.models import Industry, Technology
 from app.db import Base, utcnow
 
 candidate_technologies = Table(
@@ -27,6 +28,17 @@ candidate_technologies = Table(
         primary_key=True,
     ),
     Column("technology_code", ForeignKey("technologies.code"), primary_key=True),
+)
+
+candidate_industries = Table(
+    "candidate_industries",
+    Base.metadata,
+    Column(
+        "user_id",
+        ForeignKey("candidate_profiles.user_id", ondelete="CASCADE"),
+        primary_key=True,
+    ),
+    Column("industry_code", ForeignKey("industries.code"), primary_key=True),
 )
 
 
@@ -63,11 +75,16 @@ class CandidateProfile(Base):
     city: Mapped[str | None] = mapped_column(String(100))
     relocation: Mapped[bool]
 
-    # Ожидаемая зарплата «от», рубли в месяц. Работодателю не показывается.
+    # Ожидаемая зарплата «от», рубли в месяц до вычета НДФЛ. Работодателю не показывается.
     salary_from: Mapped[int]
 
     updated_at: Mapped[datetime] = mapped_column(default=utcnow, onupdate=utcnow)
 
     stack: Mapped[list[Technology]] = relationship(
         secondary=candidate_technologies, order_by="Technology.name"
+    )
+    # Интересные сферы бизнеса — необязательны; совпадение со сферой компании — признак
+    # модели принятия.
+    industries: Mapped[list[Industry]] = relationship(
+        secondary=candidate_industries, order_by="Industry.position"
     )

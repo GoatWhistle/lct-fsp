@@ -18,6 +18,7 @@ from pydantic import (
 
 from app.assessment.schemas import CatalogRef, CategoryOut, SkillProfileOut
 from app.matching.models import WorkFormat
+from app.salary import SALARY_UNIT, Salary, SalaryBasisOut
 
 DISCLOSED = "Раскрывается работодателю только после принятия приглашения или отклика"
 
@@ -67,9 +68,12 @@ class SelfReportedOut(BaseModel):
     work_formats: list[WorkFormat] = Field(description="Допустимые форматы работы")
     city: str | None = Field(description="Где кандидат живёт")
     relocation: bool = Field(description="Готов к переезду")
+    industries: list[CatalogRef] = Field(
+        description="Интересные сферы бизнеса в порядке справочника; пусто — не указаны"
+    )
 
 
-class ProfileOut(SelfReportedOut):
+class ProfileOut(SelfReportedOut, SalaryBasisOut):
     full_name: str = Field(description=DISCLOSED)
     contact_email: str = Field(description=DISCLOSED)
     contact_phone: str | None = Field(description=DISCLOSED)
@@ -80,7 +84,7 @@ class ProfileOut(SelfReportedOut):
     )
     soft_skills: list[str] = Field(description=f"{DISCLOSED}: свободный текст")
     salary_from: int = Field(
-        description="Ожидаемая зарплата «от», рубли в месяц. Работодателю не показывается: "
+        description=f"Ожидаемая зарплата «от». {SALARY_UNIT}. Работодателю не показывается: "
         "по ней считается вероятность принятия приглашения"
     )
     updated_at: datetime
@@ -115,9 +119,12 @@ class ProfileIn(BaseModel):
         default=None, description="Обязателен, если подходит офис или гибрид"
     )
     relocation: bool = False
-    salary_from: StrictInt = Field(
-        gt=0, le=1_000_000_000, description="Ожидаемая зарплата «от», рубли в месяц"
+    industries: list[str] = Field(
+        default_factory=list,
+        max_length=20,
+        description="Интересные сферы бизнеса — коды из `/api/catalog/industries`; необязательно",
     )
+    salary_from: Salary = Field(gt=0, description=f"Ожидаемая зарплата «от». {SALARY_UNIT}")
 
     @field_validator("contact_email")
     @classmethod

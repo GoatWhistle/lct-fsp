@@ -12,7 +12,8 @@ from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.orm import Session
 
-from app.assessment.models import CandidateCategory, Technology
+from app.assessment.models import CandidateCategory, Industry, Technology
+from app.assessment.service import UnknownIndustry
 from app.db import utcnow
 from app.errors import AppError
 from app.matching.models import WorkFormat
@@ -34,7 +35,7 @@ class CandidateNotFound(AppError):
     message = "Кандидат не найден"
 
 
-PROFILE_ERRORS = (UnknownTechnology, CityRequired)
+PROFILE_ERRORS = (UnknownTechnology, UnknownIndustry, CityRequired)
 
 
 @dataclass(frozen=True)
@@ -60,6 +61,7 @@ def get_profile(db: Session, user_id: uuid.UUID) -> CandidateProfile | None:
 
 def save_profile(db: Session, user_id: uuid.UUID, data: ProfileIn) -> CandidateProfile:
     stack = _technologies(db, data.stack)
+    industries = _industries(db, data.industries)
     if data.city is None and data.work_formats != [WorkFormat.remote]:
         raise CityRequired()
     fields = {
@@ -83,6 +85,7 @@ def save_profile(db: Session, user_id: uuid.UUID, data: ProfileIn) -> CandidateP
     db.execute(stmt.on_conflict_do_update(index_elements=["user_id"], set_=fields))
     profile = db.get_one(CandidateProfile, user_id, populate_existing=True)
     profile.stack = stack
+    profile.industries = industries
     db.commit()
     return profile
 
@@ -122,3 +125,13 @@ def _technologies(db: Session, codes: list[str]) -> list[Technology]:
     if len(technologies) != len(unique):
         raise UnknownTechnology()
     return technologies
+
+
+def _industries(db: Session, codes: list[str]) -> list[Industry]:
+    unique = set(codes)
+    industries = list(
+        db.scalars(select(Industry).where(Industry.code.in_(unique)).order_by(Industry.position))
+    )
+    if len(industries) != len(unique):
+        raise UnknownIndustry()
+    return industries

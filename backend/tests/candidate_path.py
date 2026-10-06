@@ -16,9 +16,7 @@ Json = dict[str, Any]
 
 
 def take_survey(c: TestClient, specialization: str = "qa") -> Json:
-    response = c.post(
-        f"{PATH}/survey", json={"industry": "fintech", "specialization": specialization}
-    )
+    response = c.post(f"{PATH}/survey", json={"specialization": specialization})
     assert response.status_code == 200, response.text
     body: Json = response.json()
     return body

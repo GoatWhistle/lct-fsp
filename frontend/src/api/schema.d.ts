@@ -159,8 +159,8 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Опрос: отрасль и специализация
-         * @description Доступен до начала теста. Повторный опрос заменяет прежний.
+         * Опрос: направление — специализация
+         * @description «Отрасль» в ТЗ — IT-направление, то есть специализация. Интересные сферы бизнеса кандидат по желанию отмечает в профиле. Опрос доступен до начала теста, повторный заменяет прежний.
          */
         post: operations["submit_survey_api_candidate_path_survey_post"];
         delete?: never;
@@ -472,7 +472,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Отрасли — сферы бизнеса для опроса кандидата */
+        /**
+         * Сферы бизнеса
+         * @description Сфера деятельности компании и интересные кандидату сферы. Не «отрасль» из ТЗ: та — IT-направление, специализация.
+         */
         get: operations["list_industries_api_catalog_industries_get"];
         put?: never;
         post?: never;
@@ -617,7 +620,7 @@ export interface components {
             name: string;
             /**
              * Industry
-             * @description Направление деятельности — код отрасли из `/api/catalog/industries`
+             * @description Сфера деятельности — код из `/api/catalog/industries`
              */
             industry: string;
             /**
@@ -817,10 +820,13 @@ export interface components {
             city?: string | null;
             /**
              * Salary From
-             * @description Вилка необязательна; если указана — обе границы больше нуля, «от» не больше «до»
+             * @description Рубли в месяц до вычета НДФЛ (гросс). Вилка необязательна; если указана — обе границы больше нуля, «от» не больше «до»
              */
             salary_from?: number | null;
-            /** Salary To */
+            /**
+             * Salary To
+             * @description Рубли в месяц до вычета НДФЛ (гросс)
+             */
             salary_to?: number | null;
         };
         /** NeedOut */
@@ -844,9 +850,15 @@ export interface components {
             work_format: components["schemas"]["WorkFormat"];
             /** City */
             city: string | null;
-            /** Salary From */
+            /**
+             * Salary From
+             * @description Рубли в месяц до вычета НДФЛ (гросс)
+             */
             salary_from: number | null;
-            /** Salary To */
+            /**
+             * Salary To
+             * @description Рубли в месяц до вычета НДФЛ (гросс)
+             */
             salary_to: number | null;
             /**
              * Topics
@@ -863,6 +875,8 @@ export interface components {
              * Format: date-time
              */
             updated_at: string;
+            /** @description Все суммы платформы — до вычета НДФЛ (`gross`) */
+            readonly salary_basis: components["schemas"]["SalaryBasis"];
         };
         /**
          * NeedSnapshot
@@ -878,9 +892,15 @@ export interface components {
             work_format: components["schemas"]["WorkFormat"];
             /** City */
             city: string | null;
-            /** Salary From */
+            /**
+             * Salary From
+             * @description Рубли в месяц до вычета НДФЛ (гросс)
+             */
             salary_from: number | null;
-            /** Salary To */
+            /**
+             * Salary To
+             * @description Рубли в месяц до вычета НДФЛ (гросс)
+             */
             salary_to: number | null;
             /**
              * Topics
@@ -893,6 +913,8 @@ export interface components {
              * @description Версия потребности, по которой построена подборка
              */
             updated_at: string;
+            /** @description Все суммы платформы — до вычета НДФЛ (`gross`) */
+            readonly salary_basis: components["schemas"]["SalaryBasis"];
         };
         /** PathOut */
         PathOut: {
@@ -968,8 +990,13 @@ export interface components {
              */
             relocation: boolean;
             /**
+             * Industries
+             * @description Интересные сферы бизнеса — коды из `/api/catalog/industries`; необязательно
+             */
+            industries?: string[];
+            /**
              * Salary From
-             * @description Ожидаемая зарплата «от», рубли в месяц
+             * @description Ожидаемая зарплата «от». Рубли в месяц до вычета НДФЛ (гросс)
              */
             salary_from: number;
         };
@@ -1000,6 +1027,11 @@ export interface components {
              * @description Готов к переезду
              */
             relocation: boolean;
+            /**
+             * Industries
+             * @description Интересные сферы бизнеса в порядке справочника; пусто — не указаны
+             */
+            industries: components["schemas"]["CatalogRef"][];
             /**
              * Full Name
              * @description Раскрывается работодателю только после принятия приглашения или отклика
@@ -1037,7 +1069,7 @@ export interface components {
             soft_skills: string[];
             /**
              * Salary From
-             * @description Ожидаемая зарплата «от», рубли в месяц. Работодателю не показывается: по ней считается вероятность принятия приглашения
+             * @description Ожидаемая зарплата «от». Рубли в месяц до вычета НДФЛ (гросс). Работодателю не показывается: по ней считается вероятность принятия приглашения
              */
             salary_from: number;
             /**
@@ -1045,6 +1077,8 @@ export interface components {
              * Format: date-time
              */
             updated_at: string;
+            /** @description Все суммы платформы — до вычета НДФЛ (`gross`) */
+            readonly salary_basis: components["schemas"]["SalaryBasis"];
         };
         /** RegisterIn */
         RegisterIn: {
@@ -1094,6 +1128,12 @@ export interface components {
          * @enum {string}
          */
         Role: "candidate" | "employer";
+        /**
+         * SalaryBasis
+         * @description Как считается сумма: `gross` — до вычета НДФЛ.
+         * @enum {string}
+         */
+        SalaryBasis: "gross";
         /**
          * SelectionBlock
          * @enum {string}
@@ -1265,6 +1305,11 @@ export interface components {
              * @description Готов к переезду
              */
             relocation: boolean;
+            /**
+             * Industries
+             * @description Интересные сферы бизнеса в порядке справочника; пусто — не указаны
+             */
+            industries: components["schemas"]["CatalogRef"][];
         };
         /**
          * SkillProfileOut
@@ -1328,19 +1373,13 @@ export interface components {
         /** SurveyIn */
         SurveyIn: {
             /**
-             * Industry
-             * @description Код отрасли из `/api/catalog/industries`
-             */
-            industry: string;
-            /**
              * Specialization
-             * @description Код специализации из `/api/catalog/specializations` с `has_test`
+             * @description Направление — код специализации из `/api/catalog/specializations` с `has_test`
              */
             specialization: string;
         };
         /** SurveyOut */
         SurveyOut: {
-            industry: components["schemas"]["CatalogRef"];
             specialization: components["schemas"]["CatalogRef"];
             /**
              * Created At
@@ -1877,9 +1916,7 @@ export interface operations {
                 };
             };
             /**
-             * @description `unknown_industry` — Такой отрасли нет в справочнике
-             *
-             *     `unknown_specialization` — Такой специализации нет в справочнике
+             * @description `unknown_specialization` — Такой специализации нет в справочнике
              *
              *     `specialization_without_test` — Тест по этой специализации ещё готовится — выберите другую
              */
@@ -2149,6 +2186,8 @@ export interface operations {
             /**
              * @description `unknown_technology` — Такой технологии нет в справочнике
              *
+             *     `unknown_industry` — Такой сферы бизнеса нет в справочнике
+             *
              *     `city_required` — Укажите город — для офиса и гибрида он обязателен
              */
             422: {
@@ -2324,7 +2363,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorOut"];
                 };
             };
-            /** @description `unknown_industry` — Такой отрасли нет в справочнике */
+            /** @description `unknown_industry` — Такой сферы бизнеса нет в справочнике */
             422: {
                 headers: {
                     [name: string]: unknown;

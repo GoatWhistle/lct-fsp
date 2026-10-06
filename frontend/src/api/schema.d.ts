@@ -229,6 +229,50 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/candidate/profile": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Профиль кандидата
+         * @description Только свой: кандидат определяется по сессии. `null` — профиль ещё не заполнен.
+         */
+        get: operations["get_profile_api_candidate_profile_get"];
+        /**
+         * Заполнить или изменить профиль
+         * @description Заменяет профиль целиком. Самоописание — низший уровень доверия: категорию определяет только тест.
+         */
+        put: operations["save_profile_api_candidate_profile_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/candidate/profile/pdf": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Стандартизированный PDF-профиль
+         * @description Данные формы, категория и профиль навыков по темам, если тест пройден. Ожидаемой зарплаты в PDF нет.
+         */
+        get: operations["download_pdf_api_candidate_profile_pdf_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/employer/cabinet": {
         parameters: {
             query?: never;
@@ -322,6 +366,26 @@ export interface paths {
         post?: never;
         /** Удаление потребности */
         delete: operations["delete_need_api_employer_needs__need_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/employer/candidates/{candidate_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Карточка кандидата
+         * @description Обезличенная: категория, профиль навыков и самоописание без ФИО, контактов, «о себе» и ожидаемой зарплаты. Есть только у кандидата с категорией.
+         */
+        get: operations["get_candidate_card_api_employer_candidates__candidate_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -450,6 +514,24 @@ export interface components {
         /** CabinetOut */
         CabinetOut: {
             user: components["schemas"]["UserOut"];
+        };
+        /**
+         * CandidateCardOut
+         * @description Обезличенная карточка: решение — по навыкам. Без ФИО, контактов, «о себе» и ожидаемой
+         *     зарплаты; фото, возраст и вуз платформа не собирает.
+         */
+        CandidateCardOut: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** @description Категория по тесту */
+            category: components["schemas"]["CategoryOut"];
+            /** @description Профиль навыков специализации */
+            skill_profile: components["schemas"]["SkillProfileOut"] | null;
+            /** @description Самоописание; `null` — кандидат ещё не заполнил профиль */
+            self_reported: components["schemas"]["SelfReportedOut"] | null;
         };
         /** CatalogRef */
         CatalogRef: {
@@ -734,6 +816,139 @@ export interface components {
             result: components["schemas"]["TestResultOut"] | null;
             profile: components["schemas"]["SkillProfileOut"] | null;
         };
+        /** ProfileIn */
+        ProfileIn: {
+            /**
+             * Full Name
+             * @description ФИО
+             */
+            full_name: string;
+            /**
+             * Contact Email
+             * Format: email
+             */
+            contact_email: string;
+            /** Contact Phone */
+            contact_phone?: string | null;
+            /**
+             * Telegram
+             * @description Имя пользователя, `@имя` или ссылка `t.me/имя`
+             */
+            telegram?: string | null;
+            /**
+             * About
+             * @description О себе
+             * @default
+             */
+            about: string;
+            /**
+             * Stack
+             * @description Коды технологий из `/api/catalog/technologies`
+             */
+            stack?: string[];
+            /**
+             * Job Roles
+             * @description Короткие метки: «бэкенд-разработчик», «тимлид»
+             */
+            job_roles?: string[];
+            /**
+             * Experience Years
+             * @description Полных лет; 0 — меньше года
+             */
+            experience_years: number;
+            /** Soft Skills */
+            soft_skills?: string[];
+            /**
+             * Work Formats
+             * @description Допустимые форматы работы, хотя бы один
+             */
+            work_formats: components["schemas"]["WorkFormat"][];
+            /**
+             * City
+             * @description Обязателен, если подходит офис или гибрид
+             */
+            city?: string | null;
+            /**
+             * Relocation
+             * @default false
+             */
+            relocation: boolean;
+            /**
+             * Salary From
+             * @description Ожидаемая зарплата «от», рубли в месяц
+             */
+            salary_from: number;
+        };
+        /** ProfileOut */
+        ProfileOut: {
+            /**
+             * Stack
+             * @description По названию технологии
+             */
+            stack: components["schemas"]["CatalogRef"][];
+            /**
+             * Job Roles
+             * @description Кем кандидат работал или хочет работать
+             */
+            job_roles: string[];
+            /**
+             * Experience Years
+             * @description Стаж в ИТ, полных лет; 0 — меньше года
+             */
+            experience_years: number;
+            /** Soft Skills */
+            soft_skills: string[];
+            /**
+             * Work Formats
+             * @description Допустимые форматы работы
+             */
+            work_formats: components["schemas"]["WorkFormat"][];
+            /**
+             * City
+             * @description Где кандидат живёт
+             */
+            city: string | null;
+            /**
+             * Relocation
+             * @description Готов к переезду
+             */
+            relocation: boolean;
+            /**
+             * Full Name
+             * @description Раскрывается работодателю только после принятия приглашения или отклика
+             */
+            full_name: string;
+            /**
+             * Contact Email
+             * @description Раскрывается работодателю только после принятия приглашения или отклика
+             */
+            contact_email: string;
+            /**
+             * Contact Phone
+             * @description Раскрывается работодателю только после принятия приглашения или отклика
+             */
+            contact_phone: string | null;
+            /**
+             * Telegram
+             * @description Имя пользователя без «@». Раскрывается работодателю только после принятия приглашения или отклика
+             */
+            telegram: string | null;
+            /**
+             * About
+             * @description О себе. Раскрывается работодателю только после принятия приглашения или отклика
+             */
+            about: string;
+            /**
+             * Salary From
+             * @description Ожидаемая зарплата «от», рубли в месяц. Работодателю не показывается: по ней считается вероятность принятия приглашения
+             */
+            salary_from: number;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
         /** RegisterIn */
         RegisterIn: {
             /**
@@ -762,6 +977,45 @@ export interface components {
          * @enum {string}
          */
         Role: "candidate" | "employer";
+        /**
+         * SelfReportedOut
+         * @description Самоописание, которое видно в обезличенной карточке: низший уровень доверия, на
+         *     категорию не влияет.
+         */
+        SelfReportedOut: {
+            /**
+             * Stack
+             * @description По названию технологии
+             */
+            stack: components["schemas"]["CatalogRef"][];
+            /**
+             * Job Roles
+             * @description Кем кандидат работал или хочет работать
+             */
+            job_roles: string[];
+            /**
+             * Experience Years
+             * @description Стаж в ИТ, полных лет; 0 — меньше года
+             */
+            experience_years: number;
+            /** Soft Skills */
+            soft_skills: string[];
+            /**
+             * Work Formats
+             * @description Допустимые форматы работы
+             */
+            work_formats: components["schemas"]["WorkFormat"][];
+            /**
+             * City
+             * @description Где кандидат живёт
+             */
+            city: string | null;
+            /**
+             * Relocation
+             * @description Готов к переезду
+             */
+            relocation: boolean;
+        };
         /**
          * SkillProfileOut
          * @description Профиль навыков: уровень и погрешность по темам из всех сигналов — так его видит подбор.
@@ -1493,6 +1747,146 @@ export interface operations {
             };
         };
     };
+    get_profile_api_candidate_profile_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProfileOut"] | null;
+                };
+            };
+            /** @description `not_authenticated` — Войдите, чтобы продолжить */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description `wrong_role` — Раздел доступен другой роли */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    save_profile_api_candidate_profile_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProfileIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProfileOut"];
+                };
+            };
+            /** @description `not_authenticated` — Войдите, чтобы продолжить */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description `wrong_role` — Раздел доступен другой роли */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /**
+             * @description `unknown_technology` — Такой технологии нет в справочнике
+             *
+             *     `city_required` — Укажите город — для офиса и гибрида он обязателен
+             */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    download_pdf_api_candidate_profile_pdf_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description PDF-файл */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/pdf": string;
+                };
+            };
+            /** @description `not_authenticated` — Войдите, чтобы продолжить */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description `wrong_role` — Раздел доступен другой роли */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description `profile_not_found` — Сначала заполните профиль */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
     employer_cabinet_api_employer_cabinet_get: {
         parameters: {
             query?: never;
@@ -1947,6 +2341,64 @@ export interface operations {
                 };
             };
             /** @description `need_not_found` — Потребность не найдена — возможно, её удалили */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_candidate_card_api_employer_candidates__candidate_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                candidate_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CandidateCardOut"];
+                };
+            };
+            /** @description `not_authenticated` — Войдите, чтобы продолжить */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description `wrong_role` — Раздел доступен другой роли */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description `candidate_not_found` — Кандидат не найден */
             404: {
                 headers: {
                     [name: string]: unknown;

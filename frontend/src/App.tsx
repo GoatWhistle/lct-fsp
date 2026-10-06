@@ -2,6 +2,7 @@ import { Navigate, Outlet, Route, Routes } from 'react-router'
 import { Layout } from './components/Layout'
 import { RequireRole } from './components/RequireRole'
 import { CandidateCabinet } from './pages/CandidateCabinet'
+import { CandidateProfile } from './pages/CandidateProfile'
 import { CompanyProfile } from './pages/CompanyProfile'
 import { EmployerCabinet } from './pages/EmployerCabinet'
 import { Home } from './pages/Home'
@@ -22,10 +23,13 @@ export default function App() {
           path="candidate"
           element={
             <RequireRole role="candidate">
-              <CandidateCabinet />
+              <Outlet />
             </RequireRole>
           }
-        />
+        >
+          <Route index element={<CandidateCabinet />} />
+          <Route path="profile" element={<CandidateProfile />} />
+        </Route>
         <Route
           path="employer"
           element={

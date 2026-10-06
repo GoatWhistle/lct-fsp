@@ -20,6 +20,8 @@ export type NeedInput = components['schemas']['NeedIn']
 export type TopicImportance = components['schemas']['TopicImportance']
 export type TopicImportanceRow = components['schemas']['TopicImportanceOut']
 export type WorkFormat = components['schemas']['WorkFormat']
+export type Profile = components['schemas']['ProfileOut']
+export type ProfileInput = components['schemas']['ProfileIn']
 
 export const api = createClient<paths>({ credentials: 'same-origin' })
 

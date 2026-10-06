@@ -32,3 +32,19 @@ export function thetaWithError(level: Level): string {
 export function dateWords(iso: string): string {
   return new Date(iso).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' })
 }
+
+/** Стаж словами: «меньше года», «1 год», «4 года», «11 лет». */
+export function yearsWords(years: number): string {
+  if (years === 0) return 'меньше года'
+  const last = years % 10
+  const lastTwo = years % 100
+  if (last === 1 && lastTwo !== 11) return `${years} год`
+  if (last >= 2 && last <= 4 && (lastTwo < 12 || lastTwo > 14)) return `${years} года`
+  return `${years} лет`
+}
+
+const rubles = new Intl.NumberFormat('ru-RU')
+
+export function rublesWords(amount: number): string {
+  return `${rubles.format(amount)} ₽`
+}

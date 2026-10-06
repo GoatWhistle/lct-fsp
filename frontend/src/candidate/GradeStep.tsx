@@ -37,7 +37,7 @@ export function GradeStep({ catalog, survey, onDone, onChangeSurvey }: Props) {
     <form onSubmit={submit} className="card form">
       <h2>Грейд</h2>
       <p className="muted">
-        {survey.specialization.name} · {survey.industry.name}.{' '}
+        {survey.specialization.name}.{' '}
         <button type="button" className="link-button" onClick={onChangeSurvey}>
           Изменить
         </button>

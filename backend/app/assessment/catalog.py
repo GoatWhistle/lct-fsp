@@ -78,7 +78,7 @@ class CatalogData(BaseModel):
         topics = [t.code for s in self.specializations for t in s.topics]
         for kind, codes in [
             ("грейд", [g.code for g in self.grades]),
-            ("отрасль", [i.code for i in self.industries]),
+            ("сфера бизнеса", [i.code for i in self.industries]),
             ("специализация", [s.code for s in self.specializations]),
             ("тема", topics),
             ("технология", [t.code for t in self.technologies]),

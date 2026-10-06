@@ -1,9 +1,8 @@
 import { useEffect, useState } from 'react'
-import { api, type Grade, type Industry, type Specialization } from '../api/client'
+import { api, type Grade, type Specialization } from '../api/client'
 
 export type Catalog = {
   grades: Grade[]
-  industries: Industry[]
   specializations: Specialization[]
 }
 
@@ -13,21 +12,15 @@ export function useCatalog(): { catalog: Catalog | null; failed: boolean } {
   const [failed, setFailed] = useState(false)
 
   useEffect(() => {
-    Promise.all([
-      api.GET('/api/catalog/grades'),
-      api.GET('/api/catalog/industries'),
-      api.GET('/api/catalog/specializations'),
-    ]).then(([grades, industries, specializations]) => {
-      if (grades.data && industries.data && specializations.data) {
-        setCatalog({
-          grades: grades.data,
-          industries: industries.data,
-          specializations: specializations.data,
-        })
-      } else {
-        setFailed(true)
-      }
-    })
+    Promise.all([api.GET('/api/catalog/grades'), api.GET('/api/catalog/specializations')]).then(
+      ([grades, specializations]) => {
+        if (grades.data && specializations.data) {
+          setCatalog({ grades: grades.data, specializations: specializations.data })
+        } else {
+          setFailed(true)
+        }
+      },
+    )
   }, [])
 
   return { catalog, failed }

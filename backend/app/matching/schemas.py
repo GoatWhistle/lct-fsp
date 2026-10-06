@@ -4,15 +4,15 @@ import uuid
 from datetime import datetime
 from typing import Annotated
 
-from pydantic import BaseModel, Field, StrictInt, StringConstraints
+from pydantic import BaseModel, Field, StringConstraints
 
 from app.assessment.schemas import CatalogRef
 from app.matching.importance import TopicImportance
 from app.matching.models import SelectionBlock, WorkFormat
 from app.matching.score import Verdict
+from app.salary import SALARY_UNIT, Salary, SalaryBasisOut
 
 Title = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=200)]
-Salary = Annotated[StrictInt, Field(le=1_000_000_000, description="Рубли в месяц")]
 
 
 class TopicImportanceIn(BaseModel):
@@ -41,10 +41,10 @@ class NeedIn(TopicImportanceIn):
     )
     salary_from: Salary | None = Field(
         default=None,
-        description="Вилка необязательна; если указана — обе границы больше нуля, «от» не "
-        "больше «до»",
+        description=f"{SALARY_UNIT}. Вилка необязательна; если указана — обе границы больше "
+        "нуля, «от» не больше «до»",
     )
-    salary_to: Salary | None = None
+    salary_to: Salary | None = Field(default=None, description=SALARY_UNIT)
 
 
 class TopicImportanceOut(BaseModel):
@@ -56,7 +56,7 @@ class TopicImportanceOut(BaseModel):
     technologies: list[CatalogRef] = Field(description="Технологии стека, связанные с темой")
 
 
-class NeedOut(BaseModel):
+class NeedOut(SalaryBasisOut):
     id: uuid.UUID
     title: str
     team_description: str
@@ -65,8 +65,8 @@ class NeedOut(BaseModel):
     stack: list[CatalogRef] = Field(description="По названию технологии")
     work_format: WorkFormat
     city: str | None
-    salary_from: int | None
-    salary_to: int | None
+    salary_from: int | None = Field(description=SALARY_UNIT)
+    salary_to: int | None = Field(description=SALARY_UNIT)
     topics: list[TopicImportanceOut] = Field(description="Все темы специализации по порядку")
     created_at: datetime
     updated_at: datetime
@@ -80,7 +80,7 @@ class RequirementOut(BaseModel):
     requirement: float = Field(description="Требуемый уровень θ — порог грейда потребности")
 
 
-class NeedSnapshot(BaseModel):
+class NeedSnapshot(SalaryBasisOut):
     """Потребность на момент построения подборки — с весами и требованиями по темам."""
 
     title: str
@@ -89,8 +89,8 @@ class NeedSnapshot(BaseModel):
     stack: list[CatalogRef]
     work_format: WorkFormat
     city: str | None
-    salary_from: int | None
-    salary_to: int | None
+    salary_from: int | None = Field(description=SALARY_UNIT)
+    salary_to: int | None = Field(description=SALARY_UNIT)
     topics: list[RequirementOut] = Field(description="Все темы специализации по порядку")
     updated_at: datetime = Field(description="Версия потребности, по которой построена подборка")
 

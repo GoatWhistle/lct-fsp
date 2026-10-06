@@ -139,7 +139,6 @@ def seed(db_engine: Engine, seeds: Sequence[Seed], specialization: str = "qa") -
                     "id": survey,
                     "user_id": uid,
                     "number": 1,
-                    "industry_code": "fintech",
                     "specialization_code": specialization,
                     "created_at": now,
                 }

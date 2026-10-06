@@ -266,6 +266,8 @@ function CardDetails({ candidateId }: { candidateId: string }) {
                 Стаж в ИТ — {yearsWords(self.experience_years)} ·{' '}
                 {self.work_formats.map((f) => workFormatWord(f).toLowerCase()).join(', ')}
                 {self.city && ` · ${self.city}${self.relocation ? ', готов к переезду' : ''}`}
+                {self.industries.length > 0 &&
+                  ` · интересные сферы: ${self.industries.map((i) => i.name).join(', ')}`}
               </p>
               {self.stack.length > 0 && (
                 <ul className="chips">

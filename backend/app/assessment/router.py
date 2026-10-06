@@ -59,7 +59,12 @@ def list_grades(db: DbSession) -> list[GradeOut]:
     return [GradeOut.model_validate(g) for g in grades]
 
 
-@router.get("/industries", summary="Отрасли — сферы бизнеса для опроса кандидата")
+@router.get(
+    "/industries",
+    summary="Сферы бизнеса",
+    description="Сфера деятельности компании и интересные кандидату сферы. Не «отрасль» из ТЗ: "
+    "та — IT-направление, специализация.",
+)
 def list_industries(db: DbSession) -> list[IndustryOut]:
     industries = db.scalars(select(Industry).order_by(Industry.position))
     return [IndustryOut.model_validate(i) for i in industries]

@@ -1,4 +1,4 @@
-"""Схемы API потребности."""
+"""Схемы API потребности и подборки."""
 
 import uuid
 from datetime import datetime
@@ -8,7 +8,8 @@ from pydantic import BaseModel, Field, StrictInt, StringConstraints
 
 from app.assessment.schemas import CatalogRef
 from app.matching.importance import TopicImportance
-from app.matching.models import WorkFormat
+from app.matching.models import SelectionBlock, WorkFormat
+from app.matching.score import Verdict
 
 Title = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=200)]
 Salary = Annotated[StrictInt, Field(le=1_000_000_000, description="Рубли в месяц")]
@@ -69,3 +70,115 @@ class NeedOut(BaseModel):
     topics: list[TopicImportanceOut] = Field(description="Все темы специализации по порядку")
     created_at: datetime
     updated_at: datetime
+
+
+class RequirementOut(BaseModel):
+    topic: CatalogRef
+    importance: TopicImportance
+    edited: bool = Field(description="Важность поставил работодатель, а не вывод из стека")
+    weight: float = Field(description="Вес темы в скоре: вес важности, нормированный на сумму")
+    requirement: float = Field(description="Требуемый уровень θ — порог грейда потребности")
+
+
+class NeedSnapshot(BaseModel):
+    """Потребность на момент построения подборки — с весами и требованиями по темам."""
+
+    title: str
+    specialization: CatalogRef
+    grade: CatalogRef
+    stack: list[CatalogRef]
+    work_format: WorkFormat
+    city: str | None
+    salary_from: int | None
+    salary_to: int | None
+    topics: list[RequirementOut] = Field(description="Все темы специализации по порядку")
+    updated_at: datetime = Field(description="Версия потребности, по которой построена подборка")
+
+
+class TopicFitData(BaseModel):
+    """Вклад темы в хранимом объяснении — код темы, названия берутся из снимка."""
+
+    topic: str
+    theta: float
+    theta_sd: float
+    probability: float
+    contribution: float
+    verdict: Verdict
+    low_data: bool
+
+
+class StackFitData(BaseModel):
+    matched: list[str]
+    overlap: float
+    contribution: float
+
+
+class Explanation(BaseModel):
+    topics: list[TopicFitData]
+    stack: StackFitData
+
+
+class TopicFitOut(BaseModel):
+    topic: CatalogRef
+    importance: TopicImportance
+    weight: float = Field(description="Вес темы в скоре")
+    requirement: float = Field(description="Требуемый уровень θ")
+    theta: float = Field(description="Уровень по профилю навыков")
+    theta_sd: float = Field(description="Погрешность уровня")
+    probability: float = Field(description="P(уровень ≥ требование)")
+    contribution: float = Field(description="Вклад в соответствие: (1 − λ) · вес · вероятность")
+    verdict: Verdict = Field(
+        description="`confidently_above` — уверенно выше требования, `likely_above` — скорее "
+        "выше, `likely_below` — скорее ниже, `below` — ниже требования"
+    )
+    low_data: bool = Field(description="Погрешность выше `topic_low_data_sd` — данных мало")
+
+
+class StackFitOut(BaseModel):
+    matched: list[CatalogRef] = Field(
+        description="Технологии потребности в самоописании кандидата — не подтверждены"
+    )
+    total: int = Field(description="Технологий в стеке потребности")
+    overlap: float = Field(description="Доля технологий потребности в самоописании, o")
+    contribution: float = Field(description="Вклад самоописания: λ · o, не больше λ")
+
+
+class SelectionEntryOut(BaseModel):
+    """Кандидат в подборке — обезличенно: место, категория, соответствие и его объяснение.
+    Карточка — `GET /api/employer/candidates/{candidate_id}`."""
+
+    candidate_id: uuid.UUID
+    position: int = Field(description="Место в общей выдаче с 1: сначала точные, затем близкие")
+    block: SelectionBlock = Field(
+        description="`exact` — категория совпадает с потребностью, `nearby` — соседний грейд"
+    )
+    rank: int = Field(description="Место внутри блока с 1")
+    grade: CatalogRef = Field(description="Грейд категории кандидата")
+    match_score: float = Field(description="Соответствие — сумма вкладов тем и стека")
+    acceptance_probability: float | None = Field(
+        description="P(принятия); `null` — модели принятия ещё нет, множитель 1"
+    )
+    mutual_score: float = Field(description="Соответствие × P(принятия) — по нему порядок")
+    topics: list[TopicFitOut] = Field(description="Вклады тем в порядке тем специализации")
+    stack: StackFitOut
+    stale: bool = Field(description="Давно не подтверждал уровень: сигналов не было дольше срока")
+
+
+class SelectionSummaryOut(BaseModel):
+    id: uuid.UUID
+    need_id: uuid.UUID | None = Field(description="`null` — потребность удалена")
+    title: str = Field(description="Кого ищете — из снимка потребности")
+    specialization: CatalogRef
+    grade: CatalogRef
+    exact_total: int = Field(description="Кандидатов с категорией потребности")
+    nearby_total: int = Field(description="Близких — соседнего грейда")
+    created_at: datetime
+
+
+class SelectionOut(SelectionSummaryOut):
+    need: NeedSnapshot
+    stack_cap: float = Field(description="λ — потолок вклада самоописания на момент построения")
+    offset: int
+    entries: list[SelectionEntryOut] = Field(
+        description="Страница общей выдачи с места `offset + 1`"
+    )

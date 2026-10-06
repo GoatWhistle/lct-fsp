@@ -569,14 +569,14 @@ details summary {
 }
 
 @media (max-width: 560px) {
-  .table th,
-  .table td {
+  .importance-table th,
+  .importance-table td {
     display: block;
     border-top: 0;
     padding-left: 0;
   }
 
-  .table tr {
+  .importance-table tr {
     display: block;
     border-top: 1px solid var(--border);
     padding: 0.35rem 0;

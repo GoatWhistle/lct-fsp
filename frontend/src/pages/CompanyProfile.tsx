@@ -1,25 +1,25 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router'
-import { api, errorMessage, type CompanyInput } from '../api/client'
+import { api, errorMessage, type CompanyInput, type Industry } from '../api/client'
 import { useAuth } from '../auth/context'
-import { useEmployerCatalog } from '../employer/catalog'
 
 /** Профиль компании: кто приглашает кандидата. Контакты увидит кандидат в приглашении. */
 export function CompanyProfile() {
-  const { user } = useAuth()
-  const { catalog, failed } = useEmployerCatalog()
+  const email = useAuth().user?.email ?? ''
   const navigate = useNavigate()
+  const [industries, setIndustries] = useState<Industry[]>([])
   const [form, setForm] = useState<CompanyInput | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
 
   useEffect(() => {
-    if (!catalog) return
-    api.GET('/api/employer/company').then(({ data, error }) => {
-      if (error) {
-        setError(errorMessage(error))
+    Promise.all([api.GET('/api/employer/company'), api.GET('/api/catalog/industries')]).then(([company, catalog]) => {
+      if (company.error || !catalog.data) {
+        setError(errorMessage(company.error ?? catalog.error))
         return
       }
+      const data = company.data
+      setIndustries(catalog.data)
       setForm(
         data
           ? {
@@ -32,18 +32,18 @@ export function CompanyProfile() {
             }
           : {
               name: '',
-              industry: catalog.industries[0]?.code ?? '',
+              // Отрасль выбирается явно: молча подставленная первая исказила бы профиль.
+              industry: '',
               description: '',
               website: '',
-              contact_email: user?.email ?? '',
+              contact_email: email,
               contact_phone: '',
             },
       )
     })
-  }, [catalog, user])
+  }, [email])
 
-  if (failed) return <p className="error">Не удалось загрузить справочники</p>
-  if (!form || !catalog) return error ? <p className="error">{error}</p> : <p className="muted">Загрузка…</p>
+  if (!form) return error ? <p className="error">{error}</p> : <p className="muted">Загрузка…</p>
 
   function set<K extends keyof CompanyInput>(key: K, value: CompanyInput[K]) {
     setForm((current) => (current ? { ...current, [key]: value } : current))
@@ -71,7 +71,10 @@ export function CompanyProfile() {
         <label className="field">
           Направление деятельности
           <select value={form.industry} onChange={(e) => set('industry', e.target.value)} required>
-            {catalog.industries.map((i) => (
+            <option value="" disabled>
+              Выберите отрасль
+            </option>
+            {industries.map((i) => (
               <option key={i.code} value={i.code}>
                 {i.name}
               </option>

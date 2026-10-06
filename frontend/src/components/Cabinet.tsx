@@ -1,8 +1,19 @@
-/** Пустой кабинет роли: разделы появятся со следующими задачами. */
-export function Cabinet({ title, upcoming }: { title: string; upcoming: string[] }) {
+import type { ReactNode } from 'react'
+
+/** Кабинет роли: готовые разделы и список того, что появится со следующими задачами. */
+export function Cabinet({
+  title,
+  upcoming,
+  children,
+}: {
+  title: string
+  upcoming: string[]
+  children?: ReactNode
+}) {
   return (
-    <section>
+    <section className="stack">
       <h1>{title}</h1>
+      {children}
       <div className="card">
         <h2>Скоро здесь</h2>
         <ul className="upcoming">

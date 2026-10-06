@@ -182,6 +182,18 @@ def test_session_expires(signed_in: Callable[[Role], TestClient]) -> None:
     assert response.json()["code"] == "not_authenticated"
 
 
+def test_session_survives_server_clock_stepping_back(
+    signed_in: Callable[[Role], TestClient],
+) -> None:
+    """Синхронизация часов отводит их назад на секунды — свежий вход не должен слетать."""
+    client = signed_in(Role.candidate)
+
+    with time_machine.travel(datetime.now(UTC) - timedelta(seconds=5)):
+        response = client.get("/api/auth/me")
+
+    assert response.status_code == 200
+
+
 def test_forged_session_cookie_is_rejected(client: TestClient) -> None:
     client.cookies.set("access_token", "not-a-token")
 

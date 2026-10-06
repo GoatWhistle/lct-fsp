@@ -12,7 +12,7 @@ from pypdf.generic import DictionaryObject
 from sqlalchemy import Engine
 
 from app.identity.models import Role
-from tests.candidate_path import pass_test
+from tests.candidate_path import answer_items, nothing, pass_test, start, take_survey
 
 PROFILE = "/api/candidate/profile"
 PDF = f"{PROFILE}/pdf"
@@ -95,6 +95,44 @@ def test_candidate_fills_profile(candidate: TestClient) -> None:
     assert profile["experience_years"] == 4
     assert profile["salary_from"] == 287_500
     assert (profile["city"], profile["relocation"]) == ("Казань", True)
+
+
+def test_one_line_fields_collapse_line_breaks(candidate: TestClient) -> None:
+    response = candidate.put(
+        PROFILE,
+        json=profile_body(
+            full_name="Ёлкина\nЮлия\r\n\tСергеевна",
+            job_roles=["QA-\n\n\nинженер", "\n\n"],
+            soft_skills=["Наставни\nчество"],
+            city="Нижний\n\nНовгород\n",
+        ),
+    )
+
+    assert response.status_code == 200, response.text
+    profile = response.json()
+    assert profile["full_name"] == "Ёлкина Юлия Сергеевна"
+    assert profile["job_roles"] == ["QA- инженер"]
+    assert profile["soft_skills"] == ["Наставни чество"]
+    assert profile["city"] == "Нижний Новгород"
+
+
+def test_pdf_survives_line_breaks_in_one_line_fields(candidate: TestClient) -> None:
+    # Без схлопывания переводы строк растягивают PDF на страницы, а строка таблицы выше
+    # страницы роняет его с 500.
+    candidate.put(
+        PROFILE,
+        json=profile_body(
+            full_name="Ёлкина" + "\n" * 150 + "Юлия",
+            job_roles=["\n" * 90 + "QA"],
+            soft_skills=[f"навык {i}" + "\n" * 40 for i in range(15)],
+            city="Казань" + "\n" * 90,
+        ),
+    ).raise_for_status()
+
+    response = candidate.get(PDF)
+
+    assert response.status_code == 200
+    assert len(PdfReader(io.BytesIO(response.content)).pages) == 1
 
 
 def test_candidate_edits_profile(candidate: TestClient) -> None:
@@ -235,7 +273,24 @@ def test_pdf_profile_has_category_and_skill_profile(
         assert topic["name"] in text
 
 
-def test_employer_card_hides_contacts_and_expected_salary(
+def test_pdf_has_no_skill_profile_without_category(
+    candidate: TestClient, db_engine: Engine
+) -> None:
+    # Попытка на middle без верных ответов: профиль навыков посчитан, категории нет —
+    # стажёру предложен дотест на junior.
+    take_survey(candidate)
+    start(candidate, "middle")
+    assert answer_items(candidate, db_engine, nothing)["stage"] == "offer"
+    candidate.put(PROFILE, json=profile_body()).raise_for_status()
+
+    text = pdf_text(candidate.get(PDF).content)
+
+    assert "Категория пока не присвоена" in text
+    assert "Профиль навыков" not in text
+    assert "Общий уровень" not in text
+
+
+def test_employer_card_hides_contacts_free_text_and_expected_salary(
     candidate: TestClient, employer: TestClient, db_engine: Engine
 ) -> None:
     pass_test(candidate, db_engine)
@@ -254,9 +309,7 @@ def test_employer_card_hides_contacts_and_expected_salary(
             {"code": "postgresql", "name": "PostgreSQL"},
             {"code": "python", "name": "Python"},
         ],
-        "job_roles": ["QA-инженер", "тимлид"],
         "experience_years": 4,
-        "soft_skills": ["Наставничество", "Публичные выступления"],
         "work_formats": ["hybrid", "remote"],
         "city": "Казань",
         "relocation": True,
@@ -267,6 +320,9 @@ def test_employer_card_hides_contacts_and_expected_salary(
         "123-45-67",
         "yolkina_qa",
         "флаки",
+        # Роли и софт-скиллы — свободный текст: в метку можно вписать имя или контакт.
+        "тимлид",
+        "Наставничество",
         "287500",
         "salary",
         "contact",

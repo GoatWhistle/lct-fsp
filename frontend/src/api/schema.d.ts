@@ -262,7 +262,7 @@ export interface paths {
         };
         /**
          * Стандартизированный PDF-профиль
-         * @description Данные формы, категория и профиль навыков по темам, если тест пройден. Ожидаемой зарплаты в PDF нет.
+         * @description Данные формы, категория и профиль навыков её специализации, если тест пройден. Ожидаемой зарплаты в PDF нет.
          */
         get: operations["download_pdf_api_candidate_profile_pdf_get"];
         put?: never;
@@ -380,7 +380,7 @@ export interface paths {
         };
         /**
          * Карточка кандидата
-         * @description Обезличенная: категория, профиль навыков и самоописание без ФИО, контактов, «о себе» и ожидаемой зарплаты. Есть только у кандидата с категорией.
+         * @description Обезличенная: категория, профиль навыков и структурная часть самоописания. Без ФИО, контактов, свободного текста и ожидаемой зарплаты. Есть только у кандидата с категорией.
          */
         get: operations["get_candidate_card_api_employer_candidates__candidate_id__get"];
         put?: never;
@@ -517,8 +517,9 @@ export interface components {
         };
         /**
          * CandidateCardOut
-         * @description Обезличенная карточка: решение — по навыкам. Без ФИО, контактов, «о себе» и ожидаемой
-         *     зарплаты; фото, возраст и вуз платформа не собирает.
+         * @description Обезличенная карточка: решение — по навыкам. Без ФИО, контактов, свободного текста
+         *     («о себе», роли, софт-скиллы) и ожидаемой зарплаты; фото, возраст и вуз платформа не
+         *     собирает.
          */
         CandidateCardOut: {
             /**
@@ -887,17 +888,10 @@ export interface components {
              */
             stack: components["schemas"]["CatalogRef"][];
             /**
-             * Job Roles
-             * @description Кем кандидат работал или хочет работать
-             */
-            job_roles: string[];
-            /**
              * Experience Years
              * @description Стаж в ИТ, полных лет; 0 — меньше года
              */
             experience_years: number;
-            /** Soft Skills */
-            soft_skills: string[];
             /**
              * Work Formats
              * @description Допустимые форматы работы
@@ -938,6 +932,16 @@ export interface components {
              * @description О себе. Раскрывается работодателю только после принятия приглашения или отклика
              */
             about: string;
+            /**
+             * Job Roles
+             * @description Кем кандидат работал или хочет работать. Раскрывается работодателю только после принятия приглашения или отклика: свободный текст
+             */
+            job_roles: string[];
+            /**
+             * Soft Skills
+             * @description Раскрывается работодателю только после принятия приглашения или отклика: свободный текст
+             */
+            soft_skills: string[];
             /**
              * Salary From
              * @description Ожидаемая зарплата «от», рубли в месяц. Работодателю не показывается: по ней считается вероятность принятия приглашения
@@ -980,7 +984,7 @@ export interface components {
         /**
          * SelfReportedOut
          * @description Самоописание, которое видно в обезличенной карточке: низший уровень доверия, на
-         *     категорию не влияет.
+         *     категорию не влияет. Только структурные поля — свободный текст до раскрытия скрыт.
          */
         SelfReportedOut: {
             /**
@@ -989,17 +993,10 @@ export interface components {
              */
             stack: components["schemas"]["CatalogRef"][];
             /**
-             * Job Roles
-             * @description Кем кандидат работал или хочет работать
-             */
-            job_roles: string[];
-            /**
              * Experience Years
              * @description Стаж в ИТ, полных лет; 0 — меньше года
              */
             experience_years: number;
-            /** Soft Skills */
-            soft_skills: string[];
             /**
              * Work Formats
              * @description Допустимые форматы работы

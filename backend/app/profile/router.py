@@ -56,7 +56,7 @@ def save_profile(body: ProfileIn, user: CurrentUser, db: DbSession) -> ProfileOu
 @router.get(
     "/pdf",
     summary="Стандартизированный PDF-профиль",
-    description="Данные формы, категория и профиль навыков по темам, если тест пройден. "
+    description="Данные формы, категория и профиль навыков её специализации, если тест пройден. "
     "Ожидаемой зарплаты в PDF нет.",
     response_class=Response,
     responses={
@@ -68,14 +68,13 @@ def save_profile(body: ProfileIn, user: CurrentUser, db: DbSession) -> ProfileOu
     },
 )
 def download_pdf(user: CurrentUser, db: DbSession, mechanics: MechanicsDep) -> Response:
-    now = utcnow()
-    sheet = service.sheet(db, user.id, now)
+    sheet = service.sheet(db, user.id)
     content = render_profile(
         sheet.profile,
         CategoryOut.model_validate(sheet.category) if sheet.category else None,
         skill_profile_out(sheet.skill_profile, mechanics) if sheet.skill_profile else None,
         confidence=mechanics.grade_confidence,
-        now=now,
+        now=utcnow(),
     )
     filename = quote(f"Профиль кандидата — {sheet.profile.full_name}.pdf")
     return Response(
@@ -94,8 +93,9 @@ def download_pdf(user: CurrentUser, db: DbSession, mechanics: MechanicsDep) -> R
 @employer_router.get(
     "/{candidate_id}",
     summary="Карточка кандидата",
-    description="Обезличенная: категория, профиль навыков и самоописание без ФИО, контактов, "
-    "«о себе» и ожидаемой зарплаты. Есть только у кандидата с категорией.",
+    description="Обезличенная: категория, профиль навыков и структурная часть самоописания. Без "
+    "ФИО, контактов, свободного текста и ожидаемой зарплаты. Есть только у кандидата с "
+    "категорией.",
     responses=error_responses(service.CandidateNotFound),
 )
 def get_candidate_card(
@@ -107,9 +107,7 @@ def get_candidate_card(
 def _self_reported_out(profile: CandidateProfile) -> SelfReportedOut:
     return SelfReportedOut(
         stack=[CatalogRef.model_validate(t) for t in profile.stack],
-        job_roles=profile.job_roles,
         experience_years=profile.experience_years,
-        soft_skills=profile.soft_skills,
         work_formats=[WorkFormat(f) for f in profile.work_formats],
         city=profile.city,
         relocation=profile.relocation,
@@ -124,6 +122,8 @@ def _profile_out(profile: CandidateProfile) -> ProfileOut:
         contact_phone=profile.contact_phone,
         telegram=profile.telegram,
         about=profile.about,
+        job_roles=profile.job_roles,
+        soft_skills=profile.soft_skills,
         salary_from=profile.salary_from,
         updated_at=profile.updated_at,
     )

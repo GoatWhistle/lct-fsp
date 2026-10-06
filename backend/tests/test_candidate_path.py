@@ -66,8 +66,8 @@ def test_new_candidate_starts_with_survey_and_has_no_category(
 def test_full_path_to_category(candidate: TestClient, db_engine: Engine) -> None:
     survey = take_survey(candidate)
     assert survey["stage"] == "grade"
-    assert survey["survey"]["industry"]["code"] == "fintech"
     assert survey["survey"]["specialization"] == {"code": "qa", "name": "QA"}
+    assert "industry" not in survey["survey"]
 
     started = start(candidate, "middle")
     assert started["stage"] == "test"
@@ -237,7 +237,7 @@ def test_failed_cascade_leaves_no_category_until_retest_date(
     assert timedelta(days=29) < retest_after - datetime.now(UTC) <= timedelta(days=30)
     for blocked in (
         candidate.post(f"{PATH}/attempts", json={"grade": "intern"}),
-        candidate.post(f"{PATH}/survey", json={"industry": "fintech", "specialization": "qa"}),
+        candidate.post(f"{PATH}/survey", json={"specialization": "qa"}),
     ):
         assert blocked.status_code == 409
         assert blocked.json()["code"] == "path_step_unavailable"
@@ -291,9 +291,7 @@ def test_specialization_without_bank_is_rejected(candidate: TestClient, db_engin
             )
         )
     try:
-        response = candidate.post(
-            f"{PATH}/survey", json={"industry": "fintech", "specialization": "gamedev"}
-        )
+        response = candidate.post(f"{PATH}/survey", json={"specialization": "gamedev"})
     finally:
         with db_engine.begin() as conn:
             conn.execute(text("DELETE FROM topics WHERE specialization_code = 'gamedev'"))
@@ -303,18 +301,20 @@ def test_specialization_without_bank_is_rejected(candidate: TestClient, db_engin
     assert response.json()["code"] == "specialization_without_test"
 
 
-@pytest.mark.parametrize(
-    ("body", "code"),
-    [
-        ({"industry": "fintech", "specialization": "astrology"}, "unknown_specialization"),
-        ({"industry": "alchemy", "specialization": "qa"}, "unknown_industry"),
-    ],
-)
-def test_survey_rejects_unknown_choices(candidate: TestClient, body: Json, code: str) -> None:
-    response = candidate.post(f"{PATH}/survey", json=body)
+def test_survey_rejects_unknown_specialization(candidate: TestClient) -> None:
+    response = candidate.post(f"{PATH}/survey", json={"specialization": "astrology"})
 
     assert response.status_code == 422
-    assert response.json()["code"] == code
+    assert response.json()["code"] == "unknown_specialization"
+
+
+def test_survey_asks_direction_only(candidate: TestClient) -> None:
+    """«Отрасль» из ТЗ — IT-направление, то есть специализация. Сфера бизнеса в опросе не
+    нужна: прежнее поле игнорируется, а не требуется."""
+    path = candidate.post(f"{PATH}/survey", json={"specialization": "qa", "industry": "alchemy"})
+
+    assert path.status_code == 200, path.text
+    assert path.json()["survey"]["specialization"]["code"] == "qa"
 
 
 def test_unknown_grade_is_rejected(candidate: TestClient) -> None:

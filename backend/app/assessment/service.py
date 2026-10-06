@@ -1,5 +1,8 @@
 """Путь кандидата к категории: опрос → грейд → тест → оценка → категория (mechanics.md, §4, §6).
 
+Опрос — направление: специализация справочника, «отрасль» в ТЗ. Сферы бизнеса в опрос не
+входят — это необязательное предпочтение в профиле кандидата.
+
 Состояние пути выводится из записей: последний опрос, последняя попытка, категория. Состояние
 попытки — список предъявлений, оценка — чистая функция от него, поэтому прерванный тест
 продолжается с того же места после перезапуска бэкенда. Следующее задание выбирается
@@ -23,7 +26,6 @@ from app.assessment.determination import Assign, Offer, decide
 from app.assessment.models import (
     AttemptOutcome,
     CandidateCategory,
-    Industry,
     Presentation,
     Specialization,
     Survey,
@@ -45,7 +47,7 @@ _rng = secrets.SystemRandom()
 class UnknownIndustry(AppError):
     status_code = 422
     code = "unknown_industry"
-    message = "Такой отрасли нет в справочнике"
+    message = "Такой сферы бизнеса нет в справочнике"
 
 
 class UnknownSpecialization(AppError):
@@ -159,14 +161,10 @@ def path(db: Session, user_id: uuid.UUID, now: datetime) -> PathView:
     return PathView(stage, survey, attempt, category, profile)
 
 
-def submit_survey(
-    db: Session, user: User, *, industry: str, specialization: str, now: datetime
-) -> None:
+def submit_survey(db: Session, user: User, *, specialization: str, now: datetime) -> None:
     _lock(db, user)
     if path(db, user.id, now).stage not in (Stage.survey, Stage.grade):
         raise StepUnavailable()
-    if db.get(Industry, industry) is None:
-        raise UnknownIndustry()
     if db.get(Specialization, specialization) is None:
         raise UnknownSpecialization()
     if not bank.covers(_topics(db, specialization)):
@@ -175,7 +173,6 @@ def submit_survey(
         Survey(
             user_id=user.id,
             number=_next_number(db, Survey, user.id),
-            industry_code=industry,
             specialization_code=specialization,
             created_at=now,
         )

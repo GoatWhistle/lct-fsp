@@ -26,7 +26,7 @@ test_max_items: 30
 test_stop_sd: 0.35
 test_min_items_per_topic: 2
 test_max_topic_share: 0.35
-exposure_top_k: 5
+exposure_top_k: 2
 exposure_max_rate: 0.5
 exposure_window_attempts: 500
 topic_block_items: 6
@@ -38,6 +38,9 @@ elo_k_half_responses: 50
 elo_k_min: 0.03
 calibration_refit_min_responses: 200
 calibration_expert_gap_review: 1.0
+calibration_refit_difficulty_prior_sd: 1.0
+calibration_refit_log_discrimination_prior_sd: 0.3
+calibration_link_window_attempts: 500
 
 # Защита теста
 drift_shift: 1.0

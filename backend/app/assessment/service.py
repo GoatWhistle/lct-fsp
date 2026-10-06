@@ -1,11 +1,13 @@
 """Путь кандидата к категории: опрос → грейд → тест → оценка → категория (mechanics.md, §4, §6).
 
-Состояние пути выводится из записей: последний опрос, последняя попытка, категория. Оценка
-попытки — чистая функция от предъявлений её определения, поэтому прерванный тест продолжается
-с того же места после перезапуска бэкенда.
+Состояние пути выводится из записей: последний опрос, последняя попытка, категория. Состояние
+попытки — список предъявлений, оценка — чистая функция от него, поэтому прерванный тест
+продолжается с того же места после перезапуска бэкенда. Следующее задание выбирается
+адаптивно при показе.
 """
 
 import enum
+import logging
 import secrets
 import uuid
 from dataclasses import dataclass
@@ -14,9 +16,10 @@ from datetime import datetime, timedelta
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.assessment import bank
-from app.assessment.blueprint import fixed_blueprint
-from app.assessment.determination import Assign, Offer, decide, grades_by_threshold
+from app.assessment import bank, families
+from app.assessment.adaptive import Blueprint, choose, selection_prior, should_stop
+from app.assessment.calibration import rest_levels
+from app.assessment.determination import Assign, Offer, decide
 from app.assessment.models import (
     AttemptOutcome,
     CandidateCategory,
@@ -30,9 +33,13 @@ from app.assessment.models import (
 from app.config import Mechanics
 from app.errors import AppError
 from app.identity.models import User
-from app.skills.irt import Estimate, estimate
+from app.skills.irt import Observation, Prior, estimate
 from app.skills.models import SkillProfile
 from app.skills.service import presentation_observation, refresh_profile, specialization_prior
+
+log = logging.getLogger(__name__)
+# Случайный выбор из top-k: по нему никто не должен угадать следующее семейство.
+_rng = secrets.SystemRandom()
 
 
 class UnknownIndustry(AppError):
@@ -107,7 +114,6 @@ class Item:
     presentation: Presentation
     instance: bank.Instance
     topic: Topic
-    total: int
 
 
 def path(db: Session, user_id: uuid.UUID, now: datetime) -> PathView:
@@ -194,8 +200,6 @@ def start_attempt(
     else:
         raise StepUnavailable()
 
-    seen = _seen_families(_chain(db, continues)) if continues else set()
-    topics = _topics(db, survey.specialization_code)
     attempt = TestAttempt(
         user_id=user.id,
         number=_next_number(db, TestAttempt, user.id),
@@ -203,47 +207,31 @@ def start_attempt(
         specialization_code=survey.specialization_code,
         grade_code=grade,
         continues_attempt_id=continues.id if continues else None,
-        blueprint=_blueprint(topics, mechanics, grade=grade, seen=seen),
         started_at=now,
     )
     db.add(attempt)
     db.flush()
-    if not attempt.blueprint:
+    if not _remaining(db, attempt, mechanics):
         _finish(db, attempt, mechanics, now)
     db.commit()
 
 
 def current_item(db: Session, user: User, mechanics: Mechanics, *, now: datetime) -> Item:
     """Текущее задание попытки. Предъявление создаётся при первом показе — с него идут часы
-    ответа; повторный запрос отдаёт то же задание и часы не сбрасывает."""
+    ответа; повторный запрос отдаёт то же задание и часы не сбрасывает.
+
+    Следующее семейство выбирает адаптивный тест (§6) по оценке с априорным средним в пороге
+    грейда попытки; экземпляр всегда новый, со свежим seed.
+    """
     _lock(db, user)
     attempt = _attempt_in_progress(db, user.id)
     presentation = _pending(attempt)
     if presentation is None:
-        position = len(attempt.presentations)
-        family = bank.get_family(attempt.blueprint[position])
-        seed = secrets.randbits(63)
-        instance = family.instance(seed)
-        before = _test_estimate(db, attempt, mechanics).topic(family.topic)
-        presentation = Presentation(
-            attempt_id=attempt.id,
-            position=position,
-            family_code=family.code,
-            topic_code=family.topic,
-            seed=seed,
-            params=instance.params,
-            discrimination=mechanics.expert_discrimination,
-            difficulty=mechanics.expert_difficulty_by_grade[family.grade],
-            topic_theta_before=before.mean,
-            topic_theta_sd_before=before.sd,
-            shown_at=now,
-        )
-        attempt.presentations.append(presentation)
+        presentation = _present(db, attempt, mechanics, now)
         db.commit()
-    else:
-        instance = bank.get_family(presentation.family_code).instance(presentation.seed)
+    family = bank.get_family(presentation.family_code)
     topic = db.get_one(Topic, presentation.topic_code)
-    return Item(presentation, instance, topic, len(attempt.blueprint))
+    return Item(presentation, family.instance(presentation.seed), topic)
 
 
 def answer(
@@ -255,7 +243,9 @@ def answer(
     response: str,
     now: datetime,
 ) -> None:
-    """Проверка ответа на бэкенде; верность на фронт не уходит."""
+    """Проверка ответа на бэкенде; верность на фронт не уходит. После ответа — шаг Эло по
+    семейству и проверка остановки: точность набрана или спрашивать больше нечего. После
+    остановки — пересчёт связки шкалы и пакетная переоценка семейств, набравших ответы (§7)."""
     _lock(db, user)
     attempt = _attempt_in_progress(db, user.id)
     presentation = _pending(attempt)
@@ -268,29 +258,90 @@ def answer(
     # Часы сервера при синхронизации отходят назад на секунды — время ответа не уходит в минус.
     elapsed = (now - presentation.shown_at).total_seconds()
     presentation.response_time_ms = max(0, round(elapsed * 1000))
-    if len(attempt.presentations) == len(attempt.blueprint):
+    families.learn(db, presentation, mechanics)
+
+    prior = _prior(db, attempt, mechanics)
+    overall = estimate(prior, _observations(db, attempt)).overall()
+    blueprint = Blueprint.from_prior(prior, mechanics)
+    stop = should_stop(blueprint, _counts(attempt), overall)
+    if stop or not _remaining(db, attempt, mechanics):
         _finish(db, attempt, mechanics, now)
     db.commit()
+    if attempt.finished_at is not None:
+        specialization = attempt.specialization_code
+        families.relink(db, specialization, mechanics, now)
+        families.refit_due(
+            db, [p.family_code for p in attempt.presentations], specialization, mechanics, now
+        )
+
+
+def _present(
+    db: Session, attempt: TestAttempt, mechanics: Mechanics, now: datetime
+) -> Presentation:
+    prior = _prior(db, attempt, mechanics)
+    observations = _observations(db, attempt)
+    threshold = mechanics.grade_thresholds[attempt.grade_code]
+    selection = estimate(selection_prior(prior, threshold), observations)
+    options, exposure = families.options(db, attempt, _bank(prior), mechanics)
+    blueprint = Blueprint.from_prior(prior, mechanics)
+    choice = choose(blueprint, _counts(attempt), selection, options, exposure, _rng)
+    if choice is None:
+        # Ответ останавливает попытку, когда спрашивать нечего, — сюда не доходит.
+        raise NoTestInProgress()
+    option = next(o for o in options if o.code == choice.code)
+    if choice.capped:
+        # В пустом окне под потолком нет ничего — это обычный холодный старт; в непустом —
+        # сигнал, что банк темы мал (§6).
+        log.log(
+            logging.WARNING if exposure.attempts else logging.INFO,
+            "Тема %s: под потолком показов семейств нет, взято наименее показанное %s "
+            "(%d попыток в окне)",
+            option.topic,
+            option.code,
+            exposure.attempts,
+        )
+    seed = secrets.randbits(63)
+    instance = bank.get_family(option.code).instance(seed)
+    before = estimate(prior, observations).topic(option.topic)
+    presentation = Presentation(
+        attempt_id=attempt.id,
+        position=len(attempt.presentations),
+        family_code=option.code,
+        topic_code=option.topic,
+        seed=seed,
+        params=instance.params,
+        discrimination=option.discrimination,
+        difficulty=option.difficulty,
+        topic_theta_before=before.mean,
+        topic_theta_sd_before=before.sd,
+        shown_at=now,
+    )
+    attempt.presentations.append(presentation)
+    return presentation
 
 
 def _finish(db: Session, attempt: TestAttempt, mechanics: Mechanics, now: datetime) -> None:
     """Остановка попытки: оценка теста по всему определению и решение каскада (§4)."""
-    topics = _topics(db, attempt.specialization_code)
-    overall = _test_estimate(db, attempt, mechanics).overall()
-    seen = _seen_families(_chain(db, attempt))
-
-    def has_items(grade: str) -> bool:
-        return bool(_blueprint(topics, mechanics, grade=grade, seen=seen))
+    prior = _prior(db, attempt, mechanics)
+    answered = _answered(db, attempt)
+    observations = [presentation_observation(p) for p in answered]
+    overall = estimate(prior, observations).overall()
+    # Дотест всегда есть что спросить, пока у тем есть семейства в выдаче: невиданные кончатся —
+    # возьмутся давно виденные с новыми экземплярами.
+    available = bool(families.current(db, _bank(prior), mechanics))
 
     decision = decide(
         overall,
         attempt.grade_code,
         thresholds=mechanics.grade_thresholds,
         confidence=mechanics.grade_confidence,
-        has_items=has_items,
+        has_items=lambda _: available,
     )
     attempt.finished_at = now
     attempt.overall_theta, attempt.overall_theta_sd = overall.mean, overall.sd
+    mine = [i for i, p in enumerate(answered) if p.attempt_id == attempt.id]
+    for i, level in zip(mine, rest_levels(prior, observations, mine), strict=True):
+        answered[i].topic_theta_rest, answered[i].topic_theta_rest_sd = level.mean, level.sd
     match decision:
         case Assign(grade):
             attempt.outcome, attempt.outcome_grade_code = AttemptOutcome.assigned, grade
@@ -309,17 +360,22 @@ def _finish(db: Session, attempt: TestAttempt, mechanics: Mechanics, now: dateti
             attempt.outcome = AttemptOutcome.no_category
             attempt.retest_after = now + timedelta(days=mechanics.no_category_retest_days)
     db.flush()
-    refresh_profile(db, attempt.user_id, attempt.specialization_code, topics, mechanics)
+    refresh_profile(db, attempt.user_id, attempt.specialization_code, prior.topics, mechanics)
 
 
-def _test_estimate(db: Session, attempt: TestAttempt, mechanics: Mechanics) -> Estimate:
-    """Оценка теста — по ответам всего определения категории с весом 1 и общим априорным:
-    заявленный грейд на неё не влияет (§4, §6)."""
-    answered = [
-        p for a in _chain(db, attempt) for p in a.presentations if p.answered_at is not None
-    ]
-    prior = specialization_prior(_topics(db, attempt.specialization_code), mechanics)
-    return estimate(prior, [presentation_observation(p) for p in answered])
+def _prior(db: Session, attempt: TestAttempt, mechanics: Mechanics) -> Prior:
+    """Общее априорное оценки теста: заявленный грейд на неё не влияет (§4, §6)."""
+    return specialization_prior(_topics(db, attempt.specialization_code), mechanics)
+
+
+def _answered(db: Session, attempt: TestAttempt) -> list[Presentation]:
+    """Отвеченные предъявления всего определения категории — по порядку."""
+    return [p for a in _chain(db, attempt) for p in a.presentations if p.answered_at is not None]
+
+
+def _observations(db: Session, attempt: TestAttempt) -> list[Observation]:
+    """Оценка теста — по ответам всего определения с весом 1: дотест продолжает её."""
+    return [presentation_observation(p) for p in _answered(db, attempt)]
 
 
 def _chain(db: Session, attempt: TestAttempt) -> list[TestAttempt]:
@@ -330,19 +386,24 @@ def _chain(db: Session, attempt: TestAttempt) -> list[TestAttempt]:
     return chain
 
 
-def _seen_families(chain: list[TestAttempt]) -> set[str]:
-    return {code for a in chain for code in a.blueprint}
+def _counts(attempt: TestAttempt) -> dict[str, int]:
+    """Заданий по темам в текущей попытке: минимумы покрытия и потолок доли — у каждой свои."""
+    counts: dict[str, int] = {}
+    for p in attempt.presentations:
+        counts[p.topic_code] = counts.get(p.topic_code, 0) + 1
+    return counts
 
 
-def _blueprint(topics: list[str], mechanics: Mechanics, *, grade: str, seen: set[str]) -> list[str]:
-    return fixed_blueprint(
-        topics=topics,
-        families=bank.families_for_topics(topics),
-        grades=grades_by_threshold(mechanics.grade_thresholds),
-        grade=grade,
-        seen=seen,
-        per_topic=mechanics.test_min_items_per_topic,
-    )
+def _bank(prior: Prior) -> list[bank.Family]:
+    return bank.families_for_topics(prior.topics)
+
+
+def _remaining(db: Session, attempt: TestAttempt, mechanics: Mechanics) -> bool:
+    """Есть ли в выдаче семейства тем, ещё не показанные в этой попытке."""
+    shown = {p.family_code for p in attempt.presentations}
+    prior = _prior(db, attempt, mechanics)
+    fresh = [f for f in _bank(prior) if f.code not in shown]
+    return bool(families.current(db, fresh, mechanics))
 
 
 def _topics(db: Session, specialization: str) -> list[str]:

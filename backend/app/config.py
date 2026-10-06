@@ -77,6 +77,9 @@ class Mechanics(BaseModel):
     elo_k_min: float
     calibration_refit_min_responses: int
     calibration_expert_gap_review: float
+    calibration_refit_difficulty_prior_sd: float
+    calibration_refit_log_discrimination_prior_sd: float
+    calibration_link_window_attempts: int
 
     # Защита теста
     drift_shift: float

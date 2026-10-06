@@ -1,7 +1,16 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router'
-import { api, errorMessage, type Profile, type ProfileInput, type Technology, type WorkFormat } from '../api/client'
+import {
+  api,
+  errorMessage,
+  type Industry,
+  type Profile,
+  type ProfileInput,
+  type Technology,
+  type WorkFormat,
+} from '../api/client'
 import { useAuth } from '../auth/context'
+import { SalaryInput } from '../components/SalaryInput'
 import { TagInput } from '../components/TagInput'
 import { TechnologyPicker } from '../components/TechnologyPicker'
 import { workFormats } from '../employer/words'
@@ -21,6 +30,7 @@ type Draft = {
   work_formats: WorkFormat[]
   city: string
   relocation: boolean
+  industries: string[]
   salary_from: string
 }
 
@@ -38,6 +48,7 @@ function emptyDraft(email: string): Draft {
     work_formats: [],
     city: '',
     relocation: false,
+    industries: [],
     salary_from: '',
   }
 }
@@ -56,6 +67,7 @@ function draftOf(profile: Profile): Draft {
     work_formats: profile.work_formats,
     city: profile.city ?? '',
     relocation: profile.relocation,
+    industries: profile.industries.map((i) => i.code),
     salary_from: profile.salary_from.toString(),
   }
 }
@@ -76,17 +88,23 @@ export function CandidateProfile() {
   const email = useAuth().user?.email ?? ''
   const navigate = useNavigate()
   const [technologies, setTechnologies] = useState<Technology[]>([])
+  const [industries, setIndustries] = useState<Industry[]>([])
   const [draft, setDraft] = useState<Draft | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
 
   useEffect(() => {
-    Promise.all([api.GET('/api/candidate/profile'), api.GET('/api/catalog/technologies')]).then(([profile, catalog]) => {
-      if (profile.error || !catalog.data) {
-        setError(errorMessage(profile.error ?? catalog.error))
+    Promise.all([
+      api.GET('/api/candidate/profile'),
+      api.GET('/api/catalog/technologies'),
+      api.GET('/api/catalog/industries'),
+    ]).then(([profile, catalog, spheres]) => {
+      if (profile.error || !catalog.data || !spheres.data) {
+        setError(errorMessage(profile.error ?? catalog.error ?? spheres.error))
         return
       }
       setTechnologies(catalog.data)
+      setIndustries(spheres.data)
       setDraft(profile.data ? draftOf(profile.data) : emptyDraft(email))
     })
   }, [email])
@@ -103,6 +121,14 @@ export function CandidateProfile() {
       ? draft.work_formats.filter((f) => f !== format)
       : [...draft.work_formats, format]
     change({ work_formats: chosen })
+  }
+
+  function toggleIndustry(code: string) {
+    if (!draft) return
+    const chosen = draft.industries.includes(code)
+      ? draft.industries.filter((c) => c !== code)
+      : [...draft.industries, code]
+    change({ industries: chosen })
   }
 
   async function submit(event: FormEvent) {
@@ -194,8 +220,8 @@ export function CandidateProfile() {
         <h2>Контакты</h2>
         <p className="hint">
           Работодатель получит контакты, только когда вы примете его приглашение или откликнетесь
-          сами. До этого он видит обезличенную карточку: категорию, профиль навыков, стек, стаж и
-          формат работы.
+          сами. До этого он видит обезличенную карточку: категорию, профиль навыков, стек, стаж,
+          формат работы и интересные сферы.
         </p>
         <div className="field-row">
           <label className="field">
@@ -275,21 +301,12 @@ export function CandidateProfile() {
             />
             <span className="hint">{onlyRemote ? 'Для удалённой работы — по желанию' : 'Где вы живёте'}</span>
           </label>
-          <label className="field">
-            Зарплата от, ₽ в месяц
-            <input
-              type="number"
-              required
-              min={1}
-              step={1}
-              inputMode="numeric"
-              value={draft.salary_from}
-              onChange={(e) => change({ salary_from: e.target.value })}
-            />
-            <span className="hint">
-              Работодатель её не видит: по ней система оценивает, подойдёт ли вам его вилка
-            </span>
-          </label>
+          <SalaryInput
+            label="Зарплата от"
+            value={draft.salary_from}
+            onChange={(salary_from) => change({ salary_from })}
+            hint="Работодатель её не видит: по ней система оценивает, подойдёт ли вам его вилка"
+          />
         </div>
         <label className="checkbox">
           <input
@@ -299,6 +316,25 @@ export function CandidateProfile() {
           />
           Готов к переезду
         </label>
+        <fieldset className="plain">
+          <legend>Интересные сферы бизнеса</legend>
+          <div className="chips">
+            {industries.map((i) => (
+              <button
+                key={i.code}
+                type="button"
+                className={draft.industries.includes(i.code) ? 'chip chip-toggle selected' : 'chip chip-toggle'}
+                aria-pressed={draft.industries.includes(i.code)}
+                onClick={() => toggleIndustry(i.code)}
+              >
+                {i.name}
+              </button>
+            ))}
+          </div>
+          <span className="hint">
+            По желанию. На категорию не влияет — помогает понять, какие приглашения вам интереснее
+          </span>
+        </fieldset>
 
         {error && <p className="error">{error}</p>}
         <div className="actions">

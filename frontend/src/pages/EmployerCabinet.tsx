@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router'
 import { api, errorMessage, type Company, type Need, type SelectionSummary } from '../api/client'
 import { dateTimeWords, dateWords } from '../candidate/words'
 import { Cabinet } from '../components/Cabinet'
-import { salaryWords, workFormatWord } from '../employer/words'
+import { needSalaryWords, workFormatWord } from '../employer/words'
 
 /** Кабинет работодателя: профиль компании, потребности и подборки по ним. */
 export function EmployerCabinet() {
@@ -167,7 +167,7 @@ function NeedCard({ need, selections }: { need: Need; selections: SelectionSumma
       </div>
       <p className="muted">
         {workFormatWord(need.work_format)}
-        {need.city && ` · ${need.city}`} · {salaryWords(need)}
+        {need.city && ` · ${need.city}`} · {needSalaryWords(need)}
       </p>
       {need.stack.length > 0 && (
         <ul className="chips">

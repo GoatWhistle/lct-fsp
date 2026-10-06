@@ -9,10 +9,12 @@ type Props = {
   onCancel?: () => void
 }
 
-/** Опрос: отрасль и специализация. Специализации без готового теста видны, но недоступны. */
+/**
+ * Опрос: направление — специализация («отрасль» в ТЗ). Специализации без готового теста видны, но
+ * недоступны. Интересные сферы бизнеса — необязательная часть профиля, не опроса.
+ */
 export function SurveyStep({ catalog, current, onDone, onCancel }: Props) {
   const firstWithTest = catalog.specializations.find((s) => s.has_test)?.code ?? ''
-  const [industry, setIndustry] = useState(current?.industry.code ?? catalog.industries[0]?.code ?? '')
   const [specialization, setSpecialization] = useState(current?.specialization.code ?? firstWithTest)
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
@@ -22,7 +24,7 @@ export function SurveyStep({ catalog, current, onDone, onCancel }: Props) {
     setSubmitting(true)
     setError(null)
     const { data, error } = await api.POST('/api/candidate/path/survey', {
-      body: { industry, specialization },
+      body: { specialization },
     })
     setSubmitting(false)
     if (data) onDone(data)
@@ -32,19 +34,8 @@ export function SurveyStep({ catalog, current, onDone, onCancel }: Props) {
   return (
     <form onSubmit={submit} className="card form">
       <h2>Опрос</h2>
-      <label className="field">
-        Отрасль, в которой хотите работать
-        <select value={industry} onChange={(e) => setIndustry(e.target.value)} required>
-          {catalog.industries.map((i) => (
-            <option key={i.code} value={i.code}>
-              {i.name}
-            </option>
-          ))}
-        </select>
-        <span className="hint">На категорию не влияет — помогает работодателям вас найти</span>
-      </label>
       <fieldset className="choice-grid">
-        <legend>Специализация</legend>
+        <legend>Направление, в котором хотите работать</legend>
         {catalog.specializations.map((s) => (
           <label
             key={s.code}
@@ -67,6 +58,10 @@ export function SurveyStep({ catalog, current, onDone, onCancel }: Props) {
           </label>
         ))}
       </fieldset>
+      <p className="hint">
+        По направлению строится тест и ваша категория. Интересные сферы бизнеса — финтех, госсектор и
+        другие — можно отметить в профиле, по желанию.
+      </p>
       {error && <p className="error">{error}</p>}
       <div className="actions">
         <button type="submit" className="button" disabled={submitting || !specialization}>

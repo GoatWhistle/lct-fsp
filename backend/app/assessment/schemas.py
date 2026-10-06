@@ -22,9 +22,8 @@ class CatalogRef(_Out):
 
 
 class SurveyIn(BaseModel):
-    industry: str = Field(description="Код отрасли из `/api/catalog/industries`")
     specialization: str = Field(
-        description="Код специализации из `/api/catalog/specializations` с `has_test`"
+        description="Направление — код специализации из `/api/catalog/specializations` с `has_test`"
     )
 
 
@@ -38,7 +37,6 @@ class AnswerIn(BaseModel):
 
 
 class SurveyOut(_Out):
-    industry: CatalogRef
     specialization: CatalogRef
     created_at: datetime
 

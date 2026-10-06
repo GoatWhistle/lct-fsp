@@ -179,6 +179,7 @@ def _self_reported(pdf: _Document, profile: CandidateProfile) -> None:
         ("Софт-скиллы", ", ".join(profile.soft_skills)),
         ("Формат работы", formats_words(profile.work_formats)),
         ("Город", _city_words(profile)),
+        ("Интересные сферы", ", ".join(i.name for i in profile.industries)),
     ]
     _facts(pdf, [(label, value) for label, value in rows if value])
     if profile.about:

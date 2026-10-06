@@ -1,6 +1,6 @@
 """Справочники и путь кандидата к категории: опрос, попытки теста, предъявления, категория.
 
-Справочники — грейды, отрасли, специализации, их темы и технологии стека. Содержимое — в
+Справочники — грейды, сферы бизнеса, специализации, их темы и технологии стека. Содержимое — в
 `catalog.yaml`, в базу его кладёт `python -m app.assessment.catalog`. Ключ каждой записи —
 стабильный `code`: на него ссылаются тест, профиль и подбор.
 """
@@ -37,6 +37,9 @@ class Grade(Base):
 
 
 class Industry(Base):
+    """Сфера бизнеса: деятельность компании и интересные кандидату сферы. «Отрасль» из ТЗ —
+    другое: IT-направление, то есть специализация."""
+
     __tablename__ = "industries"
 
     code: Mapped[str] = mapped_column(String(32), primary_key=True)
@@ -73,7 +76,8 @@ class Technology(Base):
 
 
 class Survey(Base):
-    """Опрос — первый шаг пути: отрасль и специализация. Последний опрос кандидата — текущий."""
+    """Опрос — первый шаг пути: направление, то есть специализация («отрасль» в ТЗ). Последний
+    опрос кандидата — текущий."""
 
     __tablename__ = "surveys"
     __table_args__ = (UniqueConstraint("user_id", "number"),)
@@ -82,11 +86,9 @@ class Survey(Base):
     user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
     # Номер опроса кандидата с 1. Порядок — по нему: часы сервера при синхронизации отходят назад.
     number: Mapped[int]
-    industry_code: Mapped[str] = mapped_column(ForeignKey("industries.code"))
     specialization_code: Mapped[str] = mapped_column(ForeignKey("specializations.code"))
     created_at: Mapped[datetime] = mapped_column(default=utcnow)
 
-    industry: Mapped[Industry] = relationship()
     specialization: Mapped[Specialization] = relationship()
 
 

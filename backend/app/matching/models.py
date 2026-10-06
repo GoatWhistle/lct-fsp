@@ -63,7 +63,7 @@ class Need(Base):
         Enum(WorkFormat, native_enum=False, create_constraint=True, length=16, name="work_format")
     )
     city: Mapped[str | None] = mapped_column(String(100))
-    # Рубли в месяц.
+    # Рубли в месяц до вычета НДФЛ — `app/salary.py`.
     salary_from: Mapped[int | None]
     salary_to: Mapped[int | None]
     created_at: Mapped[datetime] = mapped_column(default=utcnow)

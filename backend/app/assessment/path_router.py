@@ -43,11 +43,12 @@ def get_path(user: CurrentUser, db: DbSession, mechanics: MechanicsDep) -> PathO
 
 @router.post(
     "/survey",
-    summary="Опрос: отрасль и специализация",
-    description="Доступен до начала теста. Повторный опрос заменяет прежний.",
+    summary="Опрос: направление — специализация",
+    description="«Отрасль» в ТЗ — IT-направление, то есть специализация. Интересные сферы "
+    "бизнеса кандидат по желанию отмечает в профиле. Опрос доступен до начала теста, повторный "
+    "заменяет прежний.",
     responses=error_responses(
         service.StepUnavailable,
-        service.UnknownIndustry,
         service.UnknownSpecialization,
         service.SpecializationWithoutTest,
     ),
@@ -55,9 +56,7 @@ def get_path(user: CurrentUser, db: DbSession, mechanics: MechanicsDep) -> PathO
 def submit_survey(
     body: SurveyIn, user: CurrentUser, db: DbSession, mechanics: MechanicsDep
 ) -> PathOut:
-    service.submit_survey(
-        db, user, industry=body.industry, specialization=body.specialization, now=utcnow()
-    )
+    service.submit_survey(db, user, specialization=body.specialization, now=utcnow())
     return _path_out(service.path(db, user.id, utcnow()), mechanics)
 
 

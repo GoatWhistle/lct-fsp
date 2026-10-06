@@ -111,6 +111,7 @@ def _self_reported_out(profile: CandidateProfile) -> SelfReportedOut:
         work_formats=[WorkFormat(f) for f in profile.work_formats],
         city=profile.city,
         relocation=profile.relocation,
+        industries=[CatalogRef.model_validate(i) for i in profile.industries],
     )
 
 

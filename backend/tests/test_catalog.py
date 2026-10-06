@@ -52,7 +52,7 @@ def test_unknown_specialization_is_404(client: TestClient) -> None:
     assert response.json()["code"] == "specialization_not_found"
 
 
-def test_industries_for_survey(client: TestClient) -> None:
+def test_industries_are_business_spheres(client: TestClient) -> None:
     industries = client.get("/api/catalog/industries").json()
 
     assert {"code": "fintech", "name": "Финтех и банки"} in industries

@@ -32,7 +32,7 @@ export function CompanyProfile() {
             }
           : {
               name: '',
-              // Отрасль выбирается явно: молча подставленная первая исказила бы профиль.
+              // Сфера выбирается явно: молча подставленная первая исказила бы профиль.
               industry: '',
               description: '',
               website: '',
@@ -69,10 +69,10 @@ export function CompanyProfile() {
           <input required maxLength={200} value={form.name} onChange={(e) => set('name', e.target.value)} />
         </label>
         <label className="field">
-          Направление деятельности
+          Сфера деятельности
           <select value={form.industry} onChange={(e) => set('industry', e.target.value)} required>
             <option value="" disabled>
-              Выберите отрасль
+              Выберите сферу
             </option>
             {industries.map((i) => (
               <option key={i.code} value={i.code}>

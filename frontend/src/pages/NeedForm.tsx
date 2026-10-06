@@ -10,6 +10,7 @@ import {
   type TopicImportanceRow,
   type WorkFormat,
 } from '../api/client'
+import { SalaryRangeInput } from '../components/SalaryInput'
 import { useEmployerCatalog, type EmployerCatalog } from '../employer/catalog'
 import { importances, workFormats } from '../employer/words'
 
@@ -281,37 +282,12 @@ function NeedEditor({ catalog, need }: { catalog: EmployerCatalog; need: Need | 
           </span>
         </label>
 
-        <fieldset className="plain">
-          <legend>Вилка, ₽ в месяц</legend>
-          <div className="field-row">
-            <label className="field">
-              От
-              <input
-                type="number"
-                min={1}
-                inputMode="numeric"
-                required={draft.salary_to !== ''}
-                value={draft.salary_from}
-                onChange={(e) => change({ salary_from: e.target.value })}
-              />
-            </label>
-            <label className="field">
-              До
-              <input
-                type="number"
-                min={draft.salary_from || 1}
-                inputMode="numeric"
-                required={draft.salary_from !== ''}
-                value={draft.salary_to}
-                onChange={(e) => change({ salary_to: e.target.value })}
-              />
-            </label>
-          </div>
-          <span className="hint">
-            Можно не указывать. В приглашении кандидату вилка обязательна — он видит условия до начала
-            общения.
-          </span>
-        </fieldset>
+        <SalaryRangeInput
+          range={{ from: draft.salary_from, to: draft.salary_to }}
+          onChange={({ from, to }) => change({ salary_from: from, salary_to: to })}
+          optional
+          hint="Можно не указывать. В приглашении кандидату вилка обязательна — он видит условия до начала общения."
+        />
 
         {error && <p className="error">{error}</p>}
         <div className="actions">

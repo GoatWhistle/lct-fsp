@@ -46,6 +46,7 @@ def profile_body(**changes: Any) -> Json:
         "work_formats": ["remote", "hybrid"],
         "city": "Казань",
         "relocation": True,
+        "industries": ["it-products", "fintech"],
         "salary_from": 287_500,
     }
     return body | changes
@@ -94,7 +95,31 @@ def test_candidate_fills_profile(candidate: TestClient) -> None:
     assert profile["work_formats"] == ["hybrid", "remote"]
     assert profile["experience_years"] == 4
     assert profile["salary_from"] == 287_500
+    assert profile["salary_basis"] == "gross"
     assert (profile["city"], profile["relocation"]) == ("Казань", True)
+    # Интересные сферы — в порядке справочника, а не ввода.
+    assert profile["industries"] == [
+        {"code": "fintech", "name": "Финтех и банки"},
+        {"code": "it-products", "name": "ИТ-продукты и аутсорс"},
+    ]
+
+
+def test_interesting_industries_are_optional(candidate: TestClient) -> None:
+    body = profile_body()
+    del body["industries"]
+
+    response = candidate.put(PROFILE, json=body)
+
+    assert response.status_code == 200, response.text
+    assert response.json()["industries"] == []
+
+
+def test_interesting_industries_come_from_catalog(candidate: TestClient) -> None:
+    response = candidate.put(PROFILE, json=profile_body(industries=["fintech", "alchemy"]))
+
+    assert response.status_code == 422
+    assert response.json()["code"] == "unknown_industry"
+    assert candidate.get(PROFILE).json() is None
 
 
 def test_one_line_fields_collapse_line_breaks(candidate: TestClient) -> None:
@@ -247,6 +272,7 @@ def test_pdf_profile_before_test(candidate: TestClient) -> None:
     assert "Telegram @yolkina_qa" in text
     assert "PostgreSQL, Python" in text
     assert "4 года" in text
+    assert "Финтех и банки" in text
     assert "Категория пока не присвоена" in text
     # Кириллица набрана встроенным PT Sans, а не стандартным шрифтом без кириллицы.
     fonts = font_names(response.content)
@@ -313,6 +339,10 @@ def test_employer_card_hides_contacts_free_text_and_expected_salary(
         "work_formats": ["hybrid", "remote"],
         "city": "Казань",
         "relocation": True,
+        "industries": [
+            {"code": "fintech", "name": "Финтех и банки"},
+            {"code": "it-products", "name": "ИТ-продукты и аутсорс"},
+        ],
     }
     for hidden in (
         "Ёлкина",

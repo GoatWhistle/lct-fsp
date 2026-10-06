@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router'
 import { api, errorMessage, type Profile } from '../api/client'
 import { workFormatWord } from '../employer/words'
-import { rublesWords, yearsWords } from './words'
+import { salaryWords } from '../components/salary'
+import { yearsWords } from './words'
 
 /** Профиль в кабинете: кратко, что заполнено, кто что видит, и стандартизированный PDF. */
 export function ProfileCard() {
@@ -40,6 +41,8 @@ export function ProfileCard() {
   const expectations = [
     formats.charAt(0).toUpperCase() + formats.slice(1),
     profile.city && `${profile.city}${profile.relocation ? ', готов к переезду' : ''}`,
+    profile.industries.length > 0 &&
+      `интересные сферы: ${profile.industries.map((i) => i.name).join(', ')}`,
   ].filter(Boolean)
 
   return (
@@ -71,9 +74,9 @@ export function ProfileCard() {
         </ul>
       )}
       <p className="hint">
-        До принятия приглашения работодатель видит категорию, профиль навыков, стек, стаж и формат
-        — без имени, контактов, ролей, софт-скиллов и «о себе». Ожидаемую зарплату — от{' '}
-        {rublesWords(profile.salary_from)} — он не видит никогда.
+        До принятия приглашения работодатель видит категорию, профиль навыков, стек, стаж, формат и
+        интересные сферы — без имени, контактов, ролей, софт-скиллов и «о себе». Ожидаемую зарплату
+        — {salaryWords(profile.salary_from)} — он не видит никогда.
       </p>
     </div>
   )

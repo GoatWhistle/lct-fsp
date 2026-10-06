@@ -54,9 +54,3 @@ export function yearsWords(years: number): string {
   if (last >= 2 && last <= 4 && (lastTwo < 12 || lastTwo > 14)) return `${years} года`
   return `${years} лет`
 }
-
-const rubles = new Intl.NumberFormat('ru-RU')
-
-export function rublesWords(amount: number): string {
-  return `${rubles.format(amount)} ₽`
-}

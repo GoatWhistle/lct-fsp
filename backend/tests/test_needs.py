@@ -58,6 +58,7 @@ def test_employer_creates_need_and_reads_it_back(employer: TestClient) -> None:
     assert need["work_format"] == "hybrid"
     assert need["city"] == "Москва"
     assert (need["salary_from"], need["salary_to"]) == (200_000, 280_000)
+    assert need["created_at"].endswith("Z") and need["updated_at"].endswith("Z")
     assert [n["id"] for n in employer.get(NEEDS).json()] == [created["id"]]
 
 

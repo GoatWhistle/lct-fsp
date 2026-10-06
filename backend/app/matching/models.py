@@ -119,11 +119,10 @@ class Selection(Base):
         ForeignKey("needs.id", ondelete="SET NULL"), index=True
     )
     # Потребность на момент построения с весами и требованиями по темам — `NeedSnapshot`.
+    # Сохранённые подборки читаются этой схемой: её правка — вместе с миграцией данных.
     need_snapshot: Mapped[dict[str, Any]] = mapped_column(JSONB)
     # λ на момент построения — потолок вклада самоописания.
     stack_cap: Mapped[float]
-    exact_total: Mapped[int]
-    nearby_total: Mapped[int]
     created_at: Mapped[datetime] = mapped_column(default=utcnow)
 
 
@@ -152,15 +151,16 @@ class SelectionEntry(Base):
     )
     # Место внутри блока с 1.
     rank: Mapped[int]
-    # Грейд категории кандидата на момент построения.
-    grade_code: Mapped[str] = mapped_column(ForeignKey("grades.code"))
+    # Грейд категории кандидата на момент построения — со снимком названия, без ссылки на
+    # справочник: правка справочника старую выдачу не меняет.
+    grade_code: Mapped[str] = mapped_column(String(32))
+    grade_name: Mapped[str] = mapped_column(String(64))
     match_score: Mapped[float]
     # P(принятия); NULL — модели принятия нет, множитель 1.
     acceptance_probability: Mapped[float | None]
     mutual_score: Mapped[float]
-    # Вклады тем и стека — `Explanation`; коды тем и технологий, названия — из снимка.
+    # Вклады тем и стека — `Explanation`; коды тем и технологий, названия — из снимка. Как и
+    # снимок, правка схемы — вместе с миграцией данных.
     explanation: Mapped[dict[str, Any]] = mapped_column(JSONB)
     # Последний сигнал профиля старше `profile_stale_days`.
     stale: Mapped[bool]
-
-    grade: Mapped[Grade] = relationship()

@@ -26,8 +26,6 @@ def upgrade() -> None:
         sa.Column("need_id", sa.Uuid(), nullable=True),
         sa.Column("need_snapshot", postgresql.JSONB(astext_type=sa.Text()), nullable=False),
         sa.Column("stack_cap", sa.Double(), nullable=False),
-        sa.Column("exact_total", sa.Integer(), nullable=False),
-        sa.Column("nearby_total", sa.Integer(), nullable=False),
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
         sa.ForeignKeyConstraint(
             ["need_id"], ["needs.id"], name=op.f("fk_selections_need_id_needs"), ondelete="SET NULL"
@@ -58,6 +56,7 @@ def upgrade() -> None:
         ),
         sa.Column("rank", sa.Integer(), nullable=False),
         sa.Column("grade_code", sa.String(length=32), nullable=False),
+        sa.Column("grade_name", sa.String(length=64), nullable=False),
         sa.Column("match_score", sa.Double(), nullable=False),
         sa.Column("acceptance_probability", sa.Double(), nullable=True),
         sa.Column("mutual_score", sa.Double(), nullable=False),
@@ -71,9 +70,6 @@ def upgrade() -> None:
             ["users.id"],
             name=op.f("fk_selection_entries_candidate_id_users"),
             ondelete="CASCADE",
-        ),
-        sa.ForeignKeyConstraint(
-            ["grade_code"], ["grades.code"], name=op.f("fk_selection_entries_grade_code_grades")
         ),
         sa.ForeignKeyConstraint(
             ["selection_id"],

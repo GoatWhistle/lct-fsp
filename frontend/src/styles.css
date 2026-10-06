@@ -675,6 +675,18 @@ details summary {
   font-weight: 600;
 }
 
+.selection-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.selection-list li + li {
+  border-top: 1px solid var(--border);
+  margin-top: 0.5rem;
+  padding-top: 0.5rem;
+}
+
 .match-card {
   display: flex;
   flex-direction: column;

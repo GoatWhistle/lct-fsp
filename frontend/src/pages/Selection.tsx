@@ -7,7 +7,7 @@ import {
   type Selection as SelectionData,
   type SelectionEntry,
 } from '../api/client'
-import { levelWords, percent, thetaWithError, yearsWords } from '../candidate/words'
+import { dateTimeWords, levelWords, percent, thetaWithError, yearsWords } from '../candidate/words'
 import { contributionWords, importanceWord, verdictWords, workFormatWord } from '../employer/words'
 
 const PAGE = 20
@@ -21,13 +21,17 @@ export function Selection() {
 
   useEffect(() => {
     if (!id) return
+    let stale = false
     api
       .GET('/api/employer/selections/{selection_id}', {
         params: { path: { selection_id: id }, query: { limit: PAGE } },
       })
       .then(({ data, error }) => {
-        setLoaded({ id, selection: data ?? null, error: data ? null : errorMessage(error) })
+        if (!stale) setLoaded({ id, selection: data ?? null, error: data ? null : errorMessage(error) })
       })
+    return () => {
+      stale = true
+    }
   }, [id])
 
   // Загруженное помечено своим id: «Перестроить» ведёт на новую подборку в том же экземпляре.
@@ -280,14 +284,4 @@ function CardDetails({ candidateId }: { candidateId: string }) {
       )}
     </details>
   )
-}
-
-function dateTimeWords(iso: string): string {
-  return new Date(iso).toLocaleString('ru-RU', {
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  })
 }

@@ -1,4 +1,5 @@
 import type { Need, TopicImportance, Verdict, WorkFormat } from '../api/client'
+import { oneDecimal } from '../candidate/words'
 
 export const workFormats: { value: WorkFormat; title: string }[] = [
   { value: 'office', title: 'Офис' },
@@ -24,11 +25,9 @@ export const verdictWords: Record<Verdict, string> = {
   below: 'ниже требования',
 }
 
-const points = new Intl.NumberFormat('ru-RU', { minimumFractionDigits: 1, maximumFractionDigits: 1 })
-
 /** Вклад в соответствие в процентных пунктах: «+31,2». */
 export function contributionWords(contribution: number): string {
-  return `+${points.format(contribution * 100)}`
+  return `+${oneDecimal.format(contribution * 100)}`
 }
 
 export function workFormatWord(format: WorkFormat): string {

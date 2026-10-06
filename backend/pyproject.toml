@@ -39,9 +39,12 @@ line-length = 100
 target-version = "py312"
 
 [tool.ruff.lint]
-select = ["E", "F", "I", "B", "UP", "SIM", "RUF"]
+select = ["E", "F", "I", "B", "UP", "SIM", "RUF", "TID251"]
 # Тексты по-русски: кириллица — не опечатка в латинице.
 ignore = ["RUF001", "RUF002", "RUF003"]
+
+[tool.ruff.lint.flake8-tidy-imports.banned-api]
+"sqlalchemy.create_engine".msg = "движок — через app.db.create_db_engine: время из базы в UTC"
 
 [tool.mypy]
 python_version = "3.12"

@@ -2,6 +2,7 @@
 
 Сервер PostgreSQL — `TEST_DATABASE_URL` (любая база на нём, нужны права на CREATE DATABASE)
 или контейнер testcontainers. На сервере создаётся своя база на прогон и удаляется после.
+Часовой пояс у неё не UTC — так набор ловит время, которое зависит от настроек базы.
 """
 
 import os
@@ -14,17 +15,19 @@ from alembic import command
 from alembic.config import Config
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
-from sqlalchemy import Engine, create_engine, text
+from sqlalchemy import Engine, text
 from sqlalchemy.engine import make_url
 from sqlalchemy.orm import Session
 
 from app.assessment.catalog import load_catalog, sync_catalog
 from app.config import BACKEND_DIR, Mechanics, Settings
+from app.db import create_db_engine
 from app.identity.models import Role
 from app.mail import Mail
 from app.main import create_app
 
 PASSWORD = "correct-horse-battery"
+DATABASE_TIMEZONE = "Europe/Moscow"
 
 
 class Outbox:
@@ -61,16 +64,17 @@ def postgres_server_url() -> Iterator[str]:
 @pytest.fixture(scope="session")
 def database_url(postgres_server_url: str) -> Iterator[str]:
     name = f"test_{uuid.uuid4().hex[:12]}"
-    admin = create_engine(postgres_server_url, isolation_level="AUTOCOMMIT")
+    admin = create_db_engine(postgres_server_url, isolation_level="AUTOCOMMIT")
     with admin.connect() as conn:
         conn.execute(text(f'CREATE DATABASE "{name}"'))
+        conn.execute(text(f"ALTER DATABASE \"{name}\" SET timezone TO '{DATABASE_TIMEZONE}'"))
     url = make_url(postgres_server_url).set(database=name).render_as_string(hide_password=False)
 
     alembic_cfg = Config(BACKEND_DIR / "alembic.ini")
     alembic_cfg.attributes["database_url"] = url
     alembic_cfg.attributes["configure_logger"] = False
     command.upgrade(alembic_cfg, "head")
-    engine = create_engine(url)
+    engine = create_db_engine(url)
     with Session(engine) as db:
         sync_catalog(db, load_catalog())
         db.commit()
@@ -85,7 +89,7 @@ def database_url(postgres_server_url: str) -> Iterator[str]:
 
 @pytest.fixture
 def db_engine(database_url: str) -> Iterator[Engine]:
-    engine = create_engine(database_url)
+    engine = create_db_engine(database_url)
     yield engine
     with engine.begin() as conn:
         conn.execute(text("TRUNCATE users, family_calibrations, scale_links CASCADE"))

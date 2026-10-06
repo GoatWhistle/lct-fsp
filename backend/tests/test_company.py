@@ -47,7 +47,7 @@ def test_employer_fills_company_profile(employer: TestClient) -> None:
     assert company["name"] == "Платёжные решения"
     assert company["industry"] == {"code": "fintech", "name": "Финтех и банки"}
     assert company["description"] == "Делаем платёжный шлюз для малого бизнеса"
-    assert company["website"] == "https://pay.example.ru/"
+    assert company["website"] == "https://pay.example.ru"
     assert company["contact_email"] == "hr@pay.example.ru"
     assert company["contact_phone"] == "+7 495 000-00-00"
 
@@ -77,10 +77,26 @@ def test_company_industry_comes_from_catalog(employer: TestClient) -> None:
     assert employer.get(COMPANY).json() is None
 
 
+def test_website_keeps_cyrillic_domain(employer: TestClient) -> None:
+    response = employer.put(COMPANY, json=company_body(website="пример.рф"))
+
+    assert response.status_code == 200, response.text
+    assert response.json()["website"] == "https://пример.рф"
+
+
 @pytest.mark.parametrize(
-    "changes", [{"name": "   "}, {"description": ""}, {"contact_email": "не почта"}]
+    "changes",
+    [
+        {"name": "   "},
+        {"description": ""},
+        {"contact_email": "не почта"},
+        {"website": "http:/example.ru"},
+        {"website": "mailto:hr@example.ru"},
+    ],
 )
-def test_company_needs_name_description_and_email(employer: TestClient, changes: Json) -> None:
+def test_company_needs_name_description_email_and_valid_site(
+    employer: TestClient, changes: Json
+) -> None:
     response = employer.put(COMPANY, json=company_body(**changes))
 
     assert response.status_code == 422

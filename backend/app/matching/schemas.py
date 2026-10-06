@@ -4,14 +4,14 @@ import uuid
 from datetime import datetime
 from typing import Annotated
 
-from pydantic import BaseModel, Field, StringConstraints
+from pydantic import BaseModel, Field, StrictInt, StringConstraints
 
 from app.assessment.schemas import CatalogRef
 from app.matching.importance import TopicImportance
 from app.matching.models import WorkFormat
 
 Title = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=200)]
-Salary = Annotated[int, Field(le=1_000_000_000, description="Рубли в месяц")]
+Salary = Annotated[StrictInt, Field(le=1_000_000_000, description="Рубли в месяц")]
 
 
 class TopicImportanceIn(BaseModel):

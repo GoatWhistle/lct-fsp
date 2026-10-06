@@ -1,15 +1,181 @@
+import { useEffect, useState } from 'react'
+import { api, errorMessage, type CandidatePath } from '../api/client'
 import { Cabinet } from '../components/Cabinet'
+import { gradeName, useCatalog, type Catalog } from '../candidate/catalog'
+import { GradeStep } from '../candidate/GradeStep'
+import { SkillProfileView, TestResultView } from '../candidate/Results'
+import { SurveyStep } from '../candidate/SurveyStep'
+import { TestStep } from '../candidate/TestStep'
+import { dateWords, levelWords } from '../candidate/words'
 
+const steps = ['Опрос', 'Грейд', 'Тест', 'Категория']
+const stepOf: Record<CandidatePath['stage'], number> = {
+  survey: 0,
+  grade: 1,
+  test: 2,
+  offer: 2,
+  no_category: 3,
+  category: 3,
+}
+
+/** Без категории кабинет — это путь к ней: опрос → грейд → тест. Пропустить его нельзя. */
 export function CandidateCabinet() {
+  const { catalog, failed } = useCatalog()
+  const [path, setPath] = useState<CandidatePath | null>(null)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    api.GET('/api/candidate/path').then(({ data, error }) => {
+      if (data) setPath(data)
+      else setError(errorMessage(error))
+    })
+  }, [])
+
+  if (error || failed) return <p className="error">{error ?? 'Не удалось загрузить справочники'}</p>
+  if (!path || !catalog) return <p className="muted">Загрузка…</p>
+  if (path.stage === 'category') return <CategoryCabinet catalog={catalog} path={path} />
+
+  return (
+    <section className="stack">
+      <h1>Путь к категории</h1>
+      <p className="lead">
+        Категория — ваша специализация и грейд, подтверждённые тестом. Работодатели подбирают
+        кандидатов по категориям, поэтому без неё вас не видно в подборках.
+      </p>
+      <ol className="steps">
+        {steps.map((step, i) => (
+          <li key={step} className={i === stepOf[path.stage] ? 'current' : i < stepOf[path.stage] ? 'done' : ''}>
+            {step}
+          </li>
+        ))}
+      </ol>
+      <PathStep catalog={catalog} path={path} onChange={setPath} />
+    </section>
+  )
+}
+
+type StepProps = { catalog: Catalog; path: CandidatePath; onChange: (path: CandidatePath) => void }
+
+function PathStep({ catalog, path, onChange }: StepProps) {
+  const [editingSurvey, setEditingSurvey] = useState(false)
+
+  function done(next: CandidatePath) {
+    setEditingSurvey(false)
+    onChange(next)
+  }
+
+  switch (path.stage) {
+    case 'survey':
+      return <SurveyStep catalog={catalog} current={null} onDone={done} />
+    case 'grade':
+      if (editingSurvey || !path.survey) {
+        return (
+          <SurveyStep
+            catalog={catalog}
+            current={path.survey}
+            onDone={done}
+            onCancel={path.survey ? () => setEditingSurvey(false) : undefined}
+          />
+        )
+      }
+      return (
+        <GradeStep
+          catalog={catalog}
+          survey={path.survey}
+          onDone={done}
+          onChangeSurvey={() => setEditingSurvey(true)}
+        />
+      )
+    case 'test':
+      return <TestStep onDone={done} />
+    case 'offer':
+      return <OfferStep catalog={catalog} path={path} onChange={done} />
+    case 'no_category':
+      return (
+        <>
+          <div className="card">
+            <h2>Категория пока не присвоена</h2>
+            <p>
+              Уверенности не хватило и для грейда «{gradeName(catalog, 'intern')}». Повторить тест
+              можно с {path.retest_after ? dateWords(path.retest_after) : 'даты повтора'}. До тех
+              пор стоит подтянуть темы, где уровень ниже.
+            </p>
+          </div>
+          {path.result && <TestResultView catalog={catalog} result={path.result} />}
+          {path.profile && <SkillProfileView profile={path.profile} />}
+        </>
+      )
+    case 'category':
+      return null
+  }
+}
+
+/** Провал заявленного грейда: сразу дотест на грейд ниже, отказаться нельзя — путь обязательный. */
+function OfferStep({ catalog, path, onChange }: StepProps) {
+  const [error, setError] = useState<string | null>(null)
+  const [submitting, setSubmitting] = useState(false)
+  const offer = path.offer_grade ?? ''
+  const tried = path.result?.grade ?? ''
+
+  async function proceed() {
+    setSubmitting(true)
+    setError(null)
+    const { data, error } = await api.POST('/api/candidate/path/attempts', { body: { grade: offer } })
+    setSubmitting(false)
+    if (data) onChange(data)
+    else setError(errorMessage(error))
+  }
+
+  return (
+    <>
+      <div className="card form">
+        <h2>Уверенности для {gradeName(catalog, tried)} не хватило</h2>
+        <p>
+          Продолжите на {gradeName(catalog, offer)}: прошлые ответы засчитаются, добавим несколько
+          заданий проще. Если хватит и их, сразу получите категорию.
+        </p>
+        {error && <p className="error">{error}</p>}
+        <div className="actions">
+          <button type="button" className="button" disabled={submitting} onClick={proceed}>
+            Продолжить на {gradeName(catalog, offer)}
+          </button>
+        </div>
+      </div>
+      {path.result && <TestResultView catalog={catalog} result={path.result} />}
+    </>
+  )
+}
+
+function CategoryCabinet({ catalog, path }: { catalog: Catalog; path: CandidatePath }) {
+  const category = path.category
+  const hint = path.result?.grade_up_hint
   return (
     <Cabinet
       title="Кабинет кандидата"
       upcoming={[
         'Профиль: контакты, стек, ожидания по зарплате и формату',
-        'Опрос по специализации и выбор грейда',
-        'Тест и профиль навыков по темам',
+        'Смена грейда и история тестов',
         'Приглашения от работодателей',
       ]}
-    />
+    >
+      {category && (
+        <div className="card">
+          <span className="muted">Ваша категория</span>
+          <p className="category-name">
+            {category.specialization.name} · {category.grade.name}
+          </p>
+          {path.result && (
+            <p>
+              Уровень по тесту — <strong>{levelWords(path.result.overall.band)}</strong>.
+            </p>
+          )}
+          {hint && (
+            <p className="success">Похоже, вам по силам и {gradeName(catalog, hint)} — стоит попробовать грейд выше.</p>
+          )}
+        </div>
+      )}
+      {path.result && <TestResultView catalog={catalog} result={path.result} />}
+      {path.profile && <SkillProfileView profile={path.profile} />}
+    </Cabinet>
   )
 }

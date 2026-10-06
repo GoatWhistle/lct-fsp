@@ -6,11 +6,11 @@
 """
 
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, Self
 
 import yaml
 from fastapi import Depends, Request
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 BACKEND_DIR = Path(__file__).resolve().parent.parent
@@ -47,6 +47,7 @@ class Mechanics(BaseModel):
     theta_prior_sd: float
     topic_deviation_sd: float
     grade_change_interval_days: int
+    grade_retry_interval_days: int
     no_category_retest_days: int
     confidence_language_bands: list[float]
 
@@ -148,6 +149,27 @@ class Mechanics(BaseModel):
         if len(value) != 3 or not 0 < value[0] < value[1] < value[2] < 1:
             raise ValueError("нужны три границы по возрастанию строго между 0 и 1")
         return value
+
+    @field_validator("fsp_result_difficulty")
+    @classmethod
+    def difficulty_by_result_type(cls, value: dict[str, float]) -> dict[str, float]:
+        """Сложность достижения ФСП — только по типу результата, без рейтинга мероприятий и
+        дисциплин; результат лучше — сложность не ниже. Участник отбора — не наблюдение, его
+        здесь нет."""
+        if set(value) != {"winner", "prize", "finalist"}:
+            raise ValueError("нужны сложности winner, prize и finalist — по типу результата")
+        if not value["winner"] >= value["prize"] >= value["finalist"]:
+            raise ValueError("сложность победителя не ниже призёра, призёра — не ниже финалиста")
+        return value
+
+    @model_validator(mode="after")
+    def retry_is_shorter_than_change(self) -> Self:
+        """Провал не сжигает попытку: повтор после провала ждёт не дольше, чем после смены."""
+        if not 0 < self.grade_retry_interval_days <= self.grade_change_interval_days:
+            raise ValueError(
+                "grade_retry_interval_days — больше нуля и не больше grade_change_interval_days"
+            )
+        return self
 
     @classmethod
     def from_yaml(cls, path: Path) -> "Mechanics":

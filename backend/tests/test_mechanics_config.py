@@ -48,11 +48,18 @@ def test_grade_parameters_cover_catalog_grades() -> None:
         {"confidence_language_bands": [0.2, 0.5, 0.8, 0.95]},
         {"confidence_language_bands": [0.5, 0.2, 0.8]},
         {"confidence_language_bands": [0.0, 0.5, 1.0]},
+        {"fsp_result_difficulty": {"winner": 1.0, "prize": 0.5, "national_finalist": 0.0}},
+        {"fsp_result_difficulty": {"winner": 1.0, "prize": 0.5, "finalist": 0.0, "regional": 0}},
+        {"fsp_result_difficulty": {"winner": 0.5, "prize": 1.0, "finalist": 0.0}},
+        {"grade_retry_interval_days": 0},
+        {"grade_retry_interval_days": 120, "grade_change_interval_days": 90},
     ],
 )
-def test_matching_parameters_are_validated(changes: dict[str, object]) -> None:
+def test_mechanics_parameters_are_validated(changes: dict[str, object]) -> None:
     """Веса важности делят вес темы, границы языка уверенности выбирают одно из четырёх слов:
-    ошибка в них ломала бы каждую подборку — бэкенд не стартует с таким конфигом."""
+    ошибка в них ломала бы каждую подборку. Сложность ФСП — только по типу результата, без
+    уровня мероприятия; повтор после провала ждёт не дольше смены грейда. С таким конфигом
+    бэкенд не стартует."""
     configured = yaml.safe_load(Settings().mechanics_file.read_text(encoding="utf-8"))
 
     with pytest.raises(ValidationError):

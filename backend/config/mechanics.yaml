@@ -8,6 +8,7 @@ grade_up_hint_confidence: 0.5
 theta_prior_sd: 1.0
 topic_deviation_sd: 0.6
 grade_change_interval_days: 90
+grade_retry_interval_days: 30
 no_category_retest_days: 30
 confidence_language_bands: [0.2, 0.5, 0.8]
 
@@ -68,7 +69,7 @@ topic_low_data_sd: 0.9
 search_confident_sd: 0.6
 
 # ФСП
-fsp_result_difficulty: {international_prize: 2.0, national_prize: 1.5, national_finalist: 1.0, regional_prize: 0.5}
+fsp_result_difficulty: {winner: 1.0, prize: 0.5, finalist: 0.0}
 fsp_result_discrimination: 2.0
 fsp_divergence_theta: 1.0
 

@@ -25,13 +25,17 @@ class CompanyIn(BaseModel):
     @field_validator("website")
     @classmethod
     def website_is_http_url(cls, value: str | None) -> str | None:
+        """Хранится адрес как его ввели, со схемой: HttpUrl перевёл бы домен .рф в punycode."""
         if not value:
             return None
-        url = value if "://" in value else f"https://{value}"
-        result = str(HttpUrl(url))
-        if len(result) > 300:
+        if not value.lower().startswith(("http://", "https://")):
+            value = f"https://{value}"
+        url = HttpUrl(value)
+        if not url.host or "." not in url.host or url.username or url.password:
+            raise ValueError("адрес сайта вида example.ru")
+        if len(value) > 300:
             raise ValueError("адрес сайта длиннее 300 символов")
-        return result
+        return value
 
     @field_validator("contact_email")
     @classmethod

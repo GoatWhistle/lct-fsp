@@ -13,6 +13,7 @@ from sqlalchemy.orm import Session, selectinload
 from app.assessment.models import Grade, Specialization, Technology, Topic
 from app.assessment.service import UnknownGrade, UnknownSpecialization
 from app.config import Mechanics
+from app.db import utcnow
 from app.errors import AppError
 from app.matching.importance import TopicImportance, topic_importance
 from app.matching.models import Need, NeedTopicImportance, WorkFormat
@@ -69,7 +70,17 @@ NEED_ERRORS = (
 
 def list_needs(db: Session, user_id: uuid.UUID) -> list[Need]:
     return list(
-        db.scalars(select(Need).where(Need.user_id == user_id).order_by(Need.created_at.desc()))
+        db.scalars(
+            select(Need)
+            .where(Need.user_id == user_id)
+            .options(
+                selectinload(Need.specialization).selectinload(Specialization.topics),
+                selectinload(Need.grade),
+                selectinload(Need.stack).selectinload(Technology.topics),
+                selectinload(Need.edited_importance),
+            )
+            .order_by(Need.created_at.desc())
+        )
     )
 
 
@@ -91,6 +102,8 @@ def create_need(db: Session, user_id: uuid.UUID, data: NeedIn) -> Need:
 def update_need(db: Session, user_id: uuid.UUID, need_id: uuid.UUID, data: NeedIn) -> Need:
     need = get_need(db, user_id, need_id)
     _fill(db, need, data)
+    # Стек и правки важности лежат в своих таблицах: строка потребности может не измениться.
+    need.updated_at = utcnow()
     db.commit()
     return need
 

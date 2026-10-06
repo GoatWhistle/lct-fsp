@@ -99,6 +99,14 @@ def test_salary_range_needs_both_bounds_above_zero_in_order(
     assert employer.get(NEEDS).json() == []
 
 
+@pytest.mark.parametrize("salary_from", [True, "150000", 150_000.5])
+def test_salary_bound_is_whole_rubles(employer: TestClient, salary_from: object) -> None:
+    response = employer.post(NEEDS, json=need_body(salary_from=salary_from))
+
+    assert response.status_code == 422
+    assert employer.get(NEEDS).json() == []
+
+
 @pytest.mark.parametrize(("salary_from", "salary_to"), [(150_000, 150_000), (1, 2), (None, None)])
 def test_salary_range_may_be_one_value_or_absent(
     employer: TestClient, salary_from: int | None, salary_to: int | None

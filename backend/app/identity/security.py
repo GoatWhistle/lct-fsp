@@ -42,7 +42,9 @@ def issue_access_token(user_id: uuid.UUID, secret: str, ttl: timedelta) -> str:
 
 def read_access_token(token: str, secret: str) -> uuid.UUID | None:
     try:
-        payload = jwt.decode(token, secret, algorithms=[_ALGORITHM])
+        # iat не проверяем: синхронизация отводит часы сервера назад на секунды, и только что
+        # выданный токен оказался бы «из будущего». Срок держит exp, подлинность — подпись.
+        payload = jwt.decode(token, secret, algorithms=[_ALGORITHM], options={"verify_iat": False})
         return uuid.UUID(payload["sub"])
     except (jwt.PyJWTError, KeyError, ValueError):
         return None

@@ -9,7 +9,7 @@ WORKDIR /app
 COPY pyproject.toml uv.lock ./
 RUN uv sync --frozen --no-dev --no-install-project
 
-# Тесты: `docker compose run --rm tests`.
+# Тесты: `docker compose run --rm --build tests`.
 FROM base AS test
 RUN uv sync --frozen --no-install-project
 COPY . .

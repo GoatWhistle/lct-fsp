@@ -8,6 +8,7 @@ from typing import Annotated
 from pydantic import (
     AfterValidator,
     BaseModel,
+    BeforeValidator,
     EmailStr,
     Field,
     StrictInt,
@@ -28,6 +29,15 @@ def _text(max_length: int, min_length: int = 0) -> StringConstraints:
     return StringConstraints(strip_whitespace=True, min_length=min_length, max_length=max_length)
 
 
+def _one_line(value: object) -> object:
+    """Переводы строк и повторные пробелы — в один пробел: однострочное поле в PDF и
+    интерфейсе не растёт в высоту."""
+    return " ".join(value.split()) if isinstance(value, str) else value
+
+
+OneLine = BeforeValidator(_one_line)
+
+
 def _unique_tags(values: list[str]) -> list[str]:
     """Метки без пустых и повторов без учёта регистра; порядок — как ввёл кандидат."""
     seen: set[str] = set()
@@ -43,19 +53,17 @@ def _canonical_formats(values: list[WorkFormat]) -> list[WorkFormat]:
     return [f for f in WorkFormat if f in values]
 
 
-JobRoles = Annotated[list[Annotated[str, _text(100)]], AfterValidator(_unique_tags)]
-SoftSkills = Annotated[list[Annotated[str, _text(50)]], AfterValidator(_unique_tags)]
+JobRoles = Annotated[list[Annotated[str, OneLine, _text(100)]], AfterValidator(_unique_tags)]
+SoftSkills = Annotated[list[Annotated[str, OneLine, _text(50)]], AfterValidator(_unique_tags)]
 WorkFormats = Annotated[list[WorkFormat], AfterValidator(_canonical_formats)]
 
 
 class SelfReportedOut(BaseModel):
     """Самоописание, которое видно в обезличенной карточке: низший уровень доверия, на
-    категорию не влияет."""
+    категорию не влияет. Только структурные поля — свободный текст до раскрытия скрыт."""
 
     stack: list[CatalogRef] = Field(description="По названию технологии")
-    job_roles: list[str] = Field(description="Кем кандидат работал или хочет работать")
     experience_years: int = Field(description="Стаж в ИТ, полных лет; 0 — меньше года")
-    soft_skills: list[str]
     work_formats: list[WorkFormat] = Field(description="Допустимые форматы работы")
     city: str | None = Field(description="Где кандидат живёт")
     relocation: bool = Field(description="Готов к переезду")
@@ -67,6 +75,10 @@ class ProfileOut(SelfReportedOut):
     contact_phone: str | None = Field(description=DISCLOSED)
     telegram: str | None = Field(description=f"Имя пользователя без «@». {DISCLOSED}")
     about: str = Field(description=f"О себе. {DISCLOSED}")
+    job_roles: list[str] = Field(
+        description=f"Кем кандидат работал или хочет работать. {DISCLOSED}: свободный текст"
+    )
+    soft_skills: list[str] = Field(description=f"{DISCLOSED}: свободный текст")
     salary_from: int = Field(
         description="Ожидаемая зарплата «от», рубли в месяц. Работодателю не показывается: "
         "по ней считается вероятность принятия приглашения"
@@ -75,9 +87,9 @@ class ProfileOut(SelfReportedOut):
 
 
 class ProfileIn(BaseModel):
-    full_name: Annotated[str, _text(200, min_length=1)] = Field(description="ФИО")
+    full_name: Annotated[str, OneLine, _text(200, min_length=1)] = Field(description="ФИО")
     contact_email: EmailStr
-    contact_phone: Annotated[str, _text(32)] | None = None
+    contact_phone: Annotated[str, OneLine, _text(32)] | None = None
     telegram: Annotated[str, _text(64)] | None = Field(
         default=None, description="Имя пользователя, `@имя` или ссылка `t.me/имя`"
     )
@@ -99,7 +111,7 @@ class ProfileIn(BaseModel):
     work_formats: WorkFormats = Field(
         min_length=1, description="Допустимые форматы работы, хотя бы один"
     )
-    city: Annotated[str, _text(100)] | None = Field(
+    city: Annotated[str, OneLine, _text(100)] | None = Field(
         default=None, description="Обязателен, если подходит офис или гибрид"
     )
     relocation: bool = False
@@ -129,8 +141,9 @@ class ProfileIn(BaseModel):
 
 
 class CandidateCardOut(BaseModel):
-    """Обезличенная карточка: решение — по навыкам. Без ФИО, контактов, «о себе» и ожидаемой
-    зарплаты; фото, возраст и вуз платформа не собирает."""
+    """Обезличенная карточка: решение — по навыкам. Без ФИО, контактов, свободного текста
+    («о себе», роли, софт-скиллы) и ожидаемой зарплаты; фото, возраст и вуз платформа не
+    собирает."""
 
     id: uuid.UUID
     category: CategoryOut = Field(description="Категория по тесту")

@@ -7,13 +7,11 @@
 
 import uuid
 from dataclasses import dataclass
-from datetime import datetime
 
 from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.orm import Session
 
-from app.assessment import service as path_service
 from app.assessment.models import CandidateCategory, Technology
 from app.db import utcnow
 from app.errors import AppError
@@ -93,21 +91,27 @@ def card(db: Session, candidate_id: uuid.UUID) -> Card:
     category = db.get(CandidateCategory, candidate_id)
     if category is None:
         raise CandidateNotFound()
-    skill_profile = db.scalar(
-        select(SkillProfile).where(
-            SkillProfile.user_id == candidate_id,
-            SkillProfile.specialization_code == category.specialization_code,
-        )
-    )
-    return Card(candidate_id, category, skill_profile, get_profile(db, candidate_id))
+    return Card(candidate_id, category, _skill_profile(db, category), get_profile(db, candidate_id))
 
 
-def sheet(db: Session, user_id: uuid.UUID, now: datetime) -> Sheet:
+def sheet(db: Session, user_id: uuid.UUID) -> Sheet:
+    """Профиль навыков — только вместе с категорией и по её специализации, как в карточке:
+    оценки незаконченной или неудачной попытки PDF не подтверждает."""
     profile = get_profile(db, user_id)
     if profile is None:
         raise ProfileNotFound()
-    path = path_service.path(db, user_id, now)
-    return Sheet(profile, path.category, path.profile)
+    category = db.get(CandidateCategory, user_id)
+    skill_profile = _skill_profile(db, category) if category else None
+    return Sheet(profile, category, skill_profile)
+
+
+def _skill_profile(db: Session, category: CandidateCategory) -> SkillProfile | None:
+    return db.scalar(
+        select(SkillProfile).where(
+            SkillProfile.user_id == category.user_id,
+            SkillProfile.specialization_code == category.specialization_code,
+        )
+    )
 
 
 def _technologies(db: Session, codes: list[str]) -> list[Technology]:

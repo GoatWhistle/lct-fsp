@@ -152,7 +152,7 @@ export function CandidateProfile() {
             maxLength={100}
             placeholder="Бэкенд-разработчик, тимлид — Enter добавляет"
           />
-          <span className="hint">Кем работали или хотите работать</span>
+          <span className="hint">Кем работали или хотите работать. {DISCLOSED}</span>
         </div>
         <label className="field narrow-field">
           Стаж в ИТ, полных лет
@@ -178,6 +178,7 @@ export function CandidateProfile() {
             maxLength={50}
             placeholder="Наставничество, публичные выступления"
           />
+          <span className="hint">{DISCLOSED}</span>
         </div>
         <label className="field">
           О себе
@@ -193,8 +194,8 @@ export function CandidateProfile() {
         <h2>Контакты</h2>
         <p className="hint">
           Работодатель получит контакты, только когда вы примете его приглашение или откликнетесь
-          сами. До этого он видит обезличенную карточку: категорию, профиль навыков, стек, роли и
-          стаж.
+          сами. До этого он видит обезличенную карточку: категорию, профиль навыков, стек, стаж и
+          формат работы.
         </p>
         <div className="field-row">
           <label className="field">

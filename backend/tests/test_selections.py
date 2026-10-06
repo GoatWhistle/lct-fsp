@@ -152,7 +152,6 @@ def seed(db_engine: Engine, seeds: Sequence[Seed], specialization: str = "qa") -
                     "survey_id": survey,
                     "specialization_code": specialization,
                     "grade_code": s.grade,
-                    "blueprint": [],
                     "started_at": now,
                 }
             )

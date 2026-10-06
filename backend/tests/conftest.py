@@ -88,7 +88,7 @@ def db_engine(database_url: str) -> Iterator[Engine]:
     engine = create_engine(database_url)
     yield engine
     with engine.begin() as conn:
-        conn.execute(text("TRUNCATE users CASCADE"))
+        conn.execute(text("TRUNCATE users, family_calibrations, scale_links CASCADE"))
     engine.dispose()
 
 

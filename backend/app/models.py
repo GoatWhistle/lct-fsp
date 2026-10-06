@@ -14,7 +14,13 @@ from app.assessment.models import (
 )
 from app.company.models import Company
 from app.identity.models import EmailVerificationToken, User
-from app.matching.models import Need, NeedTopicImportance, need_technologies
+from app.matching.models import (
+    Need,
+    NeedTopicImportance,
+    Selection,
+    SelectionEntry,
+    need_technologies,
+)
 from app.profile.models import CandidateProfile, candidate_technologies
 from app.skills.models import SkillProfile, SkillProfileTopic
 
@@ -28,6 +34,8 @@ __all__ = [
     "Need",
     "NeedTopicImportance",
     "Presentation",
+    "Selection",
+    "SelectionEntry",
     "SkillProfile",
     "SkillProfileTopic",
     "Specialization",

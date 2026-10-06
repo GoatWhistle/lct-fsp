@@ -117,6 +117,9 @@ cd frontend && npm run lint && npm run build
 - **Миграция** — `uv run alembic revision --autogenerate -m "short english slug"`, затем
   прочитать и поправить. Тест `test_models_match_migrations` падает, если модели разошлись с
   миграциями. Если после слияния веток у миграций две головы — `uv run alembic merge heads`.
+- **Подключение к базе** — движок только через `create_db_engine` (`app/db.py`): время из
+  базы приходит в UTC при любом часовом поясе сервера. Временная база тестов — в
+  `Europe/Moscow`, поэтому время, зависящее от пояса базы, роняет тесты.
 - **Справочники** — данные в `app/assessment/catalog.yaml`, не в коде. Бэкенд при старте
   синхронизирует их с базой; коды стабильны — на них ссылаются тест, профиль и подбор.
 - **Параметры механик** — числа из [`docs/parameters.md`](docs/parameters.md) под теми же

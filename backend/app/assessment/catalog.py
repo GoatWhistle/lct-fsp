@@ -11,7 +11,7 @@ from typing import Self
 
 import yaml
 from pydantic import BaseModel, ConfigDict, model_validator
-from sqlalchemy import create_engine, delete, insert
+from sqlalchemy import delete, insert
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.orm import Session
 
@@ -24,6 +24,7 @@ from app.assessment.models import (
     technology_topics,
 )
 from app.config import Settings
+from app.db import create_db_engine
 
 CATALOG_FILE = Path(__file__).with_name("catalog.yaml")
 
@@ -148,7 +149,7 @@ def sync_catalog(db: Session, data: CatalogData) -> None:
 
 
 def main() -> None:
-    engine = create_engine(Settings().database_url)
+    engine = create_db_engine(Settings().database_url)
     with Session(engine) as db:
         sync_catalog(db, load_catalog())
         db.commit()

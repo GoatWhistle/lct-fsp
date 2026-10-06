@@ -7,6 +7,9 @@ from datetime import datetime
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.assessment.service import Stage
+from app.config import Mechanics
+from app.skills.irt import Normal, level_band
+from app.skills.models import SkillProfile
 
 
 class _Out(BaseModel):
@@ -82,6 +85,30 @@ class SkillProfileOut(BaseModel):
     overall: LevelOut
     topics: list[TopicLevelOut] = Field(description="В порядке тем справочника")
     updated_at: datetime
+
+
+def level_out(level: Normal, mechanics: Mechanics) -> LevelOut:
+    band = level_band(level, mechanics.grade_thresholds, mechanics.grade_confidence)
+    return LevelOut(
+        theta=level.mean,
+        theta_sd=level.sd,
+        band=LevelBandOut(low=band.low, high=band.high, confident=band.confident),
+    )
+
+
+def skill_profile_out(profile: SkillProfile, mechanics: Mechanics) -> SkillProfileOut:
+    rows = sorted(profile.topics, key=lambda row: row.topic.position)
+    return SkillProfileOut(
+        overall=level_out(Normal(profile.overall_theta, profile.overall_theta_sd), mechanics),
+        topics=[
+            TopicLevelOut(
+                topic=CatalogRef.model_validate(row.topic),
+                level=level_out(Normal(row.theta, row.theta_sd), mechanics),
+            )
+            for row in rows
+        ],
+        updated_at=profile.updated_at,
+    )
 
 
 class AttemptProgressOut(BaseModel):

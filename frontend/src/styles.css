@@ -425,3 +425,170 @@ h2 {
   font-weight: 700;
   margin: 0.25rem 0 0.5rem;
 }
+
+.field textarea {
+  font: inherit;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  resize: vertical;
+}
+
+.field textarea:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: -1px;
+}
+
+.field-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+}
+
+.plain {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  min-width: 0;
+}
+
+.plain legend {
+  font-weight: 500;
+  margin-bottom: 0.35rem;
+}
+
+.section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.section-head h2,
+.section-head h3 {
+  margin: 0;
+}
+
+.company-name {
+  font-size: 1.35rem;
+}
+
+.prewrap {
+  white-space: pre-line;
+}
+
+.need-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.need-card p {
+  margin: 0;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.chip {
+  font: inherit;
+  font-size: 0.875rem;
+  padding: 0.2rem 0.7rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text);
+}
+
+.chip-toggle {
+  cursor: pointer;
+}
+
+.chip-toggle:hover {
+  border-color: var(--accent);
+}
+
+.chip-toggle.selected {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  font-weight: 600;
+}
+
+details summary {
+  cursor: pointer;
+  color: var(--accent);
+  margin-bottom: 0.5rem;
+}
+
+.importance-source {
+  display: block;
+}
+
+.segmented {
+  display: inline-grid;
+  grid-template-columns: repeat(3, auto);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.segmented button {
+  font: inherit;
+  font-size: 0.875rem;
+  padding: 0.3rem 0.7rem;
+  border: 0;
+  background: var(--surface);
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.segmented button + button {
+  border-left: 1px solid var(--border);
+}
+
+.segmented button.selected {
+  color: var(--accent);
+  background: var(--accent-soft);
+  font-weight: 600;
+}
+
+.danger {
+  color: var(--error);
+  margin-left: auto;
+}
+
+@media (max-width: 560px) {
+  .table th,
+  .table td {
+    display: block;
+    border-top: 0;
+    padding-left: 0;
+  }
+
+  .table tr {
+    display: block;
+    border-top: 1px solid var(--border);
+    padding: 0.35rem 0;
+  }
+
+  .segmented {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .segmented button {
+    font-size: 0.8rem;
+    padding: 0.35rem 0.25rem;
+  }
+}

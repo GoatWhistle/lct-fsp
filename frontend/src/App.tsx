@@ -1,10 +1,12 @@
-import { Navigate, Route, Routes } from 'react-router'
+import { Navigate, Outlet, Route, Routes } from 'react-router'
 import { Layout } from './components/Layout'
 import { RequireRole } from './components/RequireRole'
 import { CandidateCabinet } from './pages/CandidateCabinet'
+import { CompanyProfile } from './pages/CompanyProfile'
 import { EmployerCabinet } from './pages/EmployerCabinet'
 import { Home } from './pages/Home'
 import { Login } from './pages/Login'
+import { NeedForm } from './pages/NeedForm'
 import { Register } from './pages/Register'
 import { VerifyEmail } from './pages/VerifyEmail'
 
@@ -28,10 +30,15 @@ export default function App() {
           path="employer"
           element={
             <RequireRole role="employer">
-              <EmployerCabinet />
+              <Outlet />
             </RequireRole>
           }
-        />
+        >
+          <Route index element={<EmployerCabinet />} />
+          <Route path="company" element={<CompanyProfile />} />
+          <Route path="needs/new" element={<NeedForm />} />
+          <Route path="needs/:id" element={<NeedForm />} />
+        </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>

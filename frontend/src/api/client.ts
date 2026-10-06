@@ -12,6 +12,14 @@ export type TestItem = components['schemas']['ItemOut']
 export type Level = components['schemas']['LevelOut']
 export type TestResult = components['schemas']['TestResultOut']
 export type SkillProfile = components['schemas']['SkillProfileOut']
+export type Technology = components['schemas']['TechnologyOut']
+export type Company = components['schemas']['CompanyOut']
+export type CompanyInput = components['schemas']['CompanyIn']
+export type Need = components['schemas']['NeedOut']
+export type NeedInput = components['schemas']['NeedIn']
+export type TopicImportance = components['schemas']['TopicImportance']
+export type TopicImportanceRow = components['schemas']['TopicImportanceOut']
+export type WorkFormat = components['schemas']['WorkFormat']
 
 export const api = createClient<paths>({ credentials: 'same-origin' })
 

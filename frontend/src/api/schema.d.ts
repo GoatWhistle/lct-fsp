@@ -246,6 +246,87 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/employer/company": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Профиль компании
+         * @description `null` — профиль ещё не заполнен.
+         */
+        get: operations["get_company_api_employer_company_get"];
+        /** Заполнить или изменить профиль компании */
+        put: operations["save_company_api_employer_company_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/employer/needs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Потребности компании, новые сверху */
+        get: operations["list_needs_api_employer_needs_get"];
+        put?: never;
+        /** Новая потребность */
+        post: operations["create_need_api_employer_needs_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/employer/needs/topic-importance": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Важность тем по стеку — до сохранения
+         * @description Та же функция, что у сохранённой потребности: форма показывает, как стек превращается в важность тем, пока работодатель его выбирает.
+         */
+        post: operations["preview_topic_importance_api_employer_needs_topic_importance_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/employer/needs/{need_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Потребность */
+        get: operations["get_need_api_employer_needs__need_id__get"];
+        /**
+         * Правка потребности
+         * @description Заменяет потребность целиком, включая правки важности тем.
+         */
+        put: operations["update_need_api_employer_needs__need_id__put"];
+        post?: never;
+        /** Удаление потребности */
+        delete: operations["delete_need_api_employer_needs__need_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/catalog/grades": {
         parameters: {
             query?: never;
@@ -387,6 +468,52 @@ export interface components {
              */
             assigned_at: string;
         };
+        /** CompanyIn */
+        CompanyIn: {
+            /** Name */
+            name: string;
+            /**
+             * Industry
+             * @description Направление деятельности — код отрасли из `/api/catalog/industries`
+             */
+            industry: string;
+            /**
+             * Description
+             * @description Чем занимается компания
+             */
+            description: string;
+            /**
+             * Website
+             * @description Без схемы адрес дополняется `https://`
+             */
+            website?: string | null;
+            /**
+             * Contact Email
+             * Format: email
+             */
+            contact_email: string;
+            /** Contact Phone */
+            contact_phone?: string | null;
+        };
+        /** CompanyOut */
+        CompanyOut: {
+            /** Name */
+            name: string;
+            industry: components["schemas"]["CatalogRef"];
+            /** Description */
+            description: string;
+            /** Website */
+            website: string | null;
+            /** Contact Email */
+            contact_email: string;
+            /** Contact Phone */
+            contact_phone: string | null;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
         /** ErrorOut */
         ErrorOut: {
             /**
@@ -500,6 +627,96 @@ export interface components {
             email: string;
             /** Password */
             password: string;
+        };
+        /** NeedIn */
+        NeedIn: {
+            /**
+             * Specialization
+             * @description Код специализации из `/api/catalog/specializations`
+             */
+            specialization: string;
+            /**
+             * Stack
+             * @description Коды технологий из `/api/catalog/technologies` — любые из справочника
+             */
+            stack?: string[];
+            /**
+             * Topic Importance
+             * @description Правки важности: код темы специализации → важность. Темы без правки получают важность из стека
+             */
+            topic_importance?: {
+                [key: string]: components["schemas"]["TopicImportance"];
+            };
+            /**
+             * Title
+             * @description Кого ищете
+             */
+            title: string;
+            /**
+             * Team Description
+             * @description Чем занимается команда
+             * @default
+             */
+            team_description: string;
+            /**
+             * Grade
+             * @description Код грейда из `/api/catalog/grades`
+             */
+            grade: string;
+            work_format: components["schemas"]["WorkFormat"];
+            /**
+             * City
+             * @description Обязателен для офиса и гибрида
+             */
+            city?: string | null;
+            /**
+             * Salary From
+             * @description Вилка необязательна; если указана — обе границы больше нуля, «от» не больше «до»
+             */
+            salary_from?: number | null;
+            /** Salary To */
+            salary_to?: number | null;
+        };
+        /** NeedOut */
+        NeedOut: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Title */
+            title: string;
+            /** Team Description */
+            team_description: string;
+            specialization: components["schemas"]["CatalogRef"];
+            grade: components["schemas"]["CatalogRef"];
+            /**
+             * Stack
+             * @description По названию технологии
+             */
+            stack: components["schemas"]["CatalogRef"][];
+            work_format: components["schemas"]["WorkFormat"];
+            /** City */
+            city: string | null;
+            /** Salary From */
+            salary_from: number | null;
+            /** Salary To */
+            salary_to: number | null;
+            /**
+             * Topics
+             * @description Все темы специализации по порядку
+             */
+            topics: components["schemas"]["TopicImportanceOut"][];
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
         };
         /** PathOut */
         PathOut: {
@@ -639,6 +856,47 @@ export interface components {
              */
             grade_up_hint: string | null;
         };
+        /**
+         * TopicImportance
+         * @enum {string}
+         */
+        TopicImportance: "key" | "important" | "nice";
+        /** TopicImportanceIn */
+        TopicImportanceIn: {
+            /**
+             * Specialization
+             * @description Код специализации из `/api/catalog/specializations`
+             */
+            specialization: string;
+            /**
+             * Stack
+             * @description Коды технологий из `/api/catalog/technologies` — любые из справочника
+             */
+            stack?: string[];
+            /**
+             * Topic Importance
+             * @description Правки важности: код темы специализации → важность. Темы без правки получают важность из стека
+             */
+            topic_importance?: {
+                [key: string]: components["schemas"]["TopicImportance"];
+            };
+        };
+        /** TopicImportanceOut */
+        TopicImportanceOut: {
+            topic: components["schemas"]["CatalogRef"];
+            /** @description `key` — ключевая, `important` — важная, `nice` — желательная */
+            importance: components["schemas"]["TopicImportance"];
+            /**
+             * Edited
+             * @description Важность поставил работодатель, а не вывод из стека
+             */
+            edited: boolean;
+            /**
+             * Technologies
+             * @description Технологии стека, связанные с темой
+             */
+            technologies: components["schemas"]["CatalogRef"][];
+        };
         /** TopicLevelOut */
         TopicLevelOut: {
             topic: components["schemas"]["CatalogRef"];
@@ -685,6 +943,11 @@ export interface components {
              */
             token: string;
         };
+        /**
+         * WorkFormat
+         * @enum {string}
+         */
+        WorkFormat: "office" | "hybrid" | "remote";
     };
     responses: never;
     parameters: never;
@@ -1264,6 +1527,441 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    get_company_api_employer_company_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CompanyOut"] | null;
+                };
+            };
+            /** @description `not_authenticated` — Войдите, чтобы продолжить */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description `wrong_role` — Раздел доступен другой роли */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    save_company_api_employer_company_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CompanyIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CompanyOut"];
+                };
+            };
+            /** @description `not_authenticated` — Войдите, чтобы продолжить */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description `wrong_role` — Раздел доступен другой роли */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description `unknown_industry` — Такой отрасли нет в справочнике */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    list_needs_api_employer_needs_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NeedOut"][];
+                };
+            };
+            /** @description `not_authenticated` — Войдите, чтобы продолжить */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description `wrong_role` — Раздел доступен другой роли */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    create_need_api_employer_needs_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NeedIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NeedOut"];
+                };
+            };
+            /** @description `not_authenticated` — Войдите, чтобы продолжить */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description `wrong_role` — Раздел доступен другой роли */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /**
+             * @description `unknown_specialization` — Такой специализации нет в справочнике
+             *
+             *     `unknown_grade` — Такого грейда нет в справочнике
+             *
+             *     `unknown_technology` — Такой технологии нет в справочнике
+             *
+             *     `topic_not_in_specialization` — Важность задаётся только темам специализации потребности
+             *
+             *     `invalid_salary_range` — Вилка — обе границы больше нуля, «от» не больше «до»
+             *
+             *     `city_required` — Укажите город — для офиса и гибрида он обязателен
+             */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    preview_topic_importance_api_employer_needs_topic_importance_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TopicImportanceIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TopicImportanceOut"][];
+                };
+            };
+            /** @description `not_authenticated` — Войдите, чтобы продолжить */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description `wrong_role` — Раздел доступен другой роли */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /**
+             * @description `unknown_specialization` — Такой специализации нет в справочнике
+             *
+             *     `unknown_technology` — Такой технологии нет в справочнике
+             *
+             *     `topic_not_in_specialization` — Важность задаётся только темам специализации потребности
+             */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    get_need_api_employer_needs__need_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                need_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NeedOut"];
+                };
+            };
+            /** @description `not_authenticated` — Войдите, чтобы продолжить */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description `wrong_role` — Раздел доступен другой роли */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description `need_not_found` — Потребность не найдена — возможно, её удалили */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_need_api_employer_needs__need_id__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                need_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NeedIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NeedOut"];
+                };
+            };
+            /** @description `not_authenticated` — Войдите, чтобы продолжить */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description `wrong_role` — Раздел доступен другой роли */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description `need_not_found` — Потребность не найдена — возможно, её удалили */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /**
+             * @description `unknown_specialization` — Такой специализации нет в справочнике
+             *
+             *     `unknown_grade` — Такого грейда нет в справочнике
+             *
+             *     `unknown_technology` — Такой технологии нет в справочнике
+             *
+             *     `topic_not_in_specialization` — Важность задаётся только темам специализации потребности
+             *
+             *     `invalid_salary_range` — Вилка — обе границы больше нуля, «от» не больше «до»
+             *
+             *     `city_required` — Укажите город — для офиса и гибрида он обязателен
+             */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    delete_need_api_employer_needs__need_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                need_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description `not_authenticated` — Войдите, чтобы продолжить */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description `wrong_role` — Раздел доступен другой роли */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description `need_not_found` — Потребность не найдена — возможно, её удалили */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

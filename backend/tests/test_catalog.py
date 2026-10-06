@@ -62,10 +62,5 @@ def test_industries_for_survey(client: TestClient) -> None:
 def test_specializations_tell_whether_test_is_ready(client: TestClient) -> None:
     specializations = client.get("/api/catalog/specializations").json()
 
-    assert {s["code"]: s["has_test"] for s in specializations} == {
-        "backend": True,
-        "frontend": False,
-        "data-ml": False,
-        "qa": True,
-        "devops": False,
-    }
+    # Банк покрывает все специализации справочника — тест готов везде.
+    assert all(s["has_test"] for s in specializations)

@@ -4,6 +4,14 @@ import type { components, paths } from './schema'
 
 export type User = components['schemas']['UserOut']
 export type Role = components['schemas']['Role']
+export type Grade = components['schemas']['GradeOut']
+export type Industry = components['schemas']['IndustryOut']
+export type Specialization = components['schemas']['SpecializationOut']
+export type CandidatePath = components['schemas']['PathOut']
+export type TestItem = components['schemas']['ItemOut']
+export type Level = components['schemas']['LevelOut']
+export type TestResult = components['schemas']['TestResultOut']
+export type SkillProfile = components['schemas']['SkillProfileOut']
 
 export const api = createClient<paths>({ credentials: 'same-origin' })
 

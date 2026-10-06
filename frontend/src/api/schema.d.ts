@@ -132,6 +132,103 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/candidate/path": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Шаг пути к категории и итоги теста */
+        get: operations["get_path_api_candidate_path_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/candidate/path/survey": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Опрос: отрасль и специализация
+         * @description Доступен до начала теста. Повторный опрос заменяет прежний.
+         */
+        post: operations["submit_survey_api_candidate_path_survey_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/candidate/path/attempts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Начать тест на грейд
+         * @description На шаге `grade` — тест на заявленный грейд. На шаге `offer` — дотест на предложенный грейд: он продолжает оценку прошлых ответов.
+         */
+        post: operations["start_attempt_api_candidate_path_attempts_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/candidate/path/item": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Текущее задание теста
+         * @description Время ответа считается по часам сервера с первого показа задания; повторный запрос отдаёт то же задание. Эталон и параметры экземпляра не отдаются.
+         */
+        get: operations["get_item_api_candidate_path_item_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/candidate/path/item/answer": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Ответ на текущее задание
+         * @description Ответ проверяет бэкенд; верен ли он, не сообщается. После последнего задания попытка останавливается и возвращается её итог.
+         */
+        post: operations["answer_item_api_candidate_path_item_answer_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/employer/cabinet": {
         parameters: {
             query?: never;
@@ -158,6 +255,23 @@ export interface paths {
         };
         /** Грейды от младшего к старшему */
         get: operations["list_grades_api_catalog_grades_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/catalog/industries": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Отрасли — сферы бизнеса для опроса кандидата */
+        get: operations["list_industries_api_catalog_industries_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -224,9 +338,54 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** AnswerIn */
+        AnswerIn: {
+            /**
+             * Presentation Id
+             * Format: uuid
+             * @description `id` задания из `GET /api/candidate/path/item`
+             */
+            presentation_id: string;
+            /** Response */
+            response: string;
+        };
+        /** AttemptIn */
+        AttemptIn: {
+            /**
+             * Grade
+             * @description Код грейда: заявленный или предложенный для дотеста
+             */
+            grade: string;
+        };
+        /** AttemptProgressOut */
+        AttemptProgressOut: {
+            /** Grade */
+            grade: string;
+            /** Answered */
+            answered: number;
+            /** Total */
+            total: number;
+        };
         /** CabinetOut */
         CabinetOut: {
             user: components["schemas"]["UserOut"];
+        };
+        /** CatalogRef */
+        CatalogRef: {
+            /** Code */
+            code: string;
+            /** Name */
+            name: string;
+        };
+        /** CategoryOut */
+        CategoryOut: {
+            specialization: components["schemas"]["CatalogRef"];
+            grade: components["schemas"]["CatalogRef"];
+            /**
+             * Assigned At
+             * Format: date-time
+             */
+            assigned_at: string;
         };
         /** ErrorOut */
         ErrorOut: {
@@ -255,10 +414,82 @@ export interface components {
              */
             rank: number;
         };
+        /** GradeProbabilityOut */
+        GradeProbabilityOut: {
+            /** Grade */
+            grade: string;
+            /**
+             * Probability
+             * @description P(общий уровень ≥ порог грейда)
+             */
+            probability: number;
+        };
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
+        };
+        /** IndustryOut */
+        IndustryOut: {
+            /** Code */
+            code: string;
+            /** Name */
+            name: string;
+        };
+        /** ItemOut */
+        ItemOut: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Number
+             * @description Номер задания в попытке, с 1
+             */
+            number: number;
+            /** Total */
+            total: number;
+            topic: components["schemas"]["CatalogRef"];
+            /** Prompt */
+            prompt: string;
+            /**
+             * Code
+             * @description Листинг, таблица или граф к условию — моноширинно
+             */
+            code: string | null;
+            /**
+             * Options
+             * @description Варианты; пусто — ответ вводится текстом
+             */
+            options: string[];
+        };
+        /**
+         * LevelBandOut
+         * @description Уровень словами (mechanics.md, §4): `low == high` — «уверенно `low`», иначе «между `low`
+         *     и `high`». `null` — ниже порога младшего грейда.
+         */
+        LevelBandOut: {
+            /** Low */
+            low: string | null;
+            /** High */
+            high: string | null;
+            /** Confident */
+            confident: boolean;
+        };
+        /** LevelOut */
+        LevelOut: {
+            /**
+             * Theta
+             * @description Уровень θ, логиты шкалы
+             */
+            theta: number;
+            /**
+             * Theta Sd
+             * @description Погрешность уровня
+             */
+            theta_sd: number;
+            band: components["schemas"]["LevelBandOut"];
         };
         /** LoginIn */
         LoginIn: {
@@ -269,6 +500,22 @@ export interface components {
             email: string;
             /** Password */
             password: string;
+        };
+        /** PathOut */
+        PathOut: {
+            /** @description `survey` — опрос; `grade` — выбор грейда; `test` — идёт тест; `offer` — предложен дотест на `offer_grade`; `category` — категория присвоена; `no_category` — без категории до `retest_after` */
+            stage: components["schemas"]["Stage"];
+            survey: components["schemas"]["SurveyOut"] | null;
+            /** @description Ход теста на шаге `test` */
+            attempt: components["schemas"]["AttemptProgressOut"] | null;
+            /** Offer Grade */
+            offer_grade: string | null;
+            /** Retest After */
+            retest_after: string | null;
+            category: components["schemas"]["CategoryOut"] | null;
+            /** @description На шагах `offer`, `category`, `no_category` */
+            result: components["schemas"]["TestResultOut"] | null;
+            profile: components["schemas"]["SkillProfileOut"] | null;
         };
         /** RegisterIn */
         RegisterIn: {
@@ -298,6 +545,23 @@ export interface components {
          * @enum {string}
          */
         Role: "candidate" | "employer";
+        /**
+         * SkillProfileOut
+         * @description Профиль навыков: уровень и погрешность по темам из всех сигналов — так его видит подбор.
+         */
+        SkillProfileOut: {
+            overall: components["schemas"]["LevelOut"];
+            /**
+             * Topics
+             * @description В порядке тем справочника
+             */
+            topics: components["schemas"]["TopicLevelOut"][];
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
         /** SpecializationOut */
         SpecializationOut: {
             /** Code */
@@ -306,6 +570,39 @@ export interface components {
             name: string;
             /** Topics */
             topics: components["schemas"]["TopicOut"][];
+            /**
+             * Has Test
+             * @description Тест готов: в банке есть задания по всем темам. Без него специализацию нельзя выбрать в опросе
+             */
+            has_test: boolean;
+        };
+        /**
+         * Stage
+         * @enum {string}
+         */
+        Stage: "survey" | "grade" | "test" | "offer" | "category" | "no_category";
+        /** SurveyIn */
+        SurveyIn: {
+            /**
+             * Industry
+             * @description Код отрасли из `/api/catalog/industries`
+             */
+            industry: string;
+            /**
+             * Specialization
+             * @description Код специализации из `/api/catalog/specializations` с `has_test`
+             */
+            specialization: string;
+        };
+        /** SurveyOut */
+        SurveyOut: {
+            industry: components["schemas"]["CatalogRef"];
+            specialization: components["schemas"]["CatalogRef"];
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
         };
         /** TechnologyOut */
         TechnologyOut: {
@@ -318,6 +615,34 @@ export interface components {
              * @description Коды тем, на которые указывает технология
              */
             topics: string[];
+        };
+        /**
+         * TestResultOut
+         * @description Оценка теста определения категории — по ней решается грейд.
+         */
+        TestResultOut: {
+            /**
+             * Grade
+             * @description Грейд последней попытки
+             */
+            grade: string;
+            /** @description Общий уровень по специализации */
+            overall: components["schemas"]["LevelOut"];
+            /**
+             * Grade Probabilities
+             * @description От младшего грейда
+             */
+            grade_probabilities: components["schemas"]["GradeProbabilityOut"][];
+            /**
+             * Grade Up Hint
+             * @description Грейд выше присвоенного, если стоит попробовать его пройти
+             */
+            grade_up_hint: string | null;
+        };
+        /** TopicLevelOut */
+        TopicLevelOut: {
+            topic: components["schemas"]["CatalogRef"];
+            level: components["schemas"]["LevelOut"];
         };
         /** TopicOut */
         TopicOut: {
@@ -626,6 +951,285 @@ export interface operations {
             };
         };
     };
+    get_path_api_candidate_path_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PathOut"];
+                };
+            };
+            /** @description `not_authenticated` — Войдите, чтобы продолжить */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description `wrong_role` — Раздел доступен другой роли */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    submit_survey_api_candidate_path_survey_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SurveyIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PathOut"];
+                };
+            };
+            /** @description `not_authenticated` — Войдите, чтобы продолжить */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description `wrong_role` — Раздел доступен другой роли */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description `path_step_unavailable` — Этот шаг сейчас недоступен — обновите страницу */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /**
+             * @description `unknown_industry` — Такой отрасли нет в справочнике
+             *
+             *     `unknown_specialization` — Такой специализации нет в справочнике
+             *
+             *     `specialization_without_test` — Тест по этой специализации ещё готовится — выберите другую
+             */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    start_attempt_api_candidate_path_attempts_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AttemptIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PathOut"];
+                };
+            };
+            /** @description `not_authenticated` — Войдите, чтобы продолжить */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description `wrong_role` — Раздел доступен другой роли */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /**
+             * @description `path_step_unavailable` — Этот шаг сейчас недоступен — обновите страницу
+             *
+             *     `grade_not_offered` — Продолжить можно только на предложенном грейде
+             */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description `unknown_grade` — Такого грейда нет в справочнике */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    get_item_api_candidate_path_item_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ItemOut"];
+                };
+            };
+            /** @description `not_authenticated` — Войдите, чтобы продолжить */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description `wrong_role` — Раздел доступен другой роли */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description `no_test_in_progress` — Сейчас нет начатого теста */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    answer_item_api_candidate_path_item_answer_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AnswerIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PathOut"];
+                };
+            };
+            /** @description `not_authenticated` — Войдите, чтобы продолжить */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description `wrong_role` — Раздел доступен другой роли */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /**
+             * @description `no_test_in_progress` — Сейчас нет начатого теста
+             *
+             *     `item_not_current` — Это задание уже не текущее — обновите страницу
+             */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     employer_cabinet_api_employer_cabinet_get: {
         parameters: {
             query?: never;
@@ -680,6 +1284,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["GradeOut"][];
+                };
+            };
+        };
+    };
+    list_industries_api_catalog_industries_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IndustryOut"][];
                 };
             };
         };

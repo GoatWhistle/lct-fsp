@@ -5,6 +5,7 @@ from fastapi import FastAPI
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
+from app.assessment.path_router import router as path_router
 from app.assessment.router import router as catalog_router
 from app.cabinets import candidate_router, employer_router
 from app.config import Mechanics, Settings
@@ -55,6 +56,7 @@ def create_app(
     install_error_handlers(app)
     app.include_router(auth_router)
     app.include_router(candidate_router)
+    app.include_router(path_router)
     app.include_router(employer_router)
     app.include_router(catalog_router)
 

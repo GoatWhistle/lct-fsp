@@ -14,6 +14,7 @@ from app.errors import install_error_handlers
 from app.identity.router import router as auth_router
 from app.mail import Mailer, SmtpMailer
 from app.matching.router import router as needs_router
+from app.matching.router import selections_router
 from app.profile.router import employer_router as candidates_router
 from app.profile.router import router as profile_router
 
@@ -65,6 +66,7 @@ def create_app(
     app.include_router(employer_router)
     app.include_router(company_router)
     app.include_router(needs_router)
+    app.include_router(selections_router)
     app.include_router(candidates_router)
     app.include_router(catalog_router)
 

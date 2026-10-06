@@ -9,6 +9,7 @@ import { Home } from './pages/Home'
 import { Login } from './pages/Login'
 import { NeedForm } from './pages/NeedForm'
 import { Register } from './pages/Register'
+import { Selection } from './pages/Selection'
 import { VerifyEmail } from './pages/VerifyEmail'
 
 export default function App() {
@@ -42,6 +43,7 @@ export default function App() {
           <Route path="company" element={<CompanyProfile />} />
           <Route path="needs/new" element={<NeedForm />} />
           <Route path="needs/:id" element={<NeedForm />} />
+          <Route path="selections/:id" element={<Selection />} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>

@@ -54,6 +54,21 @@ def test_role_apis_document_401_and_403(spec: dict[str, Any]) -> None:
         ),
         ("GET", "/api/candidate/path/item", {"no_test_in_progress"}),
         ("POST", "/api/candidate/path/item/answer", {"no_test_in_progress", "item_not_current"}),
+        ("PUT", "/api/employer/company", {"unknown_industry"}),
+        (
+            "POST",
+            "/api/employer/needs",
+            {
+                "unknown_specialization",
+                "unknown_grade",
+                "unknown_technology",
+                "topic_not_in_specialization",
+                "invalid_salary_range",
+                "city_required",
+            },
+        ),
+        ("PUT", "/api/employer/needs/{need_id}", {"need_not_found", "invalid_salary_range"}),
+        ("DELETE", "/api/employer/needs/{need_id}", {"need_not_found"}),
     ],
 )
 def test_error_codes_are_documented(

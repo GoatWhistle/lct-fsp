@@ -14,7 +14,7 @@ from app.errors import error_responses
 from app.identity.deps import ROLE_RESPONSES, CurrentUser, role_guard
 from app.identity.models import Role
 from app.matching import selection, service
-from app.matching.models import Need, Selection
+from app.matching.models import Need
 from app.matching.schemas import (
     Explanation,
     NeedIn,
@@ -133,8 +133,9 @@ def list_selections(
     user: CurrentUser,
     db: DbSession,
     need_id: Annotated[uuid.UUID | None, Query(description="Только по этой потребности")] = None,
+    limit: Limit = 50,
 ) -> list[SelectionSummaryOut]:
-    return [_summary_out(s) for s in selection.list_selections(db, user.id, need_id)]
+    return [_summary_out(s) for s in selection.list_selections(db, user.id, need_id, limit=limit)]
 
 
 @selections_router.get(
@@ -184,16 +185,16 @@ def _topics_out(views: list[service.TopicView]) -> list[TopicImportanceOut]:
     ]
 
 
-def _summary_out(row: Selection) -> SelectionSummaryOut:
-    need = selection.snapshot_of(row)
+def _summary_out(summary: selection.Summary) -> SelectionSummaryOut:
+    row, need = summary.selection, summary.need
     return SelectionSummaryOut(
         id=row.id,
         need_id=row.need_id,
         title=need.title,
         specialization=need.specialization,
         grade=need.grade,
-        exact_total=row.exact_total,
-        nearby_total=row.nearby_total,
+        exact_total=summary.exact_total,
+        nearby_total=summary.nearby_total,
         created_at=row.created_at,
     )
 
@@ -210,7 +211,7 @@ def _selection_out(page: selection.Page) -> SelectionOut:
                 position=entry.position,
                 block=entry.block,
                 rank=entry.rank,
-                grade=CatalogRef.model_validate(entry.grade),
+                grade=CatalogRef(code=entry.grade_code, name=entry.grade_name),
                 match_score=entry.match_score,
                 acceptance_probability=entry.acceptance_probability,
                 mutual_score=entry.mutual_score,
@@ -234,7 +235,7 @@ def _selection_out(page: selection.Page) -> SelectionOut:
             )
         )
     return SelectionOut(
-        **_summary_out(page.selection).model_dump(),
+        **_summary_out(page).model_dump(),
         need=page.need,
         stack_cap=page.selection.stack_cap,
         offset=page.offset,

@@ -10,7 +10,7 @@ from typing import Annotated
 
 import yaml
 from fastapi import Depends, Request
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 BACKEND_DIR = Path(__file__).resolve().parent.parent
@@ -127,6 +127,24 @@ class Mechanics(BaseModel):
     # Обратная связь
     feedback_min_selections: int
     feedback_period_days: int
+
+    @field_validator("need_importance_weights")
+    @classmethod
+    def weight_for_every_importance(cls, value: dict[str, float]) -> dict[str, float]:
+        """Вес темы — вес важности, нормированный на сумму: у каждой важности свой вес больше
+        нуля, иначе у потребности из одних желательных тем делить не на что."""
+        if set(value) != {"key", "important", "nice"} or min(value.values()) <= 0:
+            raise ValueError("нужны веса key, important и nice, все больше нуля")
+        return value
+
+    @field_validator("confidence_language_bands")
+    @classmethod
+    def three_ascending_bands(cls, value: list[float]) -> list[float]:
+        """Три границы делят вероятность на четыре слова: «ниже», «скорее ниже», «скорее выше»,
+        «уверенно выше»."""
+        if len(value) != 3 or not 0 < value[0] < value[1] < value[2] < 1:
+            raise ValueError("нужны три границы по возрастанию строго между 0 и 1")
+        return value
 
     @classmethod
     def from_yaml(cls, path: Path) -> "Mechanics":

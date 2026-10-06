@@ -10,10 +10,10 @@ from typing import Any
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import Engine, insert, select, update
+from sqlalchemy import Engine, delete, insert, select, update
 from sqlalchemy.orm import Session
 
-from app.assessment.models import CandidateCategory, Survey, TestAttempt, Topic
+from app.assessment.models import CandidateCategory, Grade, Survey, TestAttempt, Topic
 from app.config import Mechanics
 from app.identity.models import Role, User
 from app.profile.models import CandidateProfile, candidate_technologies
@@ -402,6 +402,67 @@ def test_raising_topic_level_does_not_move_candidate_down(
     assert set(before) == set(ids)
 
 
+def test_topic_missing_from_profile_counts_as_prior_with_low_data(
+    employer: TestClient, db_engine: Engine, mechanics: Mechanics
+) -> None:
+    # Тему добавили в справочник, а профиль кандидата пересчитается только со следующим сигналом.
+    (candidate,) = seed(db_engine, [Seed(levels={"qa.api": (1.5, 0.3)})])
+    with Session(db_engine) as db:
+        absent = SkillProfileTopic.topic_code == "qa.performance"
+        db.execute(delete(SkillProfileTopic).where(absent))
+        db.commit()
+
+    entry = entry_of(build(employer, create_need(employer)), candidate)
+
+    topics = {t["topic"]["code"]: t for t in entry["topics"]}
+    missing = topics["qa.performance"]
+    assert missing["theta"] == 0
+    assert missing["theta_sd"] == pytest.approx(
+        (mechanics.theta_prior_sd**2 + mechanics.topic_deviation_sd**2) ** 0.5
+    )
+    assert missing["low_data"] is True
+    assert topics["qa.api"]["verdict"] == "confidently_above"
+
+
+def test_deleted_candidate_leaves_selection_consistent(
+    employer: TestClient, db_engine: Engine
+) -> None:
+    gone, *_ = seed(db_engine, [Seed(levels={"qa.api": (3.0, 0.2)}), Seed(), Seed(grade="senior")])
+    built = build(employer, create_need(employer))
+    assert built["entries"][0]["candidate_id"] == gone
+
+    with Session(db_engine) as db:
+        db.execute(delete(User).where(User.id == uuid.UUID(gone)))
+        db.commit()
+
+    reopened = open_selection(employer, built["id"])
+    assert (reopened["exact_total"], reopened["nearby_total"]) == (1, 1)
+    assert [e["candidate_id"] for e in reopened["entries"]] == [
+        e["candidate_id"] for e in built["entries"][1:]
+    ]
+    listed = employer.get(SELECTIONS).json()
+    assert (listed[0]["exact_total"], listed[0]["nearby_total"]) == (1, 1)
+
+
+def test_entry_grade_name_is_frozen_with_the_selection(
+    employer: TestClient, db_engine: Engine
+) -> None:
+    seed(db_engine, [Seed(grade="senior")])
+    built = build(employer, create_need(employer))
+
+    with Session(db_engine) as db:
+        db.execute(update(Grade).where(Grade.code == "senior").values(name="Сеньор"))
+        db.commit()
+    try:
+        reopened = open_selection(employer, built["id"])
+    finally:
+        with Session(db_engine) as db:
+            db.execute(update(Grade).where(Grade.code == "senior").values(name="Senior"))
+            db.commit()
+
+    assert reopened["entries"][0]["grade"] == {"code": "senior", "name": "Senior"}
+
+
 def test_saved_selection_reopens_with_the_same_output(
     signed_in: SignIn, employer: TestClient, db_engine: Engine
 ) -> None:
@@ -536,9 +597,13 @@ def test_selection_on_1000_candidates_builds_within_a_second(
     need = create_need(employer)
     build(employer, need)  # прогрев: соединения и планы запросов
 
-    started = time.perf_counter()
-    selection = build(employer, need)
-    elapsed = time.perf_counter() - started
+    timings = []
+    for _ in range(3):
+        started = time.perf_counter()
+        selection = build(employer, need)
+        timings.append(time.perf_counter() - started)
+        assert selection["exact_total"] + selection["nearby_total"] == 1000
 
-    assert selection["exact_total"] + selection["nearby_total"] == 1000
+    # Медиана трёх построений: разовая задержка машины — не регресс.
+    elapsed = sorted(timings)[1]
     assert elapsed < 1.0, f"подборка на 1000 кандидатах строилась {elapsed:.2f} с"

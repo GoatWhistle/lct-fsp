@@ -9,14 +9,16 @@
 открывается с той же выдачей. Работодатель видит только свои подборки: чужая — 404.
 """
 
+import math
 import uuid
 from collections import defaultdict
+from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Any
 
-from sqlalchemy import and_, insert, select
-from sqlalchemy.orm import Session, selectinload
+from sqlalchemy import ColumnElement, and_, func, insert, select
+from sqlalchemy.orm import Session
 
 from app.assessment.models import CandidateCategory, Grade
 from app.assessment.schemas import CatalogRef
@@ -45,9 +47,16 @@ class SelectionNotFound(AppError):
 
 
 @dataclass(frozen=True)
-class Page:
+class Summary:
     selection: Selection
     need: NeedSnapshot
+    # Считаются по строкам выдачи: кандидат, удаливший учётку, уходит из подборки целиком.
+    exact_total: int
+    nearby_total: int
+
+
+@dataclass(frozen=True)
+class Page(Summary):
     entries: list[SelectionEntry]
     offset: int
 
@@ -56,6 +65,7 @@ class Page:
 class _Candidate:
     user_id: uuid.UUID
     grade_code: str
+    grade_name: str
     block: SelectionBlock
     last_signal_at: datetime | None
     levels: dict[str, Normal]
@@ -69,8 +79,8 @@ def build(
     snapshot = need_snapshot(need, mechanics)
     need_reqs = [Requirement(t.topic.code, t.weight, t.requirement) for t in snapshot.topics]
     need_stack = [t.code for t in snapshot.stack]
-    pool = _pool(db, need, mechanics)
-    stacks = _stacks(db, need, need_stack)
+    pool = _pool(db, need, [t.topic.code for t in snapshot.topics], mechanics)
+    stacks = _stacks(db, need, need_stack, mechanics)
     now = utcnow()
 
     selection = Selection(
@@ -79,8 +89,6 @@ def build(
         need_id=need.id,
         need_snapshot=snapshot.model_dump(mode="json"),
         stack_cap=mechanics.self_reported_stack_cap,
-        exact_total=sum(c.block == SelectionBlock.exact for c in pool),
-        nearby_total=sum(c.block == SelectionBlock.nearby for c in pool),
         created_at=now,
     )
     matches = {
@@ -111,6 +119,7 @@ def build(
                     "block": block,
                     "rank": rank,
                     "grade_code": candidate.grade_code,
+                    "grade_name": candidate.grade_name,
                     "match_score": matches[candidate_id].score,
                     "acceptance_probability": acceptance[candidate_id],
                     "mutual_score": mutual[candidate_id],
@@ -138,23 +147,43 @@ def get_page(
     entries = db.scalars(
         select(SelectionEntry)
         .where(SelectionEntry.selection_id == selection.id)
-        .options(selectinload(SelectionEntry.grade))
         .order_by(SelectionEntry.position)
         .offset(offset)
         .limit(limit)
     ).all()
-    return Page(selection, snapshot_of(selection), list(entries), offset)
+    (summary,) = _summaries(db, [selection])
+    return Page(**vars(summary), entries=list(entries), offset=offset)
 
 
-def list_selections(db: Session, user_id: uuid.UUID, need_id: uuid.UUID | None) -> list[Selection]:
+def list_selections(
+    db: Session, user_id: uuid.UUID, need_id: uuid.UUID | None, *, limit: int
+) -> list[Summary]:
     query = select(Selection).where(Selection.user_id == user_id)
     if need_id is not None:
         query = query.where(Selection.need_id == need_id)
-    return list(db.scalars(query.order_by(Selection.created_at.desc())))
+    return _summaries(
+        db, list(db.scalars(query.order_by(Selection.created_at.desc()).limit(limit)))
+    )
 
 
-def snapshot_of(selection: Selection) -> NeedSnapshot:
-    return NeedSnapshot.model_validate(selection.need_snapshot)
+def _summaries(db: Session, selections: Sequence[Selection]) -> list[Summary]:
+    totals = {s.id: dict.fromkeys(SelectionBlock, 0) for s in selections}
+    rows = db.execute(
+        select(SelectionEntry.selection_id, SelectionEntry.block, func.count())
+        .where(SelectionEntry.selection_id.in_(totals))
+        .group_by(SelectionEntry.selection_id, SelectionEntry.block)
+    ).all()
+    for selection_id, block, count in rows:
+        totals[selection_id][block] = count
+    return [
+        Summary(
+            s,
+            NeedSnapshot.model_validate(s.need_snapshot),
+            totals[s.id][SelectionBlock.exact],
+            totals[s.id][SelectionBlock.nearby],
+        )
+        for s in selections
+    ]
 
 
 def need_snapshot(need: Need, mechanics: Mechanics) -> NeedSnapshot:
@@ -188,14 +217,14 @@ def need_snapshot(need: Need, mechanics: Mechanics) -> NeedSnapshot:
     )
 
 
-def _pool(db: Session, need: Need, mechanics: Mechanics) -> list[_Candidate]:
+def _pool(db: Session, need: Need, topics: Sequence[str], mechanics: Mechanics) -> list[_Candidate]:
     """Кандидаты с категорией специализации потребности и грейдом не дальше
     `nearby_grade_distance` — с уровнями по темам из профиля навыков этой специализации."""
-    distance = mechanics.nearby_grade_distance
     rows = db.execute(
         select(
             CandidateCategory.user_id,
             CandidateCategory.grade_code,
+            Grade.name,
             Grade.rank,
             SkillProfile.last_signal_at,
             SkillProfileTopic.topic_code,
@@ -211,37 +240,52 @@ def _pool(db: Session, need: Need, mechanics: Mechanics) -> list[_Candidate]:
             ),
         )
         .join(SkillProfileTopic, SkillProfileTopic.profile_id == SkillProfile.id)
-        .where(
-            CandidateCategory.specialization_code == need.specialization_code,
-            Grade.rank.between(need.grade.rank - distance, need.grade.rank + distance),
-        )
+        .where(*_in_reach(need, mechanics))
     ).all()
 
     pool: dict[uuid.UUID, _Candidate] = {}
-    for user_id, grade_code, rank, last_signal_at, topic, theta, theta_sd in rows:
+    for user_id, grade_code, grade_name, rank, last_signal_at, topic, theta, theta_sd in rows:
         if user_id not in pool:
             block = SelectionBlock.exact if rank == need.grade.rank else SelectionBlock.nearby
-            pool[user_id] = _Candidate(user_id, grade_code, block, last_signal_at, {})
+            pool[user_id] = _Candidate(user_id, grade_code, grade_name, block, last_signal_at, {})
         pool[user_id].levels[topic] = Normal(theta, theta_sd)
+
+    # Тему добавили в справочник, а профиль пересчитается со следующим сигналом: до тех пор
+    # уровень по ней — априорный (§3), «данных мало».
+    prior = Normal(0.0, math.hypot(mechanics.theta_prior_sd, mechanics.topic_deviation_sd))
+    for candidate in pool.values():
+        for topic in topics:
+            candidate.levels.setdefault(topic, prior)
     return list(pool.values())
 
 
-def _stacks(db: Session, need: Need, need_stack: list[str]) -> defaultdict[uuid.UUID, set[str]]:
-    """Технологии потребности в самоописании кандидатов её специализации."""
+def _stacks(
+    db: Session, need: Need, need_stack: list[str], mechanics: Mechanics
+) -> defaultdict[uuid.UUID, set[str]]:
+    """Технологии потребности в самоописании кандидатов, которые попадают в подборку."""
     stacks: defaultdict[uuid.UUID, set[str]] = defaultdict(set)
     if not need_stack:
         return stacks
     rows = db.execute(
         select(candidate_technologies.c.user_id, candidate_technologies.c.technology_code)
         .join(CandidateCategory, CandidateCategory.user_id == candidate_technologies.c.user_id)
+        .join(Grade, Grade.code == CandidateCategory.grade_code)
         .where(
-            CandidateCategory.specialization_code == need.specialization_code,
-            candidate_technologies.c.technology_code.in_(need_stack),
+            *_in_reach(need, mechanics), candidate_technologies.c.technology_code.in_(need_stack)
         )
     ).all()
     for user_id, technology in rows:
         stacks[user_id].add(technology)
     return stacks
+
+
+def _in_reach(need: Need, mechanics: Mechanics) -> tuple[ColumnElement[bool], ...]:
+    """Категория — специализация потребности, грейд — не дальше `nearby_grade_distance`."""
+    distance = mechanics.nearby_grade_distance
+    return (
+        CandidateCategory.specialization_code == need.specialization_code,
+        Grade.rank.between(need.grade.rank - distance, need.grade.rank + distance),
+    )
 
 
 def _explanation(match: Match, mechanics: Mechanics) -> Explanation:

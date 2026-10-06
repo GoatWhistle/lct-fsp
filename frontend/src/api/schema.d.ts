@@ -2741,6 +2741,8 @@ export interface operations {
             query?: {
                 /** @description Только по этой потребности */
                 need_id?: string | null;
+                /** @description Сколько кандидатов вернуть */
+                limit?: number;
             };
             header?: never;
             path?: never;

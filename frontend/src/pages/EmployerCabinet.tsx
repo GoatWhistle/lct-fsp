@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router'
 import { api, errorMessage, type Company, type Need, type SelectionSummary } from '../api/client'
-import { dateWords } from '../candidate/words'
+import { dateTimeWords, dateWords } from '../candidate/words'
 import { Cabinet } from '../components/Cabinet'
 import { salaryWords, workFormatWord } from '../employer/words'
 
@@ -10,6 +10,7 @@ export function EmployerCabinet() {
   const [company, setCompany] = useState<Company | null | undefined>(undefined)
   const [needs, setNeeds] = useState<Need[] | null>(null)
   const [selections, setSelections] = useState<SelectionSummary[]>([])
+  const [selectionsError, setSelectionsError] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
@@ -18,13 +19,15 @@ export function EmployerCabinet() {
       api.GET('/api/employer/needs'),
       api.GET('/api/employer/selections'),
     ]).then(([company, needs, selections]) => {
-      if (company.error || needs.error || selections.error) {
-        setError(errorMessage(company.error ?? needs.error ?? selections.error))
+      if (company.error || needs.error) {
+        setError(errorMessage(company.error ?? needs.error))
         return
       }
       setCompany(company.data ?? null)
       setNeeds(needs.data ?? [])
+      // Подборки не загрузились — кабинет с профилем и потребностями всё равно нужен.
       setSelections(selections.data ?? [])
+      setSelectionsError(selections.error ? errorMessage(selections.error) : null)
     })
   }, [])
 
@@ -54,6 +57,7 @@ export function EmployerCabinet() {
           ))
         )}
       </section>
+      <SelectionList selections={selections} error={selectionsError} />
     </Cabinet>
   )
 }
@@ -99,6 +103,33 @@ function CompanyCard({ company }: { company: Company | null }) {
         )}
       </p>
     </div>
+  )
+}
+
+/** Последние подборки — в том числе по удалённым потребностям: они открываются по снимку. */
+function SelectionList({ selections, error }: { selections: SelectionSummary[]; error: string | null }) {
+  if (error) return <p className="error">Подборки не загрузились: {error}</p>
+  if (selections.length === 0) return null
+  return (
+    <section className="stack">
+      <h2>Подборки</h2>
+      <div className="card">
+        <ul className="selection-list">
+          {selections.slice(0, 10).map((s) => (
+            <li key={s.id}>
+              <Link to={`/employer/selections/${s.id}`}>{s.title}</Link>
+              <span className="muted">
+                {' '}
+                · {s.specialization.name} · {s.grade.name} · {dateTimeWords(s.created_at)} · {s.exact_total} в
+                категории
+                {s.nearby_total > 0 && `, ${s.nearby_total} близких`}
+                {!s.need_id && ' · потребность удалена'}
+              </span>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </section>
   )
 }
 

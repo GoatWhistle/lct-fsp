@@ -50,3 +50,22 @@ def test_unknown_specialization_is_404(client: TestClient) -> None:
 
     assert response.status_code == 404
     assert response.json()["code"] == "specialization_not_found"
+
+
+def test_industries_for_survey(client: TestClient) -> None:
+    industries = client.get("/api/catalog/industries").json()
+
+    assert {"code": "fintech", "name": "Финтех и банки"} in industries
+    assert len({i["code"] for i in industries}) == len(industries)
+
+
+def test_specializations_tell_whether_test_is_ready(client: TestClient) -> None:
+    specializations = client.get("/api/catalog/specializations").json()
+
+    assert {s["code"]: s["has_test"] for s in specializations} == {
+        "backend": True,
+        "frontend": False,
+        "data-ml": False,
+        "qa": True,
+        "devops": False,
+    }

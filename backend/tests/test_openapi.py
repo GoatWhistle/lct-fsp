@@ -42,6 +42,18 @@ def test_role_apis_document_401_and_403(spec: dict[str, Any]) -> None:
         ("POST", "/api/auth/login", {"invalid_credentials", "email_not_verified"}),
         ("GET", "/api/auth/me", {"not_authenticated"}),
         ("GET", "/api/catalog/technologies", {"specialization_not_found"}),
+        (
+            "POST",
+            "/api/candidate/path/survey",
+            {"path_step_unavailable", "unknown_industry", "specialization_without_test"},
+        ),
+        (
+            "POST",
+            "/api/candidate/path/attempts",
+            {"path_step_unavailable", "grade_not_offered", "unknown_grade"},
+        ),
+        ("GET", "/api/candidate/path/item", {"no_test_in_progress"}),
+        ("POST", "/api/candidate/path/item/answer", {"no_test_in_progress", "item_not_current"}),
     ],
 )
 def test_error_codes_are_documented(

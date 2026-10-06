@@ -8,6 +8,20 @@ grades:
   - {code: middle, name: Middle, rank: 3}
   - {code: senior, name: Senior, rank: 4}
 
+# Отрасль — сфера бизнеса из опроса: показывается в статусе кандидата, на категорию и модели
+# не влияет.
+industries:
+  - {code: fintech, name: Финтех и банки}
+  - {code: e-commerce, name: Электронная коммерция и ритейл}
+  - {code: government, name: Госсектор}
+  - {code: telecom, name: Телеком}
+  - {code: industry, name: Промышленность и энергетика}
+  - {code: healthcare, name: Медицина}
+  - {code: education, name: Образование}
+  - {code: media, name: "Медиа, игры и развлечения"}
+  - {code: logistics, name: Транспорт и логистика}
+  - {code: it-products, name: ИТ-продукты и аутсорс}
+
 specializations:
   - code: backend
     name: Бэкенд

@@ -1,0 +1,196 @@
+"""Путь кандидата к категории: опрос → грейд → тест → категория. Путь обязательный — пока
+категории нет, кабинет кандидата показывает его шаг."""
+
+from fastapi import APIRouter
+
+from app.assessment import service
+from app.assessment.determination import grade_probabilities, grade_up_hint
+from app.assessment.models import AttemptOutcome, TestAttempt, Topic
+from app.assessment.schemas import (
+    AnswerIn,
+    AttemptIn,
+    AttemptProgressOut,
+    CatalogRef,
+    CategoryOut,
+    GradeProbabilityOut,
+    ItemOut,
+    LevelBandOut,
+    LevelOut,
+    PathOut,
+    SkillProfileOut,
+    SurveyIn,
+    SurveyOut,
+    TestResultOut,
+    TopicLevelOut,
+)
+from app.config import Mechanics, MechanicsDep
+from app.db import DbSession, utcnow
+from app.errors import error_responses
+from app.identity.deps import ROLE_RESPONSES, CurrentUser, role_guard
+from app.identity.models import Role
+from app.skills.irt import Normal, level_band
+from app.skills.models import SkillProfile
+
+router = APIRouter(
+    prefix="/api/candidate/path",
+    tags=["candidate-path"],
+    dependencies=role_guard(Role.candidate),
+    responses=ROLE_RESPONSES,
+)
+
+
+@router.get("", summary="Шаг пути к категории и итоги теста")
+def get_path(user: CurrentUser, db: DbSession, mechanics: MechanicsDep) -> PathOut:
+    return _path_out(service.path(db, user.id, utcnow()), mechanics)
+
+
+@router.post(
+    "/survey",
+    summary="Опрос: отрасль и специализация",
+    description="Доступен до начала теста. Повторный опрос заменяет прежний.",
+    responses=error_responses(
+        service.StepUnavailable,
+        service.UnknownIndustry,
+        service.UnknownSpecialization,
+        service.SpecializationWithoutTest,
+    ),
+)
+def submit_survey(
+    body: SurveyIn, user: CurrentUser, db: DbSession, mechanics: MechanicsDep
+) -> PathOut:
+    service.submit_survey(
+        db, user, industry=body.industry, specialization=body.specialization, now=utcnow()
+    )
+    return _path_out(service.path(db, user.id, utcnow()), mechanics)
+
+
+@router.post(
+    "/attempts",
+    summary="Начать тест на грейд",
+    description="На шаге `grade` — тест на заявленный грейд. На шаге `offer` — дотест на "
+    "предложенный грейд: он продолжает оценку прошлых ответов.",
+    responses=error_responses(
+        service.StepUnavailable, service.GradeNotOffered, service.UnknownGrade
+    ),
+)
+def start_attempt(
+    body: AttemptIn, user: CurrentUser, db: DbSession, mechanics: MechanicsDep
+) -> PathOut:
+    service.start_attempt(db, user, mechanics, grade=body.grade, now=utcnow())
+    return _path_out(service.path(db, user.id, utcnow()), mechanics)
+
+
+@router.get(
+    "/item",
+    summary="Текущее задание теста",
+    description="Время ответа считается по часам сервера с первого показа задания; повторный "
+    "запрос отдаёт то же задание. Эталон и параметры экземпляра не отдаются.",
+    responses=error_responses(service.NoTestInProgress),
+)
+def get_item(user: CurrentUser, db: DbSession, mechanics: MechanicsDep) -> ItemOut:
+    item = service.current_item(db, user, mechanics, now=utcnow())
+    return ItemOut(
+        id=item.presentation.id,
+        number=item.presentation.position + 1,
+        total=item.total,
+        topic=CatalogRef.model_validate(item.topic),
+        prompt=item.instance.prompt,
+        code=item.instance.code,
+        options=list(item.instance.options),
+    )
+
+
+@router.post(
+    "/item/answer",
+    summary="Ответ на текущее задание",
+    description="Ответ проверяет бэкенд; верен ли он, не сообщается. После последнего задания "
+    "попытка останавливается и возвращается её итог.",
+    responses=error_responses(service.NoTestInProgress, service.ItemNotCurrent),
+)
+def answer_item(
+    body: AnswerIn, user: CurrentUser, db: DbSession, mechanics: MechanicsDep
+) -> PathOut:
+    service.answer(
+        db,
+        user,
+        mechanics,
+        presentation_id=body.presentation_id,
+        response=body.response,
+        now=utcnow(),
+    )
+    return _path_out(service.path(db, user.id, utcnow()), mechanics)
+
+
+def _path_out(view: service.PathView, mechanics: Mechanics) -> PathOut:
+    attempt = view.attempt
+    finished = attempt is not None and attempt.finished_at is not None
+    return PathOut(
+        stage=view.stage,
+        survey=SurveyOut.model_validate(view.survey) if view.survey else None,
+        attempt=(
+            AttemptProgressOut(
+                grade=attempt.grade_code,
+                answered=sum(1 for p in attempt.presentations if p.answered_at is not None),
+                total=len(attempt.blueprint),
+            )
+            if attempt is not None and not finished
+            else None
+        ),
+        offer_grade=(
+            attempt.outcome_grade_code
+            if attempt is not None and attempt.outcome == AttemptOutcome.offered
+            else None
+        ),
+        retest_after=attempt.retest_after if attempt is not None else None,
+        category=CategoryOut.model_validate(view.category) if view.category else None,
+        result=_result_out(attempt, mechanics) if attempt is not None and finished else None,
+        profile=_profile_out(view.profile, mechanics) if view.profile else None,
+    )
+
+
+def _result_out(attempt: TestAttempt, mechanics: Mechanics) -> TestResultOut:
+    assert attempt.overall_theta is not None and attempt.overall_theta_sd is not None
+    overall = Normal(attempt.overall_theta, attempt.overall_theta_sd)
+    probabilities = grade_probabilities(overall, mechanics.grade_thresholds)
+    hint = None
+    if attempt.outcome == AttemptOutcome.assigned and attempt.outcome_grade_code is not None:
+        hint = grade_up_hint(
+            overall,
+            attempt.outcome_grade_code,
+            thresholds=mechanics.grade_thresholds,
+            confidence=mechanics.grade_up_hint_confidence,
+        )
+    return TestResultOut(
+        grade=attempt.grade_code,
+        overall=_level_out(overall, mechanics),
+        grade_probabilities=[
+            GradeProbabilityOut(grade=g, probability=p) for g, p in probabilities.items()
+        ],
+        grade_up_hint=hint,
+    )
+
+
+def _profile_out(profile: SkillProfile, mechanics: Mechanics) -> SkillProfileOut:
+    rows: list[tuple[Topic, Normal]] = [
+        (row.topic, Normal(row.theta, row.theta_sd)) for row in profile.topics
+    ]
+    rows.sort(key=lambda row: row[0].position)
+    return SkillProfileOut(
+        overall=_level_out(Normal(profile.overall_theta, profile.overall_theta_sd), mechanics),
+        topics=[
+            TopicLevelOut(
+                topic=CatalogRef.model_validate(topic), level=_level_out(level, mechanics)
+            )
+            for topic, level in rows
+        ],
+        updated_at=profile.updated_at,
+    )
+
+
+def _level_out(level: Normal, mechanics: Mechanics) -> LevelOut:
+    band = level_band(level, mechanics.grade_thresholds, mechanics.grade_confidence)
+    return LevelOut(
+        theta=level.mean,
+        theta_sd=level.sd,
+        band=LevelBandOut(low=band.low, high=band.high, confident=band.confident),
+    )

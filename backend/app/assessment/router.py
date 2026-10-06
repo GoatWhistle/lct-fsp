@@ -3,7 +3,8 @@ from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
-from app.assessment.models import Grade, Specialization, Technology, Topic
+from app.assessment import bank
+from app.assessment.models import Grade, Industry, Specialization, Technology, Topic
 from app.db import DbSession
 from app.errors import AppError, error_responses
 
@@ -31,10 +32,19 @@ class TopicOut(_Out):
     name: str
 
 
+class IndustryOut(_Out):
+    code: str
+    name: str
+
+
 class SpecializationOut(_Out):
     code: str
     name: str
     topics: list[TopicOut]
+    has_test: bool = Field(
+        description="Тест готов: в банке есть задания по всем темам. Без него специализацию "
+        "нельзя выбрать в опросе"
+    )
 
 
 class TechnologyOut(_Out):
@@ -49,6 +59,12 @@ def list_grades(db: DbSession) -> list[GradeOut]:
     return [GradeOut.model_validate(g) for g in grades]
 
 
+@router.get("/industries", summary="Отрасли — сферы бизнеса для опроса кандидата")
+def list_industries(db: DbSession) -> list[IndustryOut]:
+    industries = db.scalars(select(Industry).order_by(Industry.position))
+    return [IndustryOut.model_validate(i) for i in industries]
+
+
 @router.get("/specializations", summary="Специализации с темами")
 def list_specializations(db: DbSession) -> list[SpecializationOut]:
     specializations = db.scalars(
@@ -56,7 +72,15 @@ def list_specializations(db: DbSession) -> list[SpecializationOut]:
         .options(selectinload(Specialization.topics))
         .order_by(Specialization.position)
     )
-    return [SpecializationOut.model_validate(s) for s in specializations]
+    return [
+        SpecializationOut(
+            code=s.code,
+            name=s.name,
+            topics=[TopicOut.model_validate(t) for t in s.topics],
+            has_test=bank.covers(t.code for t in s.topics),
+        )
+        for s in specializations
+    ]
 
 
 @router.get(

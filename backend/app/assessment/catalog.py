@@ -15,12 +15,19 @@ from sqlalchemy import create_engine, delete, insert
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.orm import Session
 
-from app.assessment.models import Grade, Specialization, Technology, Topic, technology_topics
+from app.assessment.models import (
+    Grade,
+    Industry,
+    Specialization,
+    Technology,
+    Topic,
+    technology_topics,
+)
 from app.config import Settings
 
 CATALOG_FILE = Path(__file__).with_name("catalog.yaml")
 
-CatalogModel = Grade | Specialization | Topic | Technology
+CatalogModel = Grade | Industry | Specialization | Topic | Technology
 
 
 class _Entry(BaseModel):
@@ -32,6 +39,10 @@ class _Entry(BaseModel):
 
 class GradeEntry(_Entry):
     rank: int
+
+
+class IndustryEntry(_Entry):
+    pass
 
 
 class TopicEntry(_Entry):
@@ -57,6 +68,7 @@ class CatalogData(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
     grades: list[GradeEntry]
+    industries: list[IndustryEntry]
     specializations: list[SpecializationEntry]
     technologies: list[TechnologyEntry]
 
@@ -65,6 +77,7 @@ class CatalogData(BaseModel):
         topics = [t.code for s in self.specializations for t in s.topics]
         for kind, codes in [
             ("грейд", [g.code for g in self.grades]),
+            ("отрасль", [i.code for i in self.industries]),
             ("специализация", [s.code for s in self.specializations]),
             ("тема", topics),
             ("технология", [t.code for t in self.technologies]),
@@ -91,6 +104,13 @@ def load_catalog(path: Path = CATALOG_FILE) -> CatalogData:
 def sync_catalog(db: Session, data: CatalogData) -> None:
     tables: list[tuple[type[CatalogModel], list[dict[str, object]]]] = [
         (Grade, [g.model_dump() for g in data.grades]),
+        (
+            Industry,
+            [
+                {"code": i.code, "name": i.name, "position": n}
+                for n, i in enumerate(data.industries)
+            ],
+        ),
         (
             Specialization,
             [

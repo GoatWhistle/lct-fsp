@@ -1,36 +1,38 @@
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router'
-import { api, errorMessage, type Company, type Need } from '../api/client'
+import { Link, useNavigate } from 'react-router'
+import { api, errorMessage, type Company, type Need, type SelectionSummary } from '../api/client'
+import { dateWords } from '../candidate/words'
 import { Cabinet } from '../components/Cabinet'
 import { salaryWords, workFormatWord } from '../employer/words'
 
-/** Кабинет работодателя: профиль компании и потребности — вход будущих подборок. */
+/** Кабинет работодателя: профиль компании, потребности и подборки по ним. */
 export function EmployerCabinet() {
   const [company, setCompany] = useState<Company | null | undefined>(undefined)
   const [needs, setNeeds] = useState<Need[] | null>(null)
+  const [selections, setSelections] = useState<SelectionSummary[]>([])
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    Promise.all([api.GET('/api/employer/company'), api.GET('/api/employer/needs')]).then(
-      ([company, needs]) => {
-        if (company.error || needs.error) {
-          setError(errorMessage(company.error ?? needs.error))
-          return
-        }
-        setCompany(company.data ?? null)
-        setNeeds(needs.data ?? [])
-      },
-    )
+    Promise.all([
+      api.GET('/api/employer/company'),
+      api.GET('/api/employer/needs'),
+      api.GET('/api/employer/selections'),
+    ]).then(([company, needs, selections]) => {
+      if (company.error || needs.error || selections.error) {
+        setError(errorMessage(company.error ?? needs.error ?? selections.error))
+        return
+      }
+      setCompany(company.data ?? null)
+      setNeeds(needs.data ?? [])
+      setSelections(selections.data ?? [])
+    })
   }, [])
 
   if (error) return <p className="error">{error}</p>
   if (company === undefined || needs === null) return <p className="muted">Загрузка…</p>
 
   return (
-    <Cabinet
-      title="Кабинет работодателя"
-      upcoming={['Подборка кандидатов с объяснением', 'Приглашения и их статусы']}
-    >
+    <Cabinet title="Кабинет работодателя" upcoming={['Приглашения и их статусы']}>
       <CompanyCard company={company} />
       <section className="stack">
         <div className="section-head">
@@ -47,7 +49,9 @@ export function EmployerCabinet() {
             </p>
           </div>
         ) : (
-          needs.map((need) => <NeedCard key={need.id} need={need} />)
+          needs.map((need) => (
+            <NeedCard key={need.id} need={need} selections={selections.filter((s) => s.need_id === need.id)} />
+          ))
         )}
       </section>
     </Cabinet>
@@ -98,8 +102,25 @@ function CompanyCard({ company }: { company: Company | null }) {
   )
 }
 
-function NeedCard({ need }: { need: Need }) {
+function NeedCard({ need, selections }: { need: Need; selections: SelectionSummary[] }) {
+  const navigate = useNavigate()
+  const [building, setBuilding] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const key = need.topics.filter((t) => t.importance === 'key')
+  // Список подборок — новые сверху.
+  const last = selections[0]
+
+  async function build() {
+    setBuilding(true)
+    setError(null)
+    const { data, error } = await api.POST('/api/employer/needs/{need_id}/selections', {
+      params: { path: { need_id: need.id } },
+    })
+    setBuilding(false)
+    if (data) navigate(`/employer/selections/${data.id}`)
+    else setError(errorMessage(error))
+  }
+
   return (
     <article className="card need-card">
       <div className="section-head">
@@ -129,6 +150,18 @@ function NeedCard({ need }: { need: Need }) {
       {key.length > 0 && (
         <p className="hint">Ключевые темы: {key.map((t) => t.topic.name).join(', ')}</p>
       )}
+      <div className="actions">
+        <button type="button" className="button button-small" disabled={building} onClick={build}>
+          {building ? 'Строим подборку…' : 'Сформировать подборку'}
+        </button>
+        {last && (
+          <Link to={`/employer/selections/${last.id}`}>
+            Последняя подборка от {dateWords(last.created_at)}: {last.exact_total} в категории
+            {last.nearby_total > 0 && `, ${last.nearby_total} близких`}
+          </Link>
+        )}
+      </div>
+      {error && <p className="error">{error}</p>}
     </article>
   )
 }

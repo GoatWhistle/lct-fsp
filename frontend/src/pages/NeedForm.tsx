@@ -31,7 +31,7 @@ function emptyDraft(catalog: EmployerCatalog): Draft {
     title: '',
     team_description: '',
     specialization: catalog.specializations[0]?.code ?? '',
-    grade: catalog.grades[2]?.code ?? catalog.grades[0]?.code ?? '',
+    grade: catalog.grades.find((g) => g.code === 'middle')?.code ?? catalog.grades[0]?.code ?? '',
     stack: [],
     work_format: 'hybrid',
     city: '',
@@ -58,6 +58,14 @@ function draftOf(need: Need): Draft {
   }
 }
 
+/** Технологии, связанные с темами специализации, и остальные справочника. */
+function splitTechnologies(catalog: EmployerCatalog, specialization: string) {
+  const chosen = catalog.specializations.find((s) => s.code === specialization)
+  const own = new Set(chosen?.topics.map((t) => t.code))
+  const related = catalog.technologies.filter((t) => t.topics.some((topic) => own.has(topic)))
+  return { chosen, related, others: catalog.technologies.filter((t) => !related.includes(t)) }
+}
+
 function inputOf(draft: Draft): NeedInput {
   const salary = (value: string) => (value.trim() === '' ? null : Number(value))
   return {
@@ -72,21 +80,22 @@ function inputOf(draft: Draft): NeedInput {
 export function NeedForm() {
   const { id } = useParams()
   const { catalog, failed } = useEmployerCatalog()
-  const [need, setNeed] = useState<Need | null>(null)
-  const [error, setError] = useState<string | null>(null)
+  // Загруженное помечено своим id: маршруты «новая» и «правка» делят один экземпляр компонента.
+  const [loaded, setLoaded] = useState<{ id: string; need: Need | null; error: string | null } | null>(null)
 
   useEffect(() => {
     if (!id) return
     api.GET('/api/employer/needs/{need_id}', { params: { path: { need_id: id } } }).then(({ data, error }) => {
-      if (data) setNeed(data)
-      else setError(errorMessage(error))
+      setLoaded({ id, need: data ?? null, error: data ? null : errorMessage(error) })
     })
   }, [id])
 
+  const current = id && loaded?.id === id ? loaded : null
   if (failed) return <p className="error">Не удалось загрузить справочники</p>
-  if (error) return <p className="error">{error}</p>
-  if (!catalog || (id && !need)) return <p className="muted">Загрузка…</p>
-  return <NeedEditor catalog={catalog} need={need} />
+  if (current?.error) return <p className="error">{current.error}</p>
+  if (!catalog || (id && !current?.need)) return <p className="muted">Загрузка…</p>
+  const need = current?.need ?? null
+  return <NeedEditor key={need?.id ?? 'new'} catalog={catalog} need={need} />
 }
 
 function NeedEditor({ catalog, need }: { catalog: EmployerCatalog; need: Need | null }) {
@@ -94,6 +103,10 @@ function NeedEditor({ catalog, need }: { catalog: EmployerCatalog; need: Need | 
   const navigate = useNavigate()
   const [draft, setDraft] = useState<Draft>(() => (need ? draftOf(need) : emptyDraft(catalog)))
   const [topics, setTopics] = useState<TopicImportanceRow[]>(need?.topics ?? [])
+  const [topicsError, setTopicsError] = useState<string | null>(null)
+  const [othersOpen, setOthersOpen] = useState(() =>
+    splitTechnologies(catalog, draft.specialization).others.some((t) => draft.stack.includes(t.code)),
+  )
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
 
@@ -105,8 +118,10 @@ function NeedEditor({ catalog, need }: { catalog: EmployerCatalog; need: Need | 
       .POST('/api/employer/needs/topic-importance', {
         body: { specialization, stack, topic_importance: edited },
       })
-      .then(({ data }) => {
-        if (data && !stale) setTopics(data)
+      .then(({ data, error }) => {
+        if (stale) return
+        setTopics(data ?? [])
+        setTopicsError(data ? null : errorMessage(error))
       })
     return () => {
       stale = true
@@ -115,6 +130,12 @@ function NeedEditor({ catalog, need }: { catalog: EmployerCatalog; need: Need | 
 
   function change(changes: Partial<Draft>) {
     setDraft((current) => ({ ...current, ...changes }))
+  }
+
+  // Темы прошлой специализации убираем сразу: их правки новая специализация не примет.
+  function chooseSpecialization(code: string) {
+    setTopics([])
+    change({ specialization: code, topic_importance: {} })
   }
 
   function toggleTechnology(code: string) {
@@ -151,10 +172,7 @@ function NeedEditor({ catalog, need }: { catalog: EmployerCatalog; need: Need | 
     else setError(errorMessage(error))
   }
 
-  const chosen = catalog.specializations.find((s) => s.code === draft.specialization)
-  const ownTopics = new Set(chosen?.topics.map((t) => t.code))
-  const related = catalog.technologies.filter((t) => t.topics.some((topic) => ownTopics.has(topic)))
-  const others = catalog.technologies.filter((t) => !related.includes(t))
+  const { chosen, related, others } = splitTechnologies(catalog, draft.specialization)
 
   return (
     <section className="stack">
@@ -189,7 +207,7 @@ function NeedEditor({ catalog, need }: { catalog: EmployerCatalog; need: Need | 
                 name="specialization"
                 value={s.code}
                 checked={draft.specialization === s.code}
-                onChange={() => change({ specialization: s.code, topic_importance: {} })}
+                onChange={() => chooseSpecialization(s.code)}
               />
               <strong>{s.name}</strong>
               <span className="muted">{s.has_test ? `${s.topics.length} тем` : 'тест готовится'}</span>
@@ -222,14 +240,18 @@ function NeedEditor({ catalog, need }: { catalog: EmployerCatalog; need: Need | 
         <fieldset className="plain">
           <legend>Стек</legend>
           <TechnologyChips technologies={related} selected={draft.stack} onToggle={toggleTechnology} />
-          <details open={others.some((t) => draft.stack.includes(t.code))}>
+          <details open={othersOpen} onToggle={(e) => setOthersOpen(e.currentTarget.open)}>
             <summary>Другие технологии</summary>
             <p className="hint">На важность тем специализации не влияют, но учитываются в подборке.</p>
             <TechnologyChips technologies={others} selected={draft.stack} onToggle={toggleTechnology} />
           </details>
         </fieldset>
 
-        <TopicImportanceTable topics={topics} onChange={setImportance} />
+        {topicsError ? (
+          <p className="error">Важность тем не посчиталась: {topicsError}</p>
+        ) : (
+          <TopicImportanceTable topics={topics} onChange={setImportance} />
+        )}
 
         <fieldset className="choice-grid">
           <legend>Формат работы</legend>
@@ -350,7 +372,7 @@ function TopicImportanceTable({
         По умолчанию выводится из стека: чем больше технологий стека связано с темой, тем она
         важнее. Важность задаёт вес темы в подборке — поправьте, если стек говорит не всё.
       </p>
-      <table className="table">
+      <table className="table importance-table">
         <tbody>
           {topics.map((row) => (
             <tr key={row.topic.code}>

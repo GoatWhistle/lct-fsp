@@ -482,12 +482,20 @@ def test_family_is_refitted_once_it_has_enough_answers(
     finally:
         app.state.engine.dispose()
 
+    # Только семейства, предъявленные этому кандидату: строка калибровки, которой нет, — тоже
+    # непереоценённое семейство.
     with db_engine.connect() as conn:
         rows = conn.execute(
             text(
-                "SELECT family_code, discrimination, difficulty, reference_discrimination, "
-                "reference_difficulty, refitted_at, status FROM family_calibrations"
-            )
+                "SELECT DISTINCT p.family_code, c.discrimination, c.difficulty, "
+                "c.reference_discrimination, c.reference_difficulty, c.refitted_at, c.status "
+                "FROM presentations p "
+                "JOIN test_attempts a ON a.id = p.attempt_id "
+                "JOIN users u ON u.id = a.user_id "
+                "LEFT JOIN family_calibrations c ON c.family_code = p.family_code "
+                "WHERE u.email = :email"
+            ),
+            {"email": email},
         ).all()
     regular = [r for r in rows if not get_family(r[0]).anchor]
     assert regular

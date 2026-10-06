@@ -22,6 +22,11 @@ export type TopicImportanceRow = components['schemas']['TopicImportanceOut']
 export type WorkFormat = components['schemas']['WorkFormat']
 export type Profile = components['schemas']['ProfileOut']
 export type ProfileInput = components['schemas']['ProfileIn']
+export type Selection = components['schemas']['SelectionOut']
+export type SelectionSummary = components['schemas']['SelectionSummaryOut']
+export type SelectionEntry = components['schemas']['SelectionEntryOut']
+export type Verdict = components['schemas']['Verdict']
+export type CandidateCard = components['schemas']['CandidateCardOut']
 
 export const api = createClient<paths>({ credentials: 'same-origin' })
 

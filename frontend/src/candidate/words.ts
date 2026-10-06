@@ -22,15 +22,27 @@ export function percent(probability: number): string {
   return `${Math.round(probability * 100)} %`
 }
 
-const number = new Intl.NumberFormat('ru-RU', { minimumFractionDigits: 1, maximumFractionDigits: 1 })
+/** Число с одним знаком после запятой: «0,8». */
+export const oneDecimal = new Intl.NumberFormat('ru-RU', { minimumFractionDigits: 1, maximumFractionDigits: 1 })
 
 /** Уровень и погрешность на шкале θ: «0,8 ± 0,4». */
 export function thetaWithError(level: Level): string {
-  return `${number.format(level.theta)} ± ${number.format(level.theta_sd)}`
+  return `${oneDecimal.format(level.theta)} ± ${oneDecimal.format(level.theta_sd)}`
 }
 
 export function dateWords(iso: string): string {
   return new Date(iso).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' })
+}
+
+/** Дата и время: «6 октября 2026 г. в 12:37». */
+export function dateTimeWords(iso: string): string {
+  return new Date(iso).toLocaleString('ru-RU', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
 }
 
 /** Стаж словами: «меньше года», «1 год», «4 года», «11 лет». */

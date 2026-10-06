@@ -5,7 +5,9 @@
 
 import re
 
+import pytest
 import yaml
+from pydantic import ValidationError
 
 from app.assessment.catalog import load_catalog
 from app.config import BACKEND_DIR, Mechanics, Settings
@@ -36,3 +38,22 @@ def test_grade_parameters_cover_catalog_grades() -> None:
 
     assert set(mechanics.grade_thresholds) == grades
     assert set(mechanics.expert_difficulty_by_grade) == grades
+
+
+@pytest.mark.parametrize(
+    "changes",
+    [
+        {"need_importance_weights": {"key": 3, "important": 2, "nice": 0}},
+        {"need_importance_weights": {"key": 3, "important": 2}},
+        {"confidence_language_bands": [0.2, 0.5, 0.8, 0.95]},
+        {"confidence_language_bands": [0.5, 0.2, 0.8]},
+        {"confidence_language_bands": [0.0, 0.5, 1.0]},
+    ],
+)
+def test_matching_parameters_are_validated(changes: dict[str, object]) -> None:
+    """Веса важности делят вес темы, границы языка уверенности выбирают одно из четырёх слов:
+    ошибка в них ломала бы каждую подборку — бэкенд не стартует с таким конфигом."""
+    configured = yaml.safe_load(Settings().mechanics_file.read_text(encoding="utf-8"))
+
+    with pytest.raises(ValidationError):
+        Mechanics.model_validate(configured | changes)

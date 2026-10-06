@@ -1,4 +1,5 @@
-import type { Need, TopicImportance, WorkFormat } from '../api/client'
+import type { Need, TopicImportance, Verdict, WorkFormat } from '../api/client'
+import { oneDecimal } from '../candidate/words'
 
 export const workFormats: { value: WorkFormat; title: string }[] = [
   { value: 'office', title: 'Офис' },
@@ -11,6 +12,23 @@ export const importances: { value: TopicImportance; title: string }[] = [
   { value: 'important', title: 'Важная' },
   { value: 'nice', title: 'Желательная' },
 ]
+
+export function importanceWord(importance: TopicImportance): string {
+  return importances.find((i) => i.value === importance)?.title ?? importance
+}
+
+/** Вероятность выполнить требование по теме словами — язык уверенности подборки. */
+export const verdictWords: Record<Verdict, string> = {
+  confidently_above: 'уверенно выше требования',
+  likely_above: 'скорее выше требования',
+  likely_below: 'скорее ниже требования',
+  below: 'ниже требования',
+}
+
+/** Вклад в соответствие в процентных пунктах: «+31,2». */
+export function contributionWords(contribution: number): string {
+  return `+${oneDecimal.format(contribution * 100)}`
+}
 
 export function workFormatWord(format: WorkFormat): string {
   return workFormats.find((f) => f.value === format)?.title ?? format

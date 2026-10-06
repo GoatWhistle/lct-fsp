@@ -371,6 +371,63 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/employer/needs/{need_id}/selections": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Сформировать подборку
+         * @description Строит подборку по текущей потребности и профилям навыков и сохраняет её: кандидаты с категорией потребности, затем «близкие» — соседнего грейда. Внутри блока — по соответствию × P(принятия). Каждый вызов — новая подборка; отдаёт первую страницу выдачи.
+         */
+        post: operations["build_selection_api_employer_needs__need_id__selections_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/employer/selections": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Подборки компании, новые сверху */
+        get: operations["list_selections_api_employer_selections_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/employer/selections/{selection_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Подборка
+         * @description Выдача на момент построения — та же при каждом открытии, даже если потребность или профили кандидатов с тех пор изменились.
+         */
+        get: operations["get_selection_api_employer_selections__selection_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/employer/candidates/{candidate_id}": {
         parameters: {
             query?: never;
@@ -801,6 +858,36 @@ export interface components {
              */
             updated_at: string;
         };
+        /**
+         * NeedSnapshot
+         * @description Потребность на момент построения подборки — с весами и требованиями по темам.
+         */
+        NeedSnapshot: {
+            /** Title */
+            title: string;
+            specialization: components["schemas"]["CatalogRef"];
+            grade: components["schemas"]["CatalogRef"];
+            /** Stack */
+            stack: components["schemas"]["CatalogRef"][];
+            work_format: components["schemas"]["WorkFormat"];
+            /** City */
+            city: string | null;
+            /** Salary From */
+            salary_from: number | null;
+            /** Salary To */
+            salary_to: number | null;
+            /**
+             * Topics
+             * @description Все темы специализации по порядку
+             */
+            topics: components["schemas"]["RequirementOut"][];
+            /**
+             * Updated At
+             * Format: date-time
+             * @description Версия потребности, по которой построена подборка
+             */
+            updated_at: string;
+        };
         /** PathOut */
         PathOut: {
             /** @description `survey` — опрос; `grade` — выбор грейда; `test` — идёт тест; `offer` — предложен дотест на `offer_grade`; `category` — категория присвоена; `no_category` — без категории до `retest_after` */
@@ -968,6 +1055,26 @@ export interface components {
             /** @description Кандидат или работодатель; сменить потом нельзя */
             role: components["schemas"]["Role"];
         };
+        /** RequirementOut */
+        RequirementOut: {
+            topic: components["schemas"]["CatalogRef"];
+            importance: components["schemas"]["TopicImportance"];
+            /**
+             * Edited
+             * @description Важность поставил работодатель, а не вывод из стека
+             */
+            edited: boolean;
+            /**
+             * Weight
+             * @description Вес темы в скоре: вес важности, нормированный на сумму
+             */
+            weight: number;
+            /**
+             * Requirement
+             * @description Требуемый уровень θ — порог грейда потребности
+             */
+            requirement: number;
+        };
         /** ResendVerificationIn */
         ResendVerificationIn: {
             /**
@@ -981,6 +1088,146 @@ export interface components {
          * @enum {string}
          */
         Role: "candidate" | "employer";
+        /**
+         * SelectionBlock
+         * @enum {string}
+         */
+        SelectionBlock: "exact" | "nearby";
+        /**
+         * SelectionEntryOut
+         * @description Кандидат в подборке — обезличенно: место, категория, соответствие и его объяснение.
+         *     Карточка — `GET /api/employer/candidates/{candidate_id}`.
+         */
+        SelectionEntryOut: {
+            /**
+             * Candidate Id
+             * Format: uuid
+             */
+            candidate_id: string;
+            /**
+             * Position
+             * @description Место в общей выдаче с 1: сначала точные, затем близкие
+             */
+            position: number;
+            /** @description `exact` — категория совпадает с потребностью, `nearby` — соседний грейд */
+            block: components["schemas"]["SelectionBlock"];
+            /**
+             * Rank
+             * @description Место внутри блока с 1
+             */
+            rank: number;
+            /** @description Грейд категории кандидата */
+            grade: components["schemas"]["CatalogRef"];
+            /**
+             * Match Score
+             * @description Соответствие — сумма вкладов тем и стека
+             */
+            match_score: number;
+            /**
+             * Acceptance Probability
+             * @description P(принятия); `null` — модели принятия ещё нет, множитель 1
+             */
+            acceptance_probability: number | null;
+            /**
+             * Mutual Score
+             * @description Соответствие × P(принятия) — по нему порядок
+             */
+            mutual_score: number;
+            /**
+             * Topics
+             * @description Вклады тем в порядке тем специализации
+             */
+            topics: components["schemas"]["TopicFitOut"][];
+            stack: components["schemas"]["StackFitOut"];
+            /**
+             * Stale
+             * @description Давно не подтверждал уровень: сигналов не было дольше срока
+             */
+            stale: boolean;
+        };
+        /** SelectionOut */
+        SelectionOut: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Need Id
+             * @description `null` — потребность удалена
+             */
+            need_id: string | null;
+            /**
+             * Title
+             * @description Кого ищете — из снимка потребности
+             */
+            title: string;
+            specialization: components["schemas"]["CatalogRef"];
+            grade: components["schemas"]["CatalogRef"];
+            /**
+             * Exact Total
+             * @description Кандидатов с категорией потребности
+             */
+            exact_total: number;
+            /**
+             * Nearby Total
+             * @description Близких — соседнего грейда
+             */
+            nearby_total: number;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            need: components["schemas"]["NeedSnapshot"];
+            /**
+             * Stack Cap
+             * @description λ — потолок вклада самоописания на момент построения
+             */
+            stack_cap: number;
+            /** Offset */
+            offset: number;
+            /**
+             * Entries
+             * @description Страница общей выдачи с места `offset + 1`
+             */
+            entries: components["schemas"]["SelectionEntryOut"][];
+        };
+        /** SelectionSummaryOut */
+        SelectionSummaryOut: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Need Id
+             * @description `null` — потребность удалена
+             */
+            need_id: string | null;
+            /**
+             * Title
+             * @description Кого ищете — из снимка потребности
+             */
+            title: string;
+            specialization: components["schemas"]["CatalogRef"];
+            grade: components["schemas"]["CatalogRef"];
+            /**
+             * Exact Total
+             * @description Кандидатов с категорией потребности
+             */
+            exact_total: number;
+            /**
+             * Nearby Total
+             * @description Близких — соседнего грейда
+             */
+            nearby_total: number;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
         /**
          * SelfReportedOut
          * @description Самоописание, которое видно в обезличенной карточке: низший уровень доверия, на
@@ -1044,6 +1291,29 @@ export interface components {
              */
             has_test: boolean;
         };
+        /** StackFitOut */
+        StackFitOut: {
+            /**
+             * Matched
+             * @description Технологии потребности в самоописании кандидата — не подтверждены
+             */
+            matched: components["schemas"]["CatalogRef"][];
+            /**
+             * Total
+             * @description Технологий в стеке потребности
+             */
+            total: number;
+            /**
+             * Overlap
+             * @description Доля технологий потребности в самоописании, o
+             */
+            overlap: number;
+            /**
+             * Contribution
+             * @description Вклад самоописания: λ · o, не больше λ
+             */
+            contribution: number;
+        };
         /**
          * Stage
          * @enum {string}
@@ -1106,6 +1376,48 @@ export interface components {
              * @description Грейд выше присвоенного, если стоит попробовать его пройти
              */
             grade_up_hint: string | null;
+        };
+        /** TopicFitOut */
+        TopicFitOut: {
+            topic: components["schemas"]["CatalogRef"];
+            importance: components["schemas"]["TopicImportance"];
+            /**
+             * Weight
+             * @description Вес темы в скоре
+             */
+            weight: number;
+            /**
+             * Requirement
+             * @description Требуемый уровень θ
+             */
+            requirement: number;
+            /**
+             * Theta
+             * @description Уровень по профилю навыков
+             */
+            theta: number;
+            /**
+             * Theta Sd
+             * @description Погрешность уровня
+             */
+            theta_sd: number;
+            /**
+             * Probability
+             * @description P(уровень ≥ требование)
+             */
+            probability: number;
+            /**
+             * Contribution
+             * @description Вклад в соответствие: (1 − λ) · вес · вероятность
+             */
+            contribution: number;
+            /** @description `confidently_above` — уверенно выше требования, `likely_above` — скорее выше, `likely_below` — скорее ниже, `below` — ниже требования */
+            verdict: components["schemas"]["Verdict"];
+            /**
+             * Low Data
+             * @description Погрешность выше `topic_low_data_sd` — данных мало
+             */
+            low_data: boolean;
         };
         /**
          * TopicImportance
@@ -1186,6 +1498,12 @@ export interface components {
             /** Context */
             ctx?: Record<string, never>;
         };
+        /**
+         * Verdict
+         * @description Вероятность выполнить требование словами (`confidence_language_bands`).
+         * @enum {string}
+         */
+        Verdict: "confidently_above" | "likely_above" | "likely_below" | "below";
         /** VerifyEmailIn */
         VerifyEmailIn: {
             /**
@@ -2338,6 +2656,182 @@ export interface operations {
                 };
             };
             /** @description `need_not_found` — Потребность не найдена — возможно, её удалили */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    build_selection_api_employer_needs__need_id__selections_post: {
+        parameters: {
+            query?: {
+                /** @description Сколько кандидатов вернуть */
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                need_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SelectionOut"];
+                };
+            };
+            /** @description `not_authenticated` — Войдите, чтобы продолжить */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description `wrong_role` — Раздел доступен другой роли */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description `need_not_found` — Потребность не найдена — возможно, её удалили */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_selections_api_employer_selections_get: {
+        parameters: {
+            query?: {
+                /** @description Только по этой потребности */
+                need_id?: string | null;
+                /** @description Сколько кандидатов вернуть */
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SelectionSummaryOut"][];
+                };
+            };
+            /** @description `not_authenticated` — Войдите, чтобы продолжить */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description `wrong_role` — Раздел доступен другой роли */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_selection_api_employer_selections__selection_id__get: {
+        parameters: {
+            query?: {
+                /** @description Сколько мест выдачи пропустить */
+                offset?: number;
+                /** @description Сколько кандидатов вернуть */
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                selection_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SelectionOut"];
+                };
+            };
+            /** @description `not_authenticated` — Войдите, чтобы продолжить */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description `wrong_role` — Раздел доступен другой роли */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description `selection_not_found` — Подборка не найдена */
             404: {
                 headers: {
                     [name: string]: unknown;

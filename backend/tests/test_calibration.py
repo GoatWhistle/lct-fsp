@@ -160,6 +160,20 @@ def test_link_is_identity_until_enough_anchor_answers() -> None:
     assert fit_link(few, MECHANICS) == Link()
 
 
+def test_link_is_identity_when_anchor_answers_contradict_levels() -> None:
+    """Слабые решают трудный якорь, сильный ошибается на среднем: правдоподобие растёт при β < 0,
+    где модели нет (погрешность √β σ). Скоринг уходит туда за несколько шагов — связке не на чем
+    стоять."""
+    eager = MECHANICS.model_copy(update={"calibration_refit_min_responses": 1})
+    anchors = [
+        (Parameters(1.2, 1.5), Response(Normal(-0.1, 1.0), True)),
+        (Parameters(1.2, -0.5), Response(Normal(-0.5, 1.0), True)),
+        (Parameters(1.2, 0.5), Response(Normal(1.0, 0.6), False)),
+    ]
+
+    assert fit_link(anchors, eager) == Link()
+
+
 def test_calibration_converges_on_simulated_candidates() -> None:
     """Истинные параметры отличаются от экспертных, уровни кандидатов шире априорного (D1). После
     в среднем `calibration_refit_min_responses` ответов на семейство сложности коррелируют с

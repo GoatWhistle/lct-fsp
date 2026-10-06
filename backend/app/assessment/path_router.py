@@ -89,7 +89,7 @@ def get_item(user: CurrentUser, db: DbSession, mechanics: MechanicsDep) -> ItemO
     return ItemOut(
         id=item.presentation.id,
         number=item.presentation.position + 1,
-        total=item.total,
+        max_items=mechanics.test_max_items,
         topic=CatalogRef.model_validate(item.topic),
         prompt=item.instance.prompt,
         code=item.instance.code,
@@ -100,8 +100,9 @@ def get_item(user: CurrentUser, db: DbSession, mechanics: MechanicsDep) -> ItemO
 @router.post(
     "/item/answer",
     summary="Ответ на текущее задание",
-    description="Ответ проверяет бэкенд; верен ли он, не сообщается. После последнего задания "
-    "попытка останавливается и возвращается её итог.",
+    description="Ответ проверяет бэкенд; верен ли он, не сообщается. Тест адаптивный: попытка "
+    "останавливается, когда уровень определён с нужной точностью или задания кончились, — "
+    "тогда возвращается её итог.",
     responses=error_responses(service.NoTestInProgress, service.ItemNotCurrent),
 )
 def answer_item(
@@ -128,7 +129,7 @@ def _path_out(view: service.PathView, mechanics: Mechanics) -> PathOut:
             AttemptProgressOut(
                 grade=attempt.grade_code,
                 answered=sum(1 for p in attempt.presentations if p.answered_at is not None),
-                total=len(attempt.blueprint),
+                max_items=mechanics.test_max_items,
             )
             if attempt is not None and not finished
             else None

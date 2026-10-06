@@ -220,7 +220,7 @@ export interface paths {
         put?: never;
         /**
          * Ответ на текущее задание
-         * @description Ответ проверяет бэкенд; верен ли он, не сообщается. После последнего задания попытка останавливается и возвращается её итог.
+         * @description Ответ проверяет бэкенд; верен ли он, не сообщается. Тест адаптивный: попытка останавливается, когда уровень определён с нужной точностью или задания кончились, — тогда возвращается её итог.
          */
         post: operations["answer_item_api_candidate_path_item_answer_post"];
         delete?: never;
@@ -565,8 +565,11 @@ export interface components {
             grade: string;
             /** Answered */
             answered: number;
-            /** Total */
-            total: number;
+            /**
+             * Max Items
+             * @description Больше заданий попытка не задаст; обычно тест останавливается раньше — когда уровень определён с нужной точностью
+             */
+            max_items: number;
         };
         /** CabinetOut */
         CabinetOut: {
@@ -715,8 +718,11 @@ export interface components {
              * @description Номер задания в попытке, с 1
              */
             number: number;
-            /** Total */
-            total: number;
+            /**
+             * Max Items
+             * @description Лимит заданий попытки; длина адаптивного теста заранее неизвестна
+             */
+            max_items: number;
             topic: components["schemas"]["CatalogRef"];
             /** Prompt */
             prompt: string;

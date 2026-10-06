@@ -114,7 +114,10 @@ def skill_profile_out(profile: SkillProfile, mechanics: Mechanics) -> SkillProfi
 class AttemptProgressOut(BaseModel):
     grade: str
     answered: int
-    total: int
+    max_items: int = Field(
+        description="Больше заданий попытка не задаст; обычно тест останавливается раньше — "
+        "когда уровень определён с нужной точностью"
+    )
 
 
 class CategoryOut(_Out):
@@ -141,7 +144,9 @@ class PathOut(BaseModel):
 class ItemOut(BaseModel):
     id: uuid.UUID
     number: int = Field(description="Номер задания в попытке, с 1")
-    total: int
+    max_items: int = Field(
+        description="Лимит заданий попытки; длина адаптивного теста заранее неизвестна"
+    )
     topic: CatalogRef
     prompt: str
     code: str | None = Field(description="Листинг, таблица или граф к условию — моноширинно")

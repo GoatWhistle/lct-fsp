@@ -115,6 +115,8 @@ def test_full_path_to_category(candidate: TestClient, db_engine: Engine) -> None
     probabilities = {p["grade"]: p["probability"] for p in result["grade_probabilities"]}
     assert list(probabilities) == ["intern", "junior", "middle", "senior"]
     assert probabilities["middle"] >= 0.8
+    # Все ответы верны — P(уровень ≥ порог senior) выше порога подсказки.
+    assert result["grade_up_hint"] == "senior"
     assert result["overall"]["theta_sd"] < 1.0
     assert category_rows(db_engine) == [("qa", "middle")]
 
@@ -238,6 +240,7 @@ def test_dotest_below_is_skipped_when_confidence_is_already_there(
     assert path["stage"] == "category"
     assert path["category"]["grade"]["code"] == "junior"
     assert path["result"]["grade"] == "middle"
+    assert path["result"]["grade_up_hint"] is None
     assert category_rows(db_engine) == [("qa", "junior")]
 
 

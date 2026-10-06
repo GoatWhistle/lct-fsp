@@ -12,7 +12,6 @@ from app.skills.irt import (
     Observation,
     Prior,
     estimate,
-    grade_probability,
     level_band,
 )
 
@@ -133,11 +132,11 @@ def test_prior_mean_shifts_estimate_but_not_uncertainty_without_data() -> None:
     assert shifted.overall().sd == pytest.approx(estimate(prior(), []).overall().sd)
 
 
-def test_grade_probability_is_normal_tail_above_threshold() -> None:
+def test_probability_at_least_threshold_is_normal_tail() -> None:
     overall = Normal(mean=1.0, sd=0.4)
 
-    assert grade_probability(overall, THRESHOLDS["middle"]) == pytest.approx(0.8943502)
-    assert grade_probability(Normal(0.5, 0.3), 0.5) == pytest.approx(0.5)
+    assert overall.prob_at_least(THRESHOLDS["middle"]) == pytest.approx(0.8943502)
+    assert Normal(0.5, 0.3).prob_at_least(0.5) == pytest.approx(0.5)
 
 
 @pytest.mark.parametrize(

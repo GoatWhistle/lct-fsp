@@ -153,10 +153,16 @@ def _result_out(attempt: TestAttempt, mechanics: Mechanics) -> TestResultOut:
     overall = Normal(attempt.overall_theta, attempt.overall_theta_sd)
     probabilities = grade_probabilities(overall, mechanics.grade_thresholds)
     hint = None
-    if attempt.outcome == AttemptOutcome.assigned and attempt.outcome_grade_code is not None:
+    # Только тому, кто сразу прошёл заявленный грейд: после каскада грейд выше уже не дался.
+    passed_claimed = (
+        attempt.outcome == AttemptOutcome.assigned
+        and attempt.continues_attempt_id is None
+        and attempt.outcome_grade_code == attempt.grade_code
+    )
+    if passed_claimed:
         hint = grade_up_hint(
             overall,
-            attempt.outcome_grade_code,
+            attempt.grade_code,
             thresholds=mechanics.grade_thresholds,
             confidence=mechanics.grade_up_hint_confidence,
         )

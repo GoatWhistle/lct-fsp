@@ -39,6 +39,10 @@ def test_family_codes_are_unique_and_namespaced_by_topic() -> None:
         assert family.code.startswith(f"{family.topic}.")
 
 
+def test_family_grades_are_catalog_grades() -> None:
+    assert {f.grade for f in BANK} == {g.code for g in load_catalog().grades}
+
+
 def test_bank_covers_backend_and_qa_only() -> None:
     assert {s for s, topics in TOPICS.items() if covers(topics)} == {"backend", "qa"}
     assert {f.topic for f in BANK} <= {t for topics in TOPICS.values() for t in topics}

@@ -28,6 +28,7 @@ class Normal:
     sd: float
 
     def prob_at_least(self, threshold: float) -> float:
+        """P(θ ≥ порог); для общего уровня и порога грейда — правило уверенности (§4)."""
         return normal_cdf((self.mean - threshold) / self.sd)
 
 
@@ -107,11 +108,6 @@ def estimate(prior: Prior, observations: Iterable[Observation]) -> Estimate:
     for obs in observations:
         est = update(est, obs)
     return est
-
-
-def grade_probability(overall: Normal, threshold: float) -> float:
-    """P(θ̄ ≥ c_g) — правило уверенности сравнивает её с `grade_confidence` (§4)."""
-    return overall.prob_at_least(threshold)
 
 
 @dataclass(frozen=True)

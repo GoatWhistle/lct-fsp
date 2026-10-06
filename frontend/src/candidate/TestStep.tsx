@@ -17,13 +17,17 @@ export function TestStep({ onDone }: Props) {
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
 
+  // Не загрузилось — старое задание с экрана убираем: на него уже ответили, повторная отправка
+  // получила бы отказ.
   function show({ data, error }: Awaited<ReturnType<typeof fetchItem>>) {
-    if (data) {
-      setItem(data)
-      setResponse('')
-    } else {
-      setError(errorMessage(error))
-    }
+    setItem(data ?? null)
+    setResponse('')
+    setError(data ? null : errorMessage(error))
+  }
+
+  async function retry() {
+    setError(null)
+    show(await fetchItem())
   }
 
   useEffect(() => {
@@ -48,7 +52,19 @@ export function TestStep({ onDone }: Props) {
     setSubmitting(false)
   }
 
-  if (!item) return error ? <p className="error">{error}</p> : <p className="muted">Загрузка задания…</p>
+  if (!item) {
+    if (!error) return <p className="muted">Загрузка задания…</p>
+    return (
+      <div className="card form">
+        <p className="error">{error}</p>
+        <div className="actions">
+          <button type="button" className="button" onClick={retry}>
+            Повторить
+          </button>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <form onSubmit={submit} className="card form">

@@ -2,7 +2,6 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
-from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from app.assessment.path_router import router as path_router
@@ -10,6 +9,7 @@ from app.assessment.router import router as catalog_router
 from app.cabinets import candidate_router, employer_router
 from app.company.router import router as company_router
 from app.config import Mechanics, Settings
+from app.db import create_db_engine
 from app.errors import install_error_handlers
 from app.identity.router import router as auth_router
 from app.mail import Mailer, SmtpMailer
@@ -23,7 +23,8 @@ DESCRIPTION = """
 
 Ошибки приходят телом `{"code", "message"}`: `code` — для кода фронта, `message` — для
 пользователя. Вход — cookie `access_token` (httpOnly), её ставит `POST /api/auth/login`.
-Разделы `/api/candidate` и `/api/employer` доступны только своей роли.
+Разделы `/api/candidate` и `/api/employer` доступны только своей роли. Время — в UTC,
+ISO 8601 с `Z`.
 """
 
 
@@ -34,7 +35,7 @@ def create_app(
 ) -> FastAPI:
     settings = settings or Settings()
     mechanics = mechanics or Mechanics.from_yaml(settings.mechanics_file)
-    engine = create_engine(settings.database_url, pool_pre_ping=True)
+    engine = create_db_engine(settings.database_url, pool_pre_ping=True)
 
     @asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[None]:

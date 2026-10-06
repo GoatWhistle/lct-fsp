@@ -8,10 +8,12 @@ from sqlalchemy.orm import sessionmaker
 from app.assessment.path_router import router as path_router
 from app.assessment.router import router as catalog_router
 from app.cabinets import candidate_router, employer_router
+from app.company.router import router as company_router
 from app.config import Mechanics, Settings
 from app.errors import install_error_handlers
 from app.identity.router import router as auth_router
 from app.mail import Mailer, SmtpMailer
+from app.matching.router import router as needs_router
 
 DESCRIPTION = """
 Платформа подбора ИТ-специалистов с обратной механикой.
@@ -58,6 +60,8 @@ def create_app(
     app.include_router(candidate_router)
     app.include_router(path_router)
     app.include_router(employer_router)
+    app.include_router(company_router)
+    app.include_router(needs_router)
     app.include_router(catalog_router)
 
     @app.get("/api/health", tags=["service"], summary="Проверка, что бэкенд жив")

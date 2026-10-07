@@ -2,16 +2,16 @@
 ответа до пакетной переоценки (a, b) при накоплении ответов, связка шкалы по якорям.
 
 Шкала Эло здесь — сразу логиты θ, поэтому сложность Эло и есть сложность b модели 2PL. Всё —
-чистые функции без БД.
+чистые функции без БД; числа конфига приходят аргументами, их передаёт реализация порта
+`Calibration` (`app.adapter.calibration`).
 """
 
 import math
-from collections.abc import Iterable, Sequence
+from collections.abc import Sequence
 from dataclasses import dataclass
+from datetime import datetime
 
-from app.config import Mechanics
-from app.domain.skill import Normal, Observation, Prior
-from app.skills.irt import estimate, sigmoid
+from app.domain.skill import Normal, sigmoid
 
 
 @dataclass(frozen=True)
@@ -47,9 +47,36 @@ class Link:
         return Normal(self.shift + self.scale * level.mean, math.sqrt(self.scale) * level.sd)
 
 
-def expert(grade: str, mechanics: Mechanics) -> Parameters:
-    """Стартовые параметры семейства по грейду эксперта: середина полосы и общая a₀ (§2)."""
-    return Parameters(mechanics.expert_discrimination, mechanics.expert_difficulty_by_grade[grade])
+@dataclass
+class CalibratedFamily:
+    """Состояние калибровки семейства — то, что лежит в репозитории калибровки.
+
+    До первого ответа записи нет: параметры — экспертные из банка. `in_rotation` — семейство в
+    выдаче; из выдачи его выводит переоценка, когда опорная сложность легче экспертной больше
+    допустимого.
+    """
+
+    family_code: str
+    discrimination: float
+    difficulty: float
+    responses: int = 0
+    reference: Parameters | None = None
+    refitted_at: datetime | None = None
+    in_rotation: bool = True
+
+    @property
+    def parameters(self) -> Parameters:
+        return Parameters(self.discrimination, self.difficulty)
+
+
+@dataclass(frozen=True)
+class AnchorAnswer:
+    """Ответ на якорное семейство для связки шкалы: параметры якоря, оценка темы до ответа и
+    итоговая без ответа — её нет, пока попытка ответа не остановлена."""
+
+    params: Parameters
+    before: Response
+    rest: Response | None
 
 
 def expected_correct(params: Parameters, level: Normal) -> float:
@@ -59,14 +86,19 @@ def expected_correct(params: Parameters, level: Normal) -> float:
     return sigmoid(a * (level.mean - params.difficulty) / spread)
 
 
-def elo_step(responses: int, mechanics: Mechanics) -> float:
+def elo_step(responses: int, *, k_initial: float, k_half_responses: int, k_min: float) -> float:
     """K_n = max(K_min, K₀ · n₀ / (n₀ + n)): шаг падает вдвое за n₀ ответов."""
-    half = mechanics.elo_k_half_responses
-    return max(mechanics.elo_k_min, mechanics.elo_k_initial * half / (half + responses))
+    return max(k_min, k_initial * k_half_responses / (k_half_responses + responses))
 
 
 def elo_update(
-    params: Parameters, response: Response, responses: int, mechanics: Mechanics
+    params: Parameters,
+    response: Response,
+    responses: int,
+    *,
+    k_initial: float,
+    k_half_responses: int,
+    k_min: float,
 ) -> Parameters:
     """b ← b − K_n (u − p). Разделяющая сила онлайн не обновляется: слишком шумно.
 
@@ -74,12 +106,19 @@ def elo_update(
     сложность меньше: p ближе к ½, и неожиданность ответа весит меньше.
     """
     p = expected_correct(params, response.level)
-    step = elo_step(responses, mechanics) * (float(response.correct) - p)
+    step = elo_step(
+        responses, k_initial=k_initial, k_half_responses=k_half_responses, k_min=k_min
+    ) * (float(response.correct) - p)
     return Parameters(params.discrimination, params.difficulty - step)
 
 
 def refit(
-    responses: Sequence[Response], start: Parameters, mechanics: Mechanics, *, iterations: int = 50
+    responses: Sequence[Response],
+    start: Parameters,
+    *,
+    difficulty_prior_sd: float,
+    log_discrimination_prior_sd: float,
+    iterations: int = 50,
 ) -> Parameters:
     """Пакетная переоценка (a, b): логистическая регрессия ответов на итоговые оценки кандидатов
     со штрафом к экспертным значениям `start`.
@@ -87,8 +126,8 @@ def refit(
     Максимум апостериорной плотности: правдоподобие с поправкой на погрешность оценок кандидатов
     (та же, что в Эло) плюс нормальный штраф на b и на ln a. Метод — скоринг Фишера по (b, ln a).
     """
-    sd_b = mechanics.calibration_refit_difficulty_prior_sd
-    sd_log_a = mechanics.calibration_refit_log_discrimination_prior_sd
+    sd_b = difficulty_prior_sd
+    sd_log_a = log_discrimination_prior_sd
     b0, log_a0 = start.difficulty, math.log(start.discrimination)
     b, log_a = b0, log_a0
     for _ in range(iterations):
@@ -123,8 +162,8 @@ def refit(
 
 def fit_link(
     anchors: Sequence[tuple[Parameters, Response]],
-    mechanics: Mechanics,
     *,
+    min_responses: int,
     iterations: int = 50,
 ) -> Link:
     """Связка шкалы по ответам на якорные семейства: их параметры заморожены и известны, поэтому
@@ -132,11 +171,11 @@ def fit_link(
     (β) шкалы.
 
     Максимум правдоподобия P(верно) = σ(a c (α + β μ − b)), c = (1 + π a² β σ² / 8)^(−½), по
-    (α, β) скорингом Фишера. Пока ответов на якоря меньше `calibration_refit_min_responses` —
-    тождественная связка: двух параметров по нескольким ответам не оценить. Тождественная она и
-    тогда, когда скоринг уводит β в β ≤ 0, где модели нет.
+    (α, β) скорингом Фишера. Пока ответов на якоря меньше `min_responses` — тождественная связка:
+    двух параметров по нескольким ответам не оценить. Тождественная она и тогда, когда скоринг
+    уводит β в β ≤ 0, где модели нет.
     """
-    if len(anchors) < mechanics.calibration_refit_min_responses:
+    if len(anchors) < min_responses:
         return Link()
     shift, scale = 0.0, 1.0
     for _ in range(iterations):
@@ -175,23 +214,7 @@ def fit_link(
     return Link(shift, scale)
 
 
-def rest_levels(
-    prior: Prior, observations: Sequence[Observation], indices: Iterable[int]
-) -> list[Normal]:
-    """Итоговая оценка темы для каждого ответа из `indices` — по всем остальным ответам.
-
-    Сам ответ в оценку не входит: иначе верный ответ поднимает оценку, с которой его потом
-    сравнивают, и переоценка завышает разделяющую силу.
-    """
-    return [
-        estimate(prior, [o for j, o in enumerate(observations) if j != i]).topic(
-            observations[i].topic
-        )
-        for i in indices
-    ]
-
-
-def needs_review(reference: Parameters, start: Parameters, mechanics: Mechanics) -> bool:
-    """Опорная сложность легче экспертной больше чем на `calibration_expert_gap_review`: утечка
-    во время разогрева или ошибка эксперта — семейство уходит из выдачи до ручной проверки."""
-    return start.difficulty - reference.difficulty > mechanics.calibration_expert_gap_review
+def needs_review(reference: Parameters, start: Parameters, *, expert_gap: float) -> bool:
+    """Опорная сложность легче экспертной больше чем на `expert_gap`: утечка во время разогрева
+    или ошибка эксперта — семейство уходит из выдачи до ручной проверки."""
+    return start.difficulty - reference.difficulty > expert_gap

@@ -11,6 +11,7 @@ from pydantic import ValidationError
 
 from app.assessment.catalog import load_catalog
 from app.config import BACKEND_DIR, Mechanics, Settings
+from main import create_app
 
 PARAMETERS_DOC = BACKEND_DIR.parent / "docs" / "parameters.md"
 ROW = re.compile(r"^\| `(?P<name>[a-z0-9_]+)` \| `(?P<value>[^`]+)` \|", re.MULTILINE)
@@ -38,6 +39,36 @@ def test_grade_parameters_cover_catalog_grades() -> None:
 
     assert set(mechanics.grade_thresholds) == grades
     assert set(mechanics.expert_difficulty_by_grade) == grades
+
+
+CALIBRATION_PARAMETERS = (
+    "expert_discrimination",
+    "expert_difficulty_by_grade",
+    "elo_k_initial",
+    "elo_k_half_responses",
+    "elo_k_min",
+    "calibration_refit_min_responses",
+    "calibration_expert_gap_review",
+    "calibration_refit_difficulty_prior_sd",
+    "calibration_refit_log_discrimination_prior_sd",
+    "calibration_link_window_attempts",
+)
+
+
+def test_port_implementations_receive_mechanics_parameters() -> None:
+    """Реализации алгоритмов получают числа механик через конструктор при сборке: выбор
+    задания — пул и потолок показов, калибровка — параметры Эло, переоценки и связки шкалы."""
+    mechanics = Mechanics.from_yaml(Settings().mechanics_file)
+    app = create_app(Settings(_env_file=None), mechanics)
+    try:
+        selector = app.state.item_selector
+        assert selector.top_k == mechanics.exposure_top_k
+        assert selector.max_rate == mechanics.exposure_max_rate
+        calibration = app.state.calibration(app.state.unit_of_work())
+        for name in CALIBRATION_PARAMETERS:
+            assert getattr(calibration, name) == getattr(mechanics, name), name
+    finally:
+        app.state.engine.dispose()
 
 
 @pytest.mark.parametrize(

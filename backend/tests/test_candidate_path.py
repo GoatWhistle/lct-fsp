@@ -10,14 +10,15 @@ from fastapi.testclient import TestClient
 from sqlalchemy import Engine, text
 from sqlalchemy.orm import Session
 
+from app.adapter.calibration import EloCalibration
 from app.adapter.clock import FrozenClock
-from app.assessment import families
 from app.assessment.catalog import load_catalog
-from app.assessment.models import FamilyCalibration, Presentation, TestAttempt
+from app.assessment.models import FamilyCalibration
 from app.config import Mechanics, Settings
 from app.domain.bank import Family, families_for_topics, get_family
-from app.domain.skill import Observation
+from app.domain.skill import Normal, Observation
 from app.identity.models import Role
+from app.repository.calibration import SqlCalibrationRepository
 from app.skills.irt import estimate
 from app.usecase.skill_profile import specialization_prior
 from main import create_app
@@ -576,23 +577,33 @@ def test_family_is_refitted_once_it_has_enough_answers(
         assert status in ("active", "review")
 
 
+def calibration_of(db: Session, mechanics: Mechanics) -> EloCalibration:
+    """Реализация порта калибровки — с теми же параметрами конфига, что передаёт сборка."""
+    return EloCalibration(
+        SqlCalibrationRepository(db),
+        expert_discrimination=mechanics.expert_discrimination,
+        expert_difficulty_by_grade=mechanics.expert_difficulty_by_grade,
+        elo_k_initial=mechanics.elo_k_initial,
+        elo_k_half_responses=mechanics.elo_k_half_responses,
+        elo_k_min=mechanics.elo_k_min,
+        calibration_refit_min_responses=mechanics.calibration_refit_min_responses,
+        calibration_expert_gap_review=mechanics.calibration_expert_gap_review,
+        calibration_refit_difficulty_prior_sd=mechanics.calibration_refit_difficulty_prior_sd,
+        calibration_refit_log_discrimination_prior_sd=(
+            mechanics.calibration_refit_log_discrimination_prior_sd
+        ),
+        calibration_link_window_attempts=mechanics.calibration_link_window_attempts,
+    )
+
+
 def test_elo_moves_difficulty_only_until_refit(db_engine: Engine, mechanics: Mechanics) -> None:
     """Эло сдвигает сложность семейства после ответа, пока нет пакетной переоценки; после неё
     текущие параметры остаются опорными, растёт только счётчик ответов (§7)."""
     family = next(f for f in families_for_topics(QA_TOPICS) if not f.anchor)
-    attempt = TestAttempt(specialization_code="qa")
-
-    def answered(correct: bool) -> Presentation:
-        return Presentation(
-            family_code=family.code,
-            correct=correct,
-            topic_theta_before=0.0,
-            topic_theta_sd_before=0.5,
-            attempt=attempt,
-        )
+    level_before = Normal(0.0, 0.5)
 
     with transaction(db_engine) as db:
-        families.learn(db, answered(True), mechanics)
+        calibration_of(db, mechanics).learn("qa", family.code, level_before, True)
         row = db.get_one(FamilyCalibration, family.code)
         assert row.difficulty < mechanics.expert_difficulty_by_grade[family.grade]
         row.reference_discrimination, row.reference_difficulty = row.discrimination, row.difficulty
@@ -600,7 +611,7 @@ def test_elo_moves_difficulty_only_until_refit(db_engine: Engine, mechanics: Mec
         reference = (row.discrimination, row.difficulty)
 
     with transaction(db_engine) as db:
-        families.learn(db, answered(False), mechanics)
+        calibration_of(db, mechanics).learn("qa", family.code, level_before, False)
 
     with Session(db_engine) as db:
         row = db.get_one(FamilyCalibration, family.code)
@@ -632,7 +643,7 @@ def test_failed_calibration_keeps_the_answer(
     def refit_fails(*_: Any, **__: Any) -> None:
         raise RuntimeError("переоценка упала")
 
-    monkeypatch.setattr(families, "refit_due", refit_fails)
+    monkeypatch.setattr(EloCalibration, "refit_due", refit_fails)
     take_survey(candidate)
     start(candidate, "middle")
 

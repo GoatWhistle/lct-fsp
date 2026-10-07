@@ -6,13 +6,10 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from app.assessment.service import Stage
-from app.config import Mechanics
 from app.controller.schemas import CatalogRef
 from app.domain import candidate
+from app.domain.attempt import Stage
 from app.domain.candidate import Level
-from app.domain.skill import Normal
-from app.skills.models import SkillProfile
 
 
 class _Out(BaseModel):
@@ -83,10 +80,6 @@ class SkillProfileOut(BaseModel):
     updated_at: datetime
 
 
-def level_out(level: Normal, mechanics: Mechanics) -> LevelOut:
-    return level_view(Level.of(level, mechanics.grade_thresholds, mechanics.grade_confidence))
-
-
 def level_view(level: Level) -> LevelOut:
     band = level.band
     return LevelOut(
@@ -103,21 +96,6 @@ def skill_profile_view(profile: candidate.SkillProfile) -> SkillProfileOut:
         topics=[
             TopicLevelOut(topic=CatalogRef.model_validate(t.topic), level=level_view(t.level))
             for t in profile.topics
-        ],
-        updated_at=profile.updated_at,
-    )
-
-
-def skill_profile_out(profile: SkillProfile, mechanics: Mechanics) -> SkillProfileOut:
-    rows = sorted(profile.topics, key=lambda row: row.topic.position)
-    return SkillProfileOut(
-        overall=level_out(Normal(profile.overall_theta, profile.overall_theta_sd), mechanics),
-        topics=[
-            TopicLevelOut(
-                topic=CatalogRef.model_validate(row.topic),
-                level=level_out(Normal(row.theta, row.theta_sd), mechanics),
-            )
-            for row in rows
         ],
         updated_at=profile.updated_at,
     )

@@ -6,11 +6,11 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import pytest
-import time_machine
 from fastapi.testclient import TestClient
 from sqlalchemy import Engine, text
 from sqlalchemy.orm import Session
 
+from app.adapter.clock import FrozenClock
 from app.assessment import families
 from app.assessment.bank import Family, families_for_topics, get_family
 from app.assessment.catalog import load_catalog
@@ -31,7 +31,7 @@ from tests.candidate_path import (
     start,
     take_survey,
 )
-from tests.conftest import PASSWORD, Outbox
+from tests.conftest import PASSWORD, Outbox, Seeds
 
 QA_TOPICS = [t.code for s in load_catalog().specializations if s.code == "qa" for t in s.topics]
 
@@ -67,7 +67,7 @@ def test_new_candidate_starts_with_survey_and_has_no_category(
     assert category_rows(db_engine) == []
 
 
-def test_full_path_to_category(candidate: TestClient, db_engine: Engine) -> None:
+def test_full_path_to_category(seeds: Seeds, candidate: TestClient, db_engine: Engine) -> None:
     survey = take_survey(candidate)
     assert survey["stage"] == "grade"
     assert survey["survey"]["specialization"] == {"code": "qa", "name": "QA"}
@@ -77,7 +77,7 @@ def test_full_path_to_category(candidate: TestClient, db_engine: Engine) -> None
     assert started["stage"] == "test"
     assert started["attempt"] == {"grade": "middle", "answered": 0, "max_items": 30}
 
-    path = answer_items(candidate, db_engine, everything)
+    path = answer_items(candidate, seeds, everything)
 
     assert path["stage"] == "category"
     assert path["category"]["specialization"]["code"] == "qa"
@@ -102,7 +102,7 @@ def test_full_path_to_category(candidate: TestClient, db_engine: Engine) -> None
     assert profile["overall"]["theta_sd"] > result["overall"]["theta_sd"]
 
 
-def test_item_carries_no_answer(candidate: TestClient, db_engine: Engine) -> None:
+def test_item_carries_no_answer(candidate: TestClient, seeds: Seeds) -> None:
     take_survey(candidate, "backend")
     start(candidate, "junior")
 
@@ -110,7 +110,7 @@ def test_item_carries_no_answer(candidate: TestClient, db_engine: Engine) -> Non
 
     assert set(item) == {"id", "number", "max_items", "topic", "prompt", "code", "options"}
     assert item["number"] == 1 and item["max_items"] == 30
-    family, seed = presented(db_engine, item["id"])
+    family, seed = presented(seeds, item)
     instance = family.instance(seed)
     assert item["prompt"] == instance.prompt
     assert item["code"] == instance.code
@@ -123,16 +123,16 @@ def test_item_carries_no_answer(candidate: TestClient, db_engine: Engine) -> Non
 
 
 def test_presentation_is_recorded_with_server_response_time(
-    candidate: TestClient, db_engine: Engine, mechanics: Mechanics
+    seeds: Seeds, candidate: TestClient, db_engine: Engine, mechanics: Mechanics, clock: FrozenClock
 ) -> None:
     take_survey(candidate)
     start(candidate, "junior")
 
-    with time_machine.travel(datetime.now(UTC), tick=False) as clock:
-        item = candidate.get(ITEM).json()
-        clock.shift(timedelta(seconds=42.5))
-        assert candidate.get(ITEM).json()["id"] == item["id"], "повторный показ — то же задание"
-        candidate.post(f"{ITEM}/answer", json={"presentation_id": item["id"], "response": "7"})
+    item = candidate.get(ITEM).json()
+    family, seed = presented(seeds, item)
+    clock.shift(timedelta(seconds=42.5))
+    assert candidate.get(ITEM).json()["id"] == item["id"], "повторный показ — то же задание"
+    candidate.post(f"{ITEM}/answer", json={"presentation_id": item["id"], "response": "7"})
 
     with db_engine.connect() as conn:
         row = (
@@ -144,7 +144,9 @@ def test_presentation_is_recorded_with_server_response_time(
     assert row["response"] == "7"
     assert row["correct"] is not None
     assert row["family_code"].startswith(row["topic_code"])
-    assert row["params"] and row["seed"] is not None
+    # Проверка ответа идёт по сохранённому seed — он тот же, по которому построено задание.
+    assert (row["family_code"], row["seed"]) == (family.code, seed)
+    assert row["params"]
     # Первый ответ на семейство — параметры ещё экспертные.
     grade = get_family(row["family_code"]).grade
     assert row["discrimination"] == mechanics.expert_discrimination
@@ -165,12 +167,12 @@ def test_answer_to_stale_item_is_rejected(candidate: TestClient) -> None:
 
 
 def test_failed_grade_offers_dotest_that_continues_the_estimate(
-    candidate: TestClient, db_engine: Engine
+    seeds: Seeds, candidate: TestClient, db_engine: Engine
 ) -> None:
     take_survey(candidate)
     start(candidate, "middle")
 
-    offer = answer_items(candidate, db_engine, nothing)
+    offer = answer_items(candidate, seeds, nothing)
 
     assert offer["stage"] == "offer"
     assert offer["offer_grade"] == "junior"
@@ -186,32 +188,54 @@ def test_failed_grade_offers_dotest_that_continues_the_estimate(
     assert dotest["attempt"] == {"grade": "junior", "answered": 0, "max_items": 30}
     # Невиданные семейства в банке есть — дотест не повторяет показанные в попытке на middle.
     item = candidate.get(ITEM).json()
-    assert presented(db_engine, item["id"])[0].code not in first
+    assert presented(seeds, item)[0].code not in first
 
 
 def test_path_order_does_not_depend_on_server_clock(
-    candidate: TestClient, db_engine: Engine
+    candidate: TestClient, seeds: Seeds, clock: FrozenClock
 ) -> None:
     take_survey(candidate)
     start(candidate, "middle")
-    answer_items(candidate, db_engine, nothing)
+    answer_items(candidate, seeds, nothing)
 
     # Синхронизация отвела часы назад: дотест начат «раньше» первой попытки.
-    with time_machine.travel(datetime.now(UTC) - timedelta(seconds=30)):
-        dotest = start(candidate, "junior")
+    clock.shift(timedelta(seconds=-30))
+    dotest = start(candidate, "junior")
 
     assert dotest["stage"] == "test"
     assert candidate.get(PATH).json()["attempt"]["grade"] == "junior"
 
 
+def test_skill_profile_is_updated_at_the_moment_of_the_scenario(
+    seeds: Seeds, candidate: TestClient, db_engine: Engine, clock: FrozenClock
+) -> None:
+    def updated_at() -> datetime:
+        with db_engine.connect() as conn:
+            moment: datetime = conn.scalar(text("SELECT updated_at FROM skill_profiles"))
+        return moment
+
+    # Вход живёт неделю — моменты в её пределах.
+    first = clock.now() + timedelta(hours=1, minutes=17)
+    clock.set(first)
+    take_survey(candidate)
+    start(candidate, "middle")
+    answer_items(candidate, seeds, nothing)
+    assert updated_at() == first
+
+    clock.shift(timedelta(days=2, hours=3))
+    start(candidate, "junior")
+    answer_items(candidate, seeds, nothing)
+    assert updated_at() == first + timedelta(days=2, hours=3)
+
+
 def test_dotest_below_is_skipped_when_confidence_is_already_there(
-    candidate: TestClient, db_engine: Engine
+    seeds: Seeds, candidate: TestClient, db_engine: Engine
 ) -> None:
     take_survey(candidate)
     start(candidate, "middle")
 
     # Решает всё до junior включительно: уровень у порога middle, junior — уверенно.
-    path = answer_items(candidate, db_engine, lambda family: family.grade in ("intern", "junior"))
+    path = answer_items(candidate, seeds, lambda family: family.grade in ("intern", "junior"))
 
     assert path["stage"] == "category"
     assert path["category"]["grade"]["code"] == "junior"
@@ -221,24 +245,24 @@ def test_dotest_below_is_skipped_when_confidence_is_already_there(
 
 
 def test_failed_cascade_leaves_no_category_until_retest_date(
-    candidate: TestClient, db_engine: Engine
+    seeds: Seeds, candidate: TestClient, db_engine: Engine, clock: FrozenClock
 ) -> None:
     take_survey(candidate)
     start(candidate, "middle")
-    answer_items(candidate, db_engine, nothing)
+    answer_items(candidate, seeds, nothing)
     start(candidate, "junior")
-    offer = answer_items(candidate, db_engine, nothing)
+    offer = answer_items(candidate, seeds, nothing)
     # Каскад доходит до стажёра: дотесту всегда есть что спросить.
     assert offer["stage"] == "offer" and offer["offer_grade"] == "intern"
     start(candidate, "intern")
 
-    path = answer_items(candidate, db_engine, nothing)
+    path = answer_items(candidate, seeds, nothing)
 
     assert path["stage"] == "no_category"
     assert path["category"] is None
     assert category_rows(db_engine) == []
     retest_after = datetime.fromisoformat(path["retest_after"])
-    assert timedelta(days=29) < retest_after - datetime.now(UTC) <= timedelta(days=30)
+    assert retest_after - clock.now() == timedelta(days=30)
     for blocked in (
         candidate.post(f"{PATH}/attempts", json={"grade": "intern"}),
         candidate.post(f"{PATH}/survey", json={"specialization": "qa"}),
@@ -247,17 +271,20 @@ def test_failed_cascade_leaves_no_category_until_retest_date(
         assert blocked.json()["code"] == "path_step_unavailable"
 
     email = candidate.get("/api/auth/me").json()["email"]
-    with time_machine.travel(retest_after + timedelta(minutes=1)):
-        # Вход за это время истёк — входим заново.
-        candidate.post("/api/auth/login", json={"email": email, "password": PASSWORD})
-        assert candidate.get(PATH).json()["stage"] == "grade"
+    clock.shift(timedelta(minutes=-1))
+    assert candidate.get(PATH).json()["stage"] == "no_category", "минутой раньше — ещё рано"
+
+    clock.set(retest_after + timedelta(minutes=1))
+    # Вход за это время истёк — входим заново.
+    candidate.post("/api/auth/login", json={"email": email, "password": PASSWORD})
+    assert candidate.get(PATH).json()["stage"] == "grade"
 
 
-def test_failed_intern_leaves_no_category(candidate: TestClient, db_engine: Engine) -> None:
+def test_failed_intern_leaves_no_category(candidate: TestClient, seeds: Seeds) -> None:
     take_survey(candidate)
     start(candidate, "intern")
 
-    path = answer_items(candidate, db_engine, nothing)
+    path = answer_items(candidate, seeds, nothing)
 
     assert path["stage"] == "no_category"
     assert path["retest_after"] is not None
@@ -354,13 +381,15 @@ def near_junior(family: Family) -> bool:
     return family.grade in ("intern", "junior")
 
 
-def test_candidates_get_their_own_sets_and_instances(signed_in: SignIn, db_engine: Engine) -> None:
+def test_candidates_get_their_own_sets_and_instances(
+    seeds: Seeds, signed_in: SignIn, db_engine: Engine
+) -> None:
     """Кандидаты с одинаковыми ответами получают разные наборы семейств и свои экземпляры (§6)."""
     for _ in range(3):
         c = signed_in(Role.candidate)
         take_survey(c)
         start(c, "middle")
-        answer_items(c, db_engine, near_junior)
+        answer_items(c, seeds, near_junior)
 
     with db_engine.connect() as conn:
         rows = conn.execute(
@@ -373,13 +402,44 @@ def test_candidates_get_their_own_sets_and_instances(signed_in: SignIn, db_engin
     for user_id, family_code, _ in rows:
         sets.setdefault(user_id, []).append(family_code)
     assert len({frozenset(codes) for codes in sets.values()}) == 3
-    seeds = [seed for _, _, seed in rows]
-    assert len(set(seeds)) == len(seeds)
+    stored = [seed for _, _, seed in rows]
+    assert len(set(stored)) == len(stored)
 
 
-def answer_current(c: TestClient, db_engine: Engine) -> Json:
+def shown_instances(db_engine: Engine) -> list[tuple[str, str]]:
+    with db_engine.connect() as conn:
+        rows = conn.execute(
+            text("SELECT family_code, params::text FROM presentations ORDER BY position")
+        )
+        return [(code, params) for code, params in rows]
+
+
+def test_same_run_seed_gives_the_same_items(
+    seeds: Seeds, signed_in: SignIn, db_engine: Engine
+) -> None:
+    """Один и тот же seed прогона и те же ответы — те же семейства в том же порядке и те же
+    экземпляры. Банк и калибровка перед повтором — как перед первым прогоном."""
+
+    def run() -> list[tuple[str, str]]:
+        seeds.reset(17)
+        c = signed_in(Role.candidate)
+        take_survey(c)
+        start(c, "middle")
+        answer_items(c, seeds, near_junior)
+        shown = shown_instances(db_engine)
+        with db_engine.begin() as conn:
+            conn.execute(text("TRUNCATE users, family_calibrations, scale_links CASCADE"))
+        return shown
+
+    first = run()
+
+    assert len(first) > 1
+    assert run() == first
+
+
+def answer_current(c: TestClient, seeds: Seeds) -> Json:
     item = c.get(ITEM).json()
-    family, seed = presented(db_engine, item["id"])
+    family, seed = presented(seeds, item)
     response = family.instance(seed).answer if near_junior(family) else "ответа нет"
     answered = c.post(f"{ITEM}/answer", json={"presentation_id": item["id"], "response": response})
     assert answered.status_code == 200, answered.text
@@ -388,21 +448,23 @@ def answer_current(c: TestClient, db_engine: Engine) -> Json:
 
 
 def test_interrupted_attempt_resumes_after_backend_restart(
+    seeds: Seeds,
     candidate: TestClient,
     db_engine: Engine,
     settings: Settings,
     mechanics: Mechanics,
     outbox: Outbox,
+    clock: FrozenClock,
 ) -> None:
     """Состояние попытки — список предъявлений, оценка — чистая функция от него (§6): после
     перезапуска бэкенда тест продолжается с того же задания и той же оценки."""
     take_survey(candidate)
     start(candidate, "middle")
     for _ in range(3):
-        answer_current(candidate, db_engine)
+        answer_current(candidate, seeds)
     pending = candidate.get(ITEM).json()
 
-    restarted = create_app(settings, mechanics, outbox)
+    restarted = create_app(settings, mechanics, outbox, clock=clock, seeds=seeds)
     try:
         with TestClient(restarted, cookies=candidate.cookies) as again:
             path = again.get(PATH).json()
@@ -410,7 +472,7 @@ def test_interrupted_attempt_resumes_after_backend_restart(
             assert path["attempt"]["answered"] == 3
             assert again.get(ITEM).json() == pending
 
-            answer_current(again, db_engine)
+            answer_current(again, seeds)
             next_item = again.get(ITEM).json()
     finally:
         restarted.state.engine.dispose()
@@ -430,13 +492,13 @@ def test_interrupted_attempt_resumes_after_backend_restart(
 
 
 def test_finished_attempt_calibrates_shown_families(
-    candidate: TestClient, db_engine: Engine, mechanics: Mechanics
+    seeds: Seeds, candidate: TestClient, db_engine: Engine, mechanics: Mechanics
 ) -> None:
     """После ответа — шаг Эло по семейству, после остановки — связка шкалы специализации (§7).
     Параметры якорных семейств заморожены, растёт только счётчик ответов."""
     take_survey(candidate)
     start(candidate, "middle")
-    answer_items(candidate, db_engine, near_junior)
+    answer_items(candidate, seeds, near_junior)
 
     with db_engine.connect() as conn:
         rows = conn.execute(
@@ -462,12 +524,17 @@ def test_finished_attempt_calibrates_shown_families(
 
 
 def test_family_is_refitted_once_it_has_enough_answers(
-    settings: Settings, mechanics: Mechanics, outbox: Outbox, db_engine: Engine
+    seeds: Seeds,
+    settings: Settings,
+    mechanics: Mechanics,
+    outbox: Outbox,
+    db_engine: Engine,
+    clock: FrozenClock,
 ) -> None:
     """Набравшее ответов семейство переоценивается пакетно: результат — текущие и опорные
     параметры (§7). Порог здесь — один ответ, чтобы хватило одной попытки."""
     eager = mechanics.model_copy(update={"calibration_refit_min_responses": 1})
-    app = create_app(settings, eager, outbox)
+    app = create_app(settings, eager, outbox, clock=clock, seeds=seeds)
     try:
         with TestClient(app) as c:
             email = f"candidate-{uuid.uuid4().hex[:8]}@example.com"
@@ -482,7 +549,7 @@ def test_family_is_refitted_once_it_has_enough_answers(
             ).raise_for_status()
             take_survey(c)
             start(c, "middle")
-            answer_items(c, db_engine, near_junior)
+            answer_items(c, seeds, near_junior)
     finally:
         app.state.engine.dispose()
 

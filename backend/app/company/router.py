@@ -5,6 +5,7 @@ from fastapi import APIRouter
 from app.company import service
 from app.company.models import Company
 from app.company.schemas import CompanyIn, CompanyOut
+from app.controller.deps import ClockDep
 from app.controller.errors import error_responses
 from app.controller.schemas import CatalogRef
 from app.db import DbSession
@@ -35,8 +36,8 @@ def get_company(user: CurrentUser, db: DbSession) -> CompanyOut | None:
     summary="Заполнить или изменить профиль компании",
     responses=error_responses(UnknownIndustry),
 )
-def save_company(body: CompanyIn, user: CurrentUser, db: DbSession) -> CompanyOut:
-    return _company_out(service.save_company(db, user.id, body))
+def save_company(body: CompanyIn, user: CurrentUser, db: DbSession, clock: ClockDep) -> CompanyOut:
+    return _company_out(service.save_company(db, user.id, body, clock))
 
 
 def _company_out(company: Company) -> CompanyOut:

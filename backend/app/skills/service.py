@@ -6,6 +6,7 @@
 
 import uuid
 from collections.abc import Sequence
+from datetime import datetime
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -46,7 +47,9 @@ def refresh_profile(
     specialization_code: str,
     topics: Sequence[str],
     mechanics: Mechanics,
+    now: datetime,
 ) -> SkillProfile:
+    """Пересчёт профиля по всем ответам; время обновления — переданный момент `now`."""
     answered = db.scalars(
         select(Presentation)
         .join(TestAttempt)
@@ -74,6 +77,7 @@ def refresh_profile(
     overall = result.overall()
     profile.overall_theta, profile.overall_theta_sd = overall.mean, overall.sd
     profile.observations = len(answered)
+    profile.updated_at = now
     profile.last_signal_at = answered[-1].answered_at if answered else None
     rows = {row.topic_code: row for row in profile.topics}
     for topic in topics:

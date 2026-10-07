@@ -24,6 +24,7 @@ from app.matching.router import router as needs_router
 from app.matching.router import selections_router
 from app.profile.router import employer_router as candidates_router
 from app.profile.router import router as profile_router
+from app.repository.unit_of_work import SqlUnitOfWork
 
 
 def description() -> str:
@@ -64,7 +65,12 @@ def create_app(
     app.state.engine = engine
     app.state.settings = settings
     app.state.mechanics = mechanics
-    app.state.sessionmaker = sessionmaker(engine, expire_on_commit=False)
+    session_factory = sessionmaker(engine, expire_on_commit=False)
+
+    def unit_of_work() -> SqlUnitOfWork:
+        return SqlUnitOfWork(session_factory())
+
+    app.state.unit_of_work = unit_of_work
     app.state.mailer = mailer or SmtpMailer(
         settings.smtp_host, settings.smtp_port, settings.mail_from
     )

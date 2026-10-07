@@ -16,10 +16,11 @@ from app.domain.errors import (
 from app.identity import security
 from app.identity.models import EmailVerificationToken, Role, User
 from app.mail import Mail, Mailer
+from app.repository.unit_of_work import SqlUnitOfWork
 
 
 def register(
-    db: Session,
+    uow: SqlUnitOfWork,
     mailer: Mailer,
     settings: Settings,
     *,
@@ -28,46 +29,49 @@ def register(
     role: Role,
 ) -> User:
     email = email.lower()
-    if db.scalar(select(User.id).where(User.email == email)):
-        raise EmailTaken()
-    user = User(email=email, password_hash=security.hash_password(password), role=role)
-    db.add(user)
-    try:
-        db.flush()
-    except IntegrityError:
-        # Тот же адрес успел зарегистрироваться параллельным запросом.
-        db.rollback()
-        raise EmailTaken() from None
-    mail = _verification_mail(db, settings, user)
-    db.commit()
+    with uow:
+        db = uow.session
+        if db.scalar(select(User.id).where(User.email == email)):
+            raise EmailTaken()
+        user = User(email=email, password_hash=security.hash_password(password), role=role)
+        try:
+            with db.begin_nested():
+                db.add(user)
+        except IntegrityError:
+            # Тот же адрес успел зарегистрироваться параллельным запросом.
+            raise EmailTaken() from None
+        mail = _verification_mail(db, settings, user)
     mailer.send(mail)
     return user
 
 
-def resend_verification(db: Session, mailer: Mailer, settings: Settings, *, email: str) -> None:
+def resend_verification(
+    uow: SqlUnitOfWork, mailer: Mailer, settings: Settings, *, email: str
+) -> None:
     """Для чужих и уже подтверждённых адресов молча ничего не делает — не раскрываем учётки."""
-    user = db.scalar(select(User).where(User.email == email.lower()))
-    if user is None or user.email_verified:
-        return
-    mail = _verification_mail(db, settings, user)
-    db.commit()
+    with uow:
+        user = uow.session.scalar(select(User).where(User.email == email.lower()))
+        if user is None or user.email_verified:
+            return
+        mail = _verification_mail(uow.session, settings, user)
     mailer.send(mail)
 
 
-def verify_email(db: Session, *, token: str) -> User:
-    record = db.scalar(
-        select(EmailVerificationToken).where(
-            EmailVerificationToken.token_hash == security.hash_email_token(token)
+def verify_email(uow: SqlUnitOfWork, *, token: str) -> User:
+    with uow:
+        db = uow.session
+        record = db.scalar(
+            select(EmailVerificationToken).where(
+                EmailVerificationToken.token_hash == security.hash_email_token(token)
+            )
         )
-    )
-    if record is None:
-        raise TokenInvalid()
-    if utcnow() >= record.expires_at:
-        raise TokenExpired()
-    user = db.get_one(User, record.user_id)
-    user.email_verified_at = utcnow()
-    db.execute(delete(EmailVerificationToken).where(EmailVerificationToken.user_id == user.id))
-    db.commit()
+        if record is None:
+            raise TokenInvalid()
+        if utcnow() >= record.expires_at:
+            raise TokenExpired()
+        user = db.get_one(User, record.user_id)
+        user.email_verified_at = utcnow()
+        db.execute(delete(EmailVerificationToken).where(EmailVerificationToken.user_id == user.id))
     return user
 
 

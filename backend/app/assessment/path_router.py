@@ -23,7 +23,7 @@ from app.assessment.schemas import (
 from app.config import Mechanics, MechanicsDep
 from app.controller.errors import error_responses
 from app.controller.schemas import CatalogRef
-from app.db import DbSession, utcnow
+from app.db import DbSession, UnitOfWorkDep, utcnow
 from app.domain import errors
 from app.domain.skill import Normal
 from app.identity.deps import ROLE_RESPONSES, CurrentUser, role_guard
@@ -55,10 +55,10 @@ def get_path(user: CurrentUser, db: DbSession, mechanics: MechanicsDep) -> PathO
     ),
 )
 def submit_survey(
-    body: SurveyIn, user: CurrentUser, db: DbSession, mechanics: MechanicsDep
+    body: SurveyIn, user: CurrentUser, uow: UnitOfWorkDep, mechanics: MechanicsDep
 ) -> PathOut:
-    service.submit_survey(db, user, specialization=body.specialization, now=utcnow())
-    return _path_out(service.path(db, user.id, utcnow()), mechanics)
+    service.submit_survey(uow, user, specialization=body.specialization, now=utcnow())
+    return _path_out(service.path(uow.session, user.id, utcnow()), mechanics)
 
 
 @router.post(
@@ -69,10 +69,10 @@ def submit_survey(
     responses=error_responses(errors.StepUnavailable, errors.GradeNotOffered, errors.UnknownGrade),
 )
 def start_attempt(
-    body: AttemptIn, user: CurrentUser, db: DbSession, mechanics: MechanicsDep
+    body: AttemptIn, user: CurrentUser, uow: UnitOfWorkDep, mechanics: MechanicsDep
 ) -> PathOut:
-    service.start_attempt(db, user, mechanics, grade=body.grade, now=utcnow())
-    return _path_out(service.path(db, user.id, utcnow()), mechanics)
+    service.start_attempt(uow, user, mechanics, grade=body.grade, now=utcnow())
+    return _path_out(service.path(uow.session, user.id, utcnow()), mechanics)
 
 
 @router.get(
@@ -82,8 +82,8 @@ def start_attempt(
     "запрос отдаёт то же задание. Эталон и параметры экземпляра не отдаются.",
     responses=error_responses(errors.NoTestInProgress),
 )
-def get_item(user: CurrentUser, db: DbSession, mechanics: MechanicsDep) -> ItemOut:
-    item = service.current_item(db, user, mechanics, now=utcnow())
+def get_item(user: CurrentUser, uow: UnitOfWorkDep, mechanics: MechanicsDep) -> ItemOut:
+    item = service.current_item(uow, user, mechanics, now=utcnow())
     return ItemOut(
         id=item.presentation.id,
         number=item.presentation.position + 1,
@@ -104,17 +104,17 @@ def get_item(user: CurrentUser, db: DbSession, mechanics: MechanicsDep) -> ItemO
     responses=error_responses(errors.NoTestInProgress, errors.ItemNotCurrent),
 )
 def answer_item(
-    body: AnswerIn, user: CurrentUser, db: DbSession, mechanics: MechanicsDep
+    body: AnswerIn, user: CurrentUser, uow: UnitOfWorkDep, mechanics: MechanicsDep
 ) -> PathOut:
     service.answer(
-        db,
+        uow,
         user,
         mechanics,
         presentation_id=body.presentation_id,
         response=body.response,
         now=utcnow(),
     )
-    return _path_out(service.path(db, user.id, utcnow()), mechanics)
+    return _path_out(service.path(uow.session, user.id, utcnow()), mechanics)
 
 
 def _path_out(view: service.PathView, mechanics: Mechanics) -> PathOut:

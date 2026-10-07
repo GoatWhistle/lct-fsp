@@ -9,6 +9,7 @@ import os
 import re
 import uuid
 from collections.abc import Callable, Iterator
+from contextlib import closing, contextmanager
 
 import pytest
 from alembic import command
@@ -24,10 +25,19 @@ from app.config import BACKEND_DIR, Mechanics, Settings
 from app.db import create_db_engine
 from app.identity.models import Role
 from app.mail import Mail
+from app.repository.unit_of_work import SqlUnitOfWork
 from main import create_app
 
 PASSWORD = "correct-horse-battery"
 DATABASE_TIMEZONE = "Europe/Moscow"
+
+
+@contextmanager
+def transaction(engine: Engine) -> Iterator[Session]:
+    """Запись из теста в обход API — через единицу работы, как в приложении: блок фиксируется
+    при выходе без исключения."""
+    with closing(SqlUnitOfWork(Session(engine))) as uow, uow:
+        yield uow.session
 
 
 class Outbox:
@@ -75,9 +85,8 @@ def database_url(postgres_server_url: str) -> Iterator[str]:
     alembic_cfg.attributes["configure_logger"] = False
     command.upgrade(alembic_cfg, "head")
     engine = create_db_engine(url)
-    with Session(engine) as db:
+    with transaction(engine) as db:
         sync_catalog(db, load_catalog())
-        db.commit()
     engine.dispose()
 
     yield url

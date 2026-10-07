@@ -100,6 +100,13 @@ def learn(db: Session, presentation: Presentation, mechanics: Mechanics) -> None
     row.responses += 1
 
 
+def lock(db: Session, codes: Iterable[str], mechanics: Mechanics) -> None:
+    """Блокировка строк семейств до конца транзакции — по порядку кодов: так транзакции,
+    которые берут несколько семейств, не ждут друг друга по кругу."""
+    for code in sorted(set(codes)):
+        _locked(db, bank.get_family(code), mechanics)
+
+
 def links(db: Session, specialization: str) -> tuple[Link, Link]:
     """Связки шкалы специализации: по оценкам до ответа (для Эло) и без ответа (для переоценки)."""
     row = db.get(ScaleLink, specialization)
@@ -156,14 +163,14 @@ def relink(db: Session, specialization: str, mechanics: Mechanics, now: datetime
         .values(specialization_code=specialization, **values)
         .on_conflict_do_update(index_elements=["specialization_code"], set_=values)
     )
-    db.commit()
 
 
 def refit_due(
     db: Session, codes: Iterable[str], specialization: str, mechanics: Mechanics, now: datetime
 ) -> None:
     """Пакетная переоценка семейств, набравших `calibration_refit_min_responses` ответов с
-    итоговыми оценками кандидатов. Каждое семейство — своя транзакция: блокировки не копятся.
+    итоговыми оценками кандидатов. Строки семейств блокируются по порядку кодов и держатся до
+    конца транзакции ответа.
 
     Уровни кандидатов переводятся связкой шкалы. Результат — новые текущие и опорные параметры.
     Опорная сложность легче экспертной больше допустимого — семейство уходит из выдачи до ручной
@@ -176,7 +183,6 @@ def refit_due(
             continue
         row = _locked(db, family, mechanics)
         if row.refitted_at is not None:
-            db.commit()
             continue
         answers = db.execute(
             select(
@@ -207,7 +213,6 @@ def refit_due(
                 fitted.difficulty,
                 start.difficulty,
             )
-        db.commit()
 
 
 def _ready(db: Session, code: str) -> int:

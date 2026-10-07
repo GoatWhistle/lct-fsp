@@ -9,7 +9,7 @@ from app.assessment.schemas import CategoryOut, skill_profile_out
 from app.config import Mechanics, MechanicsDep
 from app.controller.errors import error_responses
 from app.controller.schemas import CatalogRef
-from app.db import DbSession, utcnow
+from app.db import DbSession, UnitOfWorkDep, utcnow
 from app.domain import errors
 from app.domain.work import WorkFormat
 from app.identity.deps import ROLE_RESPONSES, CurrentUser, role_guard
@@ -51,8 +51,8 @@ def get_profile(user: CurrentUser, db: DbSession) -> ProfileOut | None:
     "определяет только тест.",
     responses=error_responses(*service.PROFILE_ERRORS),
 )
-def save_profile(body: ProfileIn, user: CurrentUser, db: DbSession) -> ProfileOut:
-    return _profile_out(service.save_profile(db, user.id, body))
+def save_profile(body: ProfileIn, user: CurrentUser, uow: UnitOfWorkDep) -> ProfileOut:
+    return _profile_out(service.save_profile(uow, user.id, body))
 
 
 @router.get(

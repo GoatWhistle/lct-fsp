@@ -31,7 +31,7 @@ from tests.candidate_path import (
     start,
     take_survey,
 )
-from tests.conftest import PASSWORD, Outbox, Seeds
+from tests.conftest import PASSWORD, Outbox, Seeds, transaction
 
 QA_TOPICS = [t.code for s in load_catalog().specializations if s.code == "qa" for t in s.topics]
 
@@ -591,19 +591,62 @@ def test_elo_moves_difficulty_only_until_refit(db_engine: Engine, mechanics: Mec
             attempt=attempt,
         )
 
-    with Session(db_engine) as db:
+    with transaction(db_engine) as db:
         families.learn(db, answered(True), mechanics)
         row = db.get_one(FamilyCalibration, family.code)
         assert row.difficulty < mechanics.expert_difficulty_by_grade[family.grade]
         row.reference_discrimination, row.reference_difficulty = row.discrimination, row.difficulty
         row.refitted_at = datetime.now(UTC)
-        db.commit()
         reference = (row.discrimination, row.difficulty)
 
+    with transaction(db_engine) as db:
         families.learn(db, answered(False), mechanics)
-        db.commit()
 
     with Session(db_engine) as db:
         row = db.get_one(FamilyCalibration, family.code)
         assert (row.discrimination, row.difficulty) == reference
         assert row.responses == 2
+
+
+CALIBRATION_TABLES = ("family_calibrations", "scale_links")
+
+
+def calibration(db_engine: Engine) -> dict[str, list[tuple[Any, ...]]]:
+    with db_engine.connect() as conn:
+        return {
+            table: [tuple(row) for row in conn.execute(text(f"SELECT * FROM {table} ORDER BY 1"))]
+            for table in CALIBRATION_TABLES
+        }
+
+
+def test_failed_calibration_keeps_the_answer(
+    seeds: Seeds,
+    candidate: TestClient,
+    db_engine: Engine,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Калибровка идёт после фиксации ответа своей транзакцией (§7): сбой переоценки ответ и
+    итог попытки не отменяет, а шаг Эло и связка шкалы той же калибровки откатываются."""
+
+    def refit_fails(*_: Any, **__: Any) -> None:
+        raise RuntimeError("переоценка упала")
+
+    monkeypatch.setattr(families, "refit_due", refit_fails)
+    take_survey(candidate)
+    start(candidate, "middle")
+
+    path: Json = {"stage": "test"}
+    while path["stage"] == "test":
+        item = candidate.get(ITEM).json()
+        family, seed = presented(seeds, item)
+        body = {"presentation_id": item["id"], "response": family.instance(seed).answer}
+        before = calibration(db_engine)
+        answered = candidate.post(f"{ITEM}/answer", json=body)
+        assert answered.status_code == 200, answered.text
+        path = answered.json()
+
+    assert path["stage"] == "category"
+    assert category_rows(db_engine) == [("qa", "middle")]
+    assert calibration(db_engine) == before
+    assert "Калибровка после ответа" in caplog.text

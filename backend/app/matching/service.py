@@ -29,6 +29,7 @@ from app.matching.importance import TopicImportance, topic_importance
 from app.matching.models import Need, NeedTopicImportance
 from app.matching.schemas import NeedIn, TopicImportanceIn
 from app.repository.catalog import ref_of, specialization_of
+from app.repository.unit_of_work import SqlUnitOfWork
 from app.usecase.interface import Clock
 
 
@@ -73,29 +74,32 @@ def get_need(db: Session, user_id: uuid.UUID, need_id: uuid.UUID) -> Need:
     return need
 
 
-def create_need(db: Session, user_id: uuid.UUID, data: NeedIn, clock: Clock) -> Need:
-    now = clock.now()
-    need = Need(user_id=user_id, created_at=now, updated_at=now)
-    _fill(db, need, data)
-    db.add(need)
-    db.commit()
-    return need
+def create_need(uow: SqlUnitOfWork, user_id: uuid.UUID, data: NeedIn, clock: Clock) -> Need:
+    with uow:
+        db = uow.session
+        now = clock.now()
+        need = Need(user_id=user_id, created_at=now, updated_at=now)
+        _fill(db, need, data)
+        db.add(need)
+        return need
 
 
 def update_need(
-    db: Session, user_id: uuid.UUID, need_id: uuid.UUID, data: NeedIn, clock: Clock
+    uow: SqlUnitOfWork, user_id: uuid.UUID, need_id: uuid.UUID, data: NeedIn, clock: Clock
 ) -> Need:
-    need = get_need(db, user_id, need_id)
-    _fill(db, need, data)
-    # Стек и правки важности лежат в своих таблицах: строка потребности может не измениться.
-    need.updated_at = clock.now()
-    db.commit()
-    return need
+    with uow:
+        db = uow.session
+        need = get_need(db, user_id, need_id)
+        _fill(db, need, data)
+        # Стек и правки важности лежат в своих таблицах: строка потребности может не измениться.
+        need.updated_at = clock.now()
+        return need
 
 
-def delete_need(db: Session, user_id: uuid.UUID, need_id: uuid.UUID) -> None:
-    db.delete(get_need(db, user_id, need_id))
-    db.commit()
+def delete_need(uow: SqlUnitOfWork, user_id: uuid.UUID, need_id: uuid.UUID) -> None:
+    with uow:
+        db = uow.session
+        db.delete(get_need(db, user_id, need_id))
 
 
 def need_topics(need: Need, mechanics: Mechanics) -> list[TopicView]:

@@ -1,7 +1,8 @@
 """Направление зависимостей слоёв (docs/adr/0001-layers-and-ports.md).
 
 `domain` не знает библиотек хранения, схем и HTTP и не тянет их через другие пакеты `app`;
-`usecase` не знает реализаций портов и контроллеров. Импорты читаются из исходников, а не из
+`usecase` не знает реализаций портов и контроллеров; in-memory хранилища не знают SQLAlchemy и
+ничего из `app`, кроме домена, портов и себя. Импорты читаются из исходников, а не из
 `sys.modules`: так ловится и импорт внутри функции, и импорт под `TYPE_CHECKING`; относительный
 импорт сводится к полному имени.
 """
@@ -26,6 +27,10 @@ DOMAIN = Rule(
     allowed=("app.domain",),
 )
 USECASE = Rule(banned=("app.adapter", "app.repository", "app.controller"))
+MEMORY = Rule(
+    banned=("sqlalchemy", "app"),
+    allowed=("app.domain", "app.usecase", "app.repository.memory"),
+)
 
 
 def _within(module: str, prefixes: tuple[str, ...]) -> bool:
@@ -64,19 +69,26 @@ def violations(package: Path, rule: Rule) -> list[str]:
     return found
 
 
-@pytest.mark.parametrize(("layer", "rule"), [("domain", DOMAIN), ("usecase", USECASE)])
+@pytest.mark.parametrize(
+    ("layer", "rule"),
+    [("domain", DOMAIN), ("usecase", USECASE), ("repository/memory", MEMORY)],
+)
 def test_layer_imports_only_inward(layer: str, rule: Rule) -> None:
     package = BACKEND_DIR / "app" / layer
-    assert (package / "__init__.py").is_file(), f"нет пакета app.{layer}"
+    assert (package / "__init__.py").is_file(), f"нет пакета app/{layer}"
     assert violations(package, rule) == []
 
 
 def plant(tmp_path: Path, layer: str, source: str) -> Path:
     package = tmp_path / "app" / layer
     package.mkdir(parents=True)
-    (package / "__init__.py").write_text("")
+    for directory in [package, *package.relative_to(tmp_path / "app").parents]:
+        (tmp_path / "app" / directory / "__init__.py").write_text("")
     (package / "bad.py").write_text(source)
     return package
+
+
+MEMORY_PEEKS_AT_SQL = "from ..unit_of_work import SqlUnitOfWork\n"
 
 
 @pytest.mark.parametrize(
@@ -93,6 +105,8 @@ def plant(tmp_path: Path, layer: str, source: str) -> Path:
         ("usecase", USECASE, "from app.repository import users\n", "app.repository"),
         ("usecase", USECASE, "import app.controller.errors\n", "app.controller.errors"),
         ("usecase", USECASE, "from ..controller.errors import STATUS\n", "app.controller.errors"),
+        ("repository/memory", MEMORY, "from sqlalchemy.orm import Session\n", "sqlalchemy.orm"),
+        ("repository/memory", MEMORY, MEMORY_PEEKS_AT_SQL, "app.repository.unit_of_work"),
     ],
 )
 def test_planted_violation_is_caught(

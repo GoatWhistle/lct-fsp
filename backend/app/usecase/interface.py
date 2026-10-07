@@ -6,7 +6,8 @@
 
 from collections.abc import Iterable
 from datetime import datetime
-from typing import Protocol
+from types import TracebackType
+from typing import Protocol, Self
 
 from app.domain.candidate import ProfileSheet
 from app.domain.mail import Mail
@@ -63,4 +64,30 @@ class SeedSource(Protocol):
 
     def seed(self) -> int:
         """Очередной seed — неотрицательное целое меньше 2⁶³: столько держит колонка seed."""
+        ...
+
+
+class UnitOfWork(Protocol):
+    """Единица работы — граница транзакции: блок `with uow:` в сценарии. Обычно вызов сценария —
+    один блок; отдельным блоком идёт только то, что по механике не отменяет основной шаг
+    (калибровка после ответа, mechanics.md §7).
+
+    Выход из блока без исключения фиксирует всё записанное в нём, с исключением — откатывает и
+    пробрасывает исключение дальше. Блоки идут по очереди, вложенный вход — ошибка. Кроме
+    единицы работы изменения не фиксирует никто: ни репозитории, ни сценарии. Сейчас — Postgres
+    (`app.repository.unit_of_work`) и in-memory для тестов и стенда валидации
+    (`app.repository.memory`).
+    """
+
+    def __enter__(self) -> Self:
+        """Начало блока; вложенный вход — `RuntimeError`."""
+        ...
+
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc: BaseException | None,
+        tb: TracebackType | None,
+    ) -> None:
+        """Фиксация без исключения, откат с исключением; исключение не глотается."""
         ...

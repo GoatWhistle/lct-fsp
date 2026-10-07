@@ -1,11 +1,13 @@
 from collections.abc import Callable
-from datetime import timedelta
+from datetime import UTC, datetime, timedelta
 
+import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import Engine, text
+from sqlalchemy import Engine, insert, text
 
 from app.adapter.clock import FrozenClock
-from app.identity.models import Role
+from app.identity import security
+from app.identity.models import Role, User
 from tests.conftest import PASSWORD, Outbox
 
 
@@ -91,6 +93,37 @@ def test_email_is_registered_once_regardless_of_case(client: TestClient) -> None
 
     assert response.status_code == 409
     assert response.json()["code"] == "email_taken"
+
+
+def test_concurrent_registration_of_same_email_is_rejected(
+    client: TestClient, db_engine: Engine, outbox: Outbox, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Адрес заняли параллельным запросом между проверкой и вставкой: ответ тот же, что при
+    обычном повторе, письма нет."""
+    hash_password = security.hash_password
+
+    def racing_hash(password: str) -> str:
+        with db_engine.begin() as conn:
+            conn.execute(
+                insert(User).values(
+                    email="eva@example.com",
+                    password_hash="x",
+                    role=Role.employer,
+                    created_at=datetime.now(UTC),
+                )
+            )
+        return hash_password(password)
+
+    monkeypatch.setattr(security, "hash_password", racing_hash)
+
+    response = client.post(
+        "/api/auth/register",
+        json={"email": "eva@example.com", "password": PASSWORD, "role": "candidate"},
+    )
+
+    assert response.status_code == 409
+    assert response.json()["code"] == "email_taken"
+    assert outbox.sent == []
 
 
 def test_invalid_registration_data_is_rejected(client: TestClient) -> None:

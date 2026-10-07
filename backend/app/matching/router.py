@@ -10,7 +10,7 @@ from app.config import Mechanics, MechanicsDep
 from app.controller.deps import ClockDep, SeedsDep
 from app.controller.errors import error_responses
 from app.controller.schemas import CatalogRef
-from app.db import DbSession
+from app.db import DbSession, UnitOfWorkDep
 from app.domain import errors
 from app.identity.deps import ROLE_RESPONSES, CurrentUser, role_guard
 from app.identity.models import Role
@@ -59,9 +59,9 @@ def list_needs(user: CurrentUser, db: DbSession, mechanics: MechanicsDep) -> lis
     responses=error_responses(*service.NEED_ERRORS),
 )
 def create_need(
-    body: NeedIn, user: CurrentUser, db: DbSession, mechanics: MechanicsDep, clock: ClockDep
+    body: NeedIn, user: CurrentUser, uow: UnitOfWorkDep, mechanics: MechanicsDep, clock: ClockDep
 ) -> NeedOut:
-    return _need_out(service.create_need(db, user.id, body, clock), mechanics)
+    return _need_out(service.create_need(uow, user.id, body, clock), mechanics)
 
 
 @router.post(
@@ -100,11 +100,11 @@ def update_need(
     need_id: uuid.UUID,
     body: NeedIn,
     user: CurrentUser,
-    db: DbSession,
+    uow: UnitOfWorkDep,
     mechanics: MechanicsDep,
     clock: ClockDep,
 ) -> NeedOut:
-    return _need_out(service.update_need(db, user.id, need_id, body, clock), mechanics)
+    return _need_out(service.update_need(uow, user.id, need_id, body, clock), mechanics)
 
 
 @router.delete(
@@ -113,8 +113,8 @@ def update_need(
     summary="Удаление потребности",
     responses=error_responses(errors.NeedNotFound),
 )
-def delete_need(need_id: uuid.UUID, user: CurrentUser, db: DbSession) -> None:
-    service.delete_need(db, user.id, need_id)
+def delete_need(need_id: uuid.UUID, user: CurrentUser, uow: UnitOfWorkDep) -> None:
+    service.delete_need(uow, user.id, need_id)
 
 
 @router.post(
@@ -129,14 +129,14 @@ def delete_need(need_id: uuid.UUID, user: CurrentUser, db: DbSession) -> None:
 def build_selection(
     need_id: uuid.UUID,
     user: CurrentUser,
-    db: DbSession,
+    uow: UnitOfWorkDep,
     mechanics: MechanicsDep,
     clock: ClockDep,
     seeds: SeedsDep,
     limit: Limit = 20,
 ) -> SelectionOut:
     return _selection_out(
-        selection.build(db, user.id, need_id, mechanics, clock, seeds, limit=limit)
+        selection.build(uow, user.id, need_id, mechanics, clock, seeds, limit=limit)
     )
 
 

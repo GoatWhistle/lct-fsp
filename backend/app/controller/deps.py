@@ -5,7 +5,9 @@ from typing import Annotated
 
 from fastapi import Depends, Request
 
+from app.db import UnitOfWorkDep
 from app.usecase.interface import Clock, Mailer, ProfilePdfRenderer, SeedSource
+from app.usecase.selection import Selections
 
 
 def get_mailer(request: Request) -> Mailer:
@@ -28,7 +30,14 @@ def get_seeds(request: Request) -> SeedSource:
     return seeds
 
 
+def get_selections(request: Request, uow: UnitOfWorkDep) -> Selections:
+    """Сценарии подборки на единице работы запроса."""
+    selections: Selections = request.app.state.selections(uow)
+    return selections
+
+
 MailerDep = Annotated[Mailer, Depends(get_mailer)]
 ProfilePdfRendererDep = Annotated[ProfilePdfRenderer, Depends(get_profile_pdf_renderer)]
 ClockDep = Annotated[Clock, Depends(get_clock)]
 SeedsDep = Annotated[SeedSource, Depends(get_seeds)]
+SelectionsDep = Annotated[Selections, Depends(get_selections)]

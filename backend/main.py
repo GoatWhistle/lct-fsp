@@ -11,6 +11,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from sqlalchemy.orm import sessionmaker
 
+from app.adapter.acceptance import NoAcceptanceModel
 from app.adapter.clock import SystemClock
 from app.adapter.mail import SmtpMailer
 from app.adapter.profile_pdf import FpdfProfileRenderer
@@ -27,8 +28,10 @@ from app.matching.router import router as needs_router
 from app.matching.router import selections_router
 from app.profile.router import employer_router as candidates_router
 from app.profile.router import router as profile_router
+from app.repository.selection import SqlCandidatePool, SqlNeeds, SqlSelections
 from app.repository.unit_of_work import SqlUnitOfWork
-from app.usecase.interface import Clock, Mailer, ProfilePdfRenderer, SeedSource
+from app.usecase.interface import AcceptanceModel, Clock, Mailer, ProfilePdfRenderer, SeedSource
+from app.usecase.selection import Selections
 
 
 def description() -> str:
@@ -50,6 +53,7 @@ def create_app(
     profile_pdf_renderer: ProfilePdfRenderer | None = None,
     clock: Clock | None = None,
     seeds: SeedSource | None = None,
+    acceptance: AcceptanceModel | None = None,
 ) -> FastAPI:
     settings = settings or Settings()
     mechanics = mechanics or Mechanics.from_yaml(settings.mechanics_file)
@@ -84,6 +88,21 @@ def create_app(
     app.state.profile_pdf_renderer = profile_pdf_renderer or FpdfProfileRenderer()
     app.state.clock = clock or SystemClock()
     app.state.seeds = seeds or SecureSeeds()
+    acceptance_model = acceptance or NoAcceptanceModel()
+
+    def selections(uow: SqlUnitOfWork) -> Selections:
+        return Selections(
+            uow,
+            SqlNeeds(uow.session),
+            SqlCandidatePool(uow.session),
+            SqlSelections(uow.session),
+            acceptance_model,
+            app.state.clock,
+            app.state.seeds,
+            mechanics,
+        )
+
+    app.state.selections = selections
 
     install_error_handlers(app)
     app.include_router(auth_router)

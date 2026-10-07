@@ -7,10 +7,10 @@ from typing import Annotated
 from pydantic import BaseModel, Field, StringConstraints
 
 from app.controller.schemas import CatalogRef
+from app.domain.importance import TopicImportance
+from app.domain.match import Verdict
+from app.domain.selection import SelectionBlock
 from app.domain.work import WorkFormat
-from app.matching.importance import TopicImportance
-from app.matching.models import SelectionBlock
-from app.matching.score import Verdict
 from app.salary import SALARY_UNIT, Salary, SalaryBasisOut
 
 Title = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=200)]
@@ -94,29 +94,6 @@ class NeedSnapshot(SalaryBasisOut):
     salary_to: int | None = Field(description=SALARY_UNIT)
     topics: list[RequirementOut] = Field(description="Все темы специализации по порядку")
     updated_at: datetime = Field(description="Версия потребности, по которой построена подборка")
-
-
-class TopicFitData(BaseModel):
-    """Вклад темы в хранимом объяснении — код темы, названия берутся из снимка."""
-
-    topic: str
-    theta: float
-    theta_sd: float
-    probability: float
-    contribution: float
-    verdict: Verdict
-    low_data: bool
-
-
-class StackFitData(BaseModel):
-    matched: list[str]
-    overlap: float
-    contribution: float
-
-
-class Explanation(BaseModel):
-    topics: list[TopicFitData]
-    stack: StackFitData
 
 
 class TopicFitOut(BaseModel):

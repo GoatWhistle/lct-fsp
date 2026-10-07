@@ -4,13 +4,24 @@
 `backend/main.py`.
 """
 
-from collections.abc import Iterable
+import uuid
+from collections.abc import Collection, Iterable, Sequence
 from datetime import datetime
 from types import TracebackType
 from typing import Protocol, Self
 
 from app.domain.candidate import ProfileSheet
 from app.domain.mail import Mail
+from app.domain.selection import (
+    AcceptanceFeatures,
+    Need,
+    Page,
+    PoolCandidate,
+    Selection,
+    SelectionDraft,
+    SelectionEntry,
+    Summary,
+)
 from app.domain.skill import Observation, Prior, SkillEstimate
 
 
@@ -90,4 +101,55 @@ class UnitOfWork(Protocol):
         tb: TracebackType | None,
     ) -> None:
         """Фиксация без исключения, откат с исключением; исключение не глотается."""
+        ...
+
+
+class AcceptanceModel(Protocol):
+    """Модель принятия (mechanics.md, §13): P(кандидат примет приглашение) по признакам.
+
+    Отдаёт только P — скор соответствия, вклады и порядок считает домен. Сейчас модели нет:
+    заглушка `app.adapter.acceptance` отдаёт `None` — множитель 1, в выдаче `null`.
+    """
+
+    def predict(self, features: Sequence[AcceptanceFeatures]) -> list[float | None]:
+        """P(принятия) в [0, 1] по порядку `features`; `None` — модель не знает."""
+        ...
+
+
+class NeedRepository(Protocol):
+    """Потребности работодателя — для подборки."""
+
+    def get(self, user_id: uuid.UUID, need_id: uuid.UUID) -> Need:
+        """Потребность работодателя `user_id`; чужая или несуществующая — `NeedNotFound`."""
+        ...
+
+
+class CandidatePool(Protocol):
+    """Кандидаты с категорией по тесту и профилем навыков её специализации."""
+
+    def in_reach(
+        self, specialization: str, grade_rank: int, distance: int, technologies: Collection[str]
+    ) -> list[PoolCandidate]:
+        """Категория — `specialization`, ранг грейда — не дальше `distance` от `grade_rank`
+        (`app.domain.selection.block_of`). Стек кандидата — только из `technologies`, технологий
+        потребности. Порядок не важен: его задаёт подборка."""
+        ...
+
+
+class SelectionRepository(Protocol):
+    """Сохранённые подборки: снимок потребности и выдача. Формат хранения снимка и объяснения
+    не зависит от схем API: сохранённые подборки открываются без миграции данных."""
+
+    def add(self, draft: SelectionDraft, entries: Sequence[SelectionEntry]) -> Selection:
+        """Сохраняет подборку с выдачей и даёт ей id."""
+        ...
+
+    def page(self, user_id: uuid.UUID, selection_id: uuid.UUID, *, offset: int, limit: int) -> Page:
+        """Страница выдачи по местам; чужая или несуществующая подборка — `SelectionNotFound`."""
+        ...
+
+    def summaries(
+        self, user_id: uuid.UUID, need_id: uuid.UUID | None, *, limit: int
+    ) -> list[Summary]:
+        """Подборки работодателя, новые сверху; `need_id` — только по этой потребности."""
         ...

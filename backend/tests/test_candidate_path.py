@@ -9,9 +9,12 @@ import pytest
 import time_machine
 from fastapi.testclient import TestClient
 from sqlalchemy import Engine, text
+from sqlalchemy.orm import Session
 
-from app.assessment.bank import Family, get_family
+from app.assessment import families
+from app.assessment.bank import Family, families_for_topics, get_family
 from app.assessment.catalog import load_catalog
+from app.assessment.models import FamilyCalibration, Presentation, TestAttempt
 from app.config import Mechanics, Settings
 from app.identity.models import Role
 from app.main import create_app
@@ -503,3 +506,36 @@ def test_family_is_refitted_once_it_has_enough_answers(
         assert refitted_at is not None
         assert (ref_a, ref_b) == (a, b)
         assert status in ("active", "review")
+
+
+def test_elo_moves_difficulty_only_until_refit(db_engine: Engine, mechanics: Mechanics) -> None:
+    """Эло сдвигает сложность семейства после ответа, пока нет пакетной переоценки; после неё
+    текущие параметры остаются опорными, растёт только счётчик ответов (§7)."""
+    family = next(f for f in families_for_topics(QA_TOPICS) if not f.anchor)
+    attempt = TestAttempt(specialization_code="qa")
+
+    def answered(correct: bool) -> Presentation:
+        return Presentation(
+            family_code=family.code,
+            correct=correct,
+            topic_theta_before=0.0,
+            topic_theta_sd_before=0.5,
+            attempt=attempt,
+        )
+
+    with Session(db_engine) as db:
+        families.learn(db, answered(True), mechanics)
+        row = db.get_one(FamilyCalibration, family.code)
+        assert row.difficulty < mechanics.expert_difficulty_by_grade[family.grade]
+        row.reference_discrimination, row.reference_difficulty = row.discrimination, row.difficulty
+        row.refitted_at = datetime.now(UTC)
+        db.commit()
+        reference = (row.discrimination, row.difficulty)
+
+        families.learn(db, answered(False), mechanics)
+        db.commit()
+
+    with Session(db_engine) as db:
+        row = db.get_one(FamilyCalibration, family.code)
+        assert (row.discrimination, row.difficulty) == reference
+        assert row.responses == 2

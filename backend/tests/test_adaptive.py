@@ -6,7 +6,15 @@ import random
 from dataclasses import replace
 from datetime import UTC, datetime
 
-from app.assessment.adaptive import Blueprint, Exposure, Option, choose, information, should_stop
+from app.assessment.adaptive import (
+    Blueprint,
+    Exposure,
+    Option,
+    choose,
+    information,
+    selection_prior,
+    should_stop,
+)
 from app.config import Mechanics, Settings
 from app.skills.irt import Estimate, Normal, Observation, Prior, initial, update
 from tests.simulation import Candidate, market, median
@@ -135,6 +143,14 @@ def test_stop_needs_precision_coverage_and_minimum_length() -> None:
     assert not should_stop(BLUEPRINT, {"t.one": 1, "t.two": 1}, precise)
     # Лимит заданий останавливает и без точности.
     assert should_stop(BLUEPRINT, {"t.one": 5, "t.two": 5}, vague)
+
+
+def test_selection_prior_moves_only_the_mean() -> None:
+    """Априорное для выбора заданий — общее со средним в пороге грейда: темы, их веса и
+    поправка погрешности те же."""
+    prior = replace(PRIOR, sd_inflation=1.15)
+
+    assert selection_prior(prior, 0.5) == replace(prior, mean=0.5)
 
 
 def test_candidates_with_same_answers_get_different_sets() -> None:

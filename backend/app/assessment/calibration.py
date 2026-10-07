@@ -10,7 +10,8 @@ from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 
 from app.config import Mechanics
-from app.skills.irt import Normal, Observation, Prior, estimate, sigmoid
+from app.domain.skill import Normal, Observation, Prior
+from app.skills.irt import estimate, sigmoid
 
 
 @dataclass(frozen=True)

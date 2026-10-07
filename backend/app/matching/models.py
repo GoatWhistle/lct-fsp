@@ -22,14 +22,8 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.assessment.models import Grade, Specialization, Technology
 from app.db import Base, utcnow
+from app.domain.work import WorkFormat
 from app.matching.importance import TopicImportance
-
-
-class WorkFormat(enum.StrEnum):
-    office = "office"
-    hybrid = "hybrid"
-    remote = "remote"
-
 
 need_technologies = Table(
     "need_technologies",
@@ -63,7 +57,7 @@ class Need(Base):
         Enum(WorkFormat, native_enum=False, create_constraint=True, length=16, name="work_format")
     )
     city: Mapped[str | None] = mapped_column(String(100))
-    # Рубли в месяц до вычета НДФЛ — `app/salary.py`.
+    # Рубли в месяц до вычета НДФЛ — `app/domain/work.py`.
     salary_from: Mapped[int | None]
     salary_to: Mapped[int | None]
     created_at: Mapped[datetime] = mapped_column(default=utcnow)

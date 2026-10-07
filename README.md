@@ -66,6 +66,9 @@ docker compose run --rm --build tests
 
 ```
 backend/                 FastAPI + SQLAlchemy + Alembic, PostgreSQL
+  main.py                сборка приложения вручную; запуск — `uvicorn --factory main:create_app`
+  app/domain/ usecase/ controller/ adapter/ repository/
+                         слои и порты — docs/adr/0001-layers-and-ports.md; модули переезжают туда
   app/<модуль>/          models, schemas, service, router одного модуля
   app/assessment/catalog.yaml   справочники: грейды, сферы бизнеса, специализации, темы, технологии
   app/assessment/bank/   семейства заданий: генератор экземпляра по seed и эталон кодом
@@ -98,7 +101,7 @@ cd backend
 uv sync
 uv run alembic upgrade head
 uv run python -m app.assessment.catalog
-uv run uvicorn app.main:app --reload
+uv run uvicorn --factory main:create_app --reload
 ```
 
 Фронт локально — `cd frontend && npm install && npm run dev`, http://localhost:3000, запросы
@@ -107,14 +110,15 @@ uv run uvicorn app.main:app --reload
 Проверки перед PR:
 
 ```sh
-cd backend && uv run ruff check . && uv run ruff format --check . && uv run mypy app tests && uv run pytest
+cd backend && uv run ruff check . && uv run ruff format --check . && uv run mypy . && uv run pytest
 cd frontend && npm run lint && npm run build
 ```
 
 ### Образцы
 
 - **Модуль** — пакет `backend/app/<модуль>/`: `models.py`, `schemas.py`, `service.py`,
-  `router.py`. Роутер подключается в `app/main.py`, модели — импортом в `app/models.py`.
+  `router.py`. Роутер подключается в `create_app` в `backend/main.py`, модели — импортом в
+  `app/models.py`.
 - **Миграция** — `uv run alembic revision --autogenerate -m "short english slug"`, затем
   прочитать и поправить. Тест `test_models_match_migrations` падает, если модели разошлись с
   миграциями. Если после слияния веток у миграций две головы — `uv run alembic merge heads`.
@@ -127,8 +131,9 @@ cd frontend && npm run lint && npm run build
   именами в `config/mechanics.yaml` и полях `Mechanics` (`app/config.py`); в эндпоинт приходят
   через `MechanicsDep`. Константами в коде не пишутся. Новый параметр или значение — в доке и
   конфиге одним PR: `test_mechanics_config.py` сверяет их.
-- **Ошибки** — подкласс `AppError` со `status_code`, `code` и `message` по-русски; эндпоинт
-  перечисляет их в `responses=error_responses(...)`, и коды попадают в OpenAPI.
+- **Ошибки** — подкласс `DomainError` в `app/domain/errors.py` с `code` и `message`
+  по-русски, без HTTP-статуса. Статус — строка в `STATUS` (`app/controller/errors.py`);
+  эндпоинт перечисляет ошибки в `responses=error_responses(...)`, и коды попадают в OpenAPI.
 - **Разделы роли** — роутер с префиксом `/api/candidate` или `/api/employer`,
   `dependencies=role_guard(Role.…)` и `responses=ROLE_RESPONSES` (см. `app/cabinets.py`).
 - **Тест** — через HTTP API, фикстуры из `tests/conftest.py`: `client` — аноним,

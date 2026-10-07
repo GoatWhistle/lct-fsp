@@ -2,13 +2,13 @@
 
 from fastapi import APIRouter
 
-from app.assessment.schemas import CatalogRef
-from app.assessment.service import UnknownIndustry
 from app.company import service
 from app.company.models import Company
 from app.company.schemas import CompanyIn, CompanyOut
+from app.controller.errors import error_responses
+from app.controller.schemas import CatalogRef
 from app.db import DbSession
-from app.errors import error_responses
+from app.domain.errors import UnknownIndustry
 from app.identity.deps import ROLE_RESPONSES, CurrentUser, role_guard
 from app.identity.models import Role
 

@@ -7,6 +7,7 @@ import uuid
 
 import pytest
 
+from app.domain.skill import Normal
 from app.matching.importance import TopicImportance
 from app.matching.score import (
     Requirement,
@@ -16,7 +17,6 @@ from app.matching.score import (
     requirements,
     verdict,
 )
-from app.skills.irt import Normal
 
 KEY, IMPORTANT, NICE = TopicImportance.key, TopicImportance.important, TopicImportance.nice
 WEIGHTS = {"key": 3.0, "important": 2.0, "nice": 1.0}

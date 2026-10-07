@@ -5,17 +5,11 @@
 той же формулировкой. Приглашения и вакансии берут отсюда же.
 """
 
-import enum
 from typing import Annotated
 
 from pydantic import BaseModel, Field, StrictInt, computed_field
 
-
-class SalaryBasis(enum.StrEnum):
-    """Как считается сумма: `gross` — до вычета НДФЛ."""
-
-    gross = "gross"
-
+from app.domain.work import SalaryBasis
 
 SALARY_UNIT = "Рубли в месяц до вычета НДФЛ (гросс)"
 

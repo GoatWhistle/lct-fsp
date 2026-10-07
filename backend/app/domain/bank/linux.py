@@ -6,7 +6,7 @@ import posixpath
 import random
 from collections import Counter
 
-from app.assessment.bank.family import Instance
+from app.domain.bank.family import Instance
 
 RWX = "rwx"
 

@@ -4,7 +4,7 @@
 import math
 import random
 
-from app.assessment.bank.family import Instance, rounded
+from app.domain.bank.family import Instance, rounded
 
 
 def _confusion(rng: random.Random) -> tuple[int, int, int, int]:

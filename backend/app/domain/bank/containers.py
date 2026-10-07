@@ -4,7 +4,7 @@
 import math
 import random
 
-from app.assessment.bank.family import Instance
+from app.domain.bank.family import Instance
 
 _IMAGES = [("web", "nginx", 80), ("api", "api", 8000), ("db", "postgres", 5432)]
 _IMAGES += [("cache", "redis", 6379), ("admin", "admin", 3000)]

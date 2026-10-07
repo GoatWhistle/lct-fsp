@@ -19,7 +19,7 @@ from datetime import datetime, timedelta
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.assessment import bank, families
+from app.assessment import families
 from app.assessment.adaptive import Blueprint, choose, selection_prior, should_stop
 from app.assessment.calibration import rest_levels
 from app.assessment.determination import Assign, Offer, decide
@@ -35,6 +35,7 @@ from app.assessment.models import (
     Topic as TopicRow,
 )
 from app.config import Mechanics
+from app.domain import bank
 from app.domain.catalog import Topic
 from app.domain.errors import (
     GradeNotOffered,
@@ -47,12 +48,14 @@ from app.domain.errors import (
 )
 from app.domain.skill import Observation, Prior
 from app.identity.models import User
+from app.repository.attempt import answered_of
 from app.repository.catalog import topic_of
 from app.repository.unit_of_work import SqlUnitOfWork
 from app.skills.irt import estimate
 from app.skills.models import SkillProfile
-from app.skills.service import presentation_observation, refresh_profile, specialization_prior
-from app.usecase.interface import Clock, SeedSource
+from app.skills.service import store_profile
+from app.usecase.interface import AttemptReader, Clock, SeedSource, SkillModel
+from app.usecase.skill_profile import refresh_skill_profile, specialization_prior
 
 log = logging.getLogger(__name__)
 
@@ -153,7 +156,14 @@ def submit_survey(uow: SqlUnitOfWork, user: User, clock: Clock, *, specializatio
 
 
 def start_attempt(
-    uow: SqlUnitOfWork, user: User, mechanics: Mechanics, clock: Clock, *, grade: str
+    uow: SqlUnitOfWork,
+    user: User,
+    mechanics: Mechanics,
+    clock: Clock,
+    skill_model: SkillModel,
+    attempts: AttemptReader,
+    *,
+    grade: str,
 ) -> PathView:
     """Тест на заявленный грейд или дотест каскада на предложенный; возвращает шаг пути на тот
     же момент."""
@@ -185,7 +195,7 @@ def start_attempt(
         db.add(attempt)
         db.flush()
         if not _remaining(db, attempt, mechanics):
-            _finish(db, attempt, mechanics, now)
+            _finish(db, attempts, skill_model, attempt, mechanics, now)
         return _path(db, user.id, now)
 
 
@@ -216,6 +226,8 @@ def answer(
     user: User,
     mechanics: Mechanics,
     clock: Clock,
+    skill_model: SkillModel,
+    attempts: AttemptReader,
     *,
     presentation_id: uuid.UUID,
     response: str,
@@ -248,7 +260,7 @@ def answer(
         blueprint = Blueprint.from_prior(prior, mechanics)
         stop = should_stop(blueprint, _counts(attempt), overall)
         if stop or not _remaining(db, attempt, mechanics):
-            _finish(db, attempt, mechanics, now)
+            _finish(db, attempts, skill_model, attempt, mechanics, now)
 
     try:
         with uow:
@@ -325,11 +337,19 @@ def _present(
     return presentation
 
 
-def _finish(db: Session, attempt: TestAttempt, mechanics: Mechanics, now: datetime) -> None:
-    """Остановка попытки: оценка теста по всему определению и решение каскада (§4)."""
+def _finish(
+    db: Session,
+    attempts: AttemptReader,
+    skill_model: SkillModel,
+    attempt: TestAttempt,
+    mechanics: Mechanics,
+    now: datetime,
+) -> None:
+    """Остановка попытки: оценка теста по всему определению, решение каскада (§4) и пересчёт
+    профиля навыков по всем ответам (§11)."""
     prior = _prior(db, attempt, mechanics)
     answered = _answered(db, attempt)
-    observations = [presentation_observation(p) for p in answered]
+    observations = [answered_of(p).observation() for p in answered]
     overall = estimate(prior, observations).overall()
     # Дотест всегда есть что спросить, пока у тем есть семейства в выдаче: невиданные кончатся —
     # возьмутся давно виденные с новыми экземплярами.
@@ -365,7 +385,10 @@ def _finish(db: Session, attempt: TestAttempt, mechanics: Mechanics, now: dateti
             attempt.outcome = AttemptOutcome.no_category
             attempt.retest_after = now + timedelta(days=mechanics.no_category_retest_days)
     db.flush()
-    refresh_profile(db, attempt.user_id, attempt.specialization_code, prior.topics, mechanics, now)
+    levels = refresh_skill_profile(
+        attempts, skill_model, mechanics, attempt.user_id, attempt.specialization_code, prior.topics
+    )
+    store_profile(db, attempt.user_id, attempt.specialization_code, levels, now)
 
 
 def _prior(db: Session, attempt: TestAttempt, mechanics: Mechanics) -> Prior:
@@ -380,7 +403,7 @@ def _answered(db: Session, attempt: TestAttempt) -> list[Presentation]:
 
 def _observations(db: Session, attempt: TestAttempt) -> list[Observation]:
     """Оценка теста — по ответам всего определения с весом 1: дотест продолжает её."""
-    return [presentation_observation(p) for p in _answered(db, attempt)]
+    return [answered_of(p).observation() for p in _answered(db, attempt)]
 
 
 def _chain(db: Session, attempt: TestAttempt) -> list[TestAttempt]:

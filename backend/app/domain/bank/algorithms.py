@@ -5,8 +5,8 @@ import random
 import string
 from collections import deque
 
-from app.assessment.bank.family import Instance
-from app.assessment.bank.python_code import PROMPT, run_python
+from app.domain.bank.family import Instance
+from app.domain.bank.python_code import PROMPT, run_python
 
 LETTERS = string.ascii_uppercase
 

@@ -81,11 +81,12 @@ def learn(db: Session, presentation: Presentation, mechanics: Mechanics) -> None
     """Эло после ответа: сложность семейства сдвигается по неожиданности ответа (§7).
 
     Строка семейства блокируется до конца транзакции: два ответа на одно семейство не
-    затирают шаги друг друга. У якорного семейства растёт только счётчик ответов.
+    затирают шаги друг друга. У якорного и у переоценённого семейства растёт только счётчик
+    ответов: после пакетной переоценки текущие параметры — опорные.
     """
     family = bank.get_family(presentation.family_code)
     row = _locked(db, family, mechanics)
-    if not family.anchor:
+    if not family.anchor and row.refitted_at is None:
         assert presentation.correct is not None
         before = Normal(presentation.topic_theta_before, presentation.topic_theta_sd_before)
         link = links(db, presentation.attempt.specialization_code)[0]

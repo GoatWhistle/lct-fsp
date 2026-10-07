@@ -11,18 +11,18 @@
 
 import math
 import uuid
-from collections import defaultdict
 from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Any
 
-from sqlalchemy import ColumnElement, and_, func, insert, select
+from sqlalchemy import func, insert, select
 from sqlalchemy.orm import Session
 
-from app.assessment.models import CandidateCategory, Grade
+from app.assessment.models import Grade
 from app.config import Mechanics
 from app.controller.schemas import CatalogRef
+from app.domain.candidate import NO_ACCESS, EmployerViewer, disclosure
 from app.domain.errors import SelectionNotFound
 from app.domain.skill import Normal
 from app.matching.models import Need, Selection, SelectionBlock, SelectionEntry
@@ -35,10 +35,8 @@ from app.matching.schemas import (
 )
 from app.matching.score import Match, Requirement, match_score, ranking, requirements, verdict
 from app.matching.service import get_need, need_topics
-from app.profile.models import candidate_technologies
 from app.repository.unit_of_work import SqlUnitOfWork
-from app.skills.models import SkillProfile, SkillProfileTopic
-from app.usecase.interface import Clock, SeedSource
+from app.usecase.interface import CandidateRepository, Clock, SeedSource
 
 
 @dataclass(frozen=True)
@@ -64,12 +62,15 @@ class _Candidate:
     block: SelectionBlock
     last_signal_at: datetime | None
     levels: dict[str, Normal]
+    # Технологии потребности в самоописании кандидата.
+    stack: set[str]
 
 
 def build(
     uow: SqlUnitOfWork,
     user_id: uuid.UUID,
     need_id: uuid.UUID,
+    candidates: CandidateRepository,
     mechanics: Mechanics,
     clock: Clock,
     seeds: SeedSource,
@@ -84,8 +85,8 @@ def build(
         snapshot = need_snapshot(need, mechanics)
         need_reqs = [Requirement(t.topic.code, t.weight, t.requirement) for t in snapshot.topics]
         need_stack = [t.code for t in snapshot.stack]
-        pool = _pool(db, need, [t.topic.code for t in snapshot.topics], mechanics)
-        stacks = _stacks(db, need, need_stack, mechanics)
+        topics = [t.topic.code for t in snapshot.topics]
+        pool = _pool(db, candidates, EmployerViewer(user_id), need, topics, need_stack, mechanics)
         now = clock.now()
         salt = seeds.seed()
 
@@ -103,7 +104,7 @@ def build(
                 need_reqs,
                 c.levels,
                 need_stack,
-                stacks[c.user_id],
+                c.stack,
                 stack_cap=mechanics.self_reported_stack_cap,
             )
             for c in pool
@@ -221,77 +222,59 @@ def need_snapshot(need: Need, mechanics: Mechanics) -> NeedSnapshot:
     )
 
 
-def _pool(db: Session, need: Need, topics: Sequence[str], mechanics: Mechanics) -> list[_Candidate]:
+def _pool(
+    db: Session,
+    candidates: CandidateRepository,
+    viewer: EmployerViewer,
+    need: Need,
+    topics: Sequence[str],
+    need_stack: Sequence[str],
+    mechanics: Mechanics,
+) -> list[_Candidate]:
     """Кандидаты с категорией специализации потребности и грейдом не дальше
-    `nearby_grade_distance` — с уровнями по темам из профиля навыков этой специализации."""
-    rows = db.execute(
-        select(
-            CandidateCategory.user_id,
-            CandidateCategory.grade_code,
-            Grade.name,
-            Grade.rank,
-            SkillProfile.last_signal_at,
-            SkillProfileTopic.topic_code,
-            SkillProfileTopic.theta,
-            SkillProfileTopic.theta_sd,
+    `nearby_grade_distance` — с уровнями по темам из профиля навыков этой специализации и
+    технологиями потребности из самоописания. Данные кандидата — из карточки, которую работодатель
+    получает по правилу раскрытия."""
+    distance = mechanics.nearby_grade_distance
+    grades = db.scalars(
+        select(Grade.code).where(
+            Grade.rank.between(need.grade.rank - distance, need.grade.rank + distance)
         )
-        .join(Grade, Grade.code == CandidateCategory.grade_code)
-        .join(
-            SkillProfile,
-            and_(
-                SkillProfile.user_id == CandidateCategory.user_id,
-                SkillProfile.specialization_code == CandidateCategory.specialization_code,
-            ),
-        )
-        .join(SkillProfileTopic, SkillProfileTopic.profile_id == SkillProfile.id)
-        .where(*_in_reach(need, mechanics))
     ).all()
-
-    pool: dict[uuid.UUID, _Candidate] = {}
-    for user_id, grade_code, grade_name, rank, last_signal_at, topic, theta, theta_sd in rows:
-        if user_id not in pool:
-            block = SelectionBlock.exact if rank == need.grade.rank else SelectionBlock.nearby
-            pool[user_id] = _Candidate(user_id, grade_code, grade_name, block, last_signal_at, {})
-        pool[user_id].levels[topic] = Normal(theta, theta_sd)
-
     # Тему добавили в справочник, а профиль пересчитается со следующим сигналом: до тех пор
     # уровень по ней — априорный (§3) с поправкой погрешности, как у оценки без наблюдений,
     # «данных мало».
     spread = math.hypot(mechanics.theta_prior_sd, mechanics.topic_deviation_sd)
     prior = Normal(0.0, mechanics.level_sd_inflation * spread)
-    for candidate in pool.values():
+
+    pool = []
+    for candidate in candidates.in_reach(need.specialization_code, grades):
+        card = disclosure(candidate, viewer, NO_ACCESS)
+        category, skill_profile = card.category, card.skill_profile
+        if category is None or skill_profile is None or not skill_profile.topics:
+            continue
+        levels = {
+            t.topic.code: Normal(t.level.theta, t.level.theta_sd) for t in skill_profile.topics
+        }
         for topic in topics:
-            candidate.levels.setdefault(topic, prior)
-    return list(pool.values())
-
-
-def _stacks(
-    db: Session, need: Need, need_stack: list[str], mechanics: Mechanics
-) -> defaultdict[uuid.UUID, set[str]]:
-    """Технологии потребности в самоописании кандидатов, которые попадают в подборку."""
-    stacks: defaultdict[uuid.UUID, set[str]] = defaultdict(set)
-    if not need_stack:
-        return stacks
-    rows = db.execute(
-        select(candidate_technologies.c.user_id, candidate_technologies.c.technology_code)
-        .join(CandidateCategory, CandidateCategory.user_id == candidate_technologies.c.user_id)
-        .join(Grade, Grade.code == CandidateCategory.grade_code)
-        .where(
-            *_in_reach(need, mechanics), candidate_technologies.c.technology_code.in_(need_stack)
+            levels.setdefault(topic, prior)
+        stack = {t.code for t in card.self_reported.stack} if card.self_reported else set()
+        pool.append(
+            _Candidate(
+                user_id=card.candidate_id,
+                grade_code=category.grade.code,
+                grade_name=category.grade.name,
+                block=(
+                    SelectionBlock.exact
+                    if category.grade.code == need.grade_code
+                    else SelectionBlock.nearby
+                ),
+                last_signal_at=skill_profile.last_signal_at,
+                levels=levels,
+                stack=stack & set(need_stack),
+            )
         )
-    ).all()
-    for user_id, technology in rows:
-        stacks[user_id].add(technology)
-    return stacks
-
-
-def _in_reach(need: Need, mechanics: Mechanics) -> tuple[ColumnElement[bool], ...]:
-    """Категория — специализация потребности, грейд — не дальше `nearby_grade_distance`."""
-    distance = mechanics.nearby_grade_distance
-    return (
-        CandidateCategory.specialization_code == need.specialization_code,
-        Grade.rank.between(need.grade.rank - distance, need.grade.rank + distance),
-    )
+    return pool
 
 
 def _explanation(match: Match, mechanics: Mechanics) -> Explanation:

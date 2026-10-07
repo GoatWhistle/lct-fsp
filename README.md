@@ -83,9 +83,12 @@ docker-compose.yml       PostgreSQL, бэкенд, фронт, Mailpit
 банк семейств, адаптивный тест (чистые функции в `adaptive.py`), калибровка семейств (чистые
 функции в `calibration.py`) и путь кандидата к категории (опрос, попытки теста, предъявления,
 категория);
-`skills` — модель навыка IRT 2PL (чистые функции в `irt.py`) и профиль навыков; `profile` —
-профиль кандидата, PDF-профиль (рендер — `app/adapter/profile_pdf.py`, шрифт PT Sans под OFL
-в `app/adapter/fonts/`) и обезличенная карточка для работодателя; `company` — профиль компании; `matching` — потребность работодателя,
+`skills` — модель навыка IRT 2PL (чистые функции в `irt.py`) и профиль навыков; профиль
+кандидата уже на слоях — правило раскрытия и карточки в `app/domain/candidate.py`, сценарии
+анкеты, PDF-профиля и карточки для работодателя в `app/usecase/candidate.py`, хранилище в
+`app/repository/candidate.py`, эндпоинты в `app/controller/profile.py`, в `profile` остались
+таблицы (рендер PDF — `app/adapter/profile_pdf.py`, шрифт PT Sans под OFL в
+`app/adapter/fonts/`); `company` — профиль компании; `matching` — потребность работодателя,
 важность тем (чистая функция в `importance.py`), скор соответствия (чистые функции в `score.py`)
 и подборка (`selection.py`). Вход — по email и паролю, пароль хранится
 хэшем argon2, сессия — подписанный токен в httpOnly-cookie. Права проверяет бэкенд: разделы

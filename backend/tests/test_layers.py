@@ -2,7 +2,8 @@
 
 `domain` не знает библиотек хранения, схем и HTTP и не тянет их через другие пакеты `app`;
 `usecase` не знает реализаций портов и контроллеров; in-memory хранилища не знают SQLAlchemy и
-ничего из `app`, кроме домена, портов и себя. Импорты читаются из исходников, а не из
+ничего из `app`, кроме домена, портов и себя; `skills` не знает теста — пакеты `assessment` и
+`skills` не зависят друг от друга по кругу. Импорты читаются из исходников, а не из
 `sys.modules`: так ловится и импорт внутри функции, и импорт под `TYPE_CHECKING`; относительный
 импорт сводится к полному имени.
 """
@@ -31,6 +32,8 @@ MEMORY = Rule(
     banned=("sqlalchemy", "app"),
     allowed=("app.domain", "app.usecase", "app.repository.memory"),
 )
+# Профиль навыков не знает теста: предъявления он читает через порт чтения попытки.
+SKILLS = Rule(banned=("app.assessment",))
 
 
 def _within(module: str, prefixes: tuple[str, ...]) -> bool:
@@ -71,7 +74,12 @@ def violations(package: Path, rule: Rule) -> list[str]:
 
 @pytest.mark.parametrize(
     ("layer", "rule"),
-    [("domain", DOMAIN), ("usecase", USECASE), ("repository/memory", MEMORY)],
+    [
+        ("domain", DOMAIN),
+        ("usecase", USECASE),
+        ("repository/memory", MEMORY),
+        ("skills", SKILLS),
+    ],
 )
 def test_layer_imports_only_inward(layer: str, rule: Rule) -> None:
     package = BACKEND_DIR / "app" / layer
@@ -107,6 +115,8 @@ MEMORY_PEEKS_AT_SQL = "from ..unit_of_work import SqlUnitOfWork\n"
         ("usecase", USECASE, "from ..controller.errors import STATUS\n", "app.controller.errors"),
         ("repository/memory", MEMORY, "from sqlalchemy.orm import Session\n", "sqlalchemy.orm"),
         ("repository/memory", MEMORY, MEMORY_PEEKS_AT_SQL, "app.repository.unit_of_work"),
+        ("skills", SKILLS, "from app.assessment.models import Topic\n", "app.assessment.models"),
+        ("skills", SKILLS, "from ..assessment import service\n", "app.assessment.service"),
     ],
 )
 def test_planted_violation_is_caught(

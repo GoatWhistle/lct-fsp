@@ -5,7 +5,15 @@ from typing import Annotated
 
 from fastapi import Depends, Request
 
-from app.usecase.interface import Clock, Mailer, ProfilePdfRenderer, SeedSource
+from app.db import UnitOfWorkDep
+from app.usecase.interface import (
+    AttemptReader,
+    Clock,
+    Mailer,
+    ProfilePdfRenderer,
+    SeedSource,
+    SkillModel,
+)
 
 
 def get_mailer(request: Request) -> Mailer:
@@ -28,7 +36,20 @@ def get_seeds(request: Request) -> SeedSource:
     return seeds
 
 
+def get_skill_model(request: Request) -> SkillModel:
+    model: SkillModel = request.app.state.skill_model
+    return model
+
+
+def get_attempts(request: Request, uow: UnitOfWorkDep) -> AttemptReader:
+    """Чтение попыток в сессии единицы работы запроса: видит записанное сценарием до фиксации."""
+    attempts: AttemptReader = request.app.state.attempt_reader(uow.session)
+    return attempts
+
+
 MailerDep = Annotated[Mailer, Depends(get_mailer)]
 ProfilePdfRendererDep = Annotated[ProfilePdfRenderer, Depends(get_profile_pdf_renderer)]
 ClockDep = Annotated[Clock, Depends(get_clock)]
 SeedsDep = Annotated[SeedSource, Depends(get_seeds)]
+SkillModelDep = Annotated[SkillModel, Depends(get_skill_model)]
+AttemptsDep = Annotated[AttemptReader, Depends(get_attempts)]

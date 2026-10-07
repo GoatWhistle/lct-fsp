@@ -11,7 +11,6 @@ from sqlalchemy import distinct, func, select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.orm import Session
 
-from app.assessment import bank
 from app.assessment.adaptive import Exposure, Option
 from app.assessment.calibration import (
     Link,
@@ -31,6 +30,7 @@ from app.assessment.models import (
     TestAttempt,
 )
 from app.config import Mechanics
+from app.domain import bank
 from app.domain.skill import Normal
 
 log = logging.getLogger(__name__)

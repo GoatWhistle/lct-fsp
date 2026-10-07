@@ -27,8 +27,10 @@ from app.matching.router import router as needs_router
 from app.matching.router import selections_router
 from app.profile.router import employer_router as candidates_router
 from app.profile.router import router as profile_router
+from app.repository.attempt import SqlAttemptReader
 from app.repository.unit_of_work import SqlUnitOfWork
-from app.usecase.interface import Clock, Mailer, ProfilePdfRenderer, SeedSource
+from app.skills import irt
+from app.usecase.interface import Clock, Mailer, ProfilePdfRenderer, SeedSource, SkillModel
 
 
 def description() -> str:
@@ -50,6 +52,7 @@ def create_app(
     profile_pdf_renderer: ProfilePdfRenderer | None = None,
     clock: Clock | None = None,
     seeds: SeedSource | None = None,
+    skill_model: SkillModel | None = None,
 ) -> FastAPI:
     settings = settings or Settings()
     mechanics = mechanics or Mechanics.from_yaml(settings.mechanics_file)
@@ -78,12 +81,15 @@ def create_app(
         return SqlUnitOfWork(session_factory())
 
     app.state.unit_of_work = unit_of_work
+    # Репозитории чтения — по сессии единицы работы запроса.
+    app.state.attempt_reader = SqlAttemptReader
     app.state.mailer = mailer or SmtpMailer(
         settings.smtp_host, settings.smtp_port, settings.mail_from
     )
     app.state.profile_pdf_renderer = profile_pdf_renderer or FpdfProfileRenderer()
     app.state.clock = clock or SystemClock()
     app.state.seeds = seeds or SecureSeeds()
+    app.state.skill_model = skill_model or irt
 
     install_error_handlers(app)
     app.include_router(auth_router)

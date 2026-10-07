@@ -5,7 +5,7 @@
 
 import random
 
-from app.assessment.bank.family import Instance, rounded
+from app.domain.bank.family import Instance, rounded
 
 PX_PROMPT = "Ответ — числа в пикселях через пробел, без «px»."
 

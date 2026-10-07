@@ -3,7 +3,7 @@
 import math
 import random
 
-from app.assessment.bank.family import Instance, rounded
+from app.domain.bank.family import Instance, rounded
 
 
 def throughput(rng: random.Random) -> Instance:

@@ -2,8 +2,11 @@
 категории нет, кабинет кандидата показывает его шаг.
 
 Правил здесь нет: контроллер вызывает сценарии `app.usecase.attempt` и переводит доменные
-представления в схемы API.
+представления в схемы API. После ответа он сразу запускает калибровку
+(`app.usecase.calibration`) — её сбой пишется в лог, ответ уже зафиксирован (mechanics.md, §7).
 """
+
+import logging
 
 from fastapi import APIRouter
 
@@ -22,13 +25,15 @@ from app.assessment.schemas import (
     skill_profile_view,
 )
 from app.config import Mechanics, MechanicsDep
-from app.controller.deps import CandidatePathDep
+from app.controller.deps import AnswerCalibrationDep, CandidatePathDep
 from app.controller.errors import error_responses
 from app.controller.schemas import CatalogRef
 from app.domain import errors
 from app.domain.attempt import PathView, TestResult
 from app.identity.deps import ROLE_RESPONSES, CurrentUser, role_guard
 from app.identity.models import Role
+
+log = logging.getLogger(__name__)
 
 router = APIRouter(
     prefix="/api/candidate/path",
@@ -105,10 +110,18 @@ def get_item(user: CurrentUser, paths: CandidatePathDep, mechanics: MechanicsDep
     responses=error_responses(errors.NoTestInProgress, errors.ItemNotCurrent),
 )
 def answer_item(
-    body: AnswerIn, user: CurrentUser, paths: CandidatePathDep, mechanics: MechanicsDep
+    body: AnswerIn,
+    user: CurrentUser,
+    paths: CandidatePathDep,
+    calibrations: AnswerCalibrationDep,
+    mechanics: MechanicsDep,
 ) -> PathOut:
-    view = paths.answer(user.id, presentation_id=body.presentation_id, response=body.response)
-    return _path_out(view, mechanics)
+    answered = paths.answer(user.id, presentation_id=body.presentation_id, response=body.response)
+    try:
+        calibrations.calibrate(answered.answer)
+    except Exception:
+        log.exception("Калибровка после ответа %s не прошла, ответ сохранён", body.presentation_id)
+    return _path_out(answered.view, mechanics)
 
 
 def _path_out(view: PathView, mechanics: Mechanics) -> PathOut:

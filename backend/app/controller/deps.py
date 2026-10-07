@@ -7,6 +7,7 @@ from fastapi import Depends, Request
 
 from app.db import UnitOfWorkDep
 from app.usecase.attempt import CandidatePath
+from app.usecase.calibration import AnswerCalibration
 from app.usecase.interface import (
     CandidateRepository,
     Clock,
@@ -49,12 +50,19 @@ def get_candidate_path(request: Request, uow: UnitOfWorkDep) -> CandidatePath:
     return paths
 
 
+def get_answer_calibration(request: Request, uow: UnitOfWorkDep) -> AnswerCalibration:
+    """Калибровка после ответа — на той же единице работы запроса, своим блоком после ответа."""
+    calibrations: AnswerCalibration = request.app.state.answer_calibration(uow)
+    return calibrations
+
+
 MailerDep = Annotated[Mailer, Depends(get_mailer)]
 ProfilePdfRendererDep = Annotated[ProfilePdfRenderer, Depends(get_profile_pdf_renderer)]
 ClockDep = Annotated[Clock, Depends(get_clock)]
 SeedsDep = Annotated[SeedSource, Depends(get_seeds)]
 SelectionsDep = Annotated[Selections, Depends(get_selections)]
 CandidatePathDep = Annotated[CandidatePath, Depends(get_candidate_path)]
+AnswerCalibrationDep = Annotated[AnswerCalibration, Depends(get_answer_calibration)]
 
 
 def get_candidates(request: Request, uow: UnitOfWorkDep) -> CandidateRepository:

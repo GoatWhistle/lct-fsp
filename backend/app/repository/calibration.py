@@ -102,8 +102,11 @@ class SqlCalibrationRepository:
     ) -> list[AnchorAnswer]:
         recent = (
             select(TestAttempt.id)
-            .where(TestAttempt.specialization_code == specialization)
-            .order_by(TestAttempt.started_at.desc())
+            .where(
+                TestAttempt.specialization_code == specialization,
+                TestAttempt.finished_at.is_not(None),
+            )
+            .order_by(TestAttempt.finished_at.desc())
             .limit(window_attempts)
         )
         rows = self.session.execute(

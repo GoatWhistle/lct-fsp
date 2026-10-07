@@ -5,9 +5,10 @@
 входят — это необязательное предпочтение в профиле кандидата.
 
 Правила пути — в `app.domain.attempt` и `app.domain.determination`; модель навыка, выбор
-задания и калибровка — за портами, их реализации сценарий не видит. Следующее задание
-выбирается адаптивно при показе. Априорное зависит только от тем специализации и конфига,
-поэтому считается один раз на запрос; оценка по ответам — тоже.
+задания и калибровка — за портами, их реализации сценарий не видит. От калибровки путь берёт
+только текущие параметры семейств; калибруют их по ответу — `app.usecase.calibration`.
+Следующее задание выбирается адаптивно при показе. Априорное зависит только от тем
+специализации и конфига, поэтому считается один раз на запрос; оценка по ответам — тоже.
 """
 
 import logging
@@ -20,6 +21,8 @@ from app.config import Mechanics
 from app.domain import bank
 from app.domain.adaptive import Blueprint, Option, selection_prior, should_stop
 from app.domain.attempt import (
+    Answer,
+    Answered,
     Attempt,
     AttemptOutcome,
     AttemptProgress,
@@ -192,13 +195,12 @@ class CandidatePath:
                 instance,
             )
 
-    def answer(self, user_id: uuid.UUID, *, presentation_id: uuid.UUID, response: str) -> PathView:
+    def answer(self, user_id: uuid.UUID, *, presentation_id: uuid.UUID, response: str) -> Answered:
         """Проверка ответа на бэкенде; верность на фронт не уходит. После ответа — проверка
         остановки: точность набрана или спрашивать больше нечего.
 
-        Калибровка (§7) — шаг Эло по семейству, после остановки ещё пересчёт связки шкалы и
-        пакетная переоценка — идёт после фиксации ответа своей транзакцией: её сбой пишется в
-        лог и ответ не отменяет.
+        Калибровку (§7) сценарий не трогает: её по возвращённому ответу запускает вызывающий,
+        отдельным сценарием `app.usecase.calibration` после фиксации ответа.
         """
         now = self._clock.now()
         with self._uow:
@@ -208,8 +210,9 @@ class CandidatePath:
             if presentation is None or presentation.id != presentation_id:
                 raise ItemNotCurrent()
             family = bank.get_family(presentation.family_code)
+            correct = family.check(family.instance(presentation.seed), response)
             presentation.response = response
-            presentation.correct = family.check(family.instance(presentation.seed), response)
+            presentation.correct = correct
             presentation.answered_at = now
             # Часы сервера при синхронизации отходят назад на секунды — время ответа не уходит
             # в минус.
@@ -226,32 +229,20 @@ class CandidatePath:
                 self._finish(attempt, chain, prior, estimate, observations, now)
             view = self._view(self._attempts.state(user_id), now, user_id)
 
-        try:
-            with self._uow:
-                self._calibrate(attempt, presentation, now)
-        except Exception:
-            log.exception("Калибровка после ответа %s не прошла, ответ сохранён", presentation_id)
-        return view
-
-    def _calibrate(self, attempt: Attempt, presentation: Presentation, now: datetime) -> None:
-        """Шаг Эло по семейству ответа, после остановки попытки — связка шкалы и переоценка."""
-        assert presentation.correct is not None
-        specialization = attempt.specialization_code
-        level_before = Normal(presentation.topic_theta_before, presentation.topic_theta_sd_before)
-        if attempt.finished_at is None:
-            self._calibration.learn(
-                specialization, presentation.family_code, level_before, presentation.correct
-            )
-            return
-        codes = [p.family_code for p in attempt.presentations]
-        # Переоценка держит строки семейств попытки до конца транзакции. Берём их сразу и по
-        # порядку кодов, до шага Эло: иначе две одновременные остановки сцепятся блокировками.
-        self._calibration.lock(codes)
-        self._calibration.learn(
-            specialization, presentation.family_code, level_before, presentation.correct
+        return Answered(
+            view,
+            Answer(
+                specialization_code=attempt.specialization_code,
+                family_code=presentation.family_code,
+                level_before=Normal(
+                    presentation.topic_theta_before, presentation.topic_theta_sd_before
+                ),
+                correct=correct,
+                answered_at=now,
+                stopped=attempt.finished_at is not None,
+                families=tuple(p.family_code for p in attempt.presentations),
+            ),
         )
-        self._calibration.relink(specialization, now)
-        self._calibration.refit_due(codes, specialization, now)
 
     def _present(self, attempt: Attempt, now: datetime) -> Presentation:
         chain = self._attempts.chain(attempt)

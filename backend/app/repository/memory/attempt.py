@@ -186,7 +186,9 @@ class MemoryAttemptRepository:
             (
                 a
                 for a in self._attempts().values()
-                if a.specialization_code == specialization_code and a.id != current_attempt_id
+                if a.specialization_code == specialization_code
+                and a.id != current_attempt_id
+                and a.presentations
             ),
             key=lambda a: a.started_at,
             reverse=True,

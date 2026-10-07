@@ -21,7 +21,7 @@ from app.assessment.calibration import (
 from app.config import Mechanics, Settings
 from app.domain.skill import Normal, Observation
 from app.skills.irt import estimate, sigmoid
-from app.skills.service import specialization_prior
+from app.usecase.skill_profile import specialization_prior
 from tests.simulation import calibration_quality, market, mean_responses
 
 MECHANICS = Mechanics.from_yaml(Settings().mechanics_file)

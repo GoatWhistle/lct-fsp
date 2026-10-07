@@ -21,7 +21,7 @@ from app.assessment.schemas import (
     skill_profile_out,
 )
 from app.config import Mechanics, MechanicsDep
-from app.controller.deps import ClockDep, SeedsDep
+from app.controller.deps import AttemptsDep, ClockDep, SeedsDep, SkillModelDep
 from app.controller.errors import error_responses
 from app.controller.schemas import CatalogRef
 from app.db import DbSession, UnitOfWorkDep
@@ -70,9 +70,17 @@ def submit_survey(
     responses=error_responses(errors.StepUnavailable, errors.GradeNotOffered, errors.UnknownGrade),
 )
 def start_attempt(
-    body: AttemptIn, user: CurrentUser, uow: UnitOfWorkDep, mechanics: MechanicsDep, clock: ClockDep
+    body: AttemptIn,
+    user: CurrentUser,
+    uow: UnitOfWorkDep,
+    mechanics: MechanicsDep,
+    clock: ClockDep,
+    skill_model: SkillModelDep,
+    attempts: AttemptsDep,
 ) -> PathOut:
-    view = service.start_attempt(uow, user, mechanics, clock, grade=body.grade)
+    view = service.start_attempt(
+        uow, user, mechanics, clock, skill_model, attempts, grade=body.grade
+    )
     return _path_out(view, mechanics)
 
 
@@ -107,10 +115,23 @@ def get_item(
     responses=error_responses(errors.NoTestInProgress, errors.ItemNotCurrent),
 )
 def answer_item(
-    body: AnswerIn, user: CurrentUser, uow: UnitOfWorkDep, mechanics: MechanicsDep, clock: ClockDep
+    body: AnswerIn,
+    user: CurrentUser,
+    uow: UnitOfWorkDep,
+    mechanics: MechanicsDep,
+    clock: ClockDep,
+    skill_model: SkillModelDep,
+    attempts: AttemptsDep,
 ) -> PathOut:
     view = service.answer(
-        uow, user, mechanics, clock, presentation_id=body.presentation_id, response=body.response
+        uow,
+        user,
+        mechanics,
+        clock,
+        skill_model,
+        attempts,
+        presentation_id=body.presentation_id,
+        response=body.response,
     )
     return _path_out(view, mechanics)
 

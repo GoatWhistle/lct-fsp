@@ -7,7 +7,7 @@ import statistics
 from collections.abc import Callable, Mapping
 from typing import Any
 
-from app.assessment.bank.family import Instance, rounded
+from app.domain.bank.family import Instance, rounded
 
 _STAGES = {
     "build": ["compile", "docker", "assets"],

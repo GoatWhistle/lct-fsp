@@ -8,7 +8,7 @@
 import random
 from typing import Any
 
-from app.assessment.bank.family import Instance
+from app.domain.bank.family import Instance
 
 PROMPT = "Ответ — значения через пробел по порядку."
 

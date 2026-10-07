@@ -6,7 +6,7 @@ from collections.abc import Callable
 from fractions import Fraction
 from itertools import product
 
-from app.assessment.bank.family import Instance, rounded
+from app.domain.bank.family import Instance, rounded
 
 
 def mean_median(rng: random.Random) -> Instance:

@@ -8,7 +8,7 @@ Bash на бэкенде не запускается: эталон считае�
 import math
 import random
 
-from app.assessment.bank.family import Instance
+from app.domain.bank.family import Instance
 
 PROMPT = "Что выведет скрипт? Ответ — выведенные значения через пробел по порядку."
 

@@ -7,7 +7,6 @@
 
 import uuid
 from dataclasses import dataclass
-from datetime import datetime
 
 from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
@@ -15,7 +14,6 @@ from sqlalchemy.orm import Session
 
 from app.assessment.models import CandidateCategory, Industry, Technology
 from app.config import Mechanics
-from app.db import utcnow
 from app.domain import candidate
 from app.domain.errors import (
     CandidateNotFound,
@@ -30,7 +28,7 @@ from app.profile.models import CandidateProfile
 from app.profile.schemas import ProfileIn
 from app.repository.catalog import ref_of
 from app.skills.models import SkillProfile
-from app.usecase.interface import ProfilePdfRenderer
+from app.usecase.interface import Clock, ProfilePdfRenderer
 
 PROFILE_ERRORS = (UnknownTechnology, UnknownIndustry, CityRequired)
 
@@ -53,7 +51,9 @@ def get_profile(db: Session, user_id: uuid.UUID) -> CandidateProfile | None:
     return db.get(CandidateProfile, user_id)
 
 
-def save_profile(db: Session, user_id: uuid.UUID, data: ProfileIn) -> CandidateProfile:
+def save_profile(
+    db: Session, user_id: uuid.UUID, data: ProfileIn, clock: Clock
+) -> CandidateProfile:
     stack = _technologies(db, data.stack)
     industries = _industries(db, data.industries)
     if data.city is None and data.work_formats != [WorkFormat.remote]:
@@ -71,7 +71,7 @@ def save_profile(db: Session, user_id: uuid.UUID, data: ProfileIn) -> CandidateP
         "city": data.city,
         "relocation": data.relocation,
         "salary_from": data.salary_from,
-        "updated_at": utcnow(),
+        "updated_at": clock.now(),
     }
     # Вставка с заменой держит строку профиля до конца транзакции: двойное «Сохранить» не
     # упрётся в ключ, а стек второго запроса запишется после первого.
@@ -96,8 +96,7 @@ def profile_pdf(
     renderer: ProfilePdfRenderer,
     mechanics: Mechanics,
     user_id: uuid.UUID,
-    *,
-    now: datetime,
+    clock: Clock,
 ) -> ProfilePdf:
     """PDF-профиль кандидата для него самого — раскрыт целиком.
 
@@ -109,7 +108,7 @@ def profile_pdf(
     category = db.get(CandidateCategory, user_id)
     skill_profile = _skill_profile(db, category) if category else None
     sheet = profile_sheet(profile, category, skill_profile, mechanics)
-    return ProfilePdf(profile.full_name, renderer.render(sheet, now=now))
+    return ProfilePdf(profile.full_name, renderer.render(sheet, now=clock.now()))
 
 
 def profile_sheet(

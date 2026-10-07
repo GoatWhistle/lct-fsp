@@ -11,7 +11,7 @@
 
 import enum
 import logging
-import secrets
+import random
 import uuid
 from dataclasses import dataclass
 from datetime import datetime, timedelta
@@ -51,10 +51,9 @@ from app.repository.catalog import topic_of
 from app.skills.irt import estimate
 from app.skills.models import SkillProfile
 from app.skills.service import presentation_observation, refresh_profile, specialization_prior
+from app.usecase.interface import Clock, SeedSource
 
 log = logging.getLogger(__name__)
-# Случайный выбор из top-k: по нему никто не должен угадать следующее семейство.
-_rng = secrets.SystemRandom()
 
 
 class Stage(enum.StrEnum):
@@ -83,7 +82,11 @@ class Item:
     topic: Topic
 
 
-def path(db: Session, user_id: uuid.UUID, now: datetime) -> PathView:
+def path(db: Session, user_id: uuid.UUID, clock: Clock) -> PathView:
+    return _path(db, user_id, clock.now())
+
+
+def _path(db: Session, user_id: uuid.UUID, now: datetime) -> PathView:
     category = db.get(CandidateCategory, user_id)
     survey = db.scalar(
         select(Survey).where(Survey.user_id == user_id).order_by(Survey.number.desc()).limit(1)
@@ -126,9 +129,10 @@ def path(db: Session, user_id: uuid.UUID, now: datetime) -> PathView:
     return PathView(stage, survey, attempt, category, profile)
 
 
-def submit_survey(db: Session, user: User, *, specialization: str, now: datetime) -> None:
+def submit_survey(db: Session, user: User, clock: Clock, *, specialization: str) -> PathView:
     _lock(db, user)
-    if path(db, user.id, now).stage not in (Stage.survey, Stage.grade):
+    now = clock.now()
+    if _path(db, user.id, now).stage not in (Stage.survey, Stage.grade):
         raise StepUnavailable()
     if db.get(Specialization, specialization) is None:
         raise UnknownSpecialization()
@@ -143,16 +147,19 @@ def submit_survey(db: Session, user: User, *, specialization: str, now: datetime
         )
     )
     db.commit()
+    return _path(db, user.id, now)
 
 
 def start_attempt(
-    db: Session, user: User, mechanics: Mechanics, *, grade: str, now: datetime
-) -> None:
-    """Тест на заявленный грейд или дотест каскада на предложенный."""
+    db: Session, user: User, mechanics: Mechanics, clock: Clock, *, grade: str
+) -> PathView:
+    """Тест на заявленный грейд или дотест каскада на предложенный; возвращает шаг пути на тот
+    же момент."""
     _lock(db, user)
     if grade not in mechanics.grade_thresholds:
         raise UnknownGrade()
-    view = path(db, user.id, now)
+    now = clock.now()
+    view = _path(db, user.id, now)
     if view.stage == Stage.grade and view.survey is not None:
         survey, continues = view.survey, None
     elif view.stage == Stage.offer and view.attempt is not None:
@@ -176,20 +183,24 @@ def start_attempt(
     if not _remaining(db, attempt, mechanics):
         _finish(db, attempt, mechanics, now)
     db.commit()
+    return _path(db, user.id, now)
 
 
-def current_item(db: Session, user: User, mechanics: Mechanics, *, now: datetime) -> Item:
+def current_item(
+    db: Session, user: User, mechanics: Mechanics, clock: Clock, seeds: SeedSource
+) -> Item:
     """Текущее задание попытки. Предъявление создаётся при первом показе — с него идут часы
     ответа; повторный запрос отдаёт то же задание и часы не сбрасывает.
 
     Следующее семейство выбирает адаптивный тест (§6) по оценке с априорным средним в пороге
-    грейда попытки; экземпляр всегда новый, со свежим seed.
+    грейда попытки; экземпляр всегда новый, со свежим seed. Seed выбора и экземпляра — из
+    `seeds`: в проде по ним никто не угадает следующее семейство, в тестах они воспроизводимы.
     """
     _lock(db, user)
     attempt = _attempt_in_progress(db, user.id)
     presentation = _pending(attempt)
     if presentation is None:
-        presentation = _present(db, attempt, mechanics, now)
+        presentation = _present(db, attempt, mechanics, clock.now(), seeds)
         db.commit()
     family = bank.get_family(presentation.family_code)
     topic = topic_of(db.get_one(TopicRow, presentation.topic_code))
@@ -200,11 +211,11 @@ def answer(
     db: Session,
     user: User,
     mechanics: Mechanics,
+    clock: Clock,
     *,
     presentation_id: uuid.UUID,
     response: str,
-    now: datetime,
-) -> None:
+) -> PathView:
     """Проверка ответа на бэкенде; верность на фронт не уходит. После ответа — шаг Эло по
     семейству и проверка остановки: точность набрана или спрашивать больше нечего. После
     остановки — пересчёт связки шкалы и пакетная переоценка семейств, набравших ответы (§7)."""
@@ -213,6 +224,7 @@ def answer(
     presentation = _pending(attempt)
     if presentation is None or presentation.id != presentation_id:
         raise ItemNotCurrent()
+    now = clock.now()
     family = bank.get_family(presentation.family_code)
     presentation.response = response
     presentation.correct = family.check(family.instance(presentation.seed), response)
@@ -235,10 +247,11 @@ def answer(
         families.refit_due(
             db, [p.family_code for p in attempt.presentations], specialization, mechanics, now
         )
+    return _path(db, user.id, now)
 
 
 def _present(
-    db: Session, attempt: TestAttempt, mechanics: Mechanics, now: datetime
+    db: Session, attempt: TestAttempt, mechanics: Mechanics, now: datetime, seeds: SeedSource
 ) -> Presentation:
     prior = _prior(db, attempt, mechanics)
     observations = _observations(db, attempt)
@@ -246,7 +259,8 @@ def _present(
     selection = estimate(selection_prior(prior, threshold), observations)
     options, exposure = families.options(db, attempt, _bank(prior), mechanics)
     blueprint = Blueprint.from_prior(prior, mechanics)
-    choice = choose(blueprint, _counts(attempt), selection, options, exposure, _rng)
+    rng = random.Random(seeds.seed())
+    choice = choose(blueprint, _counts(attempt), selection, options, exposure, rng)
     if choice is None:
         # Ответ останавливает попытку, когда спрашивать нечего, — сюда не доходит.
         raise NoTestInProgress()
@@ -262,7 +276,7 @@ def _present(
             option.code,
             exposure.attempts,
         )
-    seed = secrets.randbits(63)
+    seed = seeds.seed()
     instance = bank.get_family(option.code).instance(seed)
     before = estimate(prior, observations).topic(option.topic)
     presentation = Presentation(
@@ -322,7 +336,7 @@ def _finish(db: Session, attempt: TestAttempt, mechanics: Mechanics, now: dateti
             attempt.outcome = AttemptOutcome.no_category
             attempt.retest_after = now + timedelta(days=mechanics.no_category_retest_days)
     db.flush()
-    refresh_profile(db, attempt.user_id, attempt.specialization_code, prior.topics, mechanics)
+    refresh_profile(db, attempt.user_id, attempt.specialization_code, prior.topics, mechanics, now)
 
 
 def _prior(db: Session, attempt: TestAttempt, mechanics: Mechanics) -> Prior:

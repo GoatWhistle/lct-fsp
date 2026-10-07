@@ -86,6 +86,10 @@ def plant(tmp_path: Path, layer: str, source: str) -> Path:
         ("domain", DOMAIN, "def f() -> None:\n    import fastapi\n", "fastapi"),
         ("domain", DOMAIN, "from app.db import Base\n", "app.db"),
         ("domain", DOMAIN, "from ..assessment import models\n", "app.assessment"),
+        # Домен получает момент и seed значениями — порты и их реализации ему не видны.
+        ("domain", DOMAIN, "from app.usecase.interface import Clock\n", "app.usecase.interface"),
+        ("domain", DOMAIN, "from app.adapter.clock import SystemClock\n", "app.adapter.clock"),
+        ("domain", DOMAIN, "from ..adapter import seed\n", "app.adapter.seed"),
         ("usecase", USECASE, "from app.repository import users\n", "app.repository"),
         ("usecase", USECASE, "import app.controller.errors\n", "app.controller.errors"),
         ("usecase", USECASE, "from ..controller.errors import STATUS\n", "app.controller.errors"),

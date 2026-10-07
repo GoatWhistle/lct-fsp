@@ -7,7 +7,7 @@ from sqlalchemy import ForeignKey, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.assessment.models import Industry
-from app.db import Base, utcnow
+from app.db import Base
 
 
 class Company(Base):
@@ -23,6 +23,6 @@ class Company(Base):
     website: Mapped[str | None] = mapped_column(String(300))
     contact_email: Mapped[str] = mapped_column(String(320))
     contact_phone: Mapped[str | None] = mapped_column(String(32))
-    updated_at: Mapped[datetime] = mapped_column(default=utcnow, onupdate=utcnow)
+    updated_at: Mapped[datetime]
 
     industry: Mapped[Industry] = relationship()

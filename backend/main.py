@@ -11,8 +11,10 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from sqlalchemy.orm import sessionmaker
 
+from app.adapter.clock import SystemClock
 from app.adapter.mail import SmtpMailer
 from app.adapter.profile_pdf import FpdfProfileRenderer
+from app.adapter.seed import SecureSeeds
 from app.assessment.path_router import router as path_router
 from app.assessment.router import router as catalog_router
 from app.cabinets import candidate_router, employer_router
@@ -25,7 +27,7 @@ from app.matching.router import router as needs_router
 from app.matching.router import selections_router
 from app.profile.router import employer_router as candidates_router
 from app.profile.router import router as profile_router
-from app.usecase.interface import Mailer, ProfilePdfRenderer
+from app.usecase.interface import Clock, Mailer, ProfilePdfRenderer, SeedSource
 
 
 def description() -> str:
@@ -45,6 +47,8 @@ def create_app(
     mechanics: Mechanics | None = None,
     mailer: Mailer | None = None,
     profile_pdf_renderer: ProfilePdfRenderer | None = None,
+    clock: Clock | None = None,
+    seeds: SeedSource | None = None,
 ) -> FastAPI:
     settings = settings or Settings()
     mechanics = mechanics or Mechanics.from_yaml(settings.mechanics_file)
@@ -72,6 +76,8 @@ def create_app(
         settings.smtp_host, settings.smtp_port, settings.mail_from
     )
     app.state.profile_pdf_renderer = profile_pdf_renderer or FpdfProfileRenderer()
+    app.state.clock = clock or SystemClock()
+    app.state.seeds = seeds or SecureSeeds()
 
     install_error_handlers(app)
     app.include_router(auth_router)

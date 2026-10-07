@@ -17,7 +17,7 @@ from sqlalchemy import ARRAY, CheckConstraint, Column, ForeignKey, String, Table
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.assessment.models import Industry, Technology
-from app.db import Base, utcnow
+from app.db import Base
 
 candidate_technologies = Table(
     "candidate_technologies",
@@ -78,7 +78,7 @@ class CandidateProfile(Base):
     # Ожидаемая зарплата «от», рубли в месяц до вычета НДФЛ. Работодателю не показывается.
     salary_from: Mapped[int]
 
-    updated_at: Mapped[datetime] = mapped_column(default=utcnow, onupdate=utcnow)
+    updated_at: Mapped[datetime]
 
     stack: Mapped[list[Technology]] = relationship(
         secondary=candidate_technologies, order_by="Technology.name"

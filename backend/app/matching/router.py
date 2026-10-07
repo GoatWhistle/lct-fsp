@@ -7,7 +7,7 @@ from typing import Annotated
 from fastapi import APIRouter, Query, status
 
 from app.config import Mechanics, MechanicsDep
-from app.controller.deps import ClockDep, SeedsDep
+from app.controller.deps import CandidatesDep, ClockDep, SeedsDep
 from app.controller.errors import error_responses
 from app.controller.schemas import CatalogRef
 from app.db import DbSession, UnitOfWorkDep
@@ -130,13 +130,14 @@ def build_selection(
     need_id: uuid.UUID,
     user: CurrentUser,
     uow: UnitOfWorkDep,
+    candidates: CandidatesDep,
     mechanics: MechanicsDep,
     clock: ClockDep,
     seeds: SeedsDep,
     limit: Limit = 20,
 ) -> SelectionOut:
     return _selection_out(
-        selection.build(uow, user.id, need_id, mechanics, clock, seeds, limit=limit)
+        selection.build(uow, user.id, need_id, candidates, mechanics, clock, seeds, limit=limit)
     )
 
 

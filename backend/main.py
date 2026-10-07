@@ -21,14 +21,21 @@ from app.cabinets import candidate_router, employer_router
 from app.company.router import router as company_router
 from app.config import Mechanics, Settings
 from app.controller.errors import install_error_handlers
+from app.controller.profile import employer_router as candidates_router
+from app.controller.profile import router as profile_router
 from app.db import create_db_engine
 from app.identity.router import router as auth_router
 from app.matching.router import router as needs_router
 from app.matching.router import selections_router
-from app.profile.router import employer_router as candidates_router
-from app.profile.router import router as profile_router
+from app.repository.candidate import SqlCandidateRepository
 from app.repository.unit_of_work import SqlUnitOfWork
-from app.usecase.interface import Clock, Mailer, ProfilePdfRenderer, SeedSource
+from app.usecase.interface import (
+    CandidateRepository,
+    Clock,
+    Mailer,
+    ProfilePdfRenderer,
+    SeedSource,
+)
 
 
 def description() -> str:
@@ -77,7 +84,13 @@ def create_app(
     def unit_of_work() -> SqlUnitOfWork:
         return SqlUnitOfWork(session_factory())
 
+    def candidate_repository(uow: SqlUnitOfWork) -> CandidateRepository:
+        return SqlCandidateRepository(
+            uow.session, mechanics.grade_thresholds, mechanics.grade_confidence
+        )
+
     app.state.unit_of_work = unit_of_work
+    app.state.candidate_repository = candidate_repository
     app.state.mailer = mailer or SmtpMailer(
         settings.smtp_host, settings.smtp_port, settings.mail_from
     )

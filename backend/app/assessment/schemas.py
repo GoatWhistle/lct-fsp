@@ -9,6 +9,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from app.assessment.service import Stage
 from app.config import Mechanics
 from app.controller.schemas import CatalogRef
+from app.domain import candidate
 from app.domain.candidate import Level
 from app.domain.skill import Normal
 from app.skills.models import SkillProfile
@@ -83,12 +84,27 @@ class SkillProfileOut(BaseModel):
 
 
 def level_out(level: Normal, mechanics: Mechanics) -> LevelOut:
-    out = Level.of(level, mechanics.grade_thresholds, mechanics.grade_confidence)
-    band = out.band
+    return level_view(Level.of(level, mechanics.grade_thresholds, mechanics.grade_confidence))
+
+
+def level_view(level: Level) -> LevelOut:
+    band = level.band
     return LevelOut(
-        theta=out.theta,
-        theta_sd=out.theta_sd,
+        theta=level.theta,
+        theta_sd=level.theta_sd,
         band=LevelBandOut(low=band.low, high=band.high, confident=band.confident),
+    )
+
+
+def skill_profile_view(profile: candidate.SkillProfile) -> SkillProfileOut:
+    """Профиль навыков из доменной проекции — уровни словами уже посчитаны."""
+    return SkillProfileOut(
+        overall=level_view(profile.overall),
+        topics=[
+            TopicLevelOut(topic=CatalogRef.model_validate(t.topic), level=level_view(t.level))
+            for t in profile.topics
+        ],
+        updated_at=profile.updated_at,
     )
 
 

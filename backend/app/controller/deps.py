@@ -5,7 +5,14 @@ from typing import Annotated
 
 from fastapi import Depends, Request
 
-from app.usecase.interface import Clock, Mailer, ProfilePdfRenderer, SeedSource
+from app.db import UnitOfWorkDep
+from app.usecase.interface import (
+    CandidateRepository,
+    Clock,
+    Mailer,
+    ProfilePdfRenderer,
+    SeedSource,
+)
 
 
 def get_mailer(request: Request) -> Mailer:
@@ -32,3 +39,12 @@ MailerDep = Annotated[Mailer, Depends(get_mailer)]
 ProfilePdfRendererDep = Annotated[ProfilePdfRenderer, Depends(get_profile_pdf_renderer)]
 ClockDep = Annotated[Clock, Depends(get_clock)]
 SeedsDep = Annotated[SeedSource, Depends(get_seeds)]
+
+
+def get_candidates(request: Request, uow: UnitOfWorkDep) -> CandidateRepository:
+    """Репозиторий кандидатов на сессии единицы работы запроса."""
+    candidates: CandidateRepository = request.app.state.candidate_repository(uow)
+    return candidates
+
+
+CandidatesDep = Annotated[CandidateRepository, Depends(get_candidates)]

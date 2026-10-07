@@ -58,6 +58,14 @@ def shown_families(db_engine: Engine) -> set[str]:
         return set(conn.scalars(text("SELECT family_code FROM presentations")))
 
 
+def answered_count(db_engine: Engine) -> int:
+    with db_engine.connect() as conn:
+        count: int = conn.execute(
+            text("SELECT count(*) FROM presentations WHERE correct IS NOT NULL")
+        ).scalar_one()
+        return count
+
+
 def test_new_candidate_starts_with_survey_and_has_no_category(
     candidate: TestClient, db_engine: Engine
 ) -> None:
@@ -630,20 +638,23 @@ def calibration(db_engine: Engine) -> dict[str, list[tuple[Any, ...]]]:
         }
 
 
+@pytest.mark.parametrize("failing", ["learn", "refit_due"])
 def test_failed_calibration_keeps_the_answer(
+    failing: str,
     seeds: Seeds,
     candidate: TestClient,
     db_engine: Engine,
     monkeypatch: pytest.MonkeyPatch,
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """Калибровка идёт после фиксации ответа своей транзакцией (§7): сбой переоценки ответ и
-    итог попытки не отменяет, а шаг Эло и связка шкалы той же калибровки откатываются."""
+    """Калибровка идёт после фиксации ответа своим сценарием (§7): сбой шага Эло после каждого
+    ответа или переоценки после остановки ответ и итог попытки не отменяет, клиент получает
+    успех, а записанное той же калибровкой откатывается."""
 
-    def refit_fails(*_: Any, **__: Any) -> None:
-        raise RuntimeError("переоценка упала")
+    def fails(*_: Any, **__: Any) -> None:
+        raise RuntimeError("калибровка упала")
 
-    monkeypatch.setattr(EloCalibration, "refit_due", refit_fails)
+    monkeypatch.setattr(EloCalibration, failing, fails)
     take_survey(candidate)
     start(candidate, "middle")
 
@@ -655,6 +666,7 @@ def test_failed_calibration_keeps_the_answer(
         before = calibration(db_engine)
         answered = candidate.post(f"{ITEM}/answer", json=body)
         assert answered.status_code == 200, answered.text
+        assert answered_count(db_engine) == item["number"]
         path = answered.json()
 
     assert path["stage"] == "category"

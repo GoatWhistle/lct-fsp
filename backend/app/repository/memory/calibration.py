@@ -51,8 +51,12 @@ class MemoryCalibrationRepository:
     ) -> list[AnchorAnswer]:
         wanted = set(anchors)
         recent = sorted(
-            (a for a in self._attempts() if a.specialization_code == specialization),
-            key=lambda a: a.started_at,
+            (
+                a
+                for a in self._attempts()
+                if a.specialization_code == specialization and a.finished_at is not None
+            ),
+            key=lambda a: a.finished_at or a.started_at,
             reverse=True,
         )[:window_attempts]
         answers = []

@@ -301,6 +301,10 @@ class SqlAttemptRepository(SqlAttemptReader):
             .where(
                 models.TestAttempt.specialization_code == specialization_code,
                 models.TestAttempt.id != current_attempt_id,
+                # Задание раскрыто показом: попытка без предъявлений места в окне не занимает.
+                select(models.Presentation.id)
+                .where(models.Presentation.attempt_id == models.TestAttempt.id)
+                .exists(),
             )
             .order_by(models.TestAttempt.started_at.desc())
             .limit(window - 1)

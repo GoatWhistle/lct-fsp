@@ -16,7 +16,8 @@ from app.assessment.adaptive import (
     should_stop,
 )
 from app.config import Mechanics, Settings
-from app.skills.irt import Estimate, Normal, Observation, Prior, initial, update
+from app.domain.skill import Normal, Observation, Prior
+from app.skills.irt import Estimate, initial, update
 from tests.simulation import Candidate, market, median
 
 MECHANICS = Mechanics.from_yaml(Settings().mechanics_file)

@@ -31,7 +31,7 @@ from app.assessment.models import (
     TestAttempt,
 )
 from app.config import Mechanics
-from app.skills.irt import Normal
+from app.domain.skill import Normal
 
 log = logging.getLogger(__name__)
 

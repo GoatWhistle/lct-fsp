@@ -5,16 +5,11 @@ from sqlalchemy.orm import selectinload
 
 from app.assessment import bank
 from app.assessment.models import Grade, Industry, Specialization, Technology, Topic
+from app.controller.errors import error_responses
 from app.db import DbSession
-from app.errors import AppError, error_responses
+from app.domain.errors import SpecializationNotFound
 
 router = APIRouter(prefix="/api/catalog", tags=["catalog"])
-
-
-class SpecializationNotFound(AppError):
-    status_code = 404
-    code = "specialization_not_found"
-    message = "Такой специализации нет в справочнике"
 
 
 class _Out(BaseModel):

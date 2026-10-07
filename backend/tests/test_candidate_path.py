@@ -16,10 +16,11 @@ from app.assessment.bank import Family, families_for_topics, get_family
 from app.assessment.catalog import load_catalog
 from app.assessment.models import FamilyCalibration, Presentation, TestAttempt
 from app.config import Mechanics, Settings
+from app.domain.skill import Observation
 from app.identity.models import Role
-from app.main import create_app
-from app.skills.irt import Observation, estimate
+from app.skills.irt import estimate
 from app.skills.service import specialization_prior
+from main import create_app
 from tests.candidate_path import (
     ITEM,
     PATH,

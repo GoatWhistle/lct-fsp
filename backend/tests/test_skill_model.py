@@ -7,14 +7,10 @@ from dataclasses import replace
 
 import pytest
 
-from app.skills.irt import (
-    LevelBand,
-    Normal,
-    Observation,
-    Prior,
-    estimate,
-    level_band,
-)
+from app.domain.skill import Normal, Observation, Prior
+from app.skills import irt
+from app.skills.irt import LevelBand, estimate, level_band
+from app.usecase.interface import SkillModel
 
 TOPICS = ("sql", "api", "algorithms", "testing")
 THRESHOLDS = {"intern": -1.5, "junior": -0.5, "middle": 0.5, "senior": 1.5}
@@ -177,3 +173,13 @@ def test_level_band_is_confident_only_with_confidence_threshold() -> None:
     # π_middle = Φ(0.5/σ) − Φ(−0.5/σ): при σ = 0.39 — около 0.8
     assert level_band(Normal(1.0, 0.38), THRESHOLDS, CONFIDENCE).confident
     assert not level_band(Normal(1.0, 0.40), THRESHOLDS, CONFIDENCE).confident
+
+
+def test_irt_module_is_the_skill_model_port() -> None:
+    # Модуль на чистых функциях подставляется за порт как есть; соответствие проверяет и mypy.
+    model: SkillModel = irt
+    observations = [item("sql", True), item("api", False)]
+
+    assert model.initial(prior()) == irt.initial(prior())
+    assert model.estimate(prior(), observations) == estimate(prior(), observations)
+    assert model.estimate(prior(), observations).topic("sql").mean > 0

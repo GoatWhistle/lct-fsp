@@ -19,7 +19,8 @@ from app.assessment.calibration import (
     rest_levels,
 )
 from app.config import Mechanics, Settings
-from app.skills.irt import Normal, Observation, estimate, sigmoid
+from app.domain.skill import Normal, Observation
+from app.skills.irt import estimate, sigmoid
 from app.skills.service import specialization_prior
 from tests.simulation import calibration_quality, market, mean_responses
 

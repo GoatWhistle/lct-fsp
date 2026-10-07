@@ -30,66 +30,31 @@ from app.assessment.models import (
     Specialization,
     Survey,
     TestAttempt,
-    Topic,
+)
+from app.assessment.models import (
+    Topic as TopicRow,
 )
 from app.config import Mechanics
-from app.errors import AppError
+from app.domain.catalog import Topic
+from app.domain.errors import (
+    GradeNotOffered,
+    ItemNotCurrent,
+    NoTestInProgress,
+    SpecializationWithoutTest,
+    StepUnavailable,
+    UnknownGrade,
+    UnknownSpecialization,
+)
+from app.domain.skill import Observation, Prior
 from app.identity.models import User
-from app.skills.irt import Observation, Prior, estimate
+from app.repository.catalog import topic_of
+from app.skills.irt import estimate
 from app.skills.models import SkillProfile
 from app.skills.service import presentation_observation, refresh_profile, specialization_prior
 
 log = logging.getLogger(__name__)
 # Случайный выбор из top-k: по нему никто не должен угадать следующее семейство.
 _rng = secrets.SystemRandom()
-
-
-class UnknownIndustry(AppError):
-    status_code = 422
-    code = "unknown_industry"
-    message = "Такой сферы бизнеса нет в справочнике"
-
-
-class UnknownSpecialization(AppError):
-    status_code = 422
-    code = "unknown_specialization"
-    message = "Такой специализации нет в справочнике"
-
-
-class SpecializationWithoutTest(AppError):
-    status_code = 422
-    code = "specialization_without_test"
-    message = "Тест по этой специализации ещё готовится — выберите другую"
-
-
-class UnknownGrade(AppError):
-    status_code = 422
-    code = "unknown_grade"
-    message = "Такого грейда нет в справочнике"
-
-
-class StepUnavailable(AppError):
-    status_code = 409
-    code = "path_step_unavailable"
-    message = "Этот шаг сейчас недоступен — обновите страницу"
-
-
-class GradeNotOffered(AppError):
-    status_code = 409
-    code = "grade_not_offered"
-    message = "Продолжить можно только на предложенном грейде"
-
-
-class NoTestInProgress(AppError):
-    status_code = 409
-    code = "no_test_in_progress"
-    message = "Сейчас нет начатого теста"
-
-
-class ItemNotCurrent(AppError):
-    status_code = 409
-    code = "item_not_current"
-    message = "Это задание уже не текущее — обновите страницу"
 
 
 class Stage(enum.StrEnum):
@@ -227,7 +192,7 @@ def current_item(db: Session, user: User, mechanics: Mechanics, *, now: datetime
         presentation = _present(db, attempt, mechanics, now)
         db.commit()
     family = bank.get_family(presentation.family_code)
-    topic = db.get_one(Topic, presentation.topic_code)
+    topic = topic_of(db.get_one(TopicRow, presentation.topic_code))
     return Item(presentation, family.instance(presentation.seed), topic)
 
 
@@ -406,9 +371,9 @@ def _remaining(db: Session, attempt: TestAttempt, mechanics: Mechanics) -> bool:
 def _topics(db: Session, specialization: str) -> list[str]:
     return list(
         db.scalars(
-            select(Topic.code)
-            .where(Topic.specialization_code == specialization)
-            .order_by(Topic.position)
+            select(TopicRow.code)
+            .where(TopicRow.specialization_code == specialization)
+            .order_by(TopicRow.position)
         )
     )
 

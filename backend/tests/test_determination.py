@@ -11,7 +11,7 @@ from app.assessment.determination import (
     grade_up_hint,
     grades_by_threshold,
 )
-from app.skills.irt import Normal
+from app.domain.skill import Normal
 
 THRESHOLDS = {"intern": -1.5, "junior": -0.5, "middle": 0.5, "senior": 1.5}
 GRADES = grades_by_threshold(THRESHOLDS)

@@ -49,7 +49,8 @@ from app.assessment.calibration import (
 from app.assessment.catalog import load_catalog
 from app.assessment.determination import Assign, Offer, decide, grades_by_threshold
 from app.config import BACKEND_DIR, Mechanics
-from app.skills.irt import Normal, Observation, estimate, initial, sigmoid, update
+from app.domain.skill import Normal, Observation
+from app.skills.irt import estimate, initial, sigmoid, update
 from app.skills.service import specialization_prior
 
 # Сиды наборов плана валидации: D1 — основной, D3 — настроечный.

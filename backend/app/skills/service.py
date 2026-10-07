@@ -12,7 +12,8 @@ from sqlalchemy.orm import Session
 
 from app.assessment.models import Presentation, TestAttempt
 from app.config import Mechanics
-from app.skills.irt import Observation, Prior, estimate
+from app.domain.skill import Observation, Prior
+from app.skills.irt import estimate
 from app.skills.models import SkillProfile, SkillProfileTopic
 
 

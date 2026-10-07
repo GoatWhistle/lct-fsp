@@ -71,7 +71,7 @@ backend/                 FastAPI + SQLAlchemy + Alembic, PostgreSQL
                          слои и порты — docs/adr/0001-layers-and-ports.md; модули переезжают туда
   app/<модуль>/          models, schemas, service, router одного модуля
   app/assessment/catalog.yaml   справочники: грейды, сферы бизнеса, специализации, темы, технологии
-  app/assessment/bank/   семейства заданий: генератор экземпляра по seed и эталон кодом
+  app/domain/bank/       семейства заданий: генератор экземпляра по seed и эталон кодом
   config/mechanics.yaml  параметры механик — те же, что в docs/parameters.md
   migrations/            миграции схемы
   tests/                 тесты через HTTP API
@@ -80,17 +80,20 @@ docker-compose.yml       PostgreSQL, бэкенд, фронт, Mailpit
 ```
 
 Модули бэкенда: `identity` — учётки, роли, подтверждение email; `assessment` — справочники,
-банк семейств, адаптивный тест (чистые функции в `adaptive.py`), калибровка семейств (чистые
+адаптивный тест (чистые функции в `adaptive.py`), калибровка семейств (чистые
 функции в `calibration.py`) и путь кандидата к категории (опрос, попытки теста, предъявления,
 категория);
-`skills` — модель навыка IRT 2PL (чистые функции в `irt.py`) и профиль навыков; профиль
-кандидата уже на слоях — правило раскрытия и карточки в `app/domain/candidate.py`, сценарии
-анкеты, PDF-профиля и карточки для работодателя в `app/usecase/candidate.py`, хранилище в
+`skills` — модель навыка IRT 2PL (чистые функции в `irt.py`) и запись профиля навыков, сам
+профиль считает сценарий `app/usecase/skill_profile.py`; банк семейств — в `app/domain/bank/`; профиль
+кандидата на слоях — правило раскрытия и карточки в `app/domain/candidate.py`, сценарии анкеты,
+PDF-профиля и карточки для работодателя в `app/usecase/candidate.py`, хранилище в
 `app/repository/candidate.py`, эндпоинты в `app/controller/profile.py`, в `profile` остались
 таблицы (рендер PDF — `app/adapter/profile_pdf.py`, шрифт PT Sans под OFL в
-`app/adapter/fonts/`); `company` — профиль компании; `matching` — потребность работодателя,
-важность тем (чистая функция в `importance.py`), скор соответствия (чистые функции в `score.py`)
-и подборка (`selection.py`). Вход — по email и паролю, пароль хранится
+`app/adapter/fonts/`); `company` — профиль компании; `matching` — потребность работодателя
+и HTTP подборки. Подборка — глубокий модуль: домен `app/domain/selection.py` (блоки, скор,
+объяснение, порядок; важность тем и скор соответствия — `importance.py` и `match.py` там же),
+сценарии `app/usecase/selection.py`, хранилища `app/repository/selection.py` и in-memory
+`app/repository/memory/selection.py`, P(принятия) — за портом `AcceptanceModel`. Вход — по email и паролю, пароль хранится
 хэшем argon2, сессия — подписанный токен в httpOnly-cookie. Права проверяет бэкенд: разделы
 `/api/candidate/*` и `/api/employer/*` отвечают 403 чужой роли.
 

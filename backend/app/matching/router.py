@@ -7,19 +7,22 @@ from typing import Annotated
 from fastapi import APIRouter, Query, status
 
 from app.config import Mechanics, MechanicsDep
-from app.controller.deps import CandidatesDep, ClockDep, SeedsDep
+from app.controller.deps import ClockDep, SelectionsDep
 from app.controller.errors import error_responses
 from app.controller.schemas import CatalogRef
 from app.db import DbSession, UnitOfWorkDep
 from app.domain import errors
+from app.domain.selection import NeedSnapshot as Snapshot
+from app.domain.selection import Page, SelectionBlock, Summary
 from app.identity.deps import ROLE_RESPONSES, CurrentUser, role_guard
 from app.identity.models import Role
-from app.matching import selection, service
+from app.matching import service
 from app.matching.models import Need
 from app.matching.schemas import (
-    Explanation,
     NeedIn,
     NeedOut,
+    NeedSnapshot,
+    RequirementOut,
     SelectionEntryOut,
     SelectionOut,
     SelectionSummaryOut,
@@ -127,28 +130,19 @@ def delete_need(need_id: uuid.UUID, user: CurrentUser, uow: UnitOfWorkDep) -> No
     responses=error_responses(errors.NeedNotFound),
 )
 def build_selection(
-    need_id: uuid.UUID,
-    user: CurrentUser,
-    uow: UnitOfWorkDep,
-    candidates: CandidatesDep,
-    mechanics: MechanicsDep,
-    clock: ClockDep,
-    seeds: SeedsDep,
-    limit: Limit = 20,
+    need_id: uuid.UUID, user: CurrentUser, selections: SelectionsDep, limit: Limit = 20
 ) -> SelectionOut:
-    return _selection_out(
-        selection.build(uow, user.id, need_id, candidates, mechanics, clock, seeds, limit=limit)
-    )
+    return _selection_out(selections.build(user.id, need_id, limit=limit))
 
 
 @selections_router.get("", summary="Подборки компании, новые сверху")
 def list_selections(
     user: CurrentUser,
-    db: DbSession,
+    selections: SelectionsDep,
     need_id: Annotated[uuid.UUID | None, Query(description="Только по этой потребности")] = None,
     limit: Limit = 50,
 ) -> list[SelectionSummaryOut]:
-    return [_summary_out(s) for s in selection.list_selections(db, user.id, need_id, limit=limit)]
+    return [_summary_out(s) for s in selections.summaries(user.id, need_id, limit=limit)]
 
 
 @selections_router.get(
@@ -161,11 +155,11 @@ def list_selections(
 def get_selection(
     selection_id: uuid.UUID,
     user: CurrentUser,
-    db: DbSession,
+    selections: SelectionsDep,
     offset: Offset = 0,
     limit: Limit = 20,
 ) -> SelectionOut:
-    return _selection_out(selection.get_page(db, user.id, selection_id, offset=offset, limit=limit))
+    return _selection_out(selections.open(user.id, selection_id, offset=offset, limit=limit))
 
 
 def _need_out(need: Need, mechanics: Mechanics) -> NeedOut:
@@ -198,33 +192,58 @@ def _topics_out(views: list[service.TopicView]) -> list[TopicImportanceOut]:
     ]
 
 
-def _summary_out(summary: selection.Summary) -> SelectionSummaryOut:
-    row, need = summary.selection, summary.need
+def _summary_out(summary: Summary) -> SelectionSummaryOut:
+    selection, need = summary.selection, summary.selection.need
     return SelectionSummaryOut(
-        id=row.id,
-        need_id=row.need_id,
+        id=selection.id,
+        need_id=selection.need_id,
         title=need.title,
-        specialization=need.specialization,
-        grade=need.grade,
-        exact_total=summary.exact_total,
-        nearby_total=summary.nearby_total,
-        created_at=row.created_at,
+        specialization=CatalogRef.model_validate(need.specialization),
+        grade=CatalogRef.model_validate(need.grade),
+        exact_total=summary.totals[SelectionBlock.exact],
+        nearby_total=summary.totals[SelectionBlock.nearby],
+        created_at=selection.created_at,
     )
 
 
-def _selection_out(page: selection.Page) -> SelectionOut:
-    requirements = {t.topic.code: t for t in page.need.topics}
-    technologies = {t.code: t for t in page.need.stack}
+def _snapshot_out(need: Snapshot) -> NeedSnapshot:
+    return NeedSnapshot(
+        title=need.title,
+        specialization=CatalogRef.model_validate(need.specialization),
+        grade=CatalogRef.model_validate(need.grade),
+        stack=[CatalogRef.model_validate(t) for t in need.stack],
+        work_format=need.work_format,
+        city=need.city,
+        salary_from=need.salary.low if need.salary else None,
+        salary_to=need.salary.high if need.salary else None,
+        topics=[
+            RequirementOut(
+                topic=CatalogRef.model_validate(t.topic),
+                importance=t.importance,
+                edited=t.edited,
+                weight=t.weight,
+                requirement=t.requirement,
+            )
+            for t in need.topics
+        ],
+        updated_at=need.updated_at,
+    )
+
+
+def _selection_out(page: Page) -> SelectionOut:
+    need = _snapshot_out(page.selection.need)
+    requirements = {t.topic.code: t for t in need.topics}
+    technologies = {t.code: t for t in need.stack}
     entries = []
     for entry in page.entries:
-        explanation = Explanation.model_validate(entry.explanation)
+        explanation = entry.explanation
         entries.append(
             SelectionEntryOut(
                 candidate_id=entry.candidate_id,
                 position=entry.position,
                 block=entry.block,
                 rank=entry.rank,
-                grade=CatalogRef(code=entry.grade_code, name=entry.grade_name),
+                grade=CatalogRef.model_validate(entry.grade),
                 match_score=entry.match_score,
                 acceptance_probability=entry.acceptance_probability,
                 mutual_score=entry.mutual_score,
@@ -234,13 +253,18 @@ def _selection_out(page: selection.Page) -> SelectionOut:
                         importance=requirements[fit.topic].importance,
                         weight=requirements[fit.topic].weight,
                         requirement=requirements[fit.topic].requirement,
-                        **fit.model_dump(exclude={"topic"}),
+                        theta=fit.theta,
+                        theta_sd=fit.theta_sd,
+                        probability=fit.probability,
+                        contribution=fit.contribution,
+                        verdict=fit.verdict,
+                        low_data=fit.low_data,
                     )
                     for fit in explanation.topics
                 ],
                 stack=StackFitOut(
                     matched=[technologies[code] for code in explanation.stack.matched],
-                    total=len(page.need.stack),
+                    total=len(need.stack),
                     overlap=explanation.stack.overlap,
                     contribution=explanation.stack.contribution,
                 ),
@@ -249,7 +273,7 @@ def _selection_out(page: selection.Page) -> SelectionOut:
         )
     return SelectionOut(
         **_summary_out(page).model_dump(),
-        need=page.need,
+        need=need,
         stack_cap=page.selection.stack_cap,
         offset=page.offset,
         entries=entries,

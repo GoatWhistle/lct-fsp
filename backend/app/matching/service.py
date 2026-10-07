@@ -24,8 +24,8 @@ from app.domain.errors import (
     UnknownSpecialization,
     UnknownTechnology,
 )
+from app.domain.importance import TopicImportance, topic_importance
 from app.domain.work import SalaryRange, WorkFormat
-from app.matching.importance import TopicImportance, topic_importance
 from app.matching.models import Need, NeedTopicImportance
 from app.matching.schemas import NeedIn, TopicImportanceIn
 from app.repository.catalog import ref_of, specialization_of

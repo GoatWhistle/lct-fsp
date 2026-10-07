@@ -7,6 +7,7 @@ from fastapi import APIRouter, Response
 
 from app.assessment.schemas import CategoryOut, skill_profile_out
 from app.config import Mechanics, MechanicsDep
+from app.controller.deps import ProfilePdfRendererDep
 from app.controller.errors import error_responses
 from app.controller.schemas import CatalogRef
 from app.db import DbSession, utcnow
@@ -16,7 +17,6 @@ from app.identity.deps import ROLE_RESPONSES, CurrentUser, role_guard
 from app.identity.models import Role
 from app.profile import service
 from app.profile.models import CandidateProfile
-from app.profile.pdf import render_profile
 from app.profile.schemas import CandidateCardOut, ProfileIn, ProfileOut, SelfReportedOut
 
 router = APIRouter(
@@ -69,18 +69,16 @@ def save_profile(body: ProfileIn, user: CurrentUser, db: DbSession) -> ProfileOu
         **error_responses(errors.ProfileNotFound),
     },
 )
-def download_pdf(user: CurrentUser, db: DbSession, mechanics: MechanicsDep) -> Response:
-    sheet = service.sheet(db, user.id)
-    content = render_profile(
-        sheet.profile,
-        CategoryOut.model_validate(sheet.category) if sheet.category else None,
-        skill_profile_out(sheet.skill_profile, mechanics) if sheet.skill_profile else None,
-        confidence=mechanics.grade_confidence,
-        now=utcnow(),
-    )
-    filename = quote(f"Профиль кандидата — {sheet.profile.full_name}.pdf")
+def download_pdf(
+    user: CurrentUser,
+    db: DbSession,
+    mechanics: MechanicsDep,
+    renderer: ProfilePdfRendererDep,
+) -> Response:
+    pdf = service.profile_pdf(db, renderer, mechanics, user.id, now=utcnow())
+    filename = quote(f"Профиль кандидата — {pdf.full_name}.pdf")
     return Response(
-        content,
+        pdf.content,
         media_type="application/pdf",
         headers={
             "Content-Disposition": (

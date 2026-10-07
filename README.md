@@ -86,9 +86,11 @@ docker-compose.yml       PostgreSQL, бэкенд, фронт, Mailpit
 `skills` — модель навыка IRT 2PL (чистые функции в `irt.py`) и запись профиля навыков, сам
 профиль считает сценарий `app/usecase/skill_profile.py`; банк семейств — в `app/domain/bank/`; `profile` —
 профиль кандидата, PDF-профиль (рендер — `app/adapter/profile_pdf.py`, шрифт PT Sans под OFL
-в `app/adapter/fonts/`) и обезличенная карточка для работодателя; `company` — профиль компании; `matching` — потребность работодателя,
-важность тем (чистая функция в `importance.py`), скор соответствия (чистые функции в `score.py`)
-и подборка (`selection.py`). Вход — по email и паролю, пароль хранится
+в `app/adapter/fonts/`) и обезличенная карточка для работодателя; `company` — профиль компании; `matching` — потребность работодателя
+и HTTP подборки. Подборка — глубокий модуль: домен `app/domain/selection.py` (блоки, скор,
+объяснение, порядок; важность тем и скор соответствия — `importance.py` и `match.py` там же),
+сценарии `app/usecase/selection.py`, хранилища `app/repository/selection.py` и in-memory
+`app/repository/memory/selection.py`, P(принятия) — за портом `AcceptanceModel`. Вход — по email и паролю, пароль хранится
 хэшем argon2, сессия — подписанный токен в httpOnly-cookie. Права проверяет бэкенд: разделы
 `/api/candidate/*` и `/api/employer/*` отвечают 403 чужой роли.
 

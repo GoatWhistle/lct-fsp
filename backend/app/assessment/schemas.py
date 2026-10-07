@@ -9,8 +9,8 @@ from pydantic import BaseModel, ConfigDict, Field
 from app.assessment.service import Stage
 from app.config import Mechanics
 from app.controller.schemas import CatalogRef
+from app.domain.candidate import Level
 from app.domain.skill import Normal
-from app.skills.irt import level_band
 from app.skills.models import SkillProfile
 
 
@@ -83,10 +83,11 @@ class SkillProfileOut(BaseModel):
 
 
 def level_out(level: Normal, mechanics: Mechanics) -> LevelOut:
-    band = level_band(level, mechanics.grade_thresholds, mechanics.grade_confidence)
+    out = Level.of(level, mechanics.grade_thresholds, mechanics.grade_confidence)
+    band = out.band
     return LevelOut(
-        theta=level.mean,
-        theta_sd=level.sd,
+        theta=out.theta,
+        theta_sd=out.theta_sd,
         band=LevelBandOut(low=band.low, high=band.high, confident=band.confident),
     )
 

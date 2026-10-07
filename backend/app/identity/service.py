@@ -13,9 +13,10 @@ from app.domain.errors import (
     TokenExpired,
     TokenInvalid,
 )
+from app.domain.mail import Mail
 from app.identity import security
 from app.identity.models import EmailVerificationToken, Role, User
-from app.mail import Mail, Mailer
+from app.usecase.interface import Mailer
 
 
 def register(

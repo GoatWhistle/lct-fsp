@@ -13,27 +13,18 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.orm import Session
 
 from app.assessment.models import CandidateCategory, Industry, Technology
-from app.assessment.service import UnknownIndustry
 from app.db import utcnow
-from app.errors import AppError
-from app.matching.models import WorkFormat
-from app.matching.service import CityRequired, UnknownTechnology
+from app.domain.errors import (
+    CandidateNotFound,
+    CityRequired,
+    ProfileNotFound,
+    UnknownIndustry,
+    UnknownTechnology,
+)
+from app.domain.work import WorkFormat
 from app.profile.models import CandidateProfile
 from app.profile.schemas import ProfileIn
 from app.skills.models import SkillProfile
-
-
-class ProfileNotFound(AppError):
-    status_code = 404
-    code = "profile_not_found"
-    message = "Сначала заполните профиль"
-
-
-class CandidateNotFound(AppError):
-    status_code = 404
-    code = "candidate_not_found"
-    message = "Кандидат не найден"
-
 
 PROFILE_ERRORS = (UnknownTechnology, UnknownIndustry, CityRequired)
 

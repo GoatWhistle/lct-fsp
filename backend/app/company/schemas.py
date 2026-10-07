@@ -3,7 +3,7 @@ from typing import Annotated
 
 from pydantic import BaseModel, EmailStr, Field, HttpUrl, StringConstraints, field_validator
 
-from app.assessment.schemas import CatalogRef
+from app.controller.schemas import CatalogRef
 
 
 def _text(min_length: int, max_length: int) -> StringConstraints:

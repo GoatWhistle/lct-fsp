@@ -5,13 +5,15 @@ from urllib.parse import quote
 
 from fastapi import APIRouter, Response
 
-from app.assessment.schemas import CatalogRef, CategoryOut, skill_profile_out
+from app.assessment.schemas import CategoryOut, skill_profile_out
 from app.config import Mechanics, MechanicsDep
+from app.controller.errors import error_responses
+from app.controller.schemas import CatalogRef
 from app.db import DbSession, utcnow
-from app.errors import error_responses
+from app.domain import errors
+from app.domain.work import WorkFormat
 from app.identity.deps import ROLE_RESPONSES, CurrentUser, role_guard
 from app.identity.models import Role
-from app.matching.models import WorkFormat
 from app.profile import service
 from app.profile.models import CandidateProfile
 from app.profile.pdf import render_profile
@@ -64,7 +66,7 @@ def save_profile(body: ProfileIn, user: CurrentUser, db: DbSession) -> ProfileOu
             "description": "PDF-файл",
             "content": {"application/pdf": {"schema": {"type": "string", "format": "binary"}}},
         },
-        **error_responses(service.ProfileNotFound),
+        **error_responses(errors.ProfileNotFound),
     },
 )
 def download_pdf(user: CurrentUser, db: DbSession, mechanics: MechanicsDep) -> Response:
@@ -96,7 +98,7 @@ def download_pdf(user: CurrentUser, db: DbSession, mechanics: MechanicsDep) -> R
     description="Обезличенная: категория, профиль навыков и структурная часть самоописания. Без "
     "ФИО, контактов, свободного текста и ожидаемой зарплаты. Есть только у кандидата с "
     "категорией.",
-    responses=error_responses(service.CandidateNotFound),
+    responses=error_responses(errors.CandidateNotFound),
 )
 def get_candidate_card(
     candidate_id: uuid.UUID, db: DbSession, mechanics: MechanicsDep

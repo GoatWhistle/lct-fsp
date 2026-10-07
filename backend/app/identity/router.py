@@ -3,8 +3,9 @@ from datetime import timedelta
 from fastapi import APIRouter, Response, status
 
 from app.config import SettingsDep
+from app.controller.errors import error_responses
 from app.db import DbSession
-from app.errors import error_responses
+from app.domain import errors
 from app.identity import service
 from app.identity.deps import ACCESS_COOKIE, AUTH_RESPONSES, CurrentUser
 from app.identity.schemas import (
@@ -26,7 +27,7 @@ router = APIRouter(prefix="/api/auth", tags=["auth"])
     summary="Регистрация по email и паролю",
     description="Создаёт учётку выбранной роли и отправляет письмо со ссылкой подтверждения. "
     "Войти можно только после подтверждения адреса.",
-    responses=error_responses(service.EmailTaken),
+    responses=error_responses(errors.EmailTaken),
 )
 def register(
     body: RegisterIn,
@@ -43,7 +44,7 @@ def register(
 @router.post(
     "/verify-email",
     summary="Подтверждение адреса по токену из письма",
-    responses=error_responses(service.TokenInvalid, service.TokenExpired),
+    responses=error_responses(errors.TokenInvalid, errors.TokenExpired),
 )
 def verify_email(body: VerifyEmailIn, db: DbSession) -> UserOut:
     return UserOut.model_validate(service.verify_email(db, token=body.token))
@@ -69,7 +70,7 @@ def resend_verification(
     "/login",
     summary="Вход",
     description=f"Ставит httpOnly-cookie `{ACCESS_COOKIE}`; срок — настройка `SESSION_TTL_HOURS`.",
-    responses=error_responses(service.InvalidCredentials, service.EmailNotVerified),
+    responses=error_responses(errors.InvalidCredentials, errors.EmailNotVerified),
 )
 def login(
     body: LoginIn,

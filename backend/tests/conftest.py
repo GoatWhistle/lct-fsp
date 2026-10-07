@@ -24,7 +24,7 @@ from app.config import BACKEND_DIR, Mechanics, Settings
 from app.db import create_db_engine
 from app.identity.models import Role
 from app.mail import Mail
-from app.main import create_app
+from main import create_app
 
 PASSWORD = "correct-horse-battery"
 DATABASE_TIMEZONE = "Europe/Moscow"

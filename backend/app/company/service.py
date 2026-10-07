@@ -4,10 +4,10 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.orm import Session
 
 from app.assessment.models import Industry
-from app.assessment.service import UnknownIndustry
 from app.company.models import Company
 from app.company.schemas import CompanyIn
 from app.db import utcnow
+from app.domain.errors import UnknownIndustry
 
 
 def get_company(db: Session, user_id: uuid.UUID) -> Company | None:

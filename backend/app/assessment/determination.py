@@ -7,7 +7,7 @@
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 
-from app.skills.irt import Normal
+from app.domain.skill import Normal
 
 
 @dataclass(frozen=True)

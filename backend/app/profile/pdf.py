@@ -17,7 +17,7 @@ from fpdf.enums import XPos, YPos
 from fpdf.fonts import FontFace
 
 from app.assessment.schemas import CategoryOut, LevelBandOut, LevelOut, SkillProfileOut
-from app.matching.models import WorkFormat
+from app.domain.work import WorkFormat
 from app.profile.models import CandidateProfile
 
 FONTS = Path(__file__).with_name("fonts")

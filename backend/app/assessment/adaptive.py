@@ -12,7 +12,8 @@ from datetime import datetime
 from typing import Self
 
 from app.config import Mechanics
-from app.skills.irt import Estimate, Normal, Prior, sigmoid
+from app.domain.skill import Normal, Prior
+from app.skills.irt import Estimate, sigmoid
 
 
 @dataclass(frozen=True)

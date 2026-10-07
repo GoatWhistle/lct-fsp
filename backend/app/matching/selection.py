@@ -21,10 +21,11 @@ from sqlalchemy import ColumnElement, and_, func, insert, select
 from sqlalchemy.orm import Session
 
 from app.assessment.models import CandidateCategory, Grade
-from app.assessment.schemas import CatalogRef
 from app.config import Mechanics
+from app.controller.schemas import CatalogRef
 from app.db import utcnow
-from app.errors import AppError
+from app.domain.errors import SelectionNotFound
+from app.domain.skill import Normal
 from app.matching.models import Need, Selection, SelectionBlock, SelectionEntry
 from app.matching.schemas import (
     Explanation,
@@ -36,14 +37,7 @@ from app.matching.schemas import (
 from app.matching.score import Match, Requirement, match_score, ranking, requirements, verdict
 from app.matching.service import get_need, need_topics
 from app.profile.models import candidate_technologies
-from app.skills.irt import Normal
 from app.skills.models import SkillProfile, SkillProfileTopic
-
-
-class SelectionNotFound(AppError):
-    status_code = 404
-    code = "selection_not_found"
-    message = "Подборка не найдена"
 
 
 @dataclass(frozen=True)

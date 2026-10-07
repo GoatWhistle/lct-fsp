@@ -19,4 +19,4 @@ FROM base AS runtime
 COPY . .
 EXPOSE 8000
 # Миграции и справочники — при каждом старте: оба шага идемпотентны.
-CMD ["sh", "-c", "alembic upgrade head && python -m app.assessment.catalog && exec uvicorn app.main:app --host 0.0.0.0 --port 8000 --proxy-headers --forwarded-allow-ips='*'"]
+CMD ["sh", "-c", "alembic upgrade head && python -m app.assessment.catalog && exec uvicorn --factory main:create_app --host 0.0.0.0 --port 8000 --proxy-headers --forwarded-allow-ips='*'"]

@@ -4,12 +4,21 @@
 
 import uuid
 from datetime import datetime
+from typing import Protocol
 
 from sqlalchemy import ForeignKey, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.assessment.models import Topic
 from app.db import Base
+
+
+class TopicRow(Protocol):
+    """Строка справочника тем. ORM тем — в `app.assessment.models`: профиль ссылается на неё по
+    имени в реестре моделей, чтобы `skills` не зависел от теста."""
+
+    code: str
+    name: str
+    position: int
 
 
 class SkillProfile(Base):
@@ -39,4 +48,4 @@ class SkillProfileTopic(Base):
     theta: Mapped[float]
     theta_sd: Mapped[float]
 
-    topic: Mapped[Topic] = relationship(lazy="joined")
+    topic: Mapped[TopicRow] = relationship("Topic", lazy="joined")

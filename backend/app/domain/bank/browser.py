@@ -5,7 +5,7 @@ import math
 import random
 from urllib.parse import urljoin, urlsplit
 
-from app.assessment.bank.family import Instance, rounded
+from app.domain.bank.family import Instance, rounded
 
 
 def parallel_downloads(rng: random.Random) -> Instance:

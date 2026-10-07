@@ -2,8 +2,8 @@
 
 import random
 
-from app.assessment.bank.family import Instance, rounded
-from app.assessment.bank.sql import CUSTOMERS, render, run_sql
+from app.domain.bank.family import Instance, rounded
+from app.domain.bank.sql import CUSTOMERS, render, run_sql
 
 ALPHABETS = [
     ("только цифры", 10),

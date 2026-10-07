@@ -71,7 +71,7 @@ backend/                 FastAPI + SQLAlchemy + Alembic, PostgreSQL
                          слои и порты — docs/adr/0001-layers-and-ports.md; модули переезжают туда
   app/<модуль>/          models, schemas, service, router одного модуля
   app/assessment/catalog.yaml   справочники: грейды, сферы бизнеса, специализации, темы, технологии
-  app/assessment/bank/   семейства заданий: генератор экземпляра по seed и эталон кодом
+  app/domain/bank/       семейства заданий: генератор экземпляра по seed и эталон кодом
   config/mechanics.yaml  параметры механик — те же, что в docs/parameters.md
   migrations/            миграции схемы
   tests/                 тесты через HTTP API
@@ -80,10 +80,11 @@ docker-compose.yml       PostgreSQL, бэкенд, фронт, Mailpit
 ```
 
 Модули бэкенда: `identity` — учётки, роли, подтверждение email; `assessment` — справочники,
-банк семейств, адаптивный тест (чистые функции в `adaptive.py`), калибровка семейств (чистые
+адаптивный тест (чистые функции в `adaptive.py`), калибровка семейств (чистые
 функции в `calibration.py`) и путь кандидата к категории (опрос, попытки теста, предъявления,
 категория);
-`skills` — модель навыка IRT 2PL (чистые функции в `irt.py`) и профиль навыков; `profile` —
+`skills` — модель навыка IRT 2PL (чистые функции в `irt.py`) и запись профиля навыков, сам
+профиль считает сценарий `app/usecase/skill_profile.py`; банк семейств — в `app/domain/bank/`; `profile` —
 профиль кандидата, PDF-профиль (рендер — `app/adapter/profile_pdf.py`, шрифт PT Sans под OFL
 в `app/adapter/fonts/`) и обезличенная карточка для работодателя; `company` — профиль компании; `matching` — потребность работодателя
 и HTTP подборки. Подборка — глубокий модуль: домен `app/domain/selection.py` (блоки, скор,

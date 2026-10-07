@@ -5,7 +5,7 @@ import math
 import random
 from itertools import pairwise
 
-from app.assessment.bank.family import Instance, rounded
+from app.domain.bank.family import Instance, rounded
 
 
 def log_retention(rng: random.Random) -> Instance:

@@ -6,7 +6,7 @@ from collections.abc import Mapping, Sequence
 from contextlib import closing
 from typing import Any
 
-from app.assessment.bank.family import Instance
+from app.domain.bank.family import Instance
 
 CUSTOMERS = ["anna", "boris", "vera", "gleb", "dina", "egor", "zoya", "igor"]
 STATUSES = ["paid", "new", "cancelled"]

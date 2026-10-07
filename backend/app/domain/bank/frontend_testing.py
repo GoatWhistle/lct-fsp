@@ -3,7 +3,7 @@
 
 import random
 
-from app.assessment.bank.family import Instance, rounded
+from app.domain.bank.family import Instance, rounded
 
 
 def jest_matchers(rng: random.Random) -> Instance:

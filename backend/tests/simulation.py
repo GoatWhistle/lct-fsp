@@ -35,7 +35,6 @@ from app.assessment.adaptive import (
     selection_prior,
     should_stop,
 )
-from app.assessment.bank import Family, families_for_topics
 from app.assessment.calibration import (
     Link,
     Parameters,
@@ -49,9 +48,10 @@ from app.assessment.calibration import (
 from app.assessment.catalog import load_catalog
 from app.assessment.determination import Assign, Offer, decide, grades_by_threshold
 from app.config import BACKEND_DIR, Mechanics
+from app.domain.bank import Family, families_for_topics
 from app.domain.skill import Normal, Observation
 from app.skills.irt import estimate, initial, sigmoid, update
-from app.skills.service import specialization_prior
+from app.usecase.skill_profile import specialization_prior
 
 # Сиды наборов плана валидации: D1 — основной, D3 — настроечный.
 SEED = 20261005

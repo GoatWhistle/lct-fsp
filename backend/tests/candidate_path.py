@@ -5,7 +5,7 @@ from typing import Any
 
 from fastapi.testclient import TestClient
 
-from app.assessment.bank import Family, Instance, families_for_topics
+from app.domain.bank import Family, Instance, families_for_topics
 from tests.conftest import Seeds
 
 PATH = "/api/candidate/path"

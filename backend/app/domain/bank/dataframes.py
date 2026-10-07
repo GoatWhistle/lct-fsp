@@ -6,8 +6,8 @@ NumPy и pandas на бэкенде нет: эталон считает моде
 
 import random
 
-from app.assessment.bank.family import Instance, rounded
-from app.assessment.bank.python_code import PROMPT, run_python
+from app.domain.bank.family import Instance, rounded
+from app.domain.bank.python_code import PROMPT, run_python
 
 CITIES = ["Казань", "Москва", "Пермь", "Томск", "Уфа"]
 

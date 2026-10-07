@@ -9,7 +9,7 @@ from sqlalchemy import ForeignKey, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.assessment.models import Topic
-from app.db import Base, utcnow
+from app.db import Base
 
 
 class SkillProfile(Base):
@@ -24,7 +24,7 @@ class SkillProfile(Base):
     overall_theta_sd: Mapped[float]
     observations: Mapped[int]
     last_signal_at: Mapped[datetime | None]
-    updated_at: Mapped[datetime] = mapped_column(default=utcnow, onupdate=utcnow)
+    updated_at: Mapped[datetime]
 
     topics: Mapped[list["SkillProfileTopic"]] = relationship(cascade="all, delete-orphan")
 

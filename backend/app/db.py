@@ -1,5 +1,5 @@
 from collections.abc import Iterator
-from datetime import UTC, datetime
+from datetime import datetime
 from typing import Annotated, Any, ClassVar
 
 from fastapi import Depends, Request
@@ -19,10 +19,6 @@ NAMING_CONVENTION = {
 class Base(DeclarativeBase):
     metadata = MetaData(naming_convention=NAMING_CONVENTION)
     type_annotation_map: ClassVar = {datetime: DateTime(timezone=True)}
-
-
-def utcnow() -> datetime:
-    return datetime.now(UTC)
 
 
 def create_db_engine(url: str, **kwargs: Any) -> Engine:

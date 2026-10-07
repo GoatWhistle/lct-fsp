@@ -35,6 +35,15 @@ class Topic:
 
 
 @dataclass(frozen=True)
+class Technology:
+    """Технология стека; `topics` — коды тем, с которыми она связана, любых специализаций."""
+
+    code: str
+    name: str
+    topics: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True)
 class Specialization:
     """Специализация — IT-направление, «отрасль» в ТЗ; темы — в порядке справочника."""
 

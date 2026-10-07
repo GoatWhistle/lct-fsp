@@ -3,10 +3,10 @@ from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
-from app.assessment import bank
 from app.assessment.models import Grade, Industry, Specialization, Technology, Topic
 from app.controller.errors import error_responses
 from app.db import DbSession
+from app.domain import bank
 from app.domain.errors import SpecializationNotFound
 
 router = APIRouter(prefix="/api/catalog", tags=["catalog"])

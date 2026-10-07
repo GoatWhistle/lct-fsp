@@ -11,6 +11,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from sqlalchemy.orm import sessionmaker
 
+from app.adapter.acceptance import NoAcceptanceModel
 from app.adapter.clock import SystemClock
 from app.adapter.mail import SmtpMailer
 from app.adapter.profile_pdf import FpdfProfileRenderer
@@ -27,15 +28,21 @@ from app.db import create_db_engine
 from app.identity.router import router as auth_router
 from app.matching.router import router as needs_router
 from app.matching.router import selections_router
+from app.repository.attempt import SqlAttemptReader
 from app.repository.candidate import SqlCandidateRepository
+from app.repository.selection import SqlCandidatePool, SqlNeeds, SqlSelections
 from app.repository.unit_of_work import SqlUnitOfWork
+from app.skills import irt
 from app.usecase.interface import (
+    AcceptanceModel,
     CandidateRepository,
     Clock,
     Mailer,
     ProfilePdfRenderer,
     SeedSource,
+    SkillModel,
 )
+from app.usecase.selection import Selections
 
 
 def description() -> str:
@@ -57,6 +64,8 @@ def create_app(
     profile_pdf_renderer: ProfilePdfRenderer | None = None,
     clock: Clock | None = None,
     seeds: SeedSource | None = None,
+    skill_model: SkillModel | None = None,
+    acceptance: AcceptanceModel | None = None,
 ) -> FastAPI:
     settings = settings or Settings()
     mechanics = mechanics or Mechanics.from_yaml(settings.mechanics_file)
@@ -91,12 +100,30 @@ def create_app(
 
     app.state.unit_of_work = unit_of_work
     app.state.candidate_repository = candidate_repository
+    # Репозитории чтения — по сессии единицы работы запроса.
+    app.state.attempt_reader = SqlAttemptReader
     app.state.mailer = mailer or SmtpMailer(
         settings.smtp_host, settings.smtp_port, settings.mail_from
     )
     app.state.profile_pdf_renderer = profile_pdf_renderer or FpdfProfileRenderer()
     app.state.clock = clock or SystemClock()
     app.state.seeds = seeds or SecureSeeds()
+    app.state.skill_model = skill_model or irt
+    acceptance_model = acceptance or NoAcceptanceModel()
+
+    def selections(uow: SqlUnitOfWork) -> Selections:
+        return Selections(
+            uow,
+            SqlNeeds(uow.session),
+            SqlCandidatePool(uow.session),
+            SqlSelections(uow.session),
+            acceptance_model,
+            app.state.clock,
+            app.state.seeds,
+            mechanics,
+        )
+
+    app.state.selections = selections
 
     install_error_handlers(app)
     app.include_router(auth_router)

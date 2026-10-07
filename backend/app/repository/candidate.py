@@ -6,7 +6,7 @@ ORM анкеты, категории и профиля навыков пока �
 
 import uuid
 from collections import defaultdict
-from collections.abc import Collection, Mapping, Sequence
+from collections.abc import Mapping, Sequence
 from datetime import datetime
 from typing import Any
 
@@ -29,8 +29,6 @@ from app.domain.work import WorkFormat
 from app.profile.models import CandidateProfile, candidate_industries, candidate_technologies
 from app.skills.models import SkillProfile, SkillProfileTopic
 
-_Ids = Sequence[uuid.UUID] | Select[uuid.UUID]
-
 
 class SqlCandidateRepository:
     """Уровни словами считаются здесь же, по порогам грейдов и порогу уверенности из
@@ -46,21 +44,6 @@ class SqlCandidateRepository:
     def get(self, candidate_id: uuid.UUID) -> candidate.Candidate:
         found = self._load([candidate_id]).get(candidate_id)
         return found or candidate.Candidate(candidate_id, None, None, None, None)
-
-    def in_reach(self, specialization: str, grades: Collection[str]) -> list[candidate.Candidate]:
-        scope = select(CandidateCategory.user_id).where(
-            CandidateCategory.specialization_code == specialization,
-            CandidateCategory.grade_code.in_(grades),
-        )
-        # Запросы частей идут друг за другом, категория между ними могла смениться: кандидат —
-        # в выдаче, только если в охвате его категория из того же чтения, что и остальное.
-        return [
-            c
-            for c in self._load(scope).values()
-            if c.category
-            and c.category.specialization.code == specialization
-            and c.category.grade.code in grades
-        ]
 
     def save_profile(
         self, candidate_id: uuid.UUID, form: candidate.ProfileForm, now: datetime
@@ -91,10 +74,9 @@ class SqlCandidateRepository:
         row.industries = industries
         self.session.flush()
 
-    def _load(self, ids: _Ids) -> dict[uuid.UUID, candidate.Candidate]:
+    def _load(self, ids: Sequence[uuid.UUID]) -> dict[uuid.UUID, candidate.Candidate]:
         """Кандидаты, у которых есть хоть что-то, — по запросу на часть, без запроса на
-        кандидата. `ids` — список или подзапрос: подборка не гонит тысячи id параметрами.
-        Строки, а не ORM-объекты: подборка грузит так тысячи кандидатов за раз."""
+        кандидата."""
         db = self.session
         categories = {
             user_id: candidate.Category(
@@ -166,7 +148,7 @@ class SqlCandidateRepository:
             refs[user_id].append(CatalogRef(code, name))
         return refs
 
-    def _skill_profiles(self, ids: _Ids) -> dict[uuid.UUID, candidate.SkillProfile]:
+    def _skill_profiles(self, ids: Sequence[uuid.UUID]) -> dict[uuid.UUID, candidate.SkillProfile]:
         """Профили навыков специализации категории; темы — в порядке справочника. Профиль и его
         темы — разными запросами: строк тем в разы больше, чем профилей."""
         in_category = and_(

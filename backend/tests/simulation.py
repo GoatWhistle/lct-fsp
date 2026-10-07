@@ -27,31 +27,23 @@ from concurrent.futures import ProcessPoolExecutor
 from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime
 
-from app.assessment.adaptive import (
-    Blueprint,
-    Exposure,
-    Option,
-    choose,
-    selection_prior,
-    should_stop,
-)
-from app.assessment.calibration import (
-    Link,
-    Parameters,
-    Response,
-    elo_update,
-    expert,
-    fit_link,
-    refit,
-    rest_levels,
-)
+from app.adapter.adaptive import choose
 from app.assessment.catalog import load_catalog
-from app.assessment.determination import Assign, Offer, decide, grades_by_threshold
 from app.config import BACKEND_DIR, Mechanics
+from app.domain.adaptive import Exposure, Option, selection_prior, should_stop
 from app.domain.bank import Family, families_for_topics
+from app.domain.calibration import Link, Parameters, Response, elo_update, fit_link, refit
+from app.domain.determination import Assign, Offer, decide, grades_by_threshold
 from app.domain.skill import Normal, Observation
+from app.skills import irt
 from app.skills.irt import estimate, initial, sigmoid, update
+from app.usecase.attempt import blueprint_of, rest_levels
 from app.usecase.skill_profile import specialization_prior
+
+
+def expert(grade: str, mechanics: Mechanics) -> Parameters:
+    """Стартовые параметры семейства по грейду эксперта — как в `EloCalibration.expert`."""
+    return Parameters(mechanics.expert_discrimination, mechanics.expert_difficulty_by_grade[grade])
 
 # Сиды наборов плана валидации: D1 — основной, D3 — настроечный.
 SEED = 20261005
@@ -117,7 +109,7 @@ class Market:
         self.rng = rng
         self.calibrate = calibrate
         self.prior = specialization_prior(topics, mechanics)
-        self.blueprint = Blueprint.from_prior(self.prior, mechanics)
+        self.blueprint = blueprint_of(self.prior, mechanics)
         self.items = {}
         for f in families:
             start = expert(f.grade, mechanics)
@@ -179,7 +171,9 @@ class Market:
         for attempt in self.window:
             for code in attempt:
                 tally[code] = tally.get(code, 0) + 1
-        exposure = Exposure.from_mechanics(len(self.window), self.mechanics)
+        exposure = Exposure(
+            len(self.window), self.mechanics.exposure_max_rate, self.mechanics.exposure_top_k
+        )
         answered: list[tuple[Item, Observation, Normal]] = []
         capped: list[str] = []
         limit = length or self.blueprint.max_items
@@ -252,7 +246,14 @@ class Market:
         """Эло до пакетной переоценки; после неё текущие параметры — опорные (§7)."""
         if self.calibrate and not item.family.anchor and not item.refitted:
             linked = Response(self.before_link.apply(response.level), response.correct)
-            item.params = elo_update(item.params, linked, item.responses, self.mechanics)
+            item.params = elo_update(
+                item.params,
+                linked,
+                item.responses,
+                k_initial=self.mechanics.elo_k_initial,
+                k_half_responses=self.mechanics.elo_k_half_responses,
+                k_min=self.mechanics.elo_k_min,
+            )
         item.responses += 1
 
     def _finish(
@@ -268,7 +269,7 @@ class Market:
         if not self.calibrate:
             return
         observations = [*previous, *(obs for _, obs, _ in answered)]
-        levels = rest_levels(self.prior, observations, range(len(previous), len(observations)))
+        levels = rest_levels(irt, self.prior, observations, range(len(previous), len(observations)))
         self.anchors.append(
             [
                 (item.params, Response(before, obs.correct), Response(level, obs.correct))
@@ -277,15 +278,25 @@ class Market:
             ]
         )
         anchors = [a for attempt in self.anchors for a in attempt]
-        self.before_link = fit_link([(p, before) for p, before, _ in anchors], self.mechanics)
-        self.rest_link = fit_link([(p, rest) for p, _, rest in anchors], self.mechanics)
+        minimum = self.mechanics.calibration_refit_min_responses
+        self.before_link = fit_link(
+            [(p, before) for p, before, _ in anchors], min_responses=minimum
+        )
+        self.rest_link = fit_link([(p, rest) for p, _, rest in anchors], min_responses=minimum)
         for (item, obs, _), level in zip(answered, levels, strict=True):
             item.answers.append(Response(level, obs.correct))
             due = len(item.answers) >= self.mechanics.calibration_refit_min_responses
             if due and not item.refitted and not item.family.anchor:
                 start = expert(item.family.grade, self.mechanics)
                 linked = [Response(self.rest_link.apply(r.level), r.correct) for r in item.answers]
-                item.params = refit(linked, start, self.mechanics)
+                item.params = refit(
+                    linked,
+                    start,
+                    difficulty_prior_sd=self.mechanics.calibration_refit_difficulty_prior_sd,
+                    log_discrimination_prior_sd=(
+                        self.mechanics.calibration_refit_log_discrimination_prior_sd
+                    ),
+                )
                 item.refitted = True
 
 

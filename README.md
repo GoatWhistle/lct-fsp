@@ -84,8 +84,8 @@ docker-compose.yml       PostgreSQL, бэкенд, фронт, Mailpit
 функции в `calibration.py`) и путь кандидата к категории (опрос, попытки теста, предъявления,
 категория);
 `skills` — модель навыка IRT 2PL (чистые функции в `irt.py`) и профиль навыков; `profile` —
-профиль кандидата, PDF-профиль (`pdf.py`, шрифт PT Sans под OFL в `fonts/`) и обезличенная
-карточка для работодателя; `company` — профиль компании; `matching` — потребность работодателя,
+профиль кандидата, PDF-профиль (рендер — `app/adapter/profile_pdf.py`, шрифт PT Sans под OFL
+в `app/adapter/fonts/`) и обезличенная карточка для работодателя; `company` — профиль компании; `matching` — потребность работодателя,
 важность тем (чистая функция в `importance.py`), скор соответствия (чистые функции в `score.py`)
 и подборка (`selection.py`). Вход — по email и паролю, пароль хранится
 хэшем argon2, сессия — подписанный токен в httpOnly-cookie. Права проверяет бэкенд: разделы
@@ -136,6 +136,17 @@ cd frontend && npm run lint && npm run build
   эндпоинт перечисляет ошибки в `responses=error_responses(...)`, и коды попадают в OpenAPI.
 - **Разделы роли** — роутер с префиксом `/api/candidate` или `/api/employer`,
   `dependencies=role_guard(Role.…)` и `responses=ROLE_RESPONSES` (см. `app/cabinets.py`).
+- **Порт внешней системы** — по образцу почты, правило —
+  [`docs/adr/0001-layers-and-ports.md`](docs/adr/0001-layers-and-ports.md):
+  1. порт — `Protocol` в `app/usecase/interface.py` (`Mailer`); на входе и выходе только типы из
+     `app/domain` (`Mail` в `app/domain/mail.py`), без ORM, Pydantic и типов библиотеки;
+  2. реализация — в `app/adapter/` (`SmtpMailer` в `app/adapter/mail.py`); библиотеку и протокол
+     системы импортирует только она — `test_layers.py` это проверяет для SMTP и fpdf2;
+  3. сборка — в `create_app` (`backend/main.py`): адаптер создаётся там и кладётся в
+     `app.state`, эндпоинт получает его через зависимость из `app/controller/deps.py`
+     (`MailerDep`) и передаёт в сценарий;
+  4. тестовая реализация — тоже в `app/adapter/` (`MemoryMailer`); тесты подставляют её через
+     параметр `create_app`, хелперы поверх — в `tests/conftest.py` (`Outbox`).
 - **Тест** — через HTTP API, фикстуры из `tests/conftest.py`: `client` — аноним,
   `signed_in(Role.candidate)` — вошедший пользователь роли, `outbox` — отправленные письма.
 - **Типы API на фронте** генерируются из OpenAPI: при запущенном бэкенде `npm run api:types`.

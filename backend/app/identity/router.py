@@ -3,6 +3,7 @@ from datetime import timedelta
 from fastapi import APIRouter, Response, status
 
 from app.config import SettingsDep
+from app.controller.deps import MailerDep
 from app.controller.errors import error_responses
 from app.db import DbSession
 from app.domain import errors
@@ -16,7 +17,6 @@ from app.identity.schemas import (
     VerifyEmailIn,
 )
 from app.identity.security import issue_access_token
-from app.mail import MailerDep
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 

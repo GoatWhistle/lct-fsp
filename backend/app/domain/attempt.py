@@ -228,6 +228,31 @@ class PathView:
 
 
 @dataclass(frozen=True)
+class Answer:
+    """Зафиксированный ответ на задание — вход калибровки (mechanics.md, §7): она идёт по нему
+    после фиксации ответа, без повторного чтения попытки."""
+
+    specialization_code: str
+    family_code: str
+    # Оценка теста по теме до ответа (μ_t, σ_t) — с ней шаг Эло сравнивает ответ.
+    level_before: Normal
+    correct: bool
+    answered_at: datetime
+    # Ответ остановил попытку: после шага Эло — связка шкалы и переоценка семейств попытки.
+    stopped: bool
+    # Семейства, показанные в попытке, — в порядке показа.
+    families: tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class Answered:
+    """Итог сценария ответа: шаг пути — кандидату, ответ — сценарию калибровки."""
+
+    view: PathView
+    answer: Answer
+
+
+@dataclass(frozen=True)
 class Item:
     """Текущее задание попытки — экземпляр семейства; эталон из него на фронт не уходит."""
 

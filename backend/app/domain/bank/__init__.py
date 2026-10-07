@@ -11,7 +11,7 @@
 
 from collections.abc import Iterable, Sequence
 
-from app.assessment.bank import (
+from app.domain.bank import (
     algorithms,
     automation,
     browser,
@@ -39,7 +39,7 @@ from app.assessment.bank import (
     statistics,
     testing,
 )
-from app.assessment.bank.family import Family, Generator, Instance, same_answer
+from app.domain.bank.family import Family, Generator, Instance, same_answer
 
 __all__ = [
     "BANK",

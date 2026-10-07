@@ -8,10 +8,10 @@ from decimal import Decimal, InvalidOperation
 
 import pytest
 
-from app.assessment.bank import BANK, RETIRED, Family, covers, families_for_topics, get_family
-from app.assessment.bank.family import same_answer, values
 from app.assessment.catalog import load_catalog
 from app.config import Mechanics, Settings
+from app.domain.bank import BANK, RETIRED, Family, covers, families_for_topics, get_family
+from app.domain.bank.family import same_answer, values
 
 SEEDS = range(200)
 # Совпадения ответов считаются на большей выборке: доля около 4 % на 200 экземплярах шумит.

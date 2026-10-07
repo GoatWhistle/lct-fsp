@@ -3,7 +3,7 @@
 import random
 from typing import Any
 
-from app.assessment.bank.family import Instance
+from app.domain.bank.family import Instance
 
 PROMPT = "Что выведет программа на Python? Ответ — то, что появится в консоли."
 

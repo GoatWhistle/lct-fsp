@@ -2,7 +2,7 @@
 
 import random
 
-from app.assessment.bank.family import Instance, rounded
+from app.domain.bank.family import Instance, rounded
 
 PROMPT = "Сколько тестов соберёт pytest из этого файла? Ответ — целое число."
 

@@ -24,7 +24,7 @@ from app.config import Mechanics, MechanicsDep
 from app.controller.deps import ClockDep, SeedsDep
 from app.controller.errors import error_responses
 from app.controller.schemas import CatalogRef
-from app.db import DbSession
+from app.db import DbSession, UnitOfWorkDep
 from app.domain import errors
 from app.domain.skill import Normal
 from app.identity.deps import ROLE_RESPONSES, CurrentUser, role_guard
@@ -56,9 +56,9 @@ def get_path(user: CurrentUser, db: DbSession, mechanics: MechanicsDep, clock: C
     ),
 )
 def submit_survey(
-    body: SurveyIn, user: CurrentUser, db: DbSession, mechanics: MechanicsDep, clock: ClockDep
+    body: SurveyIn, user: CurrentUser, uow: UnitOfWorkDep, mechanics: MechanicsDep, clock: ClockDep
 ) -> PathOut:
-    view = service.submit_survey(db, user, clock, specialization=body.specialization)
+    view = service.submit_survey(uow, user, clock, specialization=body.specialization)
     return _path_out(view, mechanics)
 
 
@@ -70,9 +70,9 @@ def submit_survey(
     responses=error_responses(errors.StepUnavailable, errors.GradeNotOffered, errors.UnknownGrade),
 )
 def start_attempt(
-    body: AttemptIn, user: CurrentUser, db: DbSession, mechanics: MechanicsDep, clock: ClockDep
+    body: AttemptIn, user: CurrentUser, uow: UnitOfWorkDep, mechanics: MechanicsDep, clock: ClockDep
 ) -> PathOut:
-    view = service.start_attempt(db, user, mechanics, clock, grade=body.grade)
+    view = service.start_attempt(uow, user, mechanics, clock, grade=body.grade)
     return _path_out(view, mechanics)
 
 
@@ -84,9 +84,9 @@ def start_attempt(
     responses=error_responses(errors.NoTestInProgress),
 )
 def get_item(
-    user: CurrentUser, db: DbSession, mechanics: MechanicsDep, clock: ClockDep, seeds: SeedsDep
+    user: CurrentUser, uow: UnitOfWorkDep, mechanics: MechanicsDep, clock: ClockDep, seeds: SeedsDep
 ) -> ItemOut:
-    item = service.current_item(db, user, mechanics, clock, seeds)
+    item = service.current_item(uow, user, mechanics, clock, seeds)
     return ItemOut(
         id=item.presentation.id,
         number=item.presentation.position + 1,
@@ -107,10 +107,10 @@ def get_item(
     responses=error_responses(errors.NoTestInProgress, errors.ItemNotCurrent),
 )
 def answer_item(
-    body: AnswerIn, user: CurrentUser, db: DbSession, mechanics: MechanicsDep, clock: ClockDep
+    body: AnswerIn, user: CurrentUser, uow: UnitOfWorkDep, mechanics: MechanicsDep, clock: ClockDep
 ) -> PathOut:
     view = service.answer(
-        db, user, mechanics, clock, presentation_id=body.presentation_id, response=body.response
+        uow, user, mechanics, clock, presentation_id=body.presentation_id, response=body.response
     )
     return _path_out(view, mechanics)
 

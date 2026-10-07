@@ -6,6 +6,7 @@
 """
 
 from collections.abc import Sequence
+from contextlib import closing
 from pathlib import Path
 from typing import Self
 
@@ -25,6 +26,7 @@ from app.assessment.models import (
 )
 from app.config import Settings
 from app.db import create_db_engine
+from app.repository.unit_of_work import SqlUnitOfWork
 
 CATALOG_FILE = Path(__file__).with_name("catalog.yaml")
 
@@ -150,9 +152,8 @@ def sync_catalog(db: Session, data: CatalogData) -> None:
 
 def main() -> None:
     engine = create_db_engine(Settings().database_url)
-    with Session(engine) as db:
-        sync_catalog(db, load_catalog())
-        db.commit()
+    with closing(SqlUnitOfWork(Session(engine))) as uow, uow:
+        sync_catalog(uow.session, load_catalog())
     engine.dispose()
     print("Справочники синхронизированы")
 

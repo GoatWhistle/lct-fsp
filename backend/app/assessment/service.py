@@ -48,6 +48,7 @@ from app.domain.errors import (
 from app.domain.skill import Observation, Prior
 from app.identity.models import User
 from app.repository.catalog import topic_of
+from app.repository.unit_of_work import SqlUnitOfWork
 from app.skills.irt import estimate
 from app.skills.models import SkillProfile
 from app.skills.service import presentation_observation, refresh_profile, specialization_prior
@@ -129,65 +130,67 @@ def _path(db: Session, user_id: uuid.UUID, now: datetime) -> PathView:
     return PathView(stage, survey, attempt, category, profile)
 
 
-def submit_survey(db: Session, user: User, clock: Clock, *, specialization: str) -> PathView:
-    _lock(db, user)
-    now = clock.now()
-    if _path(db, user.id, now).stage not in (Stage.survey, Stage.grade):
-        raise StepUnavailable()
-    if db.get(Specialization, specialization) is None:
-        raise UnknownSpecialization()
-    if not bank.covers(_topics(db, specialization)):
-        raise SpecializationWithoutTest()
-    db.add(
-        Survey(
-            user_id=user.id,
-            number=_next_number(db, Survey, user.id),
-            specialization_code=specialization,
-            created_at=now,
+def submit_survey(uow: SqlUnitOfWork, user: User, clock: Clock, *, specialization: str) -> PathView:
+    with uow:
+        db = uow.session
+        _lock(db, user)
+        now = clock.now()
+        if _path(db, user.id, now).stage not in (Stage.survey, Stage.grade):
+            raise StepUnavailable()
+        if db.get(Specialization, specialization) is None:
+            raise UnknownSpecialization()
+        if not bank.covers(_topics(db, specialization)):
+            raise SpecializationWithoutTest()
+        db.add(
+            Survey(
+                user_id=user.id,
+                number=_next_number(db, Survey, user.id),
+                specialization_code=specialization,
+                created_at=now,
+            )
         )
-    )
-    db.commit()
-    return _path(db, user.id, now)
+        return _path(db, user.id, now)
 
 
 def start_attempt(
-    db: Session, user: User, mechanics: Mechanics, clock: Clock, *, grade: str
+    uow: SqlUnitOfWork, user: User, mechanics: Mechanics, clock: Clock, *, grade: str
 ) -> PathView:
     """Тест на заявленный грейд или дотест каскада на предложенный; возвращает шаг пути на тот
     же момент."""
-    _lock(db, user)
-    if grade not in mechanics.grade_thresholds:
-        raise UnknownGrade()
-    now = clock.now()
-    view = _path(db, user.id, now)
-    if view.stage == Stage.grade and view.survey is not None:
-        survey, continues = view.survey, None
-    elif view.stage == Stage.offer and view.attempt is not None:
-        if grade != view.attempt.outcome_grade_code:
-            raise GradeNotOffered()
-        survey, continues = db.get_one(Survey, view.attempt.survey_id), view.attempt
-    else:
-        raise StepUnavailable()
+    with uow:
+        db = uow.session
+        _lock(db, user)
+        if grade not in mechanics.grade_thresholds:
+            raise UnknownGrade()
+        now = clock.now()
+        view = _path(db, user.id, now)
+        if view.stage == Stage.grade and view.survey is not None:
+            survey, continues = view.survey, None
+        elif view.stage == Stage.offer and view.attempt is not None:
+            if grade != view.attempt.outcome_grade_code:
+                raise GradeNotOffered()
+            survey, continues = db.get_one(Survey, view.attempt.survey_id), view.attempt
+        else:
+            raise StepUnavailable()
 
-    attempt = TestAttempt(
-        user_id=user.id,
-        number=_next_number(db, TestAttempt, user.id),
-        survey_id=survey.id,
-        specialization_code=survey.specialization_code,
-        grade_code=grade,
-        continues_attempt_id=continues.id if continues else None,
-        started_at=now,
-    )
-    db.add(attempt)
-    db.flush()
-    if not _remaining(db, attempt, mechanics):
-        _finish(db, attempt, mechanics, now)
-    db.commit()
-    return _path(db, user.id, now)
+        attempt = TestAttempt(
+            user_id=user.id,
+            number=_next_number(db, TestAttempt, user.id),
+            survey_id=survey.id,
+            specialization_code=survey.specialization_code,
+            grade_code=grade,
+            continues_attempt_id=continues.id if continues else None,
+            started_at=now,
+        )
+        db.add(attempt)
+        db.flush()
+        if not _remaining(db, attempt, mechanics):
+            _finish(db, attempt, mechanics, now)
+        return _path(db, user.id, now)
 
 
 def current_item(
-    db: Session, user: User, mechanics: Mechanics, clock: Clock, seeds: SeedSource
+    uow: SqlUnitOfWork, user: User, mechanics: Mechanics, clock: Clock, seeds: SeedSource
 ) -> Item:
     """Текущее задание попытки. Предъявление создаётся при первом показе — с него идут часы
     ответа; повторный запрос отдаёт то же задание и часы не сбрасывает.
@@ -196,19 +199,20 @@ def current_item(
     грейда попытки; экземпляр всегда новый, со свежим seed. Seed выбора и экземпляра — из
     `seeds`: в проде по ним никто не угадает следующее семейство, в тестах они воспроизводимы.
     """
-    _lock(db, user)
-    attempt = _attempt_in_progress(db, user.id)
-    presentation = _pending(attempt)
-    if presentation is None:
-        presentation = _present(db, attempt, mechanics, clock.now(), seeds)
-        db.commit()
-    family = bank.get_family(presentation.family_code)
-    topic = topic_of(db.get_one(TopicRow, presentation.topic_code))
-    return Item(presentation, family.instance(presentation.seed), topic)
+    with uow:
+        db = uow.session
+        _lock(db, user)
+        attempt = _attempt_in_progress(db, user.id)
+        presentation = _pending(attempt)
+        if presentation is None:
+            presentation = _present(db, attempt, mechanics, clock.now(), seeds)
+        family = bank.get_family(presentation.family_code)
+        topic = topic_of(db.get_one(TopicRow, presentation.topic_code))
+        return Item(presentation, family.instance(presentation.seed), topic)
 
 
 def answer(
-    db: Session,
+    uow: SqlUnitOfWork,
     user: User,
     mechanics: Mechanics,
     clock: Clock,
@@ -216,38 +220,63 @@ def answer(
     presentation_id: uuid.UUID,
     response: str,
 ) -> PathView:
-    """Проверка ответа на бэкенде; верность на фронт не уходит. После ответа — шаг Эло по
-    семейству и проверка остановки: точность набрана или спрашивать больше нечего. После
-    остановки — пересчёт связки шкалы и пакетная переоценка семейств, набравших ответы (§7)."""
-    _lock(db, user)
-    attempt = _attempt_in_progress(db, user.id)
-    presentation = _pending(attempt)
-    if presentation is None or presentation.id != presentation_id:
-        raise ItemNotCurrent()
-    now = clock.now()
-    family = bank.get_family(presentation.family_code)
-    presentation.response = response
-    presentation.correct = family.check(family.instance(presentation.seed), response)
-    presentation.answered_at = now
-    # Часы сервера при синхронизации отходят назад на секунды — время ответа не уходит в минус.
-    elapsed = (now - presentation.shown_at).total_seconds()
-    presentation.response_time_ms = max(0, round(elapsed * 1000))
-    families.learn(db, presentation, mechanics)
+    """Проверка ответа на бэкенде; верность на фронт не уходит. После ответа — проверка
+    остановки: точность набрана или спрашивать больше нечего.
 
-    prior = _prior(db, attempt, mechanics)
-    overall = estimate(prior, _observations(db, attempt)).overall()
-    blueprint = Blueprint.from_prior(prior, mechanics)
-    stop = should_stop(blueprint, _counts(attempt), overall)
-    if stop or not _remaining(db, attempt, mechanics):
-        _finish(db, attempt, mechanics, now)
-    db.commit()
-    if attempt.finished_at is not None:
-        specialization = attempt.specialization_code
-        families.relink(db, specialization, mechanics, now)
-        families.refit_due(
-            db, [p.family_code for p in attempt.presentations], specialization, mechanics, now
-        )
-    return _path(db, user.id, now)
+    Калибровка (§7) — шаг Эло по семейству, после остановки ещё пересчёт связки шкалы и пакетная
+    переоценка — идёт после фиксации ответа своей транзакцией: её сбой пишется в лог и ответ не
+    отменяет.
+    """
+    now = clock.now()
+    with uow:
+        db = uow.session
+        _lock(db, user)
+        attempt = _attempt_in_progress(db, user.id)
+        presentation = _pending(attempt)
+        if presentation is None or presentation.id != presentation_id:
+            raise ItemNotCurrent()
+        family = bank.get_family(presentation.family_code)
+        presentation.response = response
+        presentation.correct = family.check(family.instance(presentation.seed), response)
+        presentation.answered_at = now
+        # Часы сервера при синхронизации отходят назад на секунды — время ответа не уходит в минус.
+        elapsed = (now - presentation.shown_at).total_seconds()
+        presentation.response_time_ms = max(0, round(elapsed * 1000))
+
+        prior = _prior(db, attempt, mechanics)
+        overall = estimate(prior, _observations(db, attempt)).overall()
+        blueprint = Blueprint.from_prior(prior, mechanics)
+        stop = should_stop(blueprint, _counts(attempt), overall)
+        if stop or not _remaining(db, attempt, mechanics):
+            _finish(db, attempt, mechanics, now)
+
+    try:
+        with uow:
+            _calibrate(uow.session, attempt, presentation, mechanics, now)
+    except Exception:
+        log.exception("Калибровка после ответа %s не прошла, ответ сохранён", presentation_id)
+    return _path(uow.session, user.id, now)
+
+
+def _calibrate(
+    db: Session,
+    attempt: TestAttempt,
+    presentation: Presentation,
+    mechanics: Mechanics,
+    now: datetime,
+) -> None:
+    """Шаг Эло по семейству ответа, после остановки попытки — связка шкалы и переоценка."""
+    if attempt.finished_at is None:
+        families.learn(db, presentation, mechanics)
+        return
+    codes = [p.family_code for p in attempt.presentations]
+    # Переоценка держит строки семейств попытки до конца транзакции. Берём их сразу и по порядку
+    # кодов, до шага Эло: иначе две одновременные остановки сцепятся блокировками.
+    families.lock(db, codes, mechanics)
+    families.learn(db, presentation, mechanics)
+    specialization = attempt.specialization_code
+    families.relink(db, specialization, mechanics, now)
+    families.refit_due(db, codes, specialization, mechanics, now)
 
 
 def _present(

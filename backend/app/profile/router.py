@@ -10,7 +10,7 @@ from app.config import Mechanics, MechanicsDep
 from app.controller.deps import ClockDep, ProfilePdfRendererDep
 from app.controller.errors import error_responses
 from app.controller.schemas import CatalogRef
-from app.db import DbSession
+from app.db import DbSession, UnitOfWorkDep
 from app.domain import errors
 from app.domain.work import WorkFormat
 from app.identity.deps import ROLE_RESPONSES, CurrentUser, role_guard
@@ -51,8 +51,10 @@ def get_profile(user: CurrentUser, db: DbSession) -> ProfileOut | None:
     "определяет только тест.",
     responses=error_responses(*service.PROFILE_ERRORS),
 )
-def save_profile(body: ProfileIn, user: CurrentUser, db: DbSession, clock: ClockDep) -> ProfileOut:
-    return _profile_out(service.save_profile(db, user.id, body, clock))
+def save_profile(
+    body: ProfileIn, user: CurrentUser, uow: UnitOfWorkDep, clock: ClockDep
+) -> ProfileOut:
+    return _profile_out(service.save_profile(uow, user.id, body, clock))
 
 
 @router.get(

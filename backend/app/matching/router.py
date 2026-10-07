@@ -6,11 +6,11 @@ from typing import Annotated
 
 from fastapi import APIRouter, Query, status
 
-from app.assessment.schemas import CatalogRef
-from app.assessment.service import UnknownSpecialization
 from app.config import Mechanics, MechanicsDep
+from app.controller.errors import error_responses
+from app.controller.schemas import CatalogRef
 from app.db import DbSession
-from app.errors import error_responses
+from app.domain import errors
 from app.identity.deps import ROLE_RESPONSES, CurrentUser, role_guard
 from app.identity.models import Role
 from app.matching import selection, service
@@ -67,7 +67,7 @@ def create_need(body: NeedIn, user: CurrentUser, db: DbSession, mechanics: Mecha
     description="Та же функция, что у сохранённой потребности: форма показывает, как стек "
     "превращается в важность тем, пока работодатель его выбирает.",
     responses=error_responses(
-        UnknownSpecialization, service.UnknownTechnology, service.TopicNotInSpecialization
+        errors.UnknownSpecialization, errors.UnknownTechnology, errors.TopicNotInSpecialization
     ),
 )
 def preview_topic_importance(
@@ -79,7 +79,7 @@ def preview_topic_importance(
 @router.get(
     "/{need_id}",
     summary="Потребность",
-    responses=error_responses(service.NeedNotFound),
+    responses=error_responses(errors.NeedNotFound),
 )
 def get_need(
     need_id: uuid.UUID, user: CurrentUser, db: DbSession, mechanics: MechanicsDep
@@ -91,7 +91,7 @@ def get_need(
     "/{need_id}",
     summary="Правка потребности",
     description="Заменяет потребность целиком, включая правки важности тем.",
-    responses=error_responses(service.NeedNotFound, *service.NEED_ERRORS),
+    responses=error_responses(errors.NeedNotFound, *service.NEED_ERRORS),
 )
 def update_need(
     need_id: uuid.UUID, body: NeedIn, user: CurrentUser, db: DbSession, mechanics: MechanicsDep
@@ -103,7 +103,7 @@ def update_need(
     "/{need_id}",
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Удаление потребности",
-    responses=error_responses(service.NeedNotFound),
+    responses=error_responses(errors.NeedNotFound),
 )
 def delete_need(need_id: uuid.UUID, user: CurrentUser, db: DbSession) -> None:
     service.delete_need(db, user.id, need_id)
@@ -116,7 +116,7 @@ def delete_need(need_id: uuid.UUID, user: CurrentUser, db: DbSession) -> None:
     description="Строит подборку по текущей потребности и профилям навыков и сохраняет её: "
     "кандидаты с категорией потребности, затем «близкие» — соседнего грейда. Внутри блока — по "
     "соответствию × P(принятия). Каждый вызов — новая подборка; отдаёт первую страницу выдачи.",
-    responses=error_responses(service.NeedNotFound),
+    responses=error_responses(errors.NeedNotFound),
 )
 def build_selection(
     need_id: uuid.UUID,
@@ -143,7 +143,7 @@ def list_selections(
     summary="Подборка",
     description="Выдача на момент построения — та же при каждом открытии, даже если потребность "
     "или профили кандидатов с тех пор изменились.",
-    responses=error_responses(selection.SelectionNotFound),
+    responses=error_responses(errors.SelectionNotFound),
 )
 def get_selection(
     selection_id: uuid.UUID,

@@ -8,17 +8,14 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from app.assessment.service import Stage
 from app.config import Mechanics
-from app.skills.irt import Normal, level_band
+from app.controller.schemas import CatalogRef
+from app.domain.skill import Normal
+from app.skills.irt import level_band
 from app.skills.models import SkillProfile
 
 
 class _Out(BaseModel):
     model_config = ConfigDict(from_attributes=True)
-
-
-class CatalogRef(_Out):
-    code: str
-    name: str
 
 
 class SurveyIn(BaseModel):

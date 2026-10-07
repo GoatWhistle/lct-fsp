@@ -10,7 +10,6 @@ from app.assessment.schemas import (
     AnswerIn,
     AttemptIn,
     AttemptProgressOut,
-    CatalogRef,
     CategoryOut,
     GradeProbabilityOut,
     ItemOut,
@@ -22,11 +21,13 @@ from app.assessment.schemas import (
     skill_profile_out,
 )
 from app.config import Mechanics, MechanicsDep
+from app.controller.errors import error_responses
+from app.controller.schemas import CatalogRef
 from app.db import DbSession, utcnow
-from app.errors import error_responses
+from app.domain import errors
+from app.domain.skill import Normal
 from app.identity.deps import ROLE_RESPONSES, CurrentUser, role_guard
 from app.identity.models import Role
-from app.skills.irt import Normal
 
 router = APIRouter(
     prefix="/api/candidate/path",
@@ -48,9 +49,9 @@ def get_path(user: CurrentUser, db: DbSession, mechanics: MechanicsDep) -> PathO
     "бизнеса кандидат по желанию отмечает в профиле. Опрос доступен до начала теста, повторный "
     "заменяет прежний.",
     responses=error_responses(
-        service.StepUnavailable,
-        service.UnknownSpecialization,
-        service.SpecializationWithoutTest,
+        errors.StepUnavailable,
+        errors.UnknownSpecialization,
+        errors.SpecializationWithoutTest,
     ),
 )
 def submit_survey(
@@ -65,9 +66,7 @@ def submit_survey(
     summary="Начать тест на грейд",
     description="На шаге `grade` — тест на заявленный грейд. На шаге `offer` — дотест на "
     "предложенный грейд: он продолжает оценку прошлых ответов.",
-    responses=error_responses(
-        service.StepUnavailable, service.GradeNotOffered, service.UnknownGrade
-    ),
+    responses=error_responses(errors.StepUnavailable, errors.GradeNotOffered, errors.UnknownGrade),
 )
 def start_attempt(
     body: AttemptIn, user: CurrentUser, db: DbSession, mechanics: MechanicsDep
@@ -81,7 +80,7 @@ def start_attempt(
     summary="Текущее задание теста",
     description="Время ответа считается по часам сервера с первого показа задания; повторный "
     "запрос отдаёт то же задание. Эталон и параметры экземпляра не отдаются.",
-    responses=error_responses(service.NoTestInProgress),
+    responses=error_responses(errors.NoTestInProgress),
 )
 def get_item(user: CurrentUser, db: DbSession, mechanics: MechanicsDep) -> ItemOut:
     item = service.current_item(db, user, mechanics, now=utcnow())
@@ -102,7 +101,7 @@ def get_item(user: CurrentUser, db: DbSession, mechanics: MechanicsDep) -> ItemO
     description="Ответ проверяет бэкенд; верен ли он, не сообщается. Тест адаптивный: попытка "
     "останавливается, когда уровень определён с нужной точностью или задания кончились, — "
     "тогда возвращается её итог.",
-    responses=error_responses(service.NoTestInProgress, service.ItemNotCurrent),
+    responses=error_responses(errors.NoTestInProgress, errors.ItemNotCurrent),
 )
 def answer_item(
     body: AnswerIn, user: CurrentUser, db: DbSession, mechanics: MechanicsDep

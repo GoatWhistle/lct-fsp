@@ -6,9 +6,10 @@ from typing import Annotated
 
 from pydantic import BaseModel, Field, StringConstraints
 
-from app.assessment.schemas import CatalogRef
+from app.controller.schemas import CatalogRef
+from app.domain.work import WorkFormat
 from app.matching.importance import TopicImportance
-from app.matching.models import SelectionBlock, WorkFormat
+from app.matching.models import SelectionBlock
 from app.matching.score import Verdict
 from app.salary import SALARY_UNIT, Salary, SalaryBasisOut
 

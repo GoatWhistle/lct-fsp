@@ -10,44 +10,26 @@ from dataclasses import dataclass
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
-from app.assessment.models import Grade, Specialization, Technology, Topic
-from app.assessment.service import UnknownGrade, UnknownSpecialization
+from app.assessment.models import Grade as GradeRow
+from app.assessment.models import Specialization as SpecializationRow
+from app.assessment.models import Technology
 from app.config import Mechanics
 from app.db import utcnow
-from app.errors import AppError
+from app.domain.catalog import CatalogRef, Specialization, Topic
+from app.domain.errors import (
+    CityRequired,
+    InvalidSalaryRange,
+    NeedNotFound,
+    TopicNotInSpecialization,
+    UnknownGrade,
+    UnknownSpecialization,
+    UnknownTechnology,
+)
+from app.domain.work import SalaryRange, WorkFormat
 from app.matching.importance import TopicImportance, topic_importance
-from app.matching.models import Need, NeedTopicImportance, WorkFormat
+from app.matching.models import Need, NeedTopicImportance
 from app.matching.schemas import NeedIn, TopicImportanceIn
-
-
-class NeedNotFound(AppError):
-    status_code = 404
-    code = "need_not_found"
-    message = "Потребность не найдена — возможно, её удалили"
-
-
-class UnknownTechnology(AppError):
-    status_code = 422
-    code = "unknown_technology"
-    message = "Такой технологии нет в справочнике"
-
-
-class TopicNotInSpecialization(AppError):
-    status_code = 422
-    code = "topic_not_in_specialization"
-    message = "Важность задаётся только темам специализации потребности"
-
-
-class InvalidSalaryRange(AppError):
-    status_code = 422
-    code = "invalid_salary_range"
-    message = "Вилка — обе границы больше нуля, «от» не больше «до»"
-
-
-class CityRequired(AppError):
-    status_code = 422
-    code = "city_required"
-    message = "Укажите город — для офиса и гибрида он обязателен"
+from app.repository.catalog import ref_of, specialization_of
 
 
 @dataclass(frozen=True)
@@ -55,7 +37,7 @@ class TopicView:
     topic: Topic
     importance: TopicImportance
     edited: bool
-    technologies: list[Technology]
+    technologies: list[CatalogRef]
 
 
 NEED_ERRORS = (
@@ -74,7 +56,7 @@ def list_needs(db: Session, user_id: uuid.UUID) -> list[Need]:
             select(Need)
             .where(Need.user_id == user_id)
             .options(
-                selectinload(Need.specialization).selectinload(Specialization.topics),
+                selectinload(Need.specialization).selectinload(SpecializationRow.topics),
                 selectinload(Need.grade),
                 selectinload(Need.stack).selectinload(Technology.topics),
                 selectinload(Need.edited_importance),
@@ -115,7 +97,7 @@ def delete_need(db: Session, user_id: uuid.UUID, need_id: uuid.UUID) -> None:
 
 def need_topics(need: Need, mechanics: Mechanics) -> list[TopicView]:
     edited = {row.topic_code: row.importance for row in need.edited_importance}
-    return _rows(need.specialization, need.stack, edited, mechanics)
+    return _rows(specialization_of(need.specialization), need.stack, edited, mechanics)
 
 
 def preview_topics(db: Session, data: TopicImportanceIn, mechanics: Mechanics) -> list[TopicView]:
@@ -128,11 +110,11 @@ def preview_topics(db: Session, data: TopicImportanceIn, mechanics: Mechanics) -
 
 def _fill(db: Session, need: Need, data: NeedIn) -> None:
     specialization = _specialization(db, data.specialization)
-    if db.get(Grade, data.grade) is None:
+    if db.get(GradeRow, data.grade) is None:
         raise UnknownGrade()
     stack = _technologies(db, data.stack)
     _check_topics(specialization, data.topic_importance)
-    _check_salary(data.salary_from, data.salary_to)
+    salary = SalaryRange.optional(data.salary_from, data.salary_to)
     city = data.city or None
     if city is None and data.work_format != WorkFormat.remote:
         raise CityRequired()
@@ -143,8 +125,8 @@ def _fill(db: Session, need: Need, data: NeedIn) -> None:
     need.grade_code = data.grade
     need.work_format = data.work_format
     need.city = city
-    need.salary_from = data.salary_from
-    need.salary_to = data.salary_to
+    need.salary_from = salary.low if salary else None
+    need.salary_to = salary.high if salary else None
     need.stack = stack
     need.edited_importance = [
         NeedTopicImportance(topic_code=topic, importance=importance)
@@ -153,10 +135,10 @@ def _fill(db: Session, need: Need, data: NeedIn) -> None:
 
 
 def _specialization(db: Session, code: str) -> Specialization:
-    specialization = db.get(Specialization, code)
-    if specialization is None:
+    row = db.get(SpecializationRow, code)
+    if row is None:
         raise UnknownSpecialization()
-    return specialization
+    return specialization_of(row)
 
 
 def _technologies(db: Session, codes: list[str]) -> list[Technology]:
@@ -179,13 +161,6 @@ def _check_topics(specialization: Specialization, edited: dict[str, TopicImporta
         raise TopicNotInSpecialization()
 
 
-def _check_salary(salary_from: int | None, salary_to: int | None) -> None:
-    if salary_from is None and salary_to is None:
-        return
-    if salary_from is None or salary_to is None or not 0 < salary_from <= salary_to:
-        raise InvalidSalaryRange()
-
-
 def _rows(
     specialization: Specialization,
     stack: list[Technology],
@@ -198,7 +173,7 @@ def _rows(
         edited,
         key_min_technologies=mechanics.need_key_topic_min_technologies,
     )
-    technologies = {tech.code: tech for tech in stack}
+    technologies = {tech.code: ref_of(tech) for tech in stack}
     return [
         TopicView(topic, row.importance, row.edited, [technologies[c] for c in row.technologies])
         for topic, row in zip(specialization.topics, rows, strict=True)

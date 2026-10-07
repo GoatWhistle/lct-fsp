@@ -11,8 +11,9 @@ from fastapi import Depends, params
 from fastapi.security import APIKeyCookie
 
 from app.config import SettingsDep
+from app.controller.errors import error_responses
 from app.db import DbSession
-from app.errors import AppError, error_responses
+from app.domain.errors import NotAuthenticated, WrongRole
 from app.identity.models import Role, User
 from app.identity.security import read_access_token
 
@@ -24,18 +25,6 @@ _cookie_scheme = APIKeyCookie(
     auto_error=False,
     description="httpOnly-cookie; ставит `POST /api/auth/login`, снимает `POST /api/auth/logout`",
 )
-
-
-class NotAuthenticated(AppError):
-    status_code = 401
-    code = "not_authenticated"
-    message = "Войдите, чтобы продолжить"
-
-
-class WrongRole(AppError):
-    status_code = 403
-    code = "wrong_role"
-    message = "Раздел доступен другой роли"
 
 
 def get_current_user(

@@ -1,3 +1,10 @@
+"""Сборка приложения — вручную, без DI-контейнера (docs/adr/0001-layers-and-ports.md).
+
+На уровне модуля только определения функций: объект приложения строит
+`uvicorn --factory main:create_app`, поэтому импорт `main` не читает конфиг и не открывает базу.
+Новый роутер подключается в `create_app`.
+"""
+
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
@@ -9,8 +16,8 @@ from app.assessment.router import router as catalog_router
 from app.cabinets import candidate_router, employer_router
 from app.company.router import router as company_router
 from app.config import Mechanics, Settings
+from app.controller.errors import install_error_handlers
 from app.db import create_db_engine
-from app.errors import install_error_handlers
 from app.identity.router import router as auth_router
 from app.mail import Mailer, SmtpMailer
 from app.matching.router import router as needs_router
@@ -18,7 +25,10 @@ from app.matching.router import selections_router
 from app.profile.router import employer_router as candidates_router
 from app.profile.router import router as profile_router
 
-DESCRIPTION = """
+
+def description() -> str:
+    """Описание API в OpenAPI."""
+    return """
 Платформа подбора ИТ-специалистов с обратной механикой.
 
 Ошибки приходят телом `{"code", "message"}`: `code` — для кода фронта, `message` — для
@@ -44,7 +54,7 @@ def create_app(
 
     app = FastAPI(
         title="Подбор ИТ-специалистов ФСП",
-        description=DESCRIPTION,
+        description=description(),
         version="0.1.0",
         docs_url="/api/docs",
         redoc_url=None,
@@ -76,6 +86,3 @@ def create_app(
         return {"status": "ok"}
 
     return app
-
-
-app = create_app()

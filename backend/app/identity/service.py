@@ -6,40 +6,16 @@ from sqlalchemy.orm import Session
 
 from app.config import Settings
 from app.db import utcnow
-from app.errors import AppError
+from app.domain.errors import (
+    EmailNotVerified,
+    EmailTaken,
+    InvalidCredentials,
+    TokenExpired,
+    TokenInvalid,
+)
 from app.identity import security
 from app.identity.models import EmailVerificationToken, Role, User
 from app.mail import Mail, Mailer
-
-
-class EmailTaken(AppError):
-    status_code = 409
-    code = "email_taken"
-    message = "Этот email уже зарегистрирован — войдите"
-
-
-class TokenInvalid(AppError):
-    status_code = 400
-    code = "token_invalid"
-    message = "Ссылка недействительна. Если адрес уже подтверждён — просто войдите"
-
-
-class TokenExpired(AppError):
-    status_code = 400
-    code = "token_expired"
-    message = "Срок ссылки истёк — запросите новое письмо"
-
-
-class InvalidCredentials(AppError):
-    status_code = 401
-    code = "invalid_credentials"
-    message = "Неверный email или пароль"
-
-
-class EmailNotVerified(AppError):
-    status_code = 403
-    code = "email_not_verified"
-    message = "Адрес не подтверждён. Откройте ссылку из письма или запросите новое"
 
 
 def register(

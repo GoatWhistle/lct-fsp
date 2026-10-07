@@ -3,6 +3,7 @@ from datetime import timedelta
 from fastapi import APIRouter, Response, status
 
 from app.config import SettingsDep
+from app.controller.deps import ClockDep, MailerDep
 from app.controller.errors import error_responses
 from app.db import DbSession, UnitOfWorkDep
 from app.domain import errors
@@ -15,8 +16,6 @@ from app.identity.schemas import (
     UserOut,
     VerifyEmailIn,
 )
-from app.identity.security import issue_access_token
-from app.mail import MailerDep
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
@@ -34,9 +33,10 @@ def register(
     uow: UnitOfWorkDep,
     mailer: MailerDep,
     settings: SettingsDep,
+    clock: ClockDep,
 ) -> UserOut:
     user = service.register(
-        uow, mailer, settings, email=body.email, password=body.password, role=body.role
+        uow, mailer, settings, clock, email=body.email, password=body.password, role=body.role
     )
     return UserOut.model_validate(user)
 
@@ -46,8 +46,8 @@ def register(
     summary="Подтверждение адреса по токену из письма",
     responses=error_responses(errors.TokenInvalid, errors.TokenExpired),
 )
-def verify_email(body: VerifyEmailIn, uow: UnitOfWorkDep) -> UserOut:
-    return UserOut.model_validate(service.verify_email(uow, token=body.token))
+def verify_email(body: VerifyEmailIn, uow: UnitOfWorkDep, clock: ClockDep) -> UserOut:
+    return UserOut.model_validate(service.verify_email(uow, clock, token=body.token))
 
 
 @router.post(
@@ -62,8 +62,9 @@ def resend_verification(
     uow: UnitOfWorkDep,
     mailer: MailerDep,
     settings: SettingsDep,
+    clock: ClockDep,
 ) -> None:
-    service.resend_verification(uow, mailer, settings, email=body.email)
+    service.resend_verification(uow, mailer, settings, clock, email=body.email)
 
 
 @router.post(
@@ -77,13 +78,13 @@ def login(
     response: Response,
     db: DbSession,
     settings: SettingsDep,
+    clock: ClockDep,
 ) -> UserOut:
     user = service.authenticate(db, email=body.email, password=body.password)
-    ttl = timedelta(hours=settings.session_ttl_hours)
     response.set_cookie(
         ACCESS_COOKIE,
-        issue_access_token(user.id, settings.secret_key, ttl),
-        max_age=int(ttl.total_seconds()),
+        service.issue_session(user, settings, clock),
+        max_age=int(timedelta(hours=settings.session_ttl_hours).total_seconds()),
         httponly=True,
         secure=settings.cookie_secure,
         samesite="lax",

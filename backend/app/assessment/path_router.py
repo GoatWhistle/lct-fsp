@@ -21,9 +21,10 @@ from app.assessment.schemas import (
     skill_profile_out,
 )
 from app.config import Mechanics, MechanicsDep
+from app.controller.deps import ClockDep, SeedsDep
 from app.controller.errors import error_responses
 from app.controller.schemas import CatalogRef
-from app.db import DbSession, UnitOfWorkDep, utcnow
+from app.db import DbSession, UnitOfWorkDep
 from app.domain import errors
 from app.domain.skill import Normal
 from app.identity.deps import ROLE_RESPONSES, CurrentUser, role_guard
@@ -38,8 +39,8 @@ router = APIRouter(
 
 
 @router.get("", summary="Шаг пути к категории и итоги теста")
-def get_path(user: CurrentUser, db: DbSession, mechanics: MechanicsDep) -> PathOut:
-    return _path_out(service.path(db, user.id, utcnow()), mechanics)
+def get_path(user: CurrentUser, db: DbSession, mechanics: MechanicsDep, clock: ClockDep) -> PathOut:
+    return _path_out(service.path(db, user.id, clock), mechanics)
 
 
 @router.post(
@@ -55,10 +56,10 @@ def get_path(user: CurrentUser, db: DbSession, mechanics: MechanicsDep) -> PathO
     ),
 )
 def submit_survey(
-    body: SurveyIn, user: CurrentUser, uow: UnitOfWorkDep, mechanics: MechanicsDep
+    body: SurveyIn, user: CurrentUser, uow: UnitOfWorkDep, mechanics: MechanicsDep, clock: ClockDep
 ) -> PathOut:
-    service.submit_survey(uow, user, specialization=body.specialization, now=utcnow())
-    return _path_out(service.path(uow.session, user.id, utcnow()), mechanics)
+    view = service.submit_survey(uow, user, clock, specialization=body.specialization)
+    return _path_out(view, mechanics)
 
 
 @router.post(
@@ -69,10 +70,10 @@ def submit_survey(
     responses=error_responses(errors.StepUnavailable, errors.GradeNotOffered, errors.UnknownGrade),
 )
 def start_attempt(
-    body: AttemptIn, user: CurrentUser, uow: UnitOfWorkDep, mechanics: MechanicsDep
+    body: AttemptIn, user: CurrentUser, uow: UnitOfWorkDep, mechanics: MechanicsDep, clock: ClockDep
 ) -> PathOut:
-    service.start_attempt(uow, user, mechanics, grade=body.grade, now=utcnow())
-    return _path_out(service.path(uow.session, user.id, utcnow()), mechanics)
+    view = service.start_attempt(uow, user, mechanics, clock, grade=body.grade)
+    return _path_out(view, mechanics)
 
 
 @router.get(
@@ -82,8 +83,10 @@ def start_attempt(
     "запрос отдаёт то же задание. Эталон и параметры экземпляра не отдаются.",
     responses=error_responses(errors.NoTestInProgress),
 )
-def get_item(user: CurrentUser, uow: UnitOfWorkDep, mechanics: MechanicsDep) -> ItemOut:
-    item = service.current_item(uow, user, mechanics, now=utcnow())
+def get_item(
+    user: CurrentUser, uow: UnitOfWorkDep, mechanics: MechanicsDep, clock: ClockDep, seeds: SeedsDep
+) -> ItemOut:
+    item = service.current_item(uow, user, mechanics, clock, seeds)
     return ItemOut(
         id=item.presentation.id,
         number=item.presentation.position + 1,
@@ -104,17 +107,12 @@ def get_item(user: CurrentUser, uow: UnitOfWorkDep, mechanics: MechanicsDep) -> 
     responses=error_responses(errors.NoTestInProgress, errors.ItemNotCurrent),
 )
 def answer_item(
-    body: AnswerIn, user: CurrentUser, uow: UnitOfWorkDep, mechanics: MechanicsDep
+    body: AnswerIn, user: CurrentUser, uow: UnitOfWorkDep, mechanics: MechanicsDep, clock: ClockDep
 ) -> PathOut:
-    service.answer(
-        uow,
-        user,
-        mechanics,
-        presentation_id=body.presentation_id,
-        response=body.response,
-        now=utcnow(),
+    view = service.answer(
+        uow, user, mechanics, clock, presentation_id=body.presentation_id, response=body.response
     )
-    return _path_out(service.path(uow.session, user.id, utcnow()), mechanics)
+    return _path_out(view, mechanics)
 
 
 def _path_out(view: service.PathView, mechanics: Mechanics) -> PathOut:

@@ -1,11 +1,12 @@
-"""Уровень навыка: наблюдения, априорное и оценка уровня с погрешностью (mechanics.md, §3–4).
+"""Уровень навыка: наблюдения, априорное, оценка уровня с погрешностью и уровень словами
+(mechanics.md, §3–4).
 
 Здесь то, что не зависит от выбранной модели навыка; сама модель — за портом
 `app.usecase.interface.SkillModel`, сейчас IRT 2PL в `app/skills/irt.py`.
 """
 
 import math
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from typing import Protocol, Self
 
@@ -72,3 +73,33 @@ class SkillEstimate(Protocol):
 
 def normal_cdf(z: float) -> float:
     return 0.5 * (1.0 + math.erf(z / math.sqrt(2.0)))
+
+
+@dataclass(frozen=True)
+class LevelBand:
+    """Уровень словами (§4): «уверенно middle» — low == high, «между junior и middle» — соседние.
+
+    `None` — полоса ниже порога младшего грейда.
+    """
+
+    low: str | None
+    high: str | None
+
+    @property
+    def confident(self) -> bool:
+        return self.low == self.high
+
+
+def level_band(level: Normal, thresholds: Mapping[str, float], confidence: float) -> LevelBand:
+    """Полосы грейдов π_g = P(c_g ≤ θ < c_{g+1}); уверенно — при π_g ≥ γ, иначе пара соседних
+    полос с наибольшей суммой."""
+    ordered = sorted(thresholds.items(), key=lambda item: item[1])
+    grades: list[str | None] = [None, *(grade for grade, _ in ordered)]
+    tails = [1.0, *(level.prob_at_least(c) for _, c in ordered), 0.0]
+    bands = [tails[i] - tails[i + 1] for i in range(len(grades))]
+
+    best = max(range(len(bands)), key=lambda i: bands[i])
+    if bands[best] >= confidence:
+        return LevelBand(grades[best], grades[best])
+    pair = max(range(len(bands) - 1), key=lambda i: bands[i] + bands[i + 1])
+    return LevelBand(grades[pair], grades[pair + 1])

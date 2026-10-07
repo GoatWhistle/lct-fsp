@@ -14,7 +14,7 @@ from sqlalchemy import BigInteger, Column, Enum, ForeignKey, String, Table, Uniq
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.db import Base, utcnow
+from app.db import Base
 
 technology_topics = Table(
     "technology_topics",
@@ -87,7 +87,7 @@ class Survey(Base):
     # Номер опроса кандидата с 1. Порядок — по нему: часы сервера при синхронизации отходят назад.
     number: Mapped[int]
     specialization_code: Mapped[str] = mapped_column(ForeignKey("specializations.code"))
-    created_at: Mapped[datetime] = mapped_column(default=utcnow)
+    created_at: Mapped[datetime]
 
     specialization: Mapped[Specialization] = relationship()
 
@@ -121,7 +121,7 @@ class TestAttempt(Base):
     continues_attempt_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("test_attempts.id", ondelete="CASCADE"), unique=True
     )
-    started_at: Mapped[datetime] = mapped_column(default=utcnow)
+    started_at: Mapped[datetime]
     finished_at: Mapped[datetime | None]
 
     # Оценка теста на момент остановки: общий уровень θ̄ и его погрешность.
@@ -171,7 +171,7 @@ class Presentation(Base):
     topic_theta_before: Mapped[float]
     topic_theta_sd_before: Mapped[float]
     # Время — по часам сервера: клиентские подделываются.
-    shown_at: Mapped[datetime] = mapped_column(default=utcnow)
+    shown_at: Mapped[datetime]
     answered_at: Mapped[datetime | None]
     response: Mapped[str | None] = mapped_column(String(500))
     correct: Mapped[bool | None]
@@ -255,7 +255,7 @@ class CandidateCategory(Base):
     specialization_code: Mapped[str] = mapped_column(ForeignKey("specializations.code"))
     grade_code: Mapped[str] = mapped_column(ForeignKey("grades.code"))
     attempt_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("test_attempts.id"))
-    assigned_at: Mapped[datetime] = mapped_column(default=utcnow)
+    assigned_at: Mapped[datetime]
 
     specialization: Mapped[Specialization] = relationship()
     grade: Mapped[Grade] = relationship()

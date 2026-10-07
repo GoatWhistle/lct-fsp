@@ -11,11 +11,12 @@ from fastapi import Depends, params
 from fastapi.security import APIKeyCookie
 
 from app.config import SettingsDep
+from app.controller.deps import ClockDep
 from app.controller.errors import error_responses
 from app.db import DbSession
 from app.domain.errors import NotAuthenticated, WrongRole
+from app.identity import service
 from app.identity.models import Role, User
-from app.identity.security import read_access_token
 
 ACCESS_COOKIE = "access_token"
 
@@ -30,13 +31,10 @@ _cookie_scheme = APIKeyCookie(
 def get_current_user(
     db: DbSession,
     settings: SettingsDep,
+    clock: ClockDep,
     access_token: Annotated[str | None, Depends(_cookie_scheme)],
 ) -> User:
-    user_id = read_access_token(access_token, settings.secret_key) if access_token else None
-    user = db.get(User, user_id) if user_id else None
-    if user is None:
-        raise NotAuthenticated()
-    return user
+    return service.session_user(db, settings.secret_key, clock, token=access_token)
 
 
 CurrentUser = Annotated[User, Depends(get_current_user)]

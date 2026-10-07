@@ -4,9 +4,9 @@ from collections.abc import Callable
 from typing import Any
 
 from fastapi.testclient import TestClient
-from sqlalchemy import Engine, text
 
-from app.assessment.bank import Family, get_family
+from app.assessment.bank import Family, Instance, families_for_topics
+from tests.conftest import Seeds
 
 PATH = "/api/candidate/path"
 ITEM = f"{PATH}/item"
@@ -29,22 +29,34 @@ def start(c: TestClient, grade: str) -> Json:
     return body
 
 
-def presented(db_engine: Engine, presentation_id: str) -> tuple[Family, int]:
-    with db_engine.connect() as conn:
-        family_code, seed = conn.execute(
-            text("SELECT family_code, seed FROM presentations WHERE id = :id"),
-            {"id": presentation_id},
-        ).one()
-    return get_family(family_code), seed
+def presented(seeds: Seeds, item: Json) -> tuple[Family, int]:
+    """Семейство и seed показанного задания — по seed, выданным тесту, а не из базы. Экземпляр
+    берёт последний seed показа, поэтому поиск идёт от свежих seed; семейство — то, чей экземпляр
+    совпал с заданием."""
+    candidates = families_for_topics([item["topic"]["code"]])
+    for seed in reversed(seeds.issued):
+        found = [f for f in candidates if _shows(f.instance(seed), item)]
+        if found:
+            assert len(found) == 1, (item, [f.code for f in found])
+            return found[0], seed
+    raise AssertionError(f"задание не выведено ни из одного выданного seed: {item}")
 
 
-def answer_items(c: TestClient, db_engine: Engine, correct: Callable[[Family], bool]) -> Json:
+def _shows(instance: Instance, item: Json) -> bool:
+    return (instance.prompt, instance.code, list(instance.options)) == (
+        item["prompt"],
+        item["code"],
+        item["options"],
+    )
+
+
+def answer_items(c: TestClient, seeds: Seeds, correct: Callable[[Family], bool]) -> Json:
     """Отвечает на задания до остановки попытки; `correct` решает, отвечать ли верно."""
     path: Json = c.get(PATH).json()
     while path["stage"] == "test":
         item = c.get(ITEM).json()
         assert "id" in item, (item, path)
-        family, seed = presented(db_engine, item["id"])
+        family, seed = presented(seeds, item)
         response = family.instance(seed).answer if correct(family) else WRONG
         answered = c.post(
             f"{ITEM}/answer", json={"presentation_id": item["id"], "response": response}
@@ -62,10 +74,10 @@ def nothing(_: Family) -> bool:
     return False
 
 
-def pass_test(c: TestClient, db_engine: Engine, grade: str = "middle") -> Json:
+def pass_test(c: TestClient, seeds: Seeds, grade: str = "middle") -> Json:
     """Кандидат проходит опрос на QA и тест на `grade`, отвечая верно на всё, — категория есть."""
     take_survey(c)
     start(c, grade)
-    path = answer_items(c, db_engine, everything)
+    path = answer_items(c, seeds, everything)
     assert path["stage"] == "category", path
     return path

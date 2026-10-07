@@ -14,7 +14,6 @@ from app.assessment.models import Grade as GradeRow
 from app.assessment.models import Specialization as SpecializationRow
 from app.assessment.models import Technology
 from app.config import Mechanics
-from app.db import utcnow
 from app.domain.catalog import CatalogRef, Specialization, Topic
 from app.domain.errors import (
     CityRequired,
@@ -30,6 +29,7 @@ from app.matching.importance import TopicImportance, topic_importance
 from app.matching.models import Need, NeedTopicImportance
 from app.matching.schemas import NeedIn, TopicImportanceIn
 from app.repository.catalog import ref_of, specialization_of
+from app.usecase.interface import Clock
 
 
 @dataclass(frozen=True)
@@ -73,19 +73,22 @@ def get_need(db: Session, user_id: uuid.UUID, need_id: uuid.UUID) -> Need:
     return need
 
 
-def create_need(db: Session, user_id: uuid.UUID, data: NeedIn) -> Need:
-    need = Need(user_id=user_id)
+def create_need(db: Session, user_id: uuid.UUID, data: NeedIn, clock: Clock) -> Need:
+    now = clock.now()
+    need = Need(user_id=user_id, created_at=now, updated_at=now)
     _fill(db, need, data)
     db.add(need)
     db.commit()
     return need
 
 
-def update_need(db: Session, user_id: uuid.UUID, need_id: uuid.UUID, data: NeedIn) -> Need:
+def update_need(
+    db: Session, user_id: uuid.UUID, need_id: uuid.UUID, data: NeedIn, clock: Clock
+) -> Need:
     need = get_need(db, user_id, need_id)
     _fill(db, need, data)
     # Стек и правки важности лежат в своих таблицах: строка потребности может не измениться.
-    need.updated_at = utcnow()
+    need.updated_at = clock.now()
     db.commit()
     return need
 

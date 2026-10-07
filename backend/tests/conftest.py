@@ -9,6 +9,7 @@ import os
 import re
 import uuid
 from collections.abc import Callable, Iterator
+from datetime import UTC, datetime
 
 import pytest
 from alembic import command
@@ -19,7 +20,9 @@ from sqlalchemy import Engine, text
 from sqlalchemy.engine import make_url
 from sqlalchemy.orm import Session
 
+from app.adapter.clock import FrozenClock
 from app.adapter.mail import MemoryMailer
+from app.adapter.seed import DerivedSeeds
 from app.assessment.catalog import load_catalog, sync_catalog
 from app.config import BACKEND_DIR, Mechanics, Settings
 from app.db import create_db_engine
@@ -43,6 +46,24 @@ class Outbox(MemoryMailer):
         match = re.search(r"/verify-email\?token=(\S+)", self.last_to(email).text)
         assert match, "в письме нет ссылки подтверждения"
         return match.group(1)
+
+
+class Seeds:
+    """Seed механики в тестах: воспроизводимая последовательность от seed прогона. Выданные
+    seed видны тесту — по ним он узнаёт экземпляр показанного задания, не читая базу."""
+
+    def __init__(self, run_seed: int = 0) -> None:
+        self.reset(run_seed)
+
+    def reset(self, run_seed: int) -> None:
+        """Последовательность заново: тот же `run_seed` повторит те же seed."""
+        self._source = DerivedSeeds(run_seed)
+        self.issued: list[int] = []
+
+    def seed(self) -> int:
+        value = self._source.seed()
+        self.issued.append(value)
+        return value
 
 
 @pytest.fixture(scope="session")
@@ -112,10 +133,26 @@ def outbox() -> Outbox:
 
 
 @pytest.fixture
+def clock() -> FrozenClock:
+    """Время приложения в тесте стоит; тест двигает его сам — `shift` и `set`."""
+    return FrozenClock(datetime.now(UTC).replace(microsecond=0))
+
+
+@pytest.fixture
+def seeds() -> Seeds:
+    return Seeds()
+
+
+@pytest.fixture
 def app(
-    db_engine: Engine, settings: Settings, mechanics: Mechanics, outbox: Outbox
+    db_engine: Engine,
+    settings: Settings,
+    mechanics: Mechanics,
+    outbox: Outbox,
+    clock: FrozenClock,
+    seeds: Seeds,
 ) -> Iterator[FastAPI]:
-    app = create_app(settings, mechanics, outbox)
+    app = create_app(settings, mechanics, outbox, clock=clock, seeds=seeds)
     yield app
     app.state.engine.dispose()
 

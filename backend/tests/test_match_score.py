@@ -163,7 +163,7 @@ def test_score_is_monotone_in_topic_level() -> None:
 
 def test_raising_a_topic_level_never_moves_candidate_down_the_ranking() -> None:
     rng = random.Random(23)
-    selection = uuid.uuid4()
+    salt = 23
     need = reqs()
     for _ in range(100):
         pool = {uuid.uuid4(): (random_levels(rng), random_stack(rng)) for _ in range(30)}
@@ -173,7 +173,7 @@ def test_raising_a_topic_level_never_moves_candidate_down_the_ranking() -> None:
                 c: match_score(need, lv, NEED_STACK, st, stack_cap=CAP).score
                 for c, (lv, st) in pool.items()
             }
-            return ranking(scores, selection).index(who)
+            return ranking(scores, salt).index(who)
 
         who = rng.choice(list(pool))
         topic = rng.choice(TOPICS)
@@ -195,22 +195,21 @@ def test_narrower_error_lifts_candidate_above_requirement_and_lowers_one_below()
     assert probability(0.0, 0.3) < probability(0.0, 0.8)
 
 
-def test_ties_break_by_hash_of_selection_and_candidate_not_by_input_order() -> None:
+def test_ties_break_by_hash_of_salt_and_candidate_not_by_input_order() -> None:
     candidates = [uuid.uuid4() for _ in range(20)]
-    selection = uuid.uuid4()
     scores = dict.fromkeys(candidates, 0.5)
 
-    order = ranking(scores, selection)
+    order = ranking(scores, 7)
 
-    assert ranking(dict(reversed(scores.items())), selection) == order
-    # Другая подборка — другой порядок ничьих: никто не стоит выше всегда (шанс совпасть — 1/20!).
-    assert ranking(scores, uuid.uuid4()) != order
+    assert ranking(dict(reversed(scores.items())), 7) == order
+    # Другая соль — другой порядок ничьих: никто не стоит выше всегда (шанс совпасть — 1/20!).
+    assert ranking(scores, 8) != order
 
 
 def test_higher_score_ranks_first() -> None:
     a, b, c = uuid.uuid4(), uuid.uuid4(), uuid.uuid4()
 
-    assert ranking({a: 0.2, b: 0.9, c: 0.5}, uuid.uuid4()) == [b, c, a]
+    assert ranking({a: 0.2, b: 0.9, c: 0.5}, 0) == [b, c, a]
 
 
 @pytest.mark.parametrize(

@@ -7,6 +7,7 @@ from typing import Annotated
 from fastapi import APIRouter, Query, status
 
 from app.config import Mechanics, MechanicsDep
+from app.controller.deps import ClockDep, SeedsDep
 from app.controller.errors import error_responses
 from app.controller.schemas import CatalogRef
 from app.db import DbSession
@@ -57,8 +58,10 @@ def list_needs(user: CurrentUser, db: DbSession, mechanics: MechanicsDep) -> lis
     summary="Новая потребность",
     responses=error_responses(*service.NEED_ERRORS),
 )
-def create_need(body: NeedIn, user: CurrentUser, db: DbSession, mechanics: MechanicsDep) -> NeedOut:
-    return _need_out(service.create_need(db, user.id, body), mechanics)
+def create_need(
+    body: NeedIn, user: CurrentUser, db: DbSession, mechanics: MechanicsDep, clock: ClockDep
+) -> NeedOut:
+    return _need_out(service.create_need(db, user.id, body, clock), mechanics)
 
 
 @router.post(
@@ -94,9 +97,14 @@ def get_need(
     responses=error_responses(errors.NeedNotFound, *service.NEED_ERRORS),
 )
 def update_need(
-    need_id: uuid.UUID, body: NeedIn, user: CurrentUser, db: DbSession, mechanics: MechanicsDep
+    need_id: uuid.UUID,
+    body: NeedIn,
+    user: CurrentUser,
+    db: DbSession,
+    mechanics: MechanicsDep,
+    clock: ClockDep,
 ) -> NeedOut:
-    return _need_out(service.update_need(db, user.id, need_id, body), mechanics)
+    return _need_out(service.update_need(db, user.id, need_id, body, clock), mechanics)
 
 
 @router.delete(
@@ -123,9 +131,13 @@ def build_selection(
     user: CurrentUser,
     db: DbSession,
     mechanics: MechanicsDep,
+    clock: ClockDep,
+    seeds: SeedsDep,
     limit: Limit = 20,
 ) -> SelectionOut:
-    return _selection_out(selection.build(db, user.id, need_id, mechanics, limit=limit))
+    return _selection_out(
+        selection.build(db, user.id, need_id, mechanics, clock, seeds, limit=limit)
+    )
 
 
 @selections_router.get("", summary="Подборки компании, новые сверху")

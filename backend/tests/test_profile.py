@@ -9,10 +9,10 @@ import pytest
 from fastapi.testclient import TestClient
 from pypdf import PdfReader
 from pypdf.generic import DictionaryObject
-from sqlalchemy import Engine
 
 from app.identity.models import Role
 from tests.candidate_path import answer_items, nothing, pass_test, start, take_survey
+from tests.conftest import Seeds
 
 PROFILE = "/api/candidate/profile"
 PDF = f"{PROFILE}/pdf"
@@ -282,9 +282,9 @@ def test_pdf_profile_before_test(candidate: TestClient) -> None:
 
 
 def test_pdf_profile_has_category_and_skill_profile(
-    candidate: TestClient, db_engine: Engine, client: TestClient
+    candidate: TestClient, seeds: Seeds, client: TestClient
 ) -> None:
-    band = pass_test(candidate, db_engine)["profile"]["overall"]["band"]
+    band = pass_test(candidate, seeds)["profile"]["overall"]["band"]
     candidate.put(PROFILE, json=profile_body()).raise_for_status()
 
     response = candidate.get(PDF)
@@ -299,14 +299,12 @@ def test_pdf_profile_has_category_and_skill_profile(
         assert topic["name"] in text
 
 
-def test_pdf_has_no_skill_profile_without_category(
-    candidate: TestClient, db_engine: Engine
-) -> None:
+def test_pdf_has_no_skill_profile_without_category(candidate: TestClient, seeds: Seeds) -> None:
     # Попытка на middle без верных ответов: профиль навыков посчитан, категории нет —
     # стажёру предложен дотест на junior.
     take_survey(candidate)
     start(candidate, "middle")
-    assert answer_items(candidate, db_engine, nothing)["stage"] == "offer"
+    assert answer_items(candidate, seeds, nothing)["stage"] == "offer"
     candidate.put(PROFILE, json=profile_body()).raise_for_status()
 
     text = pdf_text(candidate.get(PDF).content)
@@ -317,9 +315,9 @@ def test_pdf_has_no_skill_profile_without_category(
 
 
 def test_employer_card_hides_contacts_free_text_and_expected_salary(
-    candidate: TestClient, employer: TestClient, db_engine: Engine
+    candidate: TestClient, employer: TestClient, seeds: Seeds
 ) -> None:
-    pass_test(candidate, db_engine)
+    pass_test(candidate, seeds)
     candidate.put(PROFILE, json=profile_body()).raise_for_status()
 
     response = employer.get(CARD.format(candidate_id(candidate)))
@@ -362,9 +360,9 @@ def test_employer_card_hides_contacts_free_text_and_expected_salary(
 
 
 def test_card_without_filled_profile(
-    candidate: TestClient, employer: TestClient, db_engine: Engine
+    candidate: TestClient, employer: TestClient, seeds: Seeds
 ) -> None:
-    pass_test(candidate, db_engine)
+    pass_test(candidate, seeds)
 
     card = employer.get(CARD.format(candidate_id(candidate))).json()
 

@@ -1,27 +1,19 @@
 """Базы данных и SQL: результат запроса к маленькой таблице. Эталон — исполнение в SQLite."""
 
 import random
-import sqlite3
-from collections.abc import Mapping, Sequence
-from contextlib import closing
+from collections.abc import Sequence
 from typing import Any
 
 from app.domain.bank.family import Instance
+from app.domain.bank.runner import CodeRunner, Rows, Schema
 
 CUSTOMERS = ["anna", "boris", "vera", "gleb", "dina", "egor", "zoya", "igor"]
 STATUSES = ["paid", "new", "cancelled"]
 
-Rows = Sequence[tuple[Any, ...]]
-Schema = Mapping[str, tuple[Sequence[str], Rows]]
 
-
-def run_sql(schema: Schema, query: str) -> str:
-    with closing(sqlite3.connect(":memory:")) as db:
-        for table, (columns, rows) in schema.items():
-            db.execute(f"CREATE TABLE {table} ({', '.join(columns)})")
-            marks = ", ".join("?" for _ in columns)
-            db.executemany(f"INSERT INTO {table} VALUES ({marks})", rows)
-        (value,) = db.execute(query).fetchone()
+def run_sql(runner: CodeRunner, schema: Schema, query: str) -> str:
+    """Единственное значение первой строки результата."""
+    (value,) = runner.sql(schema, query)[0]
     return str(value)
 
 
@@ -45,21 +37,21 @@ ORDER_COLUMNS = ("id", "customer", "amount", "status")
 PROMPT = "Что вернёт запрос к таблице ниже? Ответ — одно число."
 
 
-def _instance(schema: Schema, query: str, params: dict[str, Any]) -> Instance:
+def _instance(runner: CodeRunner, schema: Schema, query: str, params: dict[str, Any]) -> Instance:
     tables = "\n\n".join(render(name, cols, rows) for name, (cols, rows) in schema.items())
     params = {**params, **{name: rows for name, (_, rows) in schema.items()}}
-    return Instance(PROMPT, run_sql(schema, query), params, code=f"{tables}\n\n{query}")
+    return Instance(PROMPT, run_sql(runner, schema, query), params, code=f"{tables}\n\n{query}")
 
 
-def count_where(rng: random.Random) -> Instance:
+def count_where(rng: random.Random, runner: CodeRunner) -> Instance:
     rows = _orders(rng, 8)
     threshold, status = rng.randrange(200, 800, 50), rng.choice(STATUSES[:2])
     query = f"SELECT COUNT(*) FROM orders WHERE amount > {threshold} AND status <> '{status}';"
     params = {"threshold": threshold, "status": status}
-    return _instance({"orders": (ORDER_COLUMNS, rows)}, query, params)
+    return _instance(runner, {"orders": (ORDER_COLUMNS, rows)}, query, params)
 
 
-def group_having(rng: random.Random) -> Instance:
+def group_having(rng: random.Random, runner: CodeRunner) -> Instance:
     rows = _orders(rng, 9)
     threshold = rng.randrange(600, 1500, 100)
     query = (
@@ -70,10 +62,10 @@ def group_having(rng: random.Random) -> Instance:
         f"  HAVING SUM(amount) > {threshold}\n"
         ") AS t;"
     )
-    return _instance({"orders": (ORDER_COLUMNS, rows)}, query, {"threshold": threshold})
+    return _instance(runner, {"orders": (ORDER_COLUMNS, rows)}, query, {"threshold": threshold})
 
 
-def left_join_on(rng: random.Random) -> Instance:
+def left_join_on(rng: random.Random, runner: CodeRunner) -> Instance:
     names = rng.sample(CUSTOMERS, 5)
     customers: Rows = [(i + 1, name) for i, name in enumerate(names)]
     orders: Rows = [
@@ -89,10 +81,10 @@ def left_join_on(rng: random.Random) -> Instance:
         "customers": (("id", "name"), customers),
         "orders": (("id", "customer_id", "amount"), orders),
     }
-    return _instance(schema, query, {"threshold": threshold})
+    return _instance(runner, schema, query, {"threshold": threshold})
 
 
-def window_rank(rng: random.Random) -> Instance:
+def window_rank(rng: random.Random, runner: CodeRunner) -> Instance:
     rows = _orders(rng, 9)
     # Ничья внутри покупателя — ловушка: RANK отдаёт обеим строкам одно место.
     first = rows[0]
@@ -108,7 +100,7 @@ def window_rank(rng: random.Random) -> Instance:
         "  FROM orders\n"
         f") AS t WHERE r <= {rank};"
     )
-    return _instance({"orders": (ORDER_COLUMNS, rows)}, query, {"rank": rank})
+    return _instance(runner, {"orders": (ORDER_COLUMNS, rows)}, query, {"rank": rank})
 
 
 SEQ_PROMPT = (
@@ -117,27 +109,24 @@ SEQ_PROMPT = (
 )
 
 
-def _seq_instance(schema: Schema, query: str, params: dict[str, Any]) -> Instance:
-    with closing(sqlite3.connect(":memory:")) as db:
-        for table, (columns, rows) in schema.items():
-            db.execute(f"CREATE TABLE {table} ({', '.join(columns)})")
-            marks = ", ".join("?" for _ in columns)
-            db.executemany(f"INSERT INTO {table} VALUES ({marks})", rows)
-        result = [str(v) for row in db.execute(query).fetchall() for v in row]
+def _seq_instance(
+    runner: CodeRunner, schema: Schema, query: str, params: dict[str, Any]
+) -> Instance:
+    result = [str(v) for row in runner.sql(schema, query) for v in row]
     tables = "\n\n".join(render(name, cols, rows) for name, (cols, rows) in schema.items())
     params = {**params, **{name: rows for name, (_, rows) in schema.items()}}
     return Instance(SEQ_PROMPT, " ".join(result), params, code=f"{tables}\n\n{query}")
 
 
-def sum_where(rng: random.Random) -> Instance:
+def sum_where(rng: random.Random, runner: CodeRunner) -> Instance:
     rows = _orders(rng, 8)
     threshold, status = rng.randrange(200, 800, 50), rng.choice(STATUSES[:2])
     query = f"SELECT SUM(amount) FROM orders WHERE amount > {threshold} AND status <> '{status}';"
     params = {"threshold": threshold, "status": status}
-    return _instance({"orders": (ORDER_COLUMNS, rows)}, query, params)
+    return _instance(runner, {"orders": (ORDER_COLUMNS, rows)}, query, params)
 
 
-def order_limit(rng: random.Random) -> Instance:
+def order_limit(rng: random.Random, runner: CodeRunner) -> Instance:
     rows = _orders(rng, 9)
     limit, offset = rng.randint(2, 4), rng.randint(1, 3)
     direction = rng.choice(["DESC", "ASC"])
@@ -148,10 +137,10 @@ def order_limit(rng: random.Random) -> Instance:
         ") AS t;"
     )
     params = {"limit": limit, "offset": offset, "direction": direction}
-    return _instance({"orders": (ORDER_COLUMNS, rows)}, query, params)
+    return _instance(runner, {"orders": (ORDER_COLUMNS, rows)}, query, params)
 
 
-def group_having_sum(rng: random.Random) -> Instance:
+def group_having_sum(rng: random.Random, runner: CodeRunner) -> Instance:
     rows = _orders(rng, 10)
     threshold = rng.randrange(600, 1500, 100)
     query = (
@@ -162,10 +151,10 @@ def group_having_sum(rng: random.Random) -> Instance:
         f"  HAVING SUM(amount) > {threshold}\n"
         ") AS t;"
     )
-    return _instance({"orders": (ORDER_COLUMNS, rows)}, query, {"threshold": threshold})
+    return _instance(runner, {"orders": (ORDER_COLUMNS, rows)}, query, {"threshold": threshold})
 
 
-def case_when_sum(rng: random.Random) -> Instance:
+def case_when_sum(rng: random.Random, runner: CodeRunner) -> Instance:
     rows = _orders(rng, 8)
     paid_sign, other = rng.choice([("amount", "0"), ("amount", "-amount"), ("amount / 10", "0")])
     query = (
@@ -176,10 +165,10 @@ def case_when_sum(rng: random.Random) -> Instance:
         "END) FROM orders;"
     )
     params = {"paid": paid_sign, "cancelled": other}
-    return _instance({"orders": (ORDER_COLUMNS, rows)}, query, params)
+    return _instance(runner, {"orders": (ORDER_COLUMNS, rows)}, query, params)
 
 
-def like_between(rng: random.Random) -> Instance:
+def like_between(rng: random.Random, runner: CodeRunner) -> Instance:
     rows = _orders(rng, 9)
     low = rng.randrange(150, 500, 50)
     high = low + rng.randrange(150, 450, 50)
@@ -189,20 +178,20 @@ def like_between(rng: random.Random) -> Instance:
         f"WHERE customer LIKE '%{letter}%' OR amount BETWEEN {low} AND {high};"
     )
     params = {"low": low, "high": high, "letter": letter}
-    return _instance({"orders": (ORDER_COLUMNS, rows)}, query, params)
+    return _instance(runner, {"orders": (ORDER_COLUMNS, rows)}, query, params)
 
 
-def null_aggregates(rng: random.Random) -> Instance:
+def null_aggregates(rng: random.Random, runner: CodeRunner) -> Instance:
     rows = [
         (i + 1, rng.choice(CUSTOMERS[:5]), rng.choice([None, None, *range(10, 200, 10)]))
         for i in range(rng.randint(7, 10))
     ]
     query = "SELECT COUNT(*), COUNT(bonus), SUM(bonus), MAX(bonus) FROM payouts;"
     schema = {"payouts": (("id", "employee", "bonus"), rows)}
-    return _seq_instance(schema, query, {})
+    return _seq_instance(runner, schema, query, {})
 
 
-def left_join_groups(rng: random.Random) -> Instance:
+def left_join_groups(rng: random.Random, runner: CodeRunner) -> Instance:
     names = sorted(rng.sample(CUSTOMERS, 5))
     customers: Rows = [(i + 1, name) for i, name in enumerate(names)]
     orders: Rows = [
@@ -220,7 +209,7 @@ def left_join_groups(rng: random.Random) -> Instance:
         "customers": (("id", "name"), customers),
         "orders": (("id", "customer_id", "amount"), orders),
     }
-    instance = _seq_instance(schema, query.replace("c.name, COUNT", "COUNT"), {})
+    instance = _seq_instance(runner, schema, query.replace("c.name, COUNT", "COUNT"), {})
     # В листинге имя оставляем: так понятнее, какая строка чья; в ответе — только счётчики.
     prompt = (
         "Что вернёт запрос к таблицам ниже? Ответ — значения COUNT(o.id) через пробел в "
@@ -230,7 +219,7 @@ def left_join_groups(rng: random.Random) -> Instance:
     return Instance(prompt, instance.answer, {**instance.params, "threshold": threshold}, code=code)
 
 
-def correlated_subquery(rng: random.Random) -> Instance:
+def correlated_subquery(rng: random.Random, runner: CodeRunner) -> Instance:
     rows = _orders(rng, 10)
     op = rng.choice([">", "<"])
     query = (
@@ -239,10 +228,10 @@ def correlated_subquery(rng: random.Random) -> Instance:
         "  SELECT AVG(amount) FROM orders i WHERE i.customer = o.customer\n"
         ");"
     )
-    return _instance({"orders": (ORDER_COLUMNS, rows)}, query, {"op": op})
+    return _instance(runner, {"orders": (ORDER_COLUMNS, rows)}, query, {"op": op})
 
 
-def union_sums(rng: random.Random) -> Instance:
+def union_sums(rng: random.Random, runner: CodeRunner) -> Instance:
     shop = [(rng.randrange(100, 600, 50),) for _ in range(rng.randint(4, 6))]
     web = [
         (rng.choice([r[0] for r in shop]),)
@@ -256,10 +245,10 @@ def union_sums(rng: random.Random) -> Instance:
         "  (SELECT SUM(amount) FROM (SELECT amount FROM shop UNION ALL SELECT amount FROM web));"
     )
     schema = {"shop": (("amount",), shop), "web": (("amount",), web)}
-    return _seq_instance(schema, query, {})
+    return _seq_instance(runner, schema, query, {})
 
 
-def running_window(rng: random.Random) -> Instance:
+def running_window(rng: random.Random, runner: CodeRunner) -> Instance:
     rows = [(i + 1, rng.randrange(10, 250, 5)) for i in range(rng.randint(6, 8))]
     before = rng.randint(1, 2)
     query = (
@@ -270,14 +259,14 @@ def running_window(rng: random.Random) -> Instance:
         ") AS t;"
     )
     schema = {"sales": (("day", "amount"), rows)}
-    return _instance(schema, query, {"before": before})
+    return _instance(runner, schema, query, {"before": before})
 
 
-def lag_changes(rng: random.Random) -> Instance:
+def lag_changes(rng: random.Random, runner: CodeRunner) -> Instance:
     rows = [(i + 1, rng.randrange(100, 300, 10)) for i in range(rng.randint(7, 9))]
     query = "SELECT day, price - LAG(price) OVER (ORDER BY day) AS diff\nFROM prices\nORDER BY day;"
     schema = {"prices": (("day", "price"), rows)}
-    instance = _seq_instance(schema, query.replace("day, price", "price"), {})
+    instance = _seq_instance(runner, schema, query.replace("day, price", "price"), {})
     answer = instance.answer.replace("None", "NULL")
     prompt = (
         "Что вернёт запрос к таблице ниже? Ответ — значения diff через пробел в порядке строк; "
@@ -287,7 +276,7 @@ def lag_changes(rng: random.Random) -> Instance:
     return Instance(prompt, answer, instance.params, code=code)
 
 
-def distinct_count(rng: random.Random) -> Instance:
+def distinct_count(rng: random.Random, runner: CodeRunner) -> Instance:
     rows = _orders(rng, rng.randint(8, 10))
     status = rng.choice(STATUSES)
     query = (
@@ -295,7 +284,7 @@ def distinct_count(rng: random.Random) -> Instance:
         f"FROM orders WHERE status <> '{status}'\n"
         "GROUP BY customer ORDER BY customer;"
     )
-    instance = _seq_instance({"orders": (ORDER_COLUMNS, rows)}, query, {"status": status})
+    instance = _seq_instance(runner, {"orders": (ORDER_COLUMNS, rows)}, query, {"status": status})
     prompt = (
         "Что вернёт запрос к таблице ниже? Ответ — значения результата через пробел: по строкам, "
         "внутри строки — по столбцам."
@@ -303,7 +292,7 @@ def distinct_count(rng: random.Random) -> Instance:
     return Instance(prompt, instance.answer, instance.params, code=instance.code)
 
 
-def exists_subquery(rng: random.Random) -> Instance:
+def exists_subquery(rng: random.Random, runner: CodeRunner) -> Instance:
     names = sorted(rng.sample(CUSTOMERS, 5))
     customers: Rows = [(i + 1, name) for i, name in enumerate(names)]
     orders: Rows = [
@@ -322,14 +311,14 @@ def exists_subquery(rng: random.Random) -> Instance:
         "customers": (("id", "name"), customers),
         "orders": (("id", "customer_id", "amount"), orders),
     }
-    instance = _seq_instance(schema, query, {"threshold": threshold, "negate": negate})
+    instance = _seq_instance(runner, schema, query, {"threshold": threshold, "negate": negate})
     prompt = (
         "Что вернёт запрос к таблицам ниже? Ответ — id через пробел по порядку; если строк нет — 0."
     )
     return Instance(prompt, instance.answer or "0", instance.params, code=instance.code)
 
 
-def self_join(rng: random.Random) -> Instance:
+def self_join(rng: random.Random, runner: CodeRunner) -> Instance:
     names = rng.sample(CUSTOMERS, 6)
     # Начальник — сотрудник с меньшим id или никто: дерево без циклов.
     employees: Rows = [
@@ -348,7 +337,7 @@ def self_join(rng: random.Random) -> Instance:
         "ORDER BY e.name;"
     )
     schema = {"employees": (("id", "name", "manager_id", "salary"), employees)}
-    instance = _seq_instance(schema, query, {})
+    instance = _seq_instance(runner, schema, query, {})
     prompt = (
         "Что вернёт запрос к таблице ниже? Ответ — значения результата через пробел: по строкам, "
         "внутри строки — по столбцам; если строк нет — 0."

@@ -23,8 +23,9 @@ class Rule:
     allowed: tuple[str, ...] = ()
 
 
+# Исполнение кода генераторов — за портом `CodeRunner`: SQLite домену не виден.
 DOMAIN = Rule(
-    banned=("sqlalchemy", "pydantic", "pydantic_settings", "fastapi", "app"),
+    banned=("sqlalchemy", "pydantic", "pydantic_settings", "fastapi", "sqlite3", "app"),
     allowed=("app.domain",),
 )
 # Сценарии не знают реализаций портов: ни адаптеров и репозиториев, ни модулей алгоритмов —
@@ -108,6 +109,8 @@ MEMORY_PEEKS_AT_SQL = "from ..unit_of_work import SqlUnitOfWork\n"
     [
         ("domain", DOMAIN, "from sqlalchemy.orm import Mapped\n", "sqlalchemy.orm"),
         ("domain", DOMAIN, "def f() -> None:\n    import fastapi\n", "fastapi"),
+        ("domain", DOMAIN, "def f() -> None:\n    import sqlite3\n", "sqlite3"),
+        ("domain", DOMAIN, "from contextlib import closing\nimport sqlite3\n", "sqlite3"),
         ("domain", DOMAIN, "from app.db import Base\n", "app.db"),
         ("domain", DOMAIN, "from ..assessment import models\n", "app.assessment"),
         # Домен получает момент и seed значениями — порты и их реализации ему не видны.
@@ -161,4 +164,56 @@ def test_mail_and_pdf_libraries_live_only_in_adapters() -> None:
     for path in sorted(app_dir.glob("*.py")):
         modules = imported_modules(path.read_text(encoding="utf-8"), "app")
         found += [f"{path.name}: {m}" for m in sorted(modules) if _within(m, EXTERNAL.banned)]
+    assert found == []
+
+
+EXECUTORS = ("exec", "eval", "__import__", "import_module")
+
+
+def executor_calls(package: Path) -> list[str]:
+    """Вызовы исполнения кода и импорта по имени в пакете — строками «файл:строка: имя»: и
+    `exec(...)`, и `builtins.exec(...)`."""
+    found = []
+    for path in sorted(package.rglob("*.py")):
+        for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
+            if not isinstance(node, ast.Call):
+                continue
+            func = node.func
+            name = func.id if isinstance(func, ast.Name) else getattr(func, "attr", None)
+            if name in EXECUTORS:
+                found.append(f"{path.name}:{node.lineno}: {name}")
+    return found
+
+
+def test_domain_runs_no_code_itself() -> None:
+    """Генераторы банка исполняют код только через порт `CodeRunner`."""
+    assert executor_calls(BACKEND_DIR / "app" / "domain") == []
+
+
+@pytest.mark.parametrize(
+    ("call", "caught"),
+    [
+        ("exec(code, {})", "exec"),
+        ("builtins.eval(code)", "eval"),
+        ("importlib.import_module('sqlite3')", "import_module"),
+        ("__import__('sqlite3')", "__import__"),
+    ],
+)
+def test_planted_code_execution_in_domain_is_caught(tmp_path: Path, call: str, caught: str) -> None:
+    package = plant(tmp_path, "domain", f"def f(code: str) -> None:\n    {call}\n")
+
+    assert executor_calls(package) == [f"bad.py:2: {caught}"]
+
+
+CODE_RUNNER = Rule(banned=("app.adapter.code_runner",))
+
+
+def test_code_runner_is_built_only_by_assembly() -> None:
+    """Исполнитель кода создаёт сборка в `backend/main.py`: в `app` его не импортирует никто."""
+    app_dir = BACKEND_DIR / "app"
+    packages = [p for p in app_dir.iterdir() if (p / "__init__.py").is_file()]
+    found = [v for p in sorted(packages) for v in violations(p, CODE_RUNNER)]
+    for path in sorted(app_dir.glob("*.py")):
+        modules = imported_modules(path.read_text(encoding="utf-8"), "app")
+        found += [f"{path.name}: {m}" for m in sorted(modules) if _within(m, CODE_RUNNER.banned)]
     assert found == []

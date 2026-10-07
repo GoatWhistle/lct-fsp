@@ -13,6 +13,7 @@ import pytest
 from app.adapter.adaptive import MaxInformationSelector
 from app.adapter.calibration import EloCalibration
 from app.adapter.clock import FrozenClock
+from app.adapter.code_runner import InProcessCodeRunner
 from app.adapter.seed import DerivedSeeds
 from app.assessment.catalog import load_catalog
 from app.config import Mechanics, Settings
@@ -131,6 +132,7 @@ def paths(
         irt,
         clock,
         DerivedSeeds(0),
+        InProcessCodeRunner(),
         MECHANICS,
     )
 

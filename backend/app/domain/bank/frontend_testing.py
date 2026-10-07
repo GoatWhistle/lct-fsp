@@ -4,9 +4,10 @@
 import random
 
 from app.domain.bank.family import Instance, rounded
+from app.domain.bank.runner import CodeRunner
 
 
-def jest_matchers(rng: random.Random) -> Instance:
+def jest_matchers(rng: random.Random, runner: CodeRunner) -> Instance:
     rows = []
     for _ in range(6):
         a, b = rng.randint(1, 9), rng.randint(1, 9)
@@ -34,7 +35,7 @@ def jest_matchers(rng: random.Random) -> Instance:
     )
 
 
-def jest_focus(rng: random.Random) -> Instance:
+def jest_focus(rng: random.Random, runner: CodeRunner) -> Instance:
     tests = []
     for i in range(1, rng.randint(7, 10)):
         kind = rng.choice(["test", "test", "test.skip", "test.only", "test.todo"])
@@ -56,7 +57,7 @@ def jest_focus(rng: random.Random) -> Instance:
     return Instance(prompt, f"{ran} {skipped} {todo}", {"tests": tests}, code=code)
 
 
-def mock_returns(rng: random.Random) -> Instance:
+def mock_returns(rng: random.Random, runner: CodeRunner) -> Instance:
     once = [rng.randint(1, 99) for _ in range(rng.randint(1, 3))]
     default = rng.choice([None, rng.randint(1, 99)])
     calls = rng.randint(len(once) + 1, len(once) + 3)
@@ -84,7 +85,7 @@ def mock_returns(rng: random.Random) -> Instance:
     return Instance(prompt, answer, {"once": once, "default": default, "calls": calls}, code=code)
 
 
-def fake_timers(rng: random.Random) -> Instance:
+def fake_timers(rng: random.Random, runner: CodeRunner) -> Instance:
     timeout = rng.randrange(100, 2000, 100)
     interval = rng.randrange(100, 1000, 50)
     advances = [rng.randrange(100, 1500, 50) for _ in range(rng.randint(2, 3))]
@@ -113,7 +114,7 @@ def fake_timers(rng: random.Random) -> Instance:
     )
 
 
-def rtl_queries(rng: random.Random) -> Instance:
+def rtl_queries(rng: random.Random, runner: CodeRunner) -> Instance:
     rows = []
     for _ in range(5):
         variant = rng.choice(["getBy", "queryBy", "getAllBy", "queryAllBy"])
@@ -138,7 +139,7 @@ def rtl_queries(rng: random.Random) -> Instance:
     return Instance(prompt, " ".join(o for _, _, o in rows), {"rows": rows}, code="\n".join(lines))
 
 
-def async_pitfalls(rng: random.Random) -> Instance:
+def async_pitfalls(rng: random.Random, runner: CodeRunner) -> Instance:
     cases = []
     for i in range(1, 7):
         resolves = rng.random() < 0.5
@@ -177,7 +178,7 @@ def async_pitfalls(rng: random.Random) -> Instance:
     )
 
 
-def visual_diff(rng: random.Random) -> Instance:
+def visual_diff(rng: random.Random, runner: CodeRunner) -> Instance:
     width, height = rng.choice([(1280, 720), (800, 600), (375, 812)])
     threshold = rng.choice([0.1, 0.2, 0.5, 1.0])
     shots = []
@@ -200,7 +201,7 @@ def visual_diff(rng: random.Random) -> Instance:
     return Instance(prompt, answer, params, code="\n".join(lines))
 
 
-def test_shards(rng: random.Random) -> Instance:
+def test_shards(rng: random.Random, runner: CodeRunner) -> Instance:
     shards = rng.randint(2, 4)
     durations = [rng.randint(5, 90) for _ in range(rng.randint(7, 10))]
     # Как Playwright --shard: тесты делятся по порядку на равные по числу части, первые части
@@ -220,7 +221,7 @@ def test_shards(rng: random.Random) -> Instance:
     return Instance(prompt, " ".join(map(str, totals)), {"shards": shards, "durations": durations})
 
 
-def coverage_thresholds(rng: random.Random) -> Instance:
+def coverage_thresholds(rng: random.Random, runner: CodeRunner) -> Instance:
     files = rng.sample(["Cart.tsx", "api.ts", "useAuth.ts", "format.ts", "Checkout.tsx"], 3)
     rows = []
     for name in files:
@@ -258,7 +259,7 @@ def coverage_thresholds(rng: random.Random) -> Instance:
     )
 
 
-def playwright_retries(rng: random.Random) -> Instance:
+def playwright_retries(rng: random.Random, runner: CodeRunner) -> Instance:
     retries = rng.randint(1, 3)
     tests = []
     for i in range(1, rng.randint(5, 7) + 1):

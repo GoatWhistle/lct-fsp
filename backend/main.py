@@ -15,6 +15,7 @@ from app.adapter.acceptance import NoAcceptanceModel
 from app.adapter.adaptive import MaxInformationSelector
 from app.adapter.calibration import EloCalibration
 from app.adapter.clock import SystemClock
+from app.adapter.code_runner import InProcessCodeRunner
 from app.adapter.mail import SmtpMailer
 from app.adapter.profile_pdf import FpdfProfileRenderer
 from app.adapter.seed import SecureSeeds
@@ -119,6 +120,7 @@ def create_app(
         top_k=mechanics.exposure_top_k, max_rate=mechanics.exposure_max_rate
     )
     app.state.item_selector = item_selector
+    code_runner = InProcessCodeRunner()
 
     def calibration(uow: SqlUnitOfWork) -> EloCalibration:
         return EloCalibration(
@@ -150,6 +152,7 @@ def create_app(
             app.state.skill_model,
             app.state.clock,
             app.state.seeds,
+            code_runner,
             mechanics,
         )
 

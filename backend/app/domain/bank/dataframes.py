@@ -8,6 +8,7 @@ import random
 
 from app.domain.bank.family import Instance, rounded
 from app.domain.bank.python_code import PROMPT, run_python
+from app.domain.bank.runner import CodeRunner
 
 CITIES = ["Казань", "Москва", "Пермь", "Томск", "Уфа"]
 
@@ -26,12 +27,12 @@ def _render(rows: list[tuple[str, int, int]]) -> str:
     )
 
 
-def comprehension_stats(rng: random.Random) -> Instance:
+def comprehension_stats(rng: random.Random, runner: CodeRunner) -> Instance:
     values = [rng.randint(-20, 60) for _ in range(rng.randint(7, 10))]
     low, high = rng.randint(-10, 10), rng.randint(20, 50)
     clean = [v for v in values if low <= v <= high]
     if not clean:
-        return comprehension_stats(rng)
+        return comprehension_stats(rng, runner)
     code = (
         f"values = {values}\n"
         f"clean = [v for v in values if {low} <= v <= {high}]\n"
@@ -42,7 +43,7 @@ def comprehension_stats(rng: random.Random) -> Instance:
     return Instance(prompt, answer, {"values": values, "low": low, "high": high}, code=code)
 
 
-def dict_grouping(rng: random.Random) -> Instance:
+def dict_grouping(rng: random.Random, runner: CodeRunner) -> Instance:
     rows = [
         (rng.choice(["a", "b", "c", "d"]), rng.randint(1, 50)) for _ in range(rng.randint(7, 10))
     ]
@@ -53,10 +54,10 @@ def dict_grouping(rng: random.Random) -> Instance:
         "    totals.setdefault(key, []).append(value)\n"
         "print(*(f'{k}={max(v)}' for k, v in sorted(totals.items())))\n"
     )
-    return Instance(PROMPT, run_python(code), {"rows": rows}, code=code)
+    return Instance(PROMPT, run_python(runner, code), {"rows": rows}, code=code)
 
 
-def broadcast_shape(rng: random.Random) -> Instance:
+def broadcast_shape(rng: random.Random, runner: CodeRunner) -> Instance:
     target = [rng.choice([2, 3, 4, 5]) for _ in range(rng.randint(2, 3))]
 
     def derive() -> list[int]:
@@ -96,7 +97,7 @@ def broadcast_shape(rng: random.Random) -> Instance:
     return Instance(prompt, answer, {"a": a, "b": b, "x": x, "y": y}, code=code)
 
 
-def array_slicing(rng: random.Random) -> Instance:
+def array_slicing(rng: random.Random, runner: CodeRunner) -> Instance:
     rows, cols = rng.randint(3, 6), rng.randint(3, 6)
     r0, r1 = sorted(rng.sample(range(0, rows + 1), 2))
     c0 = rng.randint(0, cols - 1)
@@ -121,7 +122,7 @@ def array_slicing(rng: random.Random) -> Instance:
     )
 
 
-def pandas_filter(rng: random.Random) -> Instance:
+def pandas_filter(rng: random.Random, runner: CodeRunner) -> Instance:
     rows = _frame(rng, rng.randint(7, 10))
     qty = rng.randint(2, 7)
     city = rng.choice(CITIES[:4])
@@ -139,7 +140,7 @@ def pandas_filter(rng: random.Random) -> Instance:
     )
 
 
-def groupby_sum(rng: random.Random) -> Instance:
+def groupby_sum(rng: random.Random, runner: CodeRunner) -> Instance:
     rows = _frame(rng, rng.randint(7, 10))
     column = rng.choice(["qty", "amount"])
     agg = rng.choice(["sum", "max", "count"])
@@ -160,7 +161,7 @@ def groupby_sum(rng: random.Random) -> Instance:
     )
 
 
-def merge_rows(rng: random.Random) -> Instance:
+def merge_rows(rng: random.Random, runner: CodeRunner) -> Instance:
     left_keys = [rng.choice("ABCDE") for _ in range(rng.randint(4, 6))]
     right_keys = [rng.choice("ABCDEF") for _ in range(rng.randint(3, 5))]
     how = rng.choice(["inner", "left", "outer"])
@@ -189,7 +190,7 @@ def merge_rows(rng: random.Random) -> Instance:
     )
 
 
-def missing_values(rng: random.Random) -> Instance:
+def missing_values(rng: random.Random, runner: CodeRunner) -> Instance:
     values: list[int | None] = [rng.choice([None, *range(1, 40)]) for _ in range(rng.randint(6, 9))]
     if all(v is None for v in values):
         values[0] = 5
@@ -207,7 +208,7 @@ def missing_values(rng: random.Random) -> Instance:
     return Instance(prompt, answer, {"values": values}, code=code)
 
 
-def rolling_mean(rng: random.Random) -> Instance:
+def rolling_mean(rng: random.Random, runner: CodeRunner) -> Instance:
     values = [rng.randint(1, 50) for _ in range(rng.randint(6, 9))]
     window = rng.randint(2, 4)
     means = [
@@ -231,7 +232,7 @@ def rolling_mean(rng: random.Random) -> Instance:
     return Instance(prompt, answer, {"values": values, "window": window}, code=code)
 
 
-def pivot_cell(rng: random.Random) -> Instance:
+def pivot_cell(rng: random.Random, runner: CodeRunner) -> Instance:
     city, quarter = rng.choice(CITIES[:3]), rng.choice(["Q1", "Q2"])
     rows: list[tuple[str, str, int]] = []
     # Строка города и оба столбца кварталов должны быть в сводной таблице, иначе loc упадёт.
@@ -256,7 +257,7 @@ def pivot_cell(rng: random.Random) -> Instance:
     )
 
 
-def view_or_copy(rng: random.Random) -> Instance:
+def view_or_copy(rng: random.Random, runner: CodeRunner) -> Instance:
     n = rng.randint(5, 12)
     start, stop = sorted(rng.sample(range(0, n), 2))
     value = rng.randint(50, 999)
@@ -276,7 +277,7 @@ def view_or_copy(rng: random.Random) -> Instance:
     return Instance(prompt, str(sum(base)), {"n": n, "taken": taken, "value": value}, code=code)
 
 
-def int8_overflow(rng: random.Random) -> Instance:
+def int8_overflow(rng: random.Random, runner: CodeRunner) -> Instance:
     dtype = rng.choice(["int8", "uint8"])
     low, high = (-128, 127) if dtype == "int8" else (0, 255)
     values = [rng.randint(max(low, -60), high) for _ in range(3)]

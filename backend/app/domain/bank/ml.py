@@ -5,13 +5,14 @@ import math
 import random
 
 from app.domain.bank.family import Instance, rounded
+from app.domain.bank.runner import CodeRunner
 
 
 def _confusion(rng: random.Random) -> tuple[int, int, int, int]:
     return rng.randint(5, 90), rng.randint(1, 40), rng.randint(1, 40), rng.randint(20, 300)
 
 
-def precision_recall(rng: random.Random) -> Instance:
+def precision_recall(rng: random.Random, runner: CodeRunner) -> Instance:
     tp, fp, fn, tn = _confusion(rng)
     code = (
         "                 предсказано 1   предсказано 0\n"
@@ -26,7 +27,7 @@ def precision_recall(rng: random.Random) -> Instance:
     return Instance(prompt, answer, {"tp": tp, "fp": fp, "fn": fn, "tn": tn}, code=code)
 
 
-def majority_baseline(rng: random.Random) -> Instance:
+def majority_baseline(rng: random.Random, runner: CodeRunner) -> Instance:
     positives = rng.randint(5, 200)
     negatives = rng.randint(300, 2000)
     correct = rng.randint(int(0.8 * (positives + negatives)), positives + negatives - 1)
@@ -42,7 +43,7 @@ def majority_baseline(rng: random.Random) -> Instance:
     )
 
 
-def f1_score(rng: random.Random) -> Instance:
+def f1_score(rng: random.Random, runner: CodeRunner) -> Instance:
     tp, fp, fn, _ = _confusion(rng)
     beta = rng.choice([1, 2])
     precision, recall = tp / (tp + fp), tp / (tp + fn)
@@ -54,7 +55,7 @@ def f1_score(rng: random.Random) -> Instance:
     return Instance(prompt, rounded(score, 3), {"tp": tp, "fp": fp, "fn": fn, "beta": beta})
 
 
-def knn_predict(rng: random.Random) -> Instance:
+def knn_predict(rng: random.Random, runner: CodeRunner) -> Instance:
     while True:
         points: list[tuple[int, int, str]] = []
         used: set[tuple[int, int]] = set()
@@ -90,7 +91,7 @@ def knn_predict(rng: random.Random) -> Instance:
     )
 
 
-def kfold_sizes(rng: random.Random) -> Instance:
+def kfold_sizes(rng: random.Random, runner: CodeRunner) -> Instance:
     n = rng.randint(50, 999)
     k = rng.randint(3, 10)
     size, extra = divmod(n, k)
@@ -105,7 +106,7 @@ def kfold_sizes(rng: random.Random) -> Instance:
     return Instance(prompt, f"{largest} {small} {n - small}", {"n": n, "k": k})
 
 
-def one_hot_columns(rng: random.Random) -> Instance:
+def one_hot_columns(rng: random.Random, runner: CodeRunner) -> Instance:
     features = {
         "город": rng.randint(2, 30),
         "тариф": rng.randint(2, 6),
@@ -125,7 +126,7 @@ def one_hot_columns(rng: random.Random) -> Instance:
     )
 
 
-def gini_split(rng: random.Random) -> Instance:
+def gini_split(rng: random.Random, runner: CodeRunner) -> Instance:
     left = (rng.randint(0, 30), rng.randint(0, 30))
     right = (rng.randint(0, 30), rng.randint(0, 30))
     if sum(left) == 0:
@@ -150,7 +151,7 @@ def gini_split(rng: random.Random) -> Instance:
     )
 
 
-def kmeans_step(rng: random.Random) -> Instance:
+def kmeans_step(rng: random.Random, runner: CodeRunner) -> Instance:
     points = [(rng.randint(0, 20), rng.randint(0, 20)) for _ in range(6)]
     centroids = [(rng.randint(0, 20), rng.randint(0, 20)) for _ in range(2)]
     while centroids[0] == centroids[1]:
@@ -180,7 +181,7 @@ def kmeans_step(rng: random.Random) -> Instance:
     return Instance(prompt, answer, {"points": points, "centroids": centroids})
 
 
-def linear_fit(rng: random.Random) -> Instance:
+def linear_fit(rng: random.Random, runner: CodeRunner) -> Instance:
     xs = sorted(rng.sample(range(0, 12), 4))
     slope, intercept = rng.choice([-3, -2, -1, 1, 2, 3, 4]), rng.randint(-5, 10)
     ys = [slope * x + intercept + rng.randint(-3, 3) for x in xs]
@@ -200,7 +201,7 @@ def linear_fit(rng: random.Random) -> Instance:
     )
 
 
-def roc_auc(rng: random.Random) -> Instance:
+def roc_auc(rng: random.Random, runner: CodeRunner) -> Instance:
     scores = rng.sample(range(1, 100), 10)
     labels = [rng.choice([0, 1]) for _ in scores]
     if len(set(labels)) == 1:
@@ -218,7 +219,7 @@ def roc_auc(rng: random.Random) -> Instance:
     )
 
 
-def log_loss(rng: random.Random) -> Instance:
+def log_loss(rng: random.Random, runner: CodeRunner) -> Instance:
     probs = [rng.randint(5, 95) / 100 for _ in range(4)]
     labels = [rng.choice([0, 1]) for _ in probs]
     loss = -sum(math.log(p if y else 1 - p) for p, y in zip(probs, labels, strict=True)) / len(
@@ -234,7 +235,7 @@ def log_loss(rng: random.Random) -> Instance:
     )
 
 
-def ndcg_at_k(rng: random.Random) -> Instance:
+def ndcg_at_k(rng: random.Random, runner: CodeRunner) -> Instance:
     rels = [rng.choice([0, 0, 1, 2, 3]) for _ in range(6)]
     if not any(rels):
         rels[rng.randrange(6)] = 2

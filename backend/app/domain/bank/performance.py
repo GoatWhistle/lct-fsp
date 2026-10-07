@@ -4,9 +4,10 @@ import math
 import random
 
 from app.domain.bank.family import Instance, rounded
+from app.domain.bank.runner import CodeRunner
 
 
-def throughput(rng: random.Random) -> Instance:
+def throughput(rng: random.Random, runner: CodeRunner) -> Instance:
     rps, seconds = rng.randint(5, 400), rng.choice([10, 30, 60, 120, 300])
     prompt = (
         f"За {seconds} с нагрузочный тест отправил {rps * seconds} запросов, все получили ответ. "
@@ -15,7 +16,7 @@ def throughput(rng: random.Random) -> Instance:
     return Instance(prompt, str(rps), {"requests": rps * seconds, "seconds": seconds})
 
 
-def littles_law(rng: random.Random) -> Instance:
+def littles_law(rng: random.Random, runner: CodeRunner) -> Instance:
     rps, latency_ms = rng.randrange(50, 2000, 50), rng.choice([20, 40, 80, 100, 200, 400])
     in_flight = rps * latency_ms // 1000
     prompt = (
@@ -25,7 +26,7 @@ def littles_law(rng: random.Random) -> Instance:
     return Instance(prompt, str(in_flight), {"rps": rps, "latency_ms": latency_ms})
 
 
-def percentile(rng: random.Random) -> Instance:
+def percentile(rng: random.Random, runner: CodeRunner) -> Instance:
     n, p = rng.choice([10, 20]), rng.choice([50, 90, 95])
     latencies = rng.sample(range(40, 900), n)
     rank = math.ceil(p / 100 * n)
@@ -37,7 +38,7 @@ def percentile(rng: random.Random) -> Instance:
     return Instance(prompt, str(answer), {"latencies": latencies, "p": p})
 
 
-def closed_model(rng: random.Random) -> Instance:
+def closed_model(rng: random.Random, runner: CodeRunner) -> Instance:
     response, think = rng.choice([0.5, 1, 2]), rng.choice([1, 2, 3, 4, 8])
     cycle = response + think
     target = rng.randint(2, 50)
@@ -61,7 +62,7 @@ def closed_model(rng: random.Random) -> Instance:
     return Instance(prompt, str(answer), params)
 
 
-def error_rate(rng: random.Random) -> Instance:
+def error_rate(rng: random.Random, runner: CodeRunner) -> Instance:
     total = rng.randint(2000, 90000)
     errors = rng.randint(1, total // 20)
     timeouts = rng.randint(0, total // 50)
@@ -76,7 +77,7 @@ def error_rate(rng: random.Random) -> Instance:
     )
 
 
-def apdex(rng: random.Random) -> Instance:
+def apdex(rng: random.Random, runner: CodeRunner) -> Instance:
     threshold = rng.choice([100, 200, 300, 500])
     latencies = [rng.randint(20, 6 * threshold) for _ in range(rng.randint(10, 14))]
     satisfied = sum(1 for x in latencies if x <= threshold)
@@ -92,7 +93,7 @@ def apdex(rng: random.Random) -> Instance:
     return Instance(prompt, answer, {"threshold": threshold, "latencies": latencies})
 
 
-def ramp_up(rng: random.Random) -> Instance:
+def ramp_up(rng: random.Random, runner: CodeRunner) -> Instance:
     users = rng.randint(10, 200)
     ramp = rng.choice([30, 60, 120, 300])
     hold = rng.choice([60, 120, 300])
@@ -109,7 +110,7 @@ def ramp_up(rng: random.Random) -> Instance:
     return Instance(prompt, f"{requests:g}", params)
 
 
-def pacing_rps(rng: random.Random) -> Instance:
+def pacing_rps(rng: random.Random, runner: CodeRunner) -> Instance:
     users = rng.randint(5, 300)
     response = rng.choice([0.2, 0.5, 1.0, 1.5])
     pacing = rng.choice([2, 3, 4, 5, 10])
@@ -125,7 +126,7 @@ def pacing_rps(rng: random.Random) -> Instance:
     )
 
 
-def percentile_linear(rng: random.Random) -> Instance:
+def percentile_linear(rng: random.Random, runner: CodeRunner) -> Instance:
     n = rng.randint(6, 11)
     p = rng.choice([50, 75, 90, 95])
     latencies = rng.sample(range(40, 900), n)
@@ -142,7 +143,7 @@ def percentile_linear(rng: random.Random) -> Instance:
     return Instance(prompt, f"{rounded(value, 1)}", {"latencies": latencies, "p": p})
 
 
-def queue_utilization(rng: random.Random) -> Instance:
+def queue_utilization(rng: random.Random, runner: CodeRunner) -> Instance:
     service_ms = rng.choice([5, 10, 20, 25, 40, 50])
     capacity = 1000 / service_ms
     rps = round(capacity * rng.choice([0.5, 0.6, 0.7, 0.75, 0.8, 0.9]))
@@ -161,7 +162,7 @@ def queue_utilization(rng: random.Random) -> Instance:
     )
 
 
-def capacity_headroom(rng: random.Random) -> Instance:
+def capacity_headroom(rng: random.Random, runner: CodeRunner) -> Instance:
     rps = rng.randrange(100, 2000, 50)
     cpu = rng.randint(15, 60)
     target = rng.choice([60, 70, 75, 80])
@@ -177,7 +178,7 @@ def capacity_headroom(rng: random.Random) -> Instance:
     return Instance(prompt, f"{rounded(max_rps, 0)} {rounded(max_rps / nodes, 0)}", params)
 
 
-def histogram_quantile(rng: random.Random) -> Instance:
+def histogram_quantile(rng: random.Random, runner: CodeRunner) -> Instance:
     bounds = sorted(rng.sample([50, 100, 200, 300, 500, 750, 1000, 2000], 5))
     counts = [rng.randint(5, 60) for _ in bounds]
     total = sum(counts)

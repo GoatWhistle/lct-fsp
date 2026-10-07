@@ -24,6 +24,7 @@ from app.domain.errors import (
 from app.domain.work import WorkFormat
 from app.profile.models import CandidateProfile
 from app.profile.schemas import ProfileIn
+from app.repository.unit_of_work import SqlUnitOfWork
 from app.skills.models import SkillProfile
 
 PROFILE_ERRORS = (UnknownTechnology, UnknownIndustry, CityRequired)
@@ -50,35 +51,36 @@ def get_profile(db: Session, user_id: uuid.UUID) -> CandidateProfile | None:
     return db.get(CandidateProfile, user_id)
 
 
-def save_profile(db: Session, user_id: uuid.UUID, data: ProfileIn) -> CandidateProfile:
-    stack = _technologies(db, data.stack)
-    industries = _industries(db, data.industries)
-    if data.city is None and data.work_formats != [WorkFormat.remote]:
-        raise CityRequired()
-    fields = {
-        "full_name": data.full_name,
-        "contact_email": data.contact_email,
-        "contact_phone": data.contact_phone,
-        "telegram": data.telegram,
-        "about": data.about,
-        "job_roles": data.job_roles,
-        "experience_years": data.experience_years,
-        "soft_skills": data.soft_skills,
-        "work_formats": [f.value for f in data.work_formats],
-        "city": data.city,
-        "relocation": data.relocation,
-        "salary_from": data.salary_from,
-        "updated_at": utcnow(),
-    }
-    # Вставка с заменой держит строку профиля до конца транзакции: двойное «Сохранить» не
-    # упрётся в ключ, а стек второго запроса запишется после первого.
-    stmt = pg_insert(CandidateProfile).values(user_id=user_id, **fields)
-    db.execute(stmt.on_conflict_do_update(index_elements=["user_id"], set_=fields))
-    profile = db.get_one(CandidateProfile, user_id, populate_existing=True)
-    profile.stack = stack
-    profile.industries = industries
-    db.commit()
-    return profile
+def save_profile(uow: SqlUnitOfWork, user_id: uuid.UUID, data: ProfileIn) -> CandidateProfile:
+    with uow:
+        db = uow.session
+        stack = _technologies(db, data.stack)
+        industries = _industries(db, data.industries)
+        if data.city is None and data.work_formats != [WorkFormat.remote]:
+            raise CityRequired()
+        fields = {
+            "full_name": data.full_name,
+            "contact_email": data.contact_email,
+            "contact_phone": data.contact_phone,
+            "telegram": data.telegram,
+            "about": data.about,
+            "job_roles": data.job_roles,
+            "experience_years": data.experience_years,
+            "soft_skills": data.soft_skills,
+            "work_formats": [f.value for f in data.work_formats],
+            "city": data.city,
+            "relocation": data.relocation,
+            "salary_from": data.salary_from,
+            "updated_at": utcnow(),
+        }
+        # Вставка с заменой держит строку профиля до конца транзакции: двойное «Сохранить» не
+        # упрётся в ключ, а стек второго запроса запишется после первого.
+        stmt = pg_insert(CandidateProfile).values(user_id=user_id, **fields)
+        db.execute(stmt.on_conflict_do_update(index_elements=["user_id"], set_=fields))
+        profile = db.get_one(CandidateProfile, user_id, populate_existing=True)
+        profile.stack = stack
+        profile.industries = industries
+        return profile
 
 
 def card(db: Session, candidate_id: uuid.UUID) -> Card:

@@ -31,7 +31,7 @@ from tests.candidate_path import (
     start,
     take_survey,
 )
-from tests.conftest import PASSWORD, Outbox
+from tests.conftest import PASSWORD, Outbox, transaction
 
 QA_TOPICS = [t.code for s in load_catalog().specializations if s.code == "qa" for t in s.topics]
 
@@ -524,19 +524,70 @@ def test_elo_moves_difficulty_only_until_refit(db_engine: Engine, mechanics: Mec
             attempt=attempt,
         )
 
-    with Session(db_engine) as db:
+    with transaction(db_engine) as db:
         families.learn(db, answered(True), mechanics)
         row = db.get_one(FamilyCalibration, family.code)
         assert row.difficulty < mechanics.expert_difficulty_by_grade[family.grade]
         row.reference_discrimination, row.reference_difficulty = row.discrimination, row.difficulty
         row.refitted_at = datetime.now(UTC)
-        db.commit()
         reference = (row.discrimination, row.difficulty)
 
+    with transaction(db_engine) as db:
         families.learn(db, answered(False), mechanics)
-        db.commit()
 
     with Session(db_engine) as db:
         row = db.get_one(FamilyCalibration, family.code)
         assert (row.discrimination, row.difficulty) == reference
         assert row.responses == 2
+
+
+TOUCHED_BY_ANSWER = (
+    "presentations",
+    "test_attempts",
+    "family_calibrations",
+    "scale_links",
+    "candidate_categories",
+    "skill_profiles",
+    "skill_profile_topics",
+)
+
+
+def touched_by_answer(db_engine: Engine) -> dict[str, list[tuple[Any, ...]]]:
+    with db_engine.connect() as conn:
+        return {
+            table: [tuple(row) for row in conn.execute(text(f"SELECT * FROM {table} ORDER BY 1"))]
+            for table in TOUCHED_BY_ANSWER
+        }
+
+
+def test_failed_refit_rolls_back_the_whole_answer(
+    candidate: TestClient, db_engine: Engine, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Ответ — одна транзакция: попытка, шаг Эло, связка шкалы и переоценка. Сбой переоценки
+    не оставляет ни ответа, ни калибровки; повтор того же ответа проходит."""
+
+    class RefitFailed(Exception):
+        pass
+
+    def refit_fails(*_: Any, **__: Any) -> None:
+        raise RefitFailed()
+
+    monkeypatch.setattr(families, "refit_due", refit_fails)
+    take_survey(candidate)
+    start(candidate, "middle")
+
+    while True:
+        item = candidate.get(ITEM).json()
+        family, seed = presented(db_engine, item["id"])
+        body = {"presentation_id": item["id"], "response": family.instance(seed).answer}
+        before = touched_by_answer(db_engine)
+        try:
+            candidate.post(f"{ITEM}/answer", json=body).raise_for_status()
+        except RefitFailed:
+            break
+
+    assert touched_by_answer(db_engine) == before
+    monkeypatch.undo()
+    retried = candidate.post(f"{ITEM}/answer", json=body)
+    assert retried.status_code == 200, retried.text
+    assert retried.json()["stage"] == "category"

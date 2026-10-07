@@ -4,7 +4,7 @@ from fastapi import APIRouter, Response, status
 
 from app.config import SettingsDep
 from app.controller.errors import error_responses
-from app.db import DbSession
+from app.db import DbSession, UnitOfWorkDep
 from app.domain import errors
 from app.identity import service
 from app.identity.deps import ACCESS_COOKIE, AUTH_RESPONSES, CurrentUser
@@ -31,12 +31,12 @@ router = APIRouter(prefix="/api/auth", tags=["auth"])
 )
 def register(
     body: RegisterIn,
-    db: DbSession,
+    uow: UnitOfWorkDep,
     mailer: MailerDep,
     settings: SettingsDep,
 ) -> UserOut:
     user = service.register(
-        db, mailer, settings, email=body.email, password=body.password, role=body.role
+        uow, mailer, settings, email=body.email, password=body.password, role=body.role
     )
     return UserOut.model_validate(user)
 
@@ -46,8 +46,8 @@ def register(
     summary="Подтверждение адреса по токену из письма",
     responses=error_responses(errors.TokenInvalid, errors.TokenExpired),
 )
-def verify_email(body: VerifyEmailIn, db: DbSession) -> UserOut:
-    return UserOut.model_validate(service.verify_email(db, token=body.token))
+def verify_email(body: VerifyEmailIn, uow: UnitOfWorkDep) -> UserOut:
+    return UserOut.model_validate(service.verify_email(uow, token=body.token))
 
 
 @router.post(
@@ -59,11 +59,11 @@ def verify_email(body: VerifyEmailIn, db: DbSession) -> UserOut:
 )
 def resend_verification(
     body: ResendVerificationIn,
-    db: DbSession,
+    uow: UnitOfWorkDep,
     mailer: MailerDep,
     settings: SettingsDep,
 ) -> None:
-    service.resend_verification(db, mailer, settings, email=body.email)
+    service.resend_verification(uow, mailer, settings, email=body.email)
 
 
 @router.post(

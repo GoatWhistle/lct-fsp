@@ -6,6 +6,8 @@ from fastapi import Depends, Request
 from sqlalchemy import DateTime, Engine, MetaData, create_engine  # noqa: TID251
 from sqlalchemy.orm import DeclarativeBase, Session
 
+from app.repository.unit_of_work import SqlUnitOfWork
+
 # Имена ограничений задаём явно — иначе миграции на разных машинах расходятся.
 NAMING_CONVENTION = {
     "ix": "ix_%(column_0_label)s",
@@ -34,9 +36,22 @@ def create_db_engine(url: str, **kwargs: Any) -> Engine:
     return create_engine(url, connect_args={"options": "-c timezone=UTC"}, **kwargs)
 
 
-def get_db(request: Request) -> Iterator[Session]:
-    with request.app.state.sessionmaker() as session:
-        yield session
+def get_unit_of_work(request: Request) -> Iterator[SqlUnitOfWork]:
+    """Единица работы запроса; фабрику собирает `create_app`. Транзакции — блоки `with uow:`
+    в сценариях, сессия закрывается в конце запроса."""
+    uow: SqlUnitOfWork = request.app.state.unit_of_work()
+    try:
+        yield uow
+    finally:
+        uow.close()
+
+
+UnitOfWorkDep = Annotated[SqlUnitOfWork, Depends(get_unit_of_work)]
+
+
+def get_db(uow: UnitOfWorkDep) -> Session:
+    """Сессия единицы работы запроса — для чтения; записывают сценарии внутри `with uow:`."""
+    return uow.session
 
 
 DbSession = Annotated[Session, Depends(get_db)]

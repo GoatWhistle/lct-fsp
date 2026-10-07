@@ -5,7 +5,8 @@
 """
 
 from collections.abc import Iterable
-from typing import Protocol
+from types import TracebackType
+from typing import Protocol, Self
 
 from app.domain.skill import Observation, Prior, SkillEstimate
 
@@ -23,4 +24,28 @@ class SkillModel(Protocol):
 
     def estimate(self, prior: Prior, observations: Iterable[Observation]) -> SkillEstimate:
         """Оценка по априорному и упорядоченным наблюдениям."""
+        ...
+
+
+class UnitOfWork(Protocol):
+    """Единица работы — граница транзакции: один вызов сценария — один блок `with uow:`.
+
+    Выход из блока без исключения фиксирует всё записанное в нём, с исключением — откатывает и
+    пробрасывает исключение дальше. Блоки идут по очереди, вложенный вход — ошибка. Кроме
+    единицы работы изменения не фиксирует никто: ни репозитории, ни сценарии. Сейчас — Postgres
+    (`app.repository.unit_of_work`) и in-memory для тестов и стенда валидации
+    (`app.repository.memory`).
+    """
+
+    def __enter__(self) -> Self:
+        """Начало блока; вложенный вход — `RuntimeError`."""
+        ...
+
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc: BaseException | None,
+        tb: TracebackType | None,
+    ) -> None:
+        """Фиксация без исключения, откат с исключением; исключение не глотается."""
         ...

@@ -30,6 +30,7 @@ from app.matching.importance import TopicImportance, topic_importance
 from app.matching.models import Need, NeedTopicImportance
 from app.matching.schemas import NeedIn, TopicImportanceIn
 from app.repository.catalog import ref_of, specialization_of
+from app.repository.unit_of_work import SqlUnitOfWork
 
 
 @dataclass(frozen=True)
@@ -73,26 +74,29 @@ def get_need(db: Session, user_id: uuid.UUID, need_id: uuid.UUID) -> Need:
     return need
 
 
-def create_need(db: Session, user_id: uuid.UUID, data: NeedIn) -> Need:
-    need = Need(user_id=user_id)
-    _fill(db, need, data)
-    db.add(need)
-    db.commit()
-    return need
+def create_need(uow: SqlUnitOfWork, user_id: uuid.UUID, data: NeedIn) -> Need:
+    with uow:
+        db = uow.session
+        need = Need(user_id=user_id)
+        _fill(db, need, data)
+        db.add(need)
+        return need
 
 
-def update_need(db: Session, user_id: uuid.UUID, need_id: uuid.UUID, data: NeedIn) -> Need:
-    need = get_need(db, user_id, need_id)
-    _fill(db, need, data)
-    # Стек и правки важности лежат в своих таблицах: строка потребности может не измениться.
-    need.updated_at = utcnow()
-    db.commit()
-    return need
+def update_need(uow: SqlUnitOfWork, user_id: uuid.UUID, need_id: uuid.UUID, data: NeedIn) -> Need:
+    with uow:
+        db = uow.session
+        need = get_need(db, user_id, need_id)
+        _fill(db, need, data)
+        # Стек и правки важности лежат в своих таблицах: строка потребности может не измениться.
+        need.updated_at = utcnow()
+        return need
 
 
-def delete_need(db: Session, user_id: uuid.UUID, need_id: uuid.UUID) -> None:
-    db.delete(get_need(db, user_id, need_id))
-    db.commit()
+def delete_need(uow: SqlUnitOfWork, user_id: uuid.UUID, need_id: uuid.UUID) -> None:
+    with uow:
+        db = uow.session
+        db.delete(get_need(db, user_id, need_id))
 
 
 def need_topics(need: Need, mechanics: Mechanics) -> list[TopicView]:

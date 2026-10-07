@@ -11,7 +11,6 @@ from typing import Any
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import Engine, delete, insert, select, update
-from sqlalchemy.orm import Session
 
 from app.assessment.models import CandidateCategory, Grade, Survey, TestAttempt, Topic
 from app.config import Mechanics
@@ -19,6 +18,7 @@ from app.identity.models import Role, User
 from app.profile.models import CandidateProfile, candidate_technologies
 from app.skills.models import SkillProfile, SkillProfileTopic
 from tests.candidate_path import answer_items, nothing, pass_test, start, take_survey
+from tests.conftest import transaction
 
 NEEDS = "/api/employer/needs"
 SELECTIONS = "/api/employer/selections"
@@ -102,7 +102,7 @@ class Seed:
 
 
 def seed(db_engine: Engine, seeds: Sequence[Seed], specialization: str = "qa") -> list[str]:
-    with Session(db_engine) as db:
+    with transaction(db_engine) as db:
         topics = db.scalars(
             select(Topic.code).where(Topic.specialization_code == specialization)
         ).all()
@@ -209,12 +209,11 @@ def seed(db_engine: Engine, seeds: Sequence[Seed], specialization: str = "qa") -
         for table, values in rows.items():
             if values:
                 db.execute(insert(table), values)
-        db.commit()
     return ids
 
 
 def set_level(db_engine: Engine, candidate: str, topic: str, theta: float) -> None:
-    with Session(db_engine) as db:
+    with transaction(db_engine) as db:
         profile = select(SkillProfile.id).where(SkillProfile.user_id == uuid.UUID(candidate))
         db.execute(
             update(SkillProfileTopic)
@@ -222,7 +221,6 @@ def set_level(db_engine: Engine, candidate: str, topic: str, theta: float) -> No
             .where(SkillProfileTopic.topic_code == topic)
             .values(theta=theta)
         )
-        db.commit()
 
 
 def test_selection_has_only_candidates_with_category_by_test(
@@ -405,10 +403,9 @@ def test_topic_missing_from_profile_counts_as_prior_with_low_data(
 ) -> None:
     # Тему добавили в справочник, а профиль кандидата пересчитается только со следующим сигналом.
     (candidate,) = seed(db_engine, [Seed(levels={"qa.api": (1.5, 0.3)})])
-    with Session(db_engine) as db:
+    with transaction(db_engine) as db:
         absent = SkillProfileTopic.topic_code == "qa.performance"
         db.execute(delete(SkillProfileTopic).where(absent))
-        db.commit()
 
     entry = entry_of(build(employer, create_need(employer)), candidate)
 
@@ -430,9 +427,8 @@ def test_deleted_candidate_leaves_selection_consistent(
     built = build(employer, create_need(employer))
     assert built["entries"][0]["candidate_id"] == gone
 
-    with Session(db_engine) as db:
+    with transaction(db_engine) as db:
         db.execute(delete(User).where(User.id == uuid.UUID(gone)))
-        db.commit()
 
     reopened = open_selection(employer, built["id"])
     assert (reopened["exact_total"], reopened["nearby_total"]) == (1, 1)
@@ -449,15 +445,13 @@ def test_entry_grade_name_is_frozen_with_the_selection(
     seed(db_engine, [Seed(grade="senior")])
     built = build(employer, create_need(employer))
 
-    with Session(db_engine) as db:
+    with transaction(db_engine) as db:
         db.execute(update(Grade).where(Grade.code == "senior").values(name="Сеньор"))
-        db.commit()
     try:
         reopened = open_selection(employer, built["id"])
     finally:
-        with Session(db_engine) as db:
+        with transaction(db_engine) as db:
             db.execute(update(Grade).where(Grade.code == "senior").values(name="Senior"))
-            db.commit()
 
     assert reopened["entries"][0]["grade"] == {"code": "senior", "name": "Senior"}
 

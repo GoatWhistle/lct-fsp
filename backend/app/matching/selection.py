@@ -37,6 +37,7 @@ from app.matching.schemas import (
 from app.matching.score import Match, Requirement, match_score, ranking, requirements, verdict
 from app.matching.service import get_need, need_topics
 from app.profile.models import candidate_technologies
+from app.repository.unit_of_work import SqlUnitOfWork
 from app.skills.models import SkillProfile, SkillProfileTopic
 
 
@@ -66,70 +67,71 @@ class _Candidate:
 
 
 def build(
-    db: Session, user_id: uuid.UUID, need_id: uuid.UUID, mechanics: Mechanics, *, limit: int
+    uow: SqlUnitOfWork, user_id: uuid.UUID, need_id: uuid.UUID, mechanics: Mechanics, *, limit: int
 ) -> Page:
     """Строит подборку по текущей потребности и профилям навыков и сохраняет её."""
-    need = get_need(db, user_id, need_id)
-    snapshot = need_snapshot(need, mechanics)
-    need_reqs = [Requirement(t.topic.code, t.weight, t.requirement) for t in snapshot.topics]
-    need_stack = [t.code for t in snapshot.stack]
-    pool = _pool(db, need, [t.topic.code for t in snapshot.topics], mechanics)
-    stacks = _stacks(db, need, need_stack, mechanics)
-    now = utcnow()
+    with uow:
+        db = uow.session
+        need = get_need(db, user_id, need_id)
+        snapshot = need_snapshot(need, mechanics)
+        need_reqs = [Requirement(t.topic.code, t.weight, t.requirement) for t in snapshot.topics]
+        need_stack = [t.code for t in snapshot.stack]
+        pool = _pool(db, need, [t.topic.code for t in snapshot.topics], mechanics)
+        stacks = _stacks(db, need, need_stack, mechanics)
+        now = utcnow()
 
-    selection = Selection(
-        id=uuid.uuid4(),
-        user_id=user_id,
-        need_id=need.id,
-        need_snapshot=snapshot.model_dump(mode="json"),
-        stack_cap=mechanics.self_reported_stack_cap,
-        created_at=now,
-    )
-    matches = {
-        c.user_id: match_score(
-            need_reqs,
-            c.levels,
-            need_stack,
-            stacks[c.user_id],
+        selection = Selection(
+            id=uuid.uuid4(),
+            user_id=user_id,
+            need_id=need.id,
+            need_snapshot=snapshot.model_dump(mode="json"),
             stack_cap=mechanics.self_reported_stack_cap,
+            created_at=now,
         )
-        for c in pool
-    }
-    # Модель принятия (§13) ещё не обучена: P(принятия) нет, множитель 1.
-    acceptance: dict[uuid.UUID, float | None] = dict.fromkeys(matches)
-    mutual = {c: _mutual(m.score, acceptance[c]) for c, m in matches.items()}
-
-    by_id = {c.user_id: c for c in pool}
-    rows: list[dict[str, Any]] = []
-    for block in SelectionBlock:
-        scores = {c.user_id: mutual[c.user_id] for c in pool if c.block == block}
-        for rank, candidate_id in enumerate(ranking(scores, selection.id), start=1):
-            candidate = by_id[candidate_id]
-            rows.append(
-                {
-                    "selection_id": selection.id,
-                    "position": len(rows) + 1,
-                    "candidate_id": candidate_id,
-                    "block": block,
-                    "rank": rank,
-                    "grade_code": candidate.grade_code,
-                    "grade_name": candidate.grade_name,
-                    "match_score": matches[candidate_id].score,
-                    "acceptance_probability": acceptance[candidate_id],
-                    "mutual_score": mutual[candidate_id],
-                    "explanation": _explanation(matches[candidate_id], mechanics).model_dump(
-                        mode="json"
-                    ),
-                    "stale": _stale(candidate.last_signal_at, now, mechanics),
-                }
+        matches = {
+            c.user_id: match_score(
+                need_reqs,
+                c.levels,
+                need_stack,
+                stacks[c.user_id],
+                stack_cap=mechanics.self_reported_stack_cap,
             )
+            for c in pool
+        }
+        # Модель принятия (§13) ещё не обучена: P(принятия) нет, множитель 1.
+        acceptance: dict[uuid.UUID, float | None] = dict.fromkeys(matches)
+        mutual = {c: _mutual(m.score, acceptance[c]) for c, m in matches.items()}
 
-    db.add(selection)
-    db.flush()
-    if rows:
-        db.execute(insert(SelectionEntry), rows)
-    db.commit()
-    return get_page(db, user_id, selection.id, offset=0, limit=limit)
+        by_id = {c.user_id: c for c in pool}
+        rows: list[dict[str, Any]] = []
+        for block in SelectionBlock:
+            scores = {c.user_id: mutual[c.user_id] for c in pool if c.block == block}
+            for rank, candidate_id in enumerate(ranking(scores, selection.id), start=1):
+                candidate = by_id[candidate_id]
+                rows.append(
+                    {
+                        "selection_id": selection.id,
+                        "position": len(rows) + 1,
+                        "candidate_id": candidate_id,
+                        "block": block,
+                        "rank": rank,
+                        "grade_code": candidate.grade_code,
+                        "grade_name": candidate.grade_name,
+                        "match_score": matches[candidate_id].score,
+                        "acceptance_probability": acceptance[candidate_id],
+                        "mutual_score": mutual[candidate_id],
+                        "explanation": _explanation(matches[candidate_id], mechanics).model_dump(
+                            mode="json"
+                        ),
+                        "stale": _stale(candidate.last_signal_at, now, mechanics),
+                    }
+                )
+
+        db.add(selection)
+        db.flush()
+        if rows:
+            db.execute(insert(SelectionEntry), rows)
+        return get_page(db, user_id, selection.id, offset=0, limit=limit)
 
 
 def get_page(

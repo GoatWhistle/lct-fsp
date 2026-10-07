@@ -1,11 +1,12 @@
 """Путь кандидата к категории: опрос → грейд → тест → категория. Путь обязательный — пока
-категории нет, кабинет кандидата показывает его шаг."""
+категории нет, кабинет кандидата показывает его шаг.
+
+Правил здесь нет: контроллер вызывает сценарии `app.usecase.attempt` и переводит доменные
+представления в схемы API.
+"""
 
 from fastapi import APIRouter
 
-from app.assessment import service
-from app.assessment.determination import grade_probabilities, grade_up_hint
-from app.assessment.models import AttemptOutcome, TestAttempt
 from app.assessment.schemas import (
     AnswerIn,
     AttemptIn,
@@ -17,16 +18,15 @@ from app.assessment.schemas import (
     SurveyIn,
     SurveyOut,
     TestResultOut,
-    level_out,
-    skill_profile_out,
+    level_view,
+    skill_profile_view,
 )
 from app.config import Mechanics, MechanicsDep
-from app.controller.deps import AttemptsDep, ClockDep, SeedsDep, SkillModelDep
+from app.controller.deps import CandidatePathDep
 from app.controller.errors import error_responses
 from app.controller.schemas import CatalogRef
-from app.db import DbSession, UnitOfWorkDep
 from app.domain import errors
-from app.domain.skill import Normal
+from app.domain.attempt import PathView, TestResult
 from app.identity.deps import ROLE_RESPONSES, CurrentUser, role_guard
 from app.identity.models import Role
 
@@ -39,8 +39,8 @@ router = APIRouter(
 
 
 @router.get("", summary="Шаг пути к категории и итоги теста")
-def get_path(user: CurrentUser, db: DbSession, mechanics: MechanicsDep, clock: ClockDep) -> PathOut:
-    return _path_out(service.path(db, user.id, clock), mechanics)
+def get_path(user: CurrentUser, paths: CandidatePathDep, mechanics: MechanicsDep) -> PathOut:
+    return _path_out(paths.path(user.id), mechanics)
 
 
 @router.post(
@@ -56,9 +56,9 @@ def get_path(user: CurrentUser, db: DbSession, mechanics: MechanicsDep, clock: C
     ),
 )
 def submit_survey(
-    body: SurveyIn, user: CurrentUser, uow: UnitOfWorkDep, mechanics: MechanicsDep, clock: ClockDep
+    body: SurveyIn, user: CurrentUser, paths: CandidatePathDep, mechanics: MechanicsDep
 ) -> PathOut:
-    view = service.submit_survey(uow, user, clock, specialization=body.specialization)
+    view = paths.submit_survey(user.id, specialization=body.specialization)
     return _path_out(view, mechanics)
 
 
@@ -70,17 +70,9 @@ def submit_survey(
     responses=error_responses(errors.StepUnavailable, errors.GradeNotOffered, errors.UnknownGrade),
 )
 def start_attempt(
-    body: AttemptIn,
-    user: CurrentUser,
-    uow: UnitOfWorkDep,
-    mechanics: MechanicsDep,
-    clock: ClockDep,
-    skill_model: SkillModelDep,
-    attempts: AttemptsDep,
+    body: AttemptIn, user: CurrentUser, paths: CandidatePathDep, mechanics: MechanicsDep
 ) -> PathOut:
-    view = service.start_attempt(
-        uow, user, mechanics, clock, skill_model, attempts, grade=body.grade
-    )
+    view = paths.start_attempt(user.id, grade=body.grade)
     return _path_out(view, mechanics)
 
 
@@ -91,13 +83,11 @@ def start_attempt(
     "запрос отдаёт то же задание. Эталон и параметры экземпляра не отдаются.",
     responses=error_responses(errors.NoTestInProgress),
 )
-def get_item(
-    user: CurrentUser, uow: UnitOfWorkDep, mechanics: MechanicsDep, clock: ClockDep, seeds: SeedsDep
-) -> ItemOut:
-    item = service.current_item(uow, user, mechanics, clock, seeds)
+def get_item(user: CurrentUser, paths: CandidatePathDep, mechanics: MechanicsDep) -> ItemOut:
+    item = paths.current_item(user.id)
     return ItemOut(
-        id=item.presentation.id,
-        number=item.presentation.position + 1,
+        id=item.presentation_id,
+        number=item.number,
         max_items=mechanics.test_max_items,
         topic=CatalogRef.model_validate(item.topic),
         prompt=item.instance.prompt,
@@ -115,77 +105,40 @@ def get_item(
     responses=error_responses(errors.NoTestInProgress, errors.ItemNotCurrent),
 )
 def answer_item(
-    body: AnswerIn,
-    user: CurrentUser,
-    uow: UnitOfWorkDep,
-    mechanics: MechanicsDep,
-    clock: ClockDep,
-    skill_model: SkillModelDep,
-    attempts: AttemptsDep,
+    body: AnswerIn, user: CurrentUser, paths: CandidatePathDep, mechanics: MechanicsDep
 ) -> PathOut:
-    view = service.answer(
-        uow,
-        user,
-        mechanics,
-        clock,
-        skill_model,
-        attempts,
-        presentation_id=body.presentation_id,
-        response=body.response,
-    )
+    view = paths.answer(user.id, presentation_id=body.presentation_id, response=body.response)
     return _path_out(view, mechanics)
 
 
-def _path_out(view: service.PathView, mechanics: Mechanics) -> PathOut:
-    attempt = view.attempt
-    finished = attempt is not None and attempt.finished_at is not None
+def _path_out(view: PathView, mechanics: Mechanics) -> PathOut:
     return PathOut(
         stage=view.stage,
         survey=SurveyOut.model_validate(view.survey) if view.survey else None,
         attempt=(
             AttemptProgressOut(
-                grade=attempt.grade_code,
-                answered=sum(1 for p in attempt.presentations if p.answered_at is not None),
+                grade=view.progress.grade,
+                answered=view.progress.answered,
                 max_items=mechanics.test_max_items,
             )
-            if attempt is not None and not finished
+            if view.progress
             else None
         ),
-        offer_grade=(
-            attempt.outcome_grade_code
-            if attempt is not None and attempt.outcome == AttemptOutcome.offered
-            else None
-        ),
-        retest_after=attempt.retest_after if attempt is not None else None,
+        offer_grade=view.offer_grade,
+        retest_after=view.retest_after,
         category=CategoryOut.model_validate(view.category) if view.category else None,
-        result=_result_out(attempt, mechanics) if attempt is not None and finished else None,
-        profile=skill_profile_out(view.profile, mechanics) if view.profile else None,
+        result=_result_out(view.result) if view.result else None,
+        profile=skill_profile_view(view.profile) if view.profile else None,
     )
 
 
-def _result_out(attempt: TestAttempt, mechanics: Mechanics) -> TestResultOut:
-    assert attempt.overall_theta is not None and attempt.overall_theta_sd is not None
-    overall = Normal(attempt.overall_theta, attempt.overall_theta_sd)
-    probabilities = grade_probabilities(overall, mechanics.grade_thresholds)
-    hint = None
-    # Только тому, кто сразу прошёл заявленный грейд: после каскада грейд выше уже не дался.
-    passed_claimed = (
-        attempt.outcome == AttemptOutcome.assigned
-        and attempt.continues_attempt_id is None
-        and attempt.outcome_grade_code == attempt.grade_code
-    )
-    if passed_claimed:
-        hint = grade_up_hint(
-            overall,
-            attempt.grade_code,
-            thresholds=mechanics.grade_thresholds,
-            confidence=mechanics.grade_up_hint_confidence,
-        )
+def _result_out(result: TestResult) -> TestResultOut:
     return TestResultOut(
-        grade=attempt.grade_code,
-        overall=level_out(overall, mechanics),
+        grade=result.grade,
+        overall=level_view(result.overall),
         grade_probabilities=[
-            GradeProbabilityOut(grade=g, probability=p) for g, p in probabilities.items()
+            GradeProbabilityOut(grade=g, probability=p)
+            for g, p in result.grade_probabilities.items()
         ],
-        grade_up_hint=hint,
+        grade_up_hint=result.grade_up_hint,
     )

@@ -12,7 +12,9 @@ import math
 from collections.abc import Iterable
 from dataclasses import dataclass
 
-from app.domain.skill import Normal, Observation, Prior
+from app.domain.skill import Normal, Observation, Prior, sigmoid
+
+__all__ = ["Estimate", "estimate", "initial", "sigmoid", "update"]
 
 
 @dataclass(frozen=True)
@@ -79,10 +81,3 @@ def estimate(prior: Prior, observations: Iterable[Observation]) -> Estimate:
     for obs in observations:
         est = update(est, obs)
     return est
-
-
-def sigmoid(x: float) -> float:
-    if x >= 0:
-        return 1.0 / (1.0 + math.exp(-x))
-    z = math.exp(x)
-    return z / (1.0 + z)

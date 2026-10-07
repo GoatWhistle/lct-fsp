@@ -15,6 +15,7 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db import Base
+from app.domain.attempt import AttemptOutcome
 
 technology_topics = Table(
     "technology_topics",
@@ -90,17 +91,6 @@ class Survey(Base):
     created_at: Mapped[datetime]
 
     specialization: Mapped[Specialization] = relationship()
-
-
-class AttemptOutcome(enum.StrEnum):
-    """Чем закончилась попытка первичного определения категории (mechanics.md, §4)."""
-
-    # Категория присвоена: грейд попытки или ниже, если для него уверенность уже набрана.
-    assigned = "assigned"
-    # Уверенности не хватило — предложен дотест на грейд ниже.
-    offered = "offered"
-    # Не хватило и для стажёра: кандидат без категории до даты повтора.
-    no_category = "no_category"
 
 
 class TestAttempt(Base):

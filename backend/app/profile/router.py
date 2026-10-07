@@ -7,16 +7,16 @@ from fastapi import APIRouter, Response
 
 from app.assessment.schemas import CategoryOut, skill_profile_out
 from app.config import Mechanics, MechanicsDep
+from app.controller.deps import ClockDep, ProfilePdfRendererDep
 from app.controller.errors import error_responses
 from app.controller.schemas import CatalogRef
-from app.db import DbSession, UnitOfWorkDep, utcnow
+from app.db import DbSession, UnitOfWorkDep
 from app.domain import errors
 from app.domain.work import WorkFormat
 from app.identity.deps import ROLE_RESPONSES, CurrentUser, role_guard
 from app.identity.models import Role
 from app.profile import service
 from app.profile.models import CandidateProfile
-from app.profile.pdf import render_profile
 from app.profile.schemas import CandidateCardOut, ProfileIn, ProfileOut, SelfReportedOut
 
 router = APIRouter(
@@ -51,8 +51,10 @@ def get_profile(user: CurrentUser, db: DbSession) -> ProfileOut | None:
     "определяет только тест.",
     responses=error_responses(*service.PROFILE_ERRORS),
 )
-def save_profile(body: ProfileIn, user: CurrentUser, uow: UnitOfWorkDep) -> ProfileOut:
-    return _profile_out(service.save_profile(uow, user.id, body))
+def save_profile(
+    body: ProfileIn, user: CurrentUser, uow: UnitOfWorkDep, clock: ClockDep
+) -> ProfileOut:
+    return _profile_out(service.save_profile(uow, user.id, body, clock))
 
 
 @router.get(
@@ -69,18 +71,17 @@ def save_profile(body: ProfileIn, user: CurrentUser, uow: UnitOfWorkDep) -> Prof
         **error_responses(errors.ProfileNotFound),
     },
 )
-def download_pdf(user: CurrentUser, db: DbSession, mechanics: MechanicsDep) -> Response:
-    sheet = service.sheet(db, user.id)
-    content = render_profile(
-        sheet.profile,
-        CategoryOut.model_validate(sheet.category) if sheet.category else None,
-        skill_profile_out(sheet.skill_profile, mechanics) if sheet.skill_profile else None,
-        confidence=mechanics.grade_confidence,
-        now=utcnow(),
-    )
-    filename = quote(f"Профиль кандидата — {sheet.profile.full_name}.pdf")
+def download_pdf(
+    user: CurrentUser,
+    db: DbSession,
+    mechanics: MechanicsDep,
+    renderer: ProfilePdfRendererDep,
+    clock: ClockDep,
+) -> Response:
+    pdf = service.profile_pdf(db, renderer, mechanics, user.id, clock)
+    filename = quote(f"Профиль кандидата — {pdf.full_name}.pdf")
     return Response(
-        content,
+        pdf.content,
         media_type="application/pdf",
         headers={
             "Content-Disposition": (

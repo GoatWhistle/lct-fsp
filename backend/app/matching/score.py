@@ -98,15 +98,15 @@ def match_score(
     return Match(score, topics, stack)
 
 
-def ranking(scores: Mapping[uuid.UUID, float], selection_id: uuid.UUID) -> list[uuid.UUID]:
-    """Кандидаты по убыванию скора. Ничьи — по хэшу пары «подборка — кандидат»: порядок
-    детерминирован, но ни один кандидат не стоит выше всегда — ни по дате регистрации, ни по
-    защищённым признакам."""
-    return sorted(scores, key=lambda c: (-scores[c], _tie_breaker(selection_id, c)))
+def ranking(scores: Mapping[uuid.UUID, float], salt: int) -> list[uuid.UUID]:
+    """Кандидаты по убыванию скора. Ничьи — по хэшу пары «соль подборки — кандидат»: та же
+    соль даёт тот же порядок, но ни один кандидат не стоит выше всегда — ни по дате регистрации,
+    ни по защищённым признакам."""
+    return sorted(scores, key=lambda c: (-scores[c], _tie_breaker(salt, c)))
 
 
-def _tie_breaker(selection_id: uuid.UUID, candidate_id: uuid.UUID) -> bytes:
-    return hashlib.sha256(f"{selection_id}:{candidate_id}".encode()).digest()
+def _tie_breaker(salt: int, candidate_id: uuid.UUID) -> bytes:
+    return hashlib.sha256(f"{salt}:{candidate_id}".encode()).digest()
 
 
 class Verdict(enum.StrEnum):

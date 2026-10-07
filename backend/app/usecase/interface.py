@@ -5,9 +5,12 @@
 """
 
 from collections.abc import Iterable
+from datetime import datetime
 from types import TracebackType
 from typing import Protocol, Self
 
+from app.domain.candidate import ProfileSheet
+from app.domain.mail import Mail
 from app.domain.skill import Observation, Prior, SkillEstimate
 
 
@@ -27,8 +30,47 @@ class SkillModel(Protocol):
         ...
 
 
+class Mailer(Protocol):
+    """Почта — внешняя система. Отправка не роняет сценарий: письмо, которое не ушло,
+    кандидат запрашивает повторно."""
+
+    def send(self, mail: Mail) -> None: ...
+
+
+class ProfilePdfRenderer(Protocol):
+    """Рендер PDF-профиля. Показывает проекцию как есть: что в неё попало, решил сценарий."""
+
+    def render(self, sheet: ProfileSheet, *, now: datetime) -> bytes:
+        """PDF; `now` — дата формирования в подвале и метаданных."""
+        ...
+
+
+class Clock(Protocol):
+    """Источник «сейчас»: сроки, интервалы, время ответа и временные метки берутся отсюда.
+
+    Сценарий читает момент один раз и передаёт его в домен значением.
+    """
+
+    def now(self) -> datetime:
+        """Текущий момент — aware `datetime` в UTC."""
+        ...
+
+
+class SeedSource(Protocol):
+    """Источник seed механики: выбор задания, экземпляр задания, соль ничьих в выдаче.
+
+    Сценарий берёт seed здесь и строит из него генератор; домен получает готовое значение.
+    """
+
+    def seed(self) -> int:
+        """Очередной seed — неотрицательное целое меньше 2⁶³: столько держит колонка seed."""
+        ...
+
+
 class UnitOfWork(Protocol):
-    """Единица работы — граница транзакции: один вызов сценария — один блок `with uow:`.
+    """Единица работы — граница транзакции: блок `with uow:` в сценарии. Обычно вызов сценария —
+    один блок; отдельным блоком идёт только то, что по механике не отменяет основной шаг
+    (калибровка после ответа, mechanics.md §7).
 
     Выход из блока без исключения фиксирует всё записанное в нём, с исключением — откатывает и
     пробрасывает исключение дальше. Блоки идут по очереди, вложенный вход — ошибка. Кроме

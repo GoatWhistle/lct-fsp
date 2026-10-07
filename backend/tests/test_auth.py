@@ -2,10 +2,10 @@ from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
 
 import pytest
-import time_machine
 from fastapi.testclient import TestClient
 from sqlalchemy import Engine, insert, text
 
+from app.adapter.clock import FrozenClock
 from app.identity import security
 from app.identity.models import Role, User
 from tests.conftest import PASSWORD, Outbox
@@ -105,7 +105,12 @@ def test_concurrent_registration_of_same_email_is_rejected(
     def racing_hash(password: str) -> str:
         with db_engine.begin() as conn:
             conn.execute(
-                insert(User).values(email="eva@example.com", password_hash="x", role=Role.employer)
+                insert(User).values(
+                    email="eva@example.com",
+                    password_hash="x",
+                    role=Role.employer,
+                    created_at=datetime.now(UTC),
+                )
             )
         return hash_password(password)
 
@@ -137,12 +142,12 @@ def test_unknown_confirmation_token_is_rejected(client: TestClient) -> None:
     assert response.json()["code"] == "token_invalid"
 
 
-def test_confirmation_link_expires(client: TestClient, outbox: Outbox) -> None:
+def test_confirmation_link_expires(client: TestClient, outbox: Outbox, clock: FrozenClock) -> None:
     register(client, "zhanna@example.com")
     token = outbox.verification_token("zhanna@example.com")
 
-    with time_machine.travel(datetime.now(UTC) + timedelta(hours=25)):
-        response = client.post("/api/auth/verify-email", json={"token": token})
+    clock.shift(timedelta(hours=24))
+    response = client.post("/api/auth/verify-email", json={"token": token})
 
     assert response.status_code == 400
     assert response.json()["code"] == "token_expired"
@@ -200,24 +205,26 @@ def test_session_is_an_http_only_cookie_and_logout_clears_it(
     assert client.get("/api/auth/me").status_code == 401
 
 
-def test_session_expires(signed_in: Callable[[Role], TestClient]) -> None:
+def test_session_expires(signed_in: Callable[[Role], TestClient], clock: FrozenClock) -> None:
     client = signed_in(Role.candidate)
+    clock.shift(timedelta(days=7) - timedelta(seconds=1))
+    assert client.get("/api/auth/me").status_code == 200, "срок входа ещё не вышел"
 
-    with time_machine.travel(datetime.now(UTC) + timedelta(days=8)):
-        response = client.get("/api/auth/me")
+    clock.shift(timedelta(seconds=1))
+    response = client.get("/api/auth/me")
 
     assert response.status_code == 401
     assert response.json()["code"] == "not_authenticated"
 
 
 def test_session_survives_server_clock_stepping_back(
-    signed_in: Callable[[Role], TestClient],
+    signed_in: Callable[[Role], TestClient], clock: FrozenClock
 ) -> None:
     """Синхронизация часов отводит их назад на секунды — свежий вход не должен слетать."""
     client = signed_in(Role.candidate)
 
-    with time_machine.travel(datetime.now(UTC) - timedelta(seconds=5)):
-        response = client.get("/api/auth/me")
+    clock.shift(timedelta(seconds=-5))
+    response = client.get("/api/auth/me")
 
     assert response.status_code == 200
 

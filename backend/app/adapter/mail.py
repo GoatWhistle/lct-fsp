@@ -1,25 +1,12 @@
-"""Отправка писем. Локально SMTP смотрит в Mailpit, тесты подменяют отправителя."""
+"""Реализации порта `Mailer`: SMTP (локально — Mailpit) и запись в память для тестов."""
 
 import logging
 import smtplib
-from dataclasses import dataclass
 from email.message import EmailMessage
-from typing import Annotated, Protocol
 
-from fastapi import Depends, Request
+from app.domain.mail import Mail
 
 log = logging.getLogger(__name__)
-
-
-@dataclass(frozen=True)
-class Mail:
-    to: str
-    subject: str
-    text: str
-
-
-class Mailer(Protocol):
-    def send(self, mail: Mail) -> None: ...
 
 
 class SmtpMailer:
@@ -42,9 +29,11 @@ class SmtpMailer:
             log.exception("Не удалось отправить письмо на %s", mail.to)
 
 
-def get_mailer(request: Request) -> Mailer:
-    mailer: Mailer = request.app.state.mailer
-    return mailer
+class MemoryMailer:
+    """Почта, которая никуда не уходит: письма копятся в `sent` по порядку отправки."""
 
+    def __init__(self) -> None:
+        self.sent: list[Mail] = []
 
-MailerDep = Annotated[Mailer, Depends(get_mailer)]
+    def send(self, mail: Mail) -> None:
+        self.sent.append(mail)

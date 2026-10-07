@@ -6,16 +6,16 @@ from sqlalchemy.orm import Session
 from app.assessment.models import Industry
 from app.company.models import Company
 from app.company.schemas import CompanyIn
-from app.db import utcnow
 from app.domain.errors import UnknownIndustry
 from app.repository.unit_of_work import SqlUnitOfWork
+from app.usecase.interface import Clock
 
 
 def get_company(db: Session, user_id: uuid.UUID) -> Company | None:
     return db.get(Company, user_id)
 
 
-def save_company(uow: SqlUnitOfWork, user_id: uuid.UUID, data: CompanyIn) -> Company:
+def save_company(uow: SqlUnitOfWork, user_id: uuid.UUID, data: CompanyIn, clock: Clock) -> Company:
     with uow:
         db = uow.session
         if db.get(Industry, data.industry) is None:
@@ -27,7 +27,7 @@ def save_company(uow: SqlUnitOfWork, user_id: uuid.UUID, data: CompanyIn) -> Com
             "website": data.website,
             "contact_email": data.contact_email,
             "contact_phone": data.contact_phone,
-            "updated_at": utcnow(),
+            "updated_at": clock.now(),
         }
         # Одной вставкой с заменой: двойное «Сохранить» при первом заполнении не упрётся в ключ.
         stmt = pg_insert(Company).values(user_id=user_id, **fields)

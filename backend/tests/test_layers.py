@@ -98,6 +98,10 @@ MEMORY_PEEKS_AT_SQL = "from ..unit_of_work import SqlUnitOfWork\n"
         ("domain", DOMAIN, "def f() -> None:\n    import fastapi\n", "fastapi"),
         ("domain", DOMAIN, "from app.db import Base\n", "app.db"),
         ("domain", DOMAIN, "from ..assessment import models\n", "app.assessment"),
+        # Домен получает момент и seed значениями — порты и их реализации ему не видны.
+        ("domain", DOMAIN, "from app.usecase.interface import Clock\n", "app.usecase.interface"),
+        ("domain", DOMAIN, "from app.adapter.clock import SystemClock\n", "app.adapter.clock"),
+        ("domain", DOMAIN, "from ..adapter import seed\n", "app.adapter.seed"),
         ("usecase", USECASE, "from app.repository import users\n", "app.repository"),
         ("usecase", USECASE, "import app.controller.errors\n", "app.controller.errors"),
         ("usecase", USECASE, "from ..controller.errors import STATUS\n", "app.controller.errors"),
@@ -128,3 +132,17 @@ def test_usecase_lookalike_names_are_not_violations(tmp_path: Path) -> None:
     source = "from app.adapters_x import y\nfrom app.domain.errors import DomainError\n"
 
     assert violations(plant(tmp_path, "usecase", source), USECASE) == []
+
+
+EXTERNAL = Rule(banned=("smtplib", "fpdf"))
+
+
+def test_mail_and_pdf_libraries_live_only_in_adapters() -> None:
+    """Почта и рендер PDF — за портами: SMTP и fpdf2 импортирует только `app.adapter`."""
+    app_dir = BACKEND_DIR / "app"
+    packages = [p for p in app_dir.iterdir() if (p / "__init__.py").is_file()]
+    found = [v for p in sorted(packages) if p.name != "adapter" for v in violations(p, EXTERNAL)]
+    for path in sorted(app_dir.glob("*.py")):
+        modules = imported_modules(path.read_text(encoding="utf-8"), "app")
+        found += [f"{path.name}: {m}" for m in sorted(modules) if _within(m, EXTERNAL.banned)]
+    assert found == []

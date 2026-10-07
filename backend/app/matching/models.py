@@ -21,7 +21,7 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.assessment.models import Grade, Specialization, Technology
-from app.db import Base, utcnow
+from app.db import Base
 from app.domain.work import WorkFormat
 from app.matching.importance import TopicImportance
 
@@ -60,8 +60,8 @@ class Need(Base):
     # Рубли в месяц до вычета НДФЛ — `app/domain/work.py`.
     salary_from: Mapped[int | None]
     salary_to: Mapped[int | None]
-    created_at: Mapped[datetime] = mapped_column(default=utcnow)
-    updated_at: Mapped[datetime] = mapped_column(default=utcnow, onupdate=utcnow)
+    created_at: Mapped[datetime]
+    updated_at: Mapped[datetime]
 
     specialization: Mapped[Specialization] = relationship()
     grade: Mapped[Grade] = relationship()
@@ -117,7 +117,7 @@ class Selection(Base):
     need_snapshot: Mapped[dict[str, Any]] = mapped_column(JSONB)
     # λ на момент построения — потолок вклада самоописания.
     stack_cap: Mapped[float]
-    created_at: Mapped[datetime] = mapped_column(default=utcnow)
+    created_at: Mapped[datetime]
 
 
 class SelectionEntry(Base):

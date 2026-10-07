@@ -7,9 +7,9 @@ from dataclasses import replace
 
 import pytest
 
-from app.domain.skill import Normal, Observation, Prior
+from app.domain.skill import LevelBand, Normal, Observation, Prior, level_band
 from app.skills import irt
-from app.skills.irt import LevelBand, estimate, level_band
+from app.skills.irt import estimate
 from app.usecase.interface import SkillModel
 
 TOPICS = ("sql", "api", "algorithms", "testing")

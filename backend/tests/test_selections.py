@@ -12,13 +12,14 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import Engine, delete, insert, select, update
 
+from app.adapter.clock import FrozenClock
 from app.assessment.models import CandidateCategory, Grade, Survey, TestAttempt, Topic
 from app.config import Mechanics
 from app.identity.models import Role, User
 from app.profile.models import CandidateProfile, candidate_technologies
 from app.skills.models import SkillProfile, SkillProfileTopic
 from tests.candidate_path import answer_items, nothing, pass_test, start, take_survey
-from tests.conftest import transaction
+from tests.conftest import Seeds, transaction
 
 NEEDS = "/api/employer/needs"
 SELECTIONS = "/api/employer/selections"
@@ -224,19 +225,19 @@ def set_level(db_engine: Engine, candidate: str, topic: str, theta: float) -> No
 
 
 def test_selection_has_only_candidates_with_category_by_test(
-    signed_in: SignIn, employer: TestClient, db_engine: Engine
+    signed_in: SignIn, employer: TestClient, seeds: Seeds
 ) -> None:
     middle = signed_in(Role.candidate)
-    pass_test(middle, db_engine, "middle")
+    pass_test(middle, seeds, "middle")
     junior = signed_in(Role.candidate)
-    pass_test(junior, db_engine, "junior")
+    pass_test(junior, seeds, "junior")
     intern = signed_in(Role.candidate)
-    pass_test(intern, db_engine, "intern")
+    pass_test(intern, seeds, "intern")
     # Тест провален — категории нет, предложен дотест ниже.
     failed = signed_in(Role.candidate)
     take_survey(failed)
     start(failed, "middle")
-    assert answer_items(failed, db_engine, nothing)["stage"] == "offer"
+    assert answer_items(failed, seeds, nothing)["stage"] == "offer"
     # Профиль заполнен, стек — весь стек потребности, но теста нет.
     self_described = signed_in(Role.candidate)
     self_described.put(PROFILE, json=profile_body(NEED_STACK)).raise_for_status()
@@ -271,10 +272,10 @@ def test_other_specialization_is_not_in_selection(employer: TestClient, db_engin
 
 
 def test_explanation_contributions_sum_to_score(
-    signed_in: SignIn, employer: TestClient, db_engine: Engine, mechanics: Mechanics
+    signed_in: SignIn, employer: TestClient, seeds: Seeds, mechanics: Mechanics
 ) -> None:
     candidate = signed_in(Role.candidate)
-    pass_test(candidate, db_engine)
+    pass_test(candidate, seeds)
     candidate.put(PROFILE, json=profile_body(["pytest", "python"])).raise_for_status()
 
     selection = build(employer, create_need(employer))
@@ -339,10 +340,10 @@ def test_verdicts_and_low_data_follow_confidence_language(
 
 
 def test_self_described_full_stack_lifts_score_no_more_than_cap(
-    signed_in: SignIn, employer: TestClient, db_engine: Engine, mechanics: Mechanics
+    signed_in: SignIn, employer: TestClient, seeds: Seeds, mechanics: Mechanics
 ) -> None:
     candidate = signed_in(Role.candidate)
-    pass_test(candidate, db_engine)
+    pass_test(candidate, seeds)
     need = create_need(employer)
     honest = entry_of(build(employer, need), user_id(candidate))
 
@@ -457,11 +458,11 @@ def test_entry_grade_name_is_frozen_with_the_selection(
 
 
 def test_saved_selection_reopens_with_the_same_output(
-    signed_in: SignIn, employer: TestClient, db_engine: Engine
+    seeds: Seeds, signed_in: SignIn, employer: TestClient, db_engine: Engine, clock: FrozenClock
 ) -> None:
     seed(db_engine, [Seed(levels={"qa.api": (0.1 * i, 0.4)}) for i in range(5)])
     candidate = signed_in(Role.candidate)
-    pass_test(candidate, db_engine)
+    pass_test(candidate, seeds)
     need = create_need(employer)
     built = build(employer, need)
 
@@ -474,6 +475,7 @@ def test_saved_selection_reopens_with_the_same_output(
     assert built["need"]["grade"]["code"] == "middle"
     assert [s["code"] for s in built["need"]["stack"]] == NEED_STACK
 
+    clock.shift(timedelta(minutes=5))
     rebuilt = build(employer, need)
     assert rebuilt["id"] != built["id"]
     assert rebuilt["need"]["grade"]["code"] == "senior"
@@ -508,6 +510,27 @@ def test_selection_pages_through_output(employer: TestClient, db_engine: Engine)
     assert open_selection(employer, first["id"], offset=8)["entries"] == []
 
 
+def test_same_seed_gives_the_same_selection_including_ties(
+    employer: TestClient, db_engine: Engine, seeds: Seeds
+) -> None:
+    """Порядок ничьих — от соли из `SeedSource`: тот же seed на тех же входах — та же выдача,
+    другой seed — другой порядок ничьих."""
+    seed(db_engine, [Seed() for _ in range(6)] + [Seed(grade="senior") for _ in range(3)])
+    need = create_need(employer)
+
+    def output(run_seed: int) -> list[tuple[str, str, int, float]]:
+        seeds.reset(run_seed)
+        entries = build(employer, need, limit=100)["entries"]
+        return [(e["candidate_id"], e["block"], e["rank"], e["mutual_score"]) for e in entries]
+
+    first = output(5)
+
+    assert len({score for _, block, _, score in first if block == "exact"}) == 1, "все — ничьи"
+    assert output(5) == first
+    # Шанс совпасть порядку ничьих при другой соли — 1/(6!·3!).
+    assert output(6) != first
+
+
 def test_stale_profile_is_marked(
     employer: TestClient, db_engine: Engine, mechanics: Mechanics
 ) -> None:
@@ -521,10 +544,10 @@ def test_stale_profile_is_marked(
 
 
 def test_selection_hides_who_the_candidate_is(
-    signed_in: SignIn, employer: TestClient, db_engine: Engine
+    signed_in: SignIn, employer: TestClient, seeds: Seeds
 ) -> None:
     candidate = signed_in(Role.candidate)
-    pass_test(candidate, db_engine)
+    pass_test(candidate, seeds)
     candidate.put(PROFILE, json=profile_body(NEED_STACK)).raise_for_status()
 
     response = employer.post(f"{NEEDS}/{create_need(employer)}/selections")

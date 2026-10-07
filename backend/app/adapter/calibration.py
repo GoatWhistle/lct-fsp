@@ -102,8 +102,8 @@ class EloCalibration:
         self._repository.save(row)
 
     def relink(self, specialization: str, now: datetime) -> None:
-        """Пересчёт связок шкалы по ответам на якорные семейства из последних
-        `calibration_link_window_attempts` попыток по специализации (§7)."""
+        """Пересчёт связок шкалы по ответам на якорные семейства из окна связки — последних
+        `calibration_link_window_attempts` остановленных попыток по специализации (§7)."""
         anchors = [f.code for f in bank.BANK if f.anchor]
         answers = self._repository.anchor_answers(
             specialization, anchors, self.calibration_link_window_attempts
@@ -121,7 +121,7 @@ class EloCalibration:
     def refit_due(self, codes: Iterable[str], specialization: str, now: datetime) -> None:
         """Пакетная переоценка семейств, набравших `calibration_refit_min_responses` ответов с
         итоговыми оценками кандидатов. Строки семейств блокируются по порядку кодов и держатся
-        до конца единицы работы ответа.
+        до конца единицы работы калибровки — она идёт после фиксации ответа.
 
         Уровни кандидатов переводятся связкой шкалы. Результат — новые текущие и опорные
         параметры. Опорная сложность легче экспертной больше допустимого — семейство уходит из

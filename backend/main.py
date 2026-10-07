@@ -37,6 +37,7 @@ from app.repository.selection import SqlCandidatePool, SqlNeeds, SqlSelections
 from app.repository.unit_of_work import SqlUnitOfWork
 from app.skills import irt
 from app.usecase.attempt import CandidatePath
+from app.usecase.calibration import AnswerCalibration
 from app.usecase.interface import (
     AcceptanceModel,
     CandidateRepository,
@@ -153,6 +154,11 @@ def create_app(
         )
 
     app.state.candidate_path = candidate_path
+
+    def answer_calibration(uow: SqlUnitOfWork) -> AnswerCalibration:
+        return AnswerCalibration(uow, calibration(uow))
+
+    app.state.answer_calibration = answer_calibration
 
     def selections(uow: SqlUnitOfWork) -> Selections:
         return Selections(

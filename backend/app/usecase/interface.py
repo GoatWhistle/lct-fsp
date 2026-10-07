@@ -144,8 +144,9 @@ class AttemptRepository(AttemptReader, Protocol):
     def exposure(
         self, specialization_code: str, current_attempt_id: uuid.UUID, window: int
     ) -> tuple[int, dict[str, int]]:
-        """Окно показов: последние `window − 1` попыток специализации до текущей. Возвращает
-        число попыток в окне и в скольких из них показано семейство."""
+        """Окно показов без текущей попытки: последние `window − 1` попыток специализации, где
+        было хотя бы одно предъявление, включая идущие. Возвращает число попыток в окне и в
+        скольких из них показано семейство."""
         ...
 
     def seen(self, user_id: uuid.UUID, current_attempt_id: uuid.UUID) -> dict[str, datetime]:
@@ -194,8 +195,9 @@ class Calibration(Protocol):
     пакетной переоценкой (`app.adapter.calibration`); параметры из конфига механик реализация
     получает через конструктор, хранит состояние `CalibrationRepository`.
 
-    Вызывается из сценария ответа: шаг по ответу, после остановки попытки — пересчёт связки и
-    переоценка. Вынос калибровки из пути ответа — отдельная работа (окна, lct-65).
+    Калибрует сценарий калибровки (`app.usecase.calibration`) после фиксации ответа: шаг по
+    ответу, после остановки попытки — пересчёт связки и переоценка. Путь кандидата берёт у
+    порта только текущие параметры семейств.
     """
 
     def current(self, families: Sequence[bank.Family]) -> dict[str, Parameters]:
@@ -253,7 +255,8 @@ class CalibrationRepository(Protocol):
     def anchor_answers(
         self, specialization: str, anchors: Collection[str], window_attempts: int
     ) -> list[AnchorAnswer]:
-        """Ответы на якорные семейства из последних `window_attempts` попыток специализации."""
+        """Ответы на якорные семейства из окна связки — последних `window_attempts`
+        остановленных попыток специализации."""
         ...
 
     def rest_answers(self, code: str) -> list[Response]:

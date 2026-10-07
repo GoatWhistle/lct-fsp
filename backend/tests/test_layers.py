@@ -27,7 +27,11 @@ DOMAIN = Rule(
     banned=("sqlalchemy", "pydantic", "pydantic_settings", "fastapi", "app"),
     allowed=("app.domain",),
 )
-USECASE = Rule(banned=("app.adapter", "app.repository", "app.controller"))
+# Сценарии не знают реализаций портов: ни адаптеров и репозиториев, ни модулей алгоритмов —
+# модели навыка (`app.skills`) и движка теста (`app.assessment`).
+USECASE = Rule(
+    banned=("app.adapter", "app.repository", "app.controller", "app.assessment", "app.skills")
+)
 MEMORY = Rule(
     banned=("sqlalchemy", "app"),
     allowed=("app.domain", "app.usecase", "app.repository.memory"),
@@ -111,6 +115,8 @@ MEMORY_PEEKS_AT_SQL = "from ..unit_of_work import SqlUnitOfWork\n"
         ("domain", DOMAIN, "from app.adapter.clock import SystemClock\n", "app.adapter.clock"),
         ("domain", DOMAIN, "from ..adapter import seed\n", "app.adapter.seed"),
         ("usecase", USECASE, "from app.repository import users\n", "app.repository"),
+        ("usecase", USECASE, "from app.skills.irt import estimate\n", "app.skills.irt"),
+        ("usecase", USECASE, "from ..assessment import models\n", "app.assessment.models"),
         ("usecase", USECASE, "import app.controller.errors\n", "app.controller.errors"),
         ("usecase", USECASE, "from ..controller.errors import STATUS\n", "app.controller.errors"),
         ("repository/memory", MEMORY, "from sqlalchemy.orm import Session\n", "sqlalchemy.orm"),

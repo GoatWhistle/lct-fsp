@@ -87,6 +87,13 @@ def normal_cdf(z: float) -> float:
     return 0.5 * (1.0 + math.erf(z / math.sqrt(2.0)))
 
 
+def sigmoid(x: float) -> float:
+    if x >= 0:
+        return 1.0 / (1.0 + math.exp(-x))
+    z = math.exp(x)
+    return z / (1.0 + z)
+
+
 @dataclass(frozen=True)
 class LevelBand:
     """Уровень словами (§4): «уверенно middle» — low == high, «между junior и middle» — соседние.

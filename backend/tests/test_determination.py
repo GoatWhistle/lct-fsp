@@ -2,7 +2,7 @@
 
 import pytest
 
-from app.assessment.determination import (
+from app.domain.determination import (
     Assign,
     NoCategory,
     Offer,

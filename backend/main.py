@@ -12,6 +12,8 @@ from fastapi import FastAPI
 from sqlalchemy.orm import sessionmaker
 
 from app.adapter.acceptance import NoAcceptanceModel
+from app.adapter.adaptive import MaxInformationSelector
+from app.adapter.calibration import EloCalibration
 from app.adapter.clock import SystemClock
 from app.adapter.mail import SmtpMailer
 from app.adapter.profile_pdf import FpdfProfileRenderer
@@ -28,11 +30,13 @@ from app.db import create_db_engine
 from app.identity.router import router as auth_router
 from app.matching.router import router as needs_router
 from app.matching.router import selections_router
-from app.repository.attempt import SqlAttemptReader
+from app.repository.attempt import SqlAttemptRepository
+from app.repository.calibration import SqlCalibrationRepository
 from app.repository.candidate import SqlCandidateRepository
 from app.repository.selection import SqlCandidatePool, SqlNeeds, SqlSelections
 from app.repository.unit_of_work import SqlUnitOfWork
 from app.skills import irt
+from app.usecase.attempt import CandidatePath
 from app.usecase.interface import (
     AcceptanceModel,
     CandidateRepository,
@@ -100,8 +104,6 @@ def create_app(
 
     app.state.unit_of_work = unit_of_work
     app.state.candidate_repository = candidate_repository
-    # Репозитории чтения — по сессии единицы работы запроса.
-    app.state.attempt_reader = SqlAttemptReader
     app.state.mailer = mailer or SmtpMailer(
         settings.smtp_host, settings.smtp_port, settings.mail_from
     )
@@ -110,6 +112,47 @@ def create_app(
     app.state.seeds = seeds or SecureSeeds()
     app.state.skill_model = skill_model or irt
     acceptance_model = acceptance or NoAcceptanceModel()
+    # Алгоритмы механики получают параметры конфига через конструктор —
+    # tests/test_mechanics_config.py сверяет их с config/mechanics.yaml.
+    item_selector = MaxInformationSelector(
+        top_k=mechanics.exposure_top_k, max_rate=mechanics.exposure_max_rate
+    )
+    app.state.item_selector = item_selector
+
+    def calibration(uow: SqlUnitOfWork) -> EloCalibration:
+        return EloCalibration(
+            SqlCalibrationRepository(uow.session),
+            expert_discrimination=mechanics.expert_discrimination,
+            expert_difficulty_by_grade=mechanics.expert_difficulty_by_grade,
+            elo_k_initial=mechanics.elo_k_initial,
+            elo_k_half_responses=mechanics.elo_k_half_responses,
+            elo_k_min=mechanics.elo_k_min,
+            calibration_refit_min_responses=mechanics.calibration_refit_min_responses,
+            calibration_expert_gap_review=mechanics.calibration_expert_gap_review,
+            calibration_refit_difficulty_prior_sd=mechanics.calibration_refit_difficulty_prior_sd,
+            calibration_refit_log_discrimination_prior_sd=(
+                mechanics.calibration_refit_log_discrimination_prior_sd
+            ),
+            calibration_link_window_attempts=mechanics.calibration_link_window_attempts,
+        )
+
+    app.state.calibration = calibration
+
+    def candidate_path(uow: SqlUnitOfWork) -> CandidatePath:
+        return CandidatePath(
+            uow,
+            SqlAttemptRepository(
+                uow.session, mechanics.grade_thresholds, mechanics.grade_confidence
+            ),
+            calibration(uow),
+            item_selector,
+            app.state.skill_model,
+            app.state.clock,
+            app.state.seeds,
+            mechanics,
+        )
+
+    app.state.candidate_path = candidate_path
 
     def selections(uow: SqlUnitOfWork) -> Selections:
         return Selections(

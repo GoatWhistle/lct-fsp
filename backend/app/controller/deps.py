@@ -14,6 +14,7 @@ from app.usecase.interface import (
     SeedSource,
     SkillModel,
 )
+from app.usecase.selection import Selections
 
 
 def get_mailer(request: Request) -> Mailer:
@@ -47,9 +48,16 @@ def get_attempts(request: Request, uow: UnitOfWorkDep) -> AttemptReader:
     return attempts
 
 
+def get_selections(request: Request, uow: UnitOfWorkDep) -> Selections:
+    """Сценарии подборки на единице работы запроса."""
+    selections: Selections = request.app.state.selections(uow)
+    return selections
+
+
 MailerDep = Annotated[Mailer, Depends(get_mailer)]
 ProfilePdfRendererDep = Annotated[ProfilePdfRenderer, Depends(get_profile_pdf_renderer)]
 ClockDep = Annotated[Clock, Depends(get_clock)]
 SeedsDep = Annotated[SeedSource, Depends(get_seeds)]
+SelectionsDep = Annotated[Selections, Depends(get_selections)]
 SkillModelDep = Annotated[SkillModel, Depends(get_skill_model)]
 AttemptsDep = Annotated[AttemptReader, Depends(get_attempts)]

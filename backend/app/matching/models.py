@@ -2,8 +2,8 @@
 
 Потребность — описание того, кого ищет работодатель: вход подборки, модели принятия и теста из
 вакансии. Хранится то, что ввёл работодатель: поля формы, стек и правки важности тем. Важность
-остальных тем выводится из стека при каждом чтении (`importance.py`), поэтому смена стека не
-оставляет устаревших значений.
+остальных тем выводится из стека при каждом чтении (`app/domain/importance.py`), поэтому смена
+стека не оставляет устаревших значений.
 
 Подборка — результат подбора по потребности на момент построения: снимок потребности и выдача
 со скорами и вкладами. Она не пересчитывается — открывается позже с той же выдачей, даже если
@@ -11,7 +11,6 @@
 подборка.
 """
 
-import enum
 import uuid
 from datetime import datetime
 from typing import Any
@@ -22,8 +21,9 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.assessment.models import Grade, Specialization, Technology
 from app.db import Base
+from app.domain.importance import TopicImportance
+from app.domain.selection import SelectionBlock
 from app.domain.work import WorkFormat
-from app.matching.importance import TopicImportance
 
 need_technologies = Table(
     "need_technologies",
@@ -93,13 +93,6 @@ class NeedTopicImportance(Base):
     )
 
 
-class SelectionBlock(enum.StrEnum):
-    # Категория кандидата — специализация и грейд потребности.
-    exact = "exact"
-    # Та же специализация, грейд на `nearby_grade_distance` от грейда потребности.
-    nearby = "nearby"
-
-
 class Selection(Base):
     __tablename__ = "selections"
 
@@ -112,8 +105,8 @@ class Selection(Base):
     need_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("needs.id", ondelete="SET NULL"), index=True
     )
-    # Потребность на момент построения с весами и требованиями по темам — `NeedSnapshot`.
-    # Сохранённые подборки читаются этой схемой: её правка — вместе с миграцией данных.
+    # Потребность на момент построения с весами и требованиями по темам. Формат — кодеки
+    # `app.repository.selection`, не схема API: его правка — вместе с миграцией данных.
     need_snapshot: Mapped[dict[str, Any]] = mapped_column(JSONB)
     # λ на момент построения — потолок вклада самоописания.
     stack_cap: Mapped[float]

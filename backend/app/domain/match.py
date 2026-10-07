@@ -15,8 +15,8 @@ import uuid
 from collections.abc import Collection, Mapping, Sequence
 from dataclasses import dataclass
 
+from app.domain.importance import TopicImportance
 from app.domain.skill import Normal
-from app.matching.importance import TopicImportance
 
 
 @dataclass(frozen=True)

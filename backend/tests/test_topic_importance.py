@@ -1,6 +1,6 @@
 """Важность тем потребности из стека — чистая функция (mechanics.md, §12)."""
 
-from app.matching.importance import TopicImportance, topic_importance
+from app.domain.importance import TopicImportance, topic_importance
 
 KEY, IMPORTANT, NICE = TopicImportance.key, TopicImportance.important, TopicImportance.nice
 TOPICS = ["databases", "api", "security"]

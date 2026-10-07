@@ -4,11 +4,13 @@
 `backend/main.py`.
 """
 
-from collections.abc import Iterable
+import uuid
+from collections.abc import Iterable, Sequence
 from datetime import datetime
 from types import TracebackType
 from typing import Protocol, Self
 
+from app.domain.attempt import AnsweredPresentation
 from app.domain.candidate import ProfileSheet
 from app.domain.mail import Mail
 from app.domain.skill import Observation, Prior, SkillEstimate
@@ -27,6 +29,18 @@ class SkillModel(Protocol):
 
     def estimate(self, prior: Prior, observations: Iterable[Observation]) -> SkillEstimate:
         """Оценка по априорному и упорядоченным наблюдениям."""
+        ...
+
+
+class AttemptReader(Protocol):
+    """Чтение попыток теста. Только чтение: записанное в текущей единице работы видно, но
+    фиксирует его единица работы. Сейчас — Postgres (`app.repository.attempt`)."""
+
+    def answered(
+        self, user_id: uuid.UUID, specialization_code: str
+    ) -> Sequence[AnsweredPresentation]:
+        """Отвеченные предъявления кандидата по специализации во всех попытках — в порядке
+        ответа: по номеру попытки, внутри неё — по позиции."""
         ...
 
 

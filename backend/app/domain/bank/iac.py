@@ -5,7 +5,7 @@ import ipaddress
 import math
 import random
 
-from app.assessment.bank.family import Instance
+from app.domain.bank.family import Instance
 
 _RESOURCES = [
     'aws_instance.web["a"]',

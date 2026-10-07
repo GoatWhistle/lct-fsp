@@ -12,7 +12,7 @@ from pathlib import Path
 
 import pytest
 
-from app.assessment.bank import BANK, RETIRED, Family
+from app.domain.bank import BANK, RETIRED, Family
 
 SNAPSHOT = Path(__file__).parent / "data" / "bank_snapshot.json"
 SEEDS = range(50)

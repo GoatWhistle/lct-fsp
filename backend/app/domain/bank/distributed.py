@@ -3,7 +3,7 @@
 import random
 from collections import OrderedDict
 
-from app.assessment.bank.family import Instance
+from app.domain.bank.family import Instance
 
 KEYS = "abcdefgh"
 

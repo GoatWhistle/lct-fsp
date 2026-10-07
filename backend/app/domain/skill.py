@@ -8,6 +8,7 @@
 import math
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
+from datetime import datetime
 from typing import Protocol, Self
 
 
@@ -69,6 +70,17 @@ class SkillEstimate(Protocol):
     def topic(self, topic: str) -> Normal: ...
 
     def overall(self) -> Normal: ...
+
+
+@dataclass(frozen=True)
+class SkillProfileLevels:
+    """Профиль навыков по специализации (§11): общий уровень, уровни тем, число наблюдений и
+    момент последнего сигнала — `None`, пока сигналов нет."""
+
+    overall: Normal
+    topics: Mapping[str, Normal]
+    observations: int
+    last_signal_at: datetime | None
 
 
 def normal_cdf(z: float) -> float:

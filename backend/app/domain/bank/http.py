@@ -2,7 +2,7 @@
 
 import random
 
-from app.assessment.bank.family import Instance
+from app.domain.bank.family import Instance
 
 ENTITIES = ["заказ", "счёт", "отчёт", "профиль", "товар", "платёж"]
 

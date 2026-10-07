@@ -5,7 +5,7 @@ import itertools
 import random
 from collections.abc import Callable
 
-from app.assessment.bank.family import Instance, rounded
+from app.domain.bank.family import Instance, rounded
 
 OUTCOMES = ["passed", "failed", "skipped"]
 

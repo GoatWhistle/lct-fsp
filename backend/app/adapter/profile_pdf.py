@@ -1,8 +1,9 @@
-"""Стандартизированный PDF-профиль кандидата: у всех один вид и один порядок разделов.
+"""Рендер PDF-профиля на fpdf2 — реализация порта `ProfilePdfRenderer`. Стандартизированный
+PDF-профиль: у всех один вид и один порядок разделов.
 
 Сначала — что подтвердил тест платформы (категория и профиль навыков), затем — что кандидат
-сказал о себе сам: читатель сразу видит уровни доверия (mechanics.md, §11). Ожидаемой зарплаты
-в PDF нет: файл может оказаться у работодателя, а ожидание ему не показывается (§13).
+сказал о себе сам: читатель сразу видит уровни доверия (mechanics.md, §11). Что показать, решает
+сценарий: рендер выводит проекцию `ProfileSheet` как есть.
 
 Шрифт PT Sans лежит рядом под лицензией OFL — кириллица не зависит от шрифтов системы. Глифов
 θ и стрелок в нём нет, поэтому уровни подписаны словами.
@@ -16,9 +17,16 @@ from fpdf import FPDF
 from fpdf.enums import XPos, YPos
 from fpdf.fonts import FontFace
 
-from app.assessment.schemas import CategoryOut, LevelBandOut, LevelOut, SkillProfileOut
+from app.domain.candidate import (
+    Category,
+    Disclosed,
+    Level,
+    ProfileSheet,
+    SelfReported,
+    SkillProfile,
+)
+from app.domain.skill import LevelBand
 from app.domain.work import WorkFormat
-from app.profile.models import CandidateProfile
 
 FONTS = Path(__file__).with_name("fonts")
 FONT = "PTSans"
@@ -53,26 +61,21 @@ WORK_FORMATS = {
 }
 
 
-def render_profile(
-    profile: CandidateProfile,
-    category: CategoryOut | None,
-    skills: SkillProfileOut | None,
-    *,
-    confidence: float,
-    now: datetime,
-) -> bytes:
-    pdf = _Document(f"{PLATFORM} · профиль сформирован {date_words(now)}")
-    pdf.set_title(f"Профиль кандидата — {profile.full_name}")
-    pdf.set_author(profile.full_name)
-    pdf.set_creator(PLATFORM)
-    pdf.set_lang("ru")
-    pdf.set_creation_date(now)
-    pdf.add_page()
+class FpdfProfileRenderer:
+    def render(self, sheet: ProfileSheet, *, now: datetime) -> bytes:
+        disclosed = sheet.disclosed
+        pdf = _Document(f"{PLATFORM} · профиль сформирован {date_words(now)}")
+        pdf.set_title(f"Профиль кандидата — {disclosed.full_name}")
+        pdf.set_author(disclosed.full_name)
+        pdf.set_creator(PLATFORM)
+        pdf.set_lang("ru")
+        pdf.set_creation_date(now)
+        pdf.add_page()
 
-    _header(pdf, profile)
-    _verified(pdf, category, skills, confidence)
-    _self_reported(pdf, profile)
-    return bytes(pdf.output())
+        _header(pdf, disclosed)
+        _verified(pdf, sheet.category, sheet.skill_profile, sheet.grade_confidence)
+        _self_reported(pdf, sheet.self_reported, disclosed)
+        return bytes(pdf.output())
 
 
 class _Document(FPDF):
@@ -94,7 +97,7 @@ class _Document(FPDF):
         self.cell(0, 6, f"стр. {self.page_no()} из {{nb}}", align="R")
 
 
-def _header(pdf: _Document, profile: CandidateProfile) -> None:
+def _header(pdf: _Document, profile: Disclosed) -> None:
     _text(pdf, "ПРОФИЛЬ КАНДИДАТА", size=9, style="B", color=ACCENT, height=5)
     _text(pdf, profile.full_name, size=22, style="B", height=10)
     if profile.job_roles:
@@ -108,8 +111,8 @@ def _header(pdf: _Document, profile: CandidateProfile) -> None:
 
 def _verified(
     pdf: _Document,
-    category: CategoryOut | None,
-    skills: SkillProfileOut | None,
+    category: Category | None,
+    skills: SkillProfile | None,
     confidence: float,
 ) -> None:
     _section(pdf, "Подтверждено тестом платформы")
@@ -171,24 +174,24 @@ def _verified(
     )
 
 
-def _self_reported(pdf: _Document, profile: CandidateProfile) -> None:
+def _self_reported(pdf: _Document, profile: SelfReported, disclosed: Disclosed) -> None:
     _section(pdf, "Со слов кандидата")
     rows = [
         ("Стек", ", ".join(t.name for t in profile.stack)),
         ("Стаж в ИТ", experience_words(profile.experience_years)),
-        ("Софт-скиллы", ", ".join(profile.soft_skills)),
+        ("Софт-скиллы", ", ".join(disclosed.soft_skills)),
         ("Формат работы", formats_words(profile.work_formats)),
         ("Город", _city_words(profile)),
         ("Интересные сферы", ", ".join(i.name for i in profile.industries)),
     ]
     _facts(pdf, [(label, value) for label, value in rows if value])
-    if profile.about:
+    if disclosed.about:
         pdf.ln(3)
         _text(pdf, "О себе", size=9, style="B", color=MUTED, height=5)
-        _text(pdf, profile.about, size=10, height=5)
+        _text(pdf, disclosed.about, size=10, height=5)
 
 
-def _city_words(profile: CandidateProfile) -> str:
+def _city_words(profile: SelfReported) -> str:
     if profile.city is None:
         return ""
     relocation = "готов к переезду" if profile.relocation else "без переезда"
@@ -238,7 +241,7 @@ def _text(
 # Слова — те же, что в интерфейсе кандидата (frontend/src/candidate/words.ts).
 
 
-def level_words(band: LevelBandOut) -> str:
+def level_words(band: LevelBand) -> str:
     low, high = band.low, band.high
     if band.confident:
         return f"уверенно {_grade_word(low)}" if low else "ниже стажёра"
@@ -255,7 +258,7 @@ def _grade_word(grade: str) -> str:
     return _NAMED.get(grade, grade)
 
 
-def theta_with_error(level: LevelOut) -> str:
+def theta_with_error(level: Level) -> str:
     return f"{_number(level.theta)} ± {_number(level.theta_sd)}"
 
 
@@ -281,6 +284,6 @@ def experience_words(years: int) -> str:
     return f"{years} {word}"
 
 
-def formats_words(formats: Sequence[str]) -> str:
-    words = ", ".join(WORK_FORMATS[WorkFormat(f)] for f in formats)
+def formats_words(formats: Sequence[WorkFormat]) -> str:
+    words = ", ".join(WORK_FORMATS[f] for f in formats)
     return words[:1].upper() + words[1:]

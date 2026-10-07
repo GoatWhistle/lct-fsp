@@ -19,25 +19,20 @@ from sqlalchemy import Engine, text
 from sqlalchemy.engine import make_url
 from sqlalchemy.orm import Session
 
+from app.adapter.mail import MemoryMailer
 from app.assessment.catalog import load_catalog, sync_catalog
 from app.config import BACKEND_DIR, Mechanics, Settings
 from app.db import create_db_engine
+from app.domain.mail import Mail
 from app.identity.models import Role
-from app.mail import Mail
 from main import create_app
 
 PASSWORD = "correct-horse-battery"
 DATABASE_TIMEZONE = "Europe/Moscow"
 
 
-class Outbox:
-    """Почта, которая никуда не уходит: тест читает письма отсюда."""
-
-    def __init__(self) -> None:
-        self.sent: list[Mail] = []
-
-    def send(self, mail: Mail) -> None:
-        self.sent.append(mail)
+class Outbox(MemoryMailer):
+    """Почта в памяти: тест читает письма отсюда."""
 
     def last_to(self, email: str) -> Mail:
         mails = [m for m in self.sent if m.to == email]

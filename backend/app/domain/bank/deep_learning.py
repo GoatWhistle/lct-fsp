@@ -6,9 +6,10 @@ import random
 from itertools import pairwise
 
 from app.domain.bank.family import Instance, rounded
+from app.domain.bank.runner import CodeRunner
 
 
-def dense_params(rng: random.Random) -> Instance:
+def dense_params(rng: random.Random, runner: CodeRunner) -> Instance:
     sizes = [rng.choice([8, 16, 32, 64, 100, 128, 256, 784])] + [
         rng.choice([4, 10, 16, 32, 64, 128]) for _ in range(rng.randint(2, 3))
     ]
@@ -23,7 +24,7 @@ def dense_params(rng: random.Random) -> Instance:
     return Instance(prompt, str(total), {"sizes": sizes, "bias": bias})
 
 
-def relu_forward(rng: random.Random) -> Instance:
+def relu_forward(rng: random.Random, runner: CodeRunner) -> Instance:
     x = [rng.randint(-3, 3) for _ in range(2)]
     w = [[rng.randint(-2, 2) for _ in range(2)] for _ in range(3)]
     b = [rng.randint(-2, 2) for _ in range(3)]
@@ -40,7 +41,7 @@ def relu_forward(rng: random.Random) -> Instance:
     )
 
 
-def conv_shape(rng: random.Random) -> Instance:
+def conv_shape(rng: random.Random, runner: CodeRunner) -> Instance:
     size = rng.choice([28, 32, 64, 96, 128, 224])
     channels = [3, rng.choice([8, 16, 32]), rng.choice([32, 64, 128])]
     layers = []
@@ -70,7 +71,7 @@ def conv_shape(rng: random.Random) -> Instance:
     )
 
 
-def conv_params(rng: random.Random) -> Instance:
+def conv_params(rng: random.Random, runner: CodeRunner) -> Instance:
     c_in = rng.choice([1, 3, 16, 32, 64])
     c_out = rng.choice([8, 16, 32, 64, 128])
     k = rng.choice([1, 3, 5])
@@ -88,7 +89,7 @@ def conv_params(rng: random.Random) -> Instance:
     )
 
 
-def softmax_probs(rng: random.Random) -> Instance:
+def softmax_probs(rng: random.Random, runner: CodeRunner) -> Instance:
     logits = [rng.randint(-2, 4) for _ in range(3)]
     temperature = rng.choice([1, 1, 2, 0.5])
     exps = [math.exp(z / temperature) for z in logits]
@@ -105,7 +106,7 @@ def softmax_probs(rng: random.Random) -> Instance:
     )
 
 
-def cross_entropy(rng: random.Random) -> Instance:
+def cross_entropy(rng: random.Random, runner: CodeRunner) -> Instance:
     batch = []
     for _ in range(3):
         logits = [rng.randint(-2, 3) for _ in range(3)]
@@ -124,7 +125,7 @@ def cross_entropy(rng: random.Random) -> Instance:
     return Instance(prompt, rounded(mean, 3), {"batch": batch}, code="\n".join(lines))
 
 
-def backprop(rng: random.Random) -> Instance:
+def backprop(rng: random.Random, runner: CodeRunner) -> Instance:
     x, w1, w2, t = rng.randint(1, 4), rng.randint(-2, 3), rng.randint(-2, 3), rng.randint(-5, 10)
     h_pre = w1 * x
     h = max(0, h_pre)
@@ -143,7 +144,7 @@ def backprop(rng: random.Random) -> Instance:
     return Instance(prompt, f"{loss} {dw1} {dw2}", {"x": x, "w1": w1, "w2": w2, "t": t}, code=code)
 
 
-def batchnorm(rng: random.Random) -> Instance:
+def batchnorm(rng: random.Random, runner: CodeRunner) -> Instance:
     batch = [rng.randint(-10, 20) for _ in range(4)]
     if len(set(batch)) == 1:
         batch[0] += 3
@@ -163,7 +164,7 @@ def batchnorm(rng: random.Random) -> Instance:
     )
 
 
-def lr_schedule(rng: random.Random) -> Instance:
+def lr_schedule(rng: random.Random, runner: CodeRunner) -> Instance:
     base = rng.choice([0.1, 0.05, 0.02, 0.01, 0.003, 0.001])
     kind = rng.choice(["step", "cosine", "cosine", "warmup"])
     epoch = rng.randint(1, 30)
@@ -187,7 +188,7 @@ def lr_schedule(rng: random.Random) -> Instance:
     return Instance(prompt, rounded(lr, 6), {"base": base, "kind": kind, "epoch": epoch})
 
 
-def max_pool(rng: random.Random) -> Instance:
+def max_pool(rng: random.Random, runner: CodeRunner) -> Instance:
     grid = [[rng.randint(0, 9) for _ in range(4)] for _ in range(4)]
     kind = rng.choice(["max", "avg"])
     out = []
@@ -205,7 +206,7 @@ def max_pool(rng: random.Random) -> Instance:
     )
 
 
-def attention_weights(rng: random.Random) -> Instance:
+def attention_weights(rng: random.Random, runner: CodeRunner) -> Instance:
     d = rng.choice([4, 16, 64])
     dots = [rng.randint(-8, 16) for _ in range(3)]
     exps = [math.exp(x / math.sqrt(d)) for x in dots]
@@ -218,7 +219,7 @@ def attention_weights(rng: random.Random) -> Instance:
     return Instance(prompt, " ".join(rounded(w, 3) for w in weights), {"dots": dots, "d": d})
 
 
-def receptive_field(rng: random.Random) -> Instance:
+def receptive_field(rng: random.Random, runner: CodeRunner) -> Instance:
     layers = [(rng.choice([3, 5, 7]), rng.choice([1, 2])) for _ in range(rng.randint(3, 4))]
     rf, jump = 1, 1
     for k, s in layers:

@@ -8,6 +8,7 @@
 import random
 
 from app.domain.bank.family import Instance
+from app.domain.bank.runner import CodeRunner
 
 PROMPT = "Что выведет код в консоль? Ответ — выведенные значения через пробел по порядку."
 
@@ -17,7 +18,7 @@ def _js_number(value: float) -> str:
     return str(int(value)) if float(value).is_integer() else repr(float(value))
 
 
-def type_coercion(rng: random.Random) -> Instance:
+def type_coercion(rng: random.Random, runner: CodeRunner) -> Instance:
     lines, out = [], []
     for _ in range(4):
         a, b, c = rng.randint(1, 9), rng.randint(1, 9), rng.randint(1, 9)
@@ -43,7 +44,7 @@ def type_coercion(rng: random.Random) -> Instance:
     return Instance(PROMPT, " ".join(out), {"lines": lines}, code="\n".join(lines))
 
 
-def array_pipeline(rng: random.Random) -> Instance:
+def array_pipeline(rng: random.Random, runner: CodeRunner) -> Instance:
     nums = [rng.randint(-20, 40) for _ in range(rng.randint(6, 9))]
     m = rng.randint(2, 3)
     # Множитель не кратен делителю: иначе после map остаток у всех 0 и ответ почти всегда 0.
@@ -68,7 +69,7 @@ def _js_mod(a: int, b: int) -> int:
     return -result if a < 0 else result
 
 
-def var_let_loop(rng: random.Random) -> Instance:
+def var_let_loop(rng: random.Random, runner: CodeRunner) -> Instance:
     n, k, c = rng.randint(2, 4), rng.randint(2, 9), rng.randint(0, 9)
     keyword = rng.choice(["var", "let"])
     code = (
@@ -82,7 +83,7 @@ def var_let_loop(rng: random.Random) -> Instance:
     )
 
 
-def default_sort(rng: random.Random) -> Instance:
+def default_sort(rng: random.Random, runner: CodeRunner) -> Instance:
     nums = rng.sample([*range(1, 30), 100, 200, 1000, 25, 250], rng.randint(5, 7))
     numeric = rng.random() < 0.3
     if numeric:
@@ -96,7 +97,7 @@ def default_sort(rng: random.Random) -> Instance:
     )
 
 
-def loose_equality(rng: random.Random) -> Instance:
+def loose_equality(rng: random.Random, runner: CodeRunner) -> Instance:
     rows = []
     for _ in range(6):
         a = rng.randint(1, 9)
@@ -124,7 +125,7 @@ def loose_equality(rng: random.Random) -> Instance:
     return Instance(PROMPT, answer, {"rows": [expr for expr, _ in rows]}, code=code)
 
 
-def destructuring(rng: random.Random) -> Instance:
+def destructuring(rng: random.Random, runner: CodeRunner) -> Instance:
     a, b, d = rng.randint(1, 30), rng.randint(1, 30), rng.randint(1, 30)
     has_b = rng.random() < 0.5
     extra = rng.sample(["x", "y", "z", "w"], rng.randint(0, 3))
@@ -139,7 +140,7 @@ def destructuring(rng: random.Random) -> Instance:
     return Instance(PROMPT, str(total), {"source": source, "default": d}, code=code)
 
 
-def event_loop(rng: random.Random) -> Instance:
+def event_loop(rng: random.Random, runner: CodeRunner) -> Instance:
     """Синхронный код → микрозадачи → по таймеру макрозадачи, после каждой — её микрозадачи."""
     letters = iter("ABCDEFGHIJKLMNOP")
     lines: list[str] = []
@@ -189,7 +190,7 @@ def event_loop(rng: random.Random) -> Instance:
     return Instance(PROMPT, " ".join(out), {"lines": lines}, code="\n".join(lines))
 
 
-def closure_counter(rng: random.Random) -> Instance:
+def closure_counter(rng: random.Random, runner: CodeRunner) -> Instance:
     start, a1, b1, a2, b2 = (rng.randint(1, 30) for _ in range(5))
     code = (
         "function makeCounter(start) {\n"
@@ -206,7 +207,7 @@ def closure_counter(rng: random.Random) -> Instance:
     return Instance(PROMPT, str(answer), {"start": start, "deltas": [a1, b1, a2, b2]}, code=code)
 
 
-def promise_combinators(rng: random.Random) -> Instance:
+def promise_combinators(rng: random.Random, runner: CodeRunner) -> Instance:
     combinator = rng.choice(["all", "allSettled", "race", "any"])
     promises = []
     for i in range(3):
@@ -239,7 +240,7 @@ def promise_combinators(rng: random.Random) -> Instance:
     return Instance(PROMPT, out, {"combinator": combinator, "promises": promises}, code=code)
 
 
-def array_mutation(rng: random.Random) -> Instance:
+def array_mutation(rng: random.Random, runner: CodeRunner) -> Instance:
     arr = rng.sample(range(1, 50), 5)
     js = list(arr)
     lines = [f"const arr = [{', '.join(map(str, arr))}];"]
@@ -263,7 +264,7 @@ def array_mutation(rng: random.Random) -> Instance:
     return Instance(PROMPT, " ".join(map(str, js)), {"lines": lines}, code="\n".join(lines))
 
 
-def await_timing(rng: random.Random) -> Instance:
+def await_timing(rng: random.Random, runner: CodeRunner) -> Instance:
     delays = [rng.randint(1, 30) * 50 for _ in range(3)]
     sequential = rng.random() < 0.5
     names = ["user", "orders", "prices"]
@@ -296,7 +297,7 @@ def await_timing(rng: random.Random) -> Instance:
     )
 
 
-def float_sums(rng: random.Random) -> Instance:
+def float_sums(rng: random.Random, runner: CodeRunner) -> Instance:
     pairs = [(rng.randint(1, 9), rng.randint(1, 9)) for _ in range(3)]
     lines = [f"console.log(0.{a} + 0.{b});" for a, b in pairs]
     out = [_js_number(a / 10 + b / 10) for a, b in pairs]

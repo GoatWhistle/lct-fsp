@@ -25,6 +25,7 @@ from main import create_app
 from tests.candidate_path import (
     ITEM,
     PATH,
+    RUNNER,
     answer_items,
     everything,
     nothing,
@@ -120,7 +121,7 @@ def test_item_carries_no_answer(candidate: TestClient, seeds: Seeds) -> None:
     assert set(item) == {"id", "number", "max_items", "topic", "prompt", "code", "options"}
     assert item["number"] == 1 and item["max_items"] == 30
     family, seed = presented(seeds, item)
-    instance = family.instance(seed)
+    instance = family.instance(seed, RUNNER)
     assert item["prompt"] == instance.prompt
     assert item["code"] == instance.code
 
@@ -449,7 +450,7 @@ def test_same_run_seed_gives_the_same_items(
 def answer_current(c: TestClient, seeds: Seeds) -> Json:
     item = c.get(ITEM).json()
     family, seed = presented(seeds, item)
-    response = family.instance(seed).answer if near_junior(family) else "ответа нет"
+    response = family.instance(seed, RUNNER).answer if near_junior(family) else "ответа нет"
     answered = c.post(f"{ITEM}/answer", json={"presentation_id": item["id"], "response": response})
     assert answered.status_code == 200, answered.text
     body: Json = answered.json()
@@ -662,7 +663,7 @@ def test_failed_calibration_keeps_the_answer(
     while path["stage"] == "test":
         item = candidate.get(ITEM).json()
         family, seed = presented(seeds, item)
-        body = {"presentation_id": item["id"], "response": family.instance(seed).answer}
+        body = {"presentation_id": item["id"], "response": family.instance(seed, RUNNER).answer}
         before = calibration(db_engine)
         answered = candidate.post(f"{ITEM}/answer", json=body)
         assert answered.status_code == 200, answered.text

@@ -9,11 +9,12 @@ import math
 import random
 
 from app.domain.bank.family import Instance
+from app.domain.bank.runner import CodeRunner
 
 PROMPT = "Что выведет скрипт? Ответ — выведенные значения через пробел по порядку."
 
 
-def seq_loop(rng: random.Random) -> Instance:
+def seq_loop(rng: random.Random, runner: CodeRunner) -> Instance:
     start, step = rng.randint(1, 9), rng.randint(2, 5)
     stop = start + step * rng.randint(3, 9) + rng.randint(0, step - 1)
     k = rng.randint(2, 7)
@@ -31,7 +32,7 @@ def seq_loop(rng: random.Random) -> Instance:
     return Instance(PROMPT, answer, {"start": start, "step": step, "stop": stop, "k": k}, code=code)
 
 
-def test_conditions(rng: random.Random) -> Instance:
+def test_conditions(rng: random.Random, runner: CodeRunner) -> Instance:
     a, b = rng.sample(range(2, 40), 2)
     s1, s2 = str(rng.randint(10, 99)), str(rng.randint(2, 9))
     empty = rng.choice(["", "x"])
@@ -61,7 +62,7 @@ def test_conditions(rng: random.Random) -> Instance:
     )
 
 
-def param_expansion(rng: random.Random) -> Instance:
+def param_expansion(rng: random.Random, runner: CodeRunner) -> Instance:
     directory = rng.choice(["/var/log/app", "/srv/data/backup", "/opt/build/out", "/home/dev/tmp"])
     name = rng.choice(["report", "access", "dump", "release", "metrics"])
     stamp = rng.randint(2020, 2026) * 100 + rng.randint(1, 12)
@@ -92,7 +93,7 @@ def param_expansion(rng: random.Random) -> Instance:
     )
 
 
-def word_splitting(rng: random.Random) -> Instance:
+def word_splitting(rng: random.Random, runner: CodeRunner) -> Instance:
     words = rng.sample(["alpha", "beta", "gamma", "delta", "omega", "sigma"], rng.randint(2, 4))
     # Двойной пробел внутри строки: при разбиении на слова пустых аргументов не получается.
     files = "  ".join(words[:2]) + "".join(f" {w}" for w in words[2:])
@@ -128,7 +129,7 @@ def word_splitting(rng: random.Random) -> Instance:
     )
 
 
-def awk_sum(rng: random.Random) -> Instance:
+def awk_sum(rng: random.Random, runner: CodeRunner) -> Instance:
     regions = rng.sample(["north", "south", "east", "west", "center"], rng.randint(3, 4))
     rows = [
         (rng.choice(regions), rng.choice(["apple", "pear", "plum"]), rng.randint(1, 30))
@@ -152,7 +153,7 @@ def awk_sum(rng: random.Random) -> Instance:
     return Instance(prompt, answer, {"rows": rows, "threshold": threshold}, code="\n".join(lines))
 
 
-def find_filters(rng: random.Random) -> Instance:
+def find_filters(rng: random.Random, runner: CodeRunner) -> Instance:
     days, size = rng.randint(3, 10), rng.randint(1, 2)
     pattern = rng.choice(["*.log", "app*", "*.gz"])
     stems = rng.sample(["api", "db", "audit", "cron", "auth", "nginx", "worker", "mail"], 6)
@@ -208,7 +209,7 @@ _STATEMENTS = [
 ]
 
 
-def errexit(rng: random.Random) -> Instance:
+def errexit(rng: random.Random, runner: CodeRunner) -> Instance:
     pipefail = rng.random() < 0.5
     letters = iter(rng.sample("ABCDEFGHKMNPRSTUVWXZ", 11))
     lines = ["set -e" + (" -o pipefail" if pipefail else "")]

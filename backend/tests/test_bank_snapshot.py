@@ -12,10 +12,12 @@ from pathlib import Path
 
 import pytest
 
+from app.adapter.code_runner import InProcessCodeRunner
 from app.domain.bank import BANK, RETIRED, Family
 
 SNAPSHOT = Path(__file__).parent / "data" / "bank_snapshot.json"
 SEEDS = range(50)
+RUNNER = InProcessCodeRunner()
 FAMILIES = (*BANK, *RETIRED)
 
 
@@ -25,7 +27,7 @@ def fingerprint(family: Family) -> str:
     meta = [family.code, family.topic, family.grade, family.anchor]
     digest.update(json.dumps(meta, ensure_ascii=False).encode())
     for seed in SEEDS:
-        instance = family.instance(seed)
+        instance = family.instance(seed, RUNNER)
         checks = [family.check(instance, instance.answer), family.check(instance, "0")]
         record = [
             instance.prompt,

@@ -46,6 +46,7 @@ class Mechanics(BaseModel):
     grade_up_hint_confidence: float
     theta_prior_sd: float
     topic_deviation_sd: float
+    level_sd_inflation: float
     grade_change_interval_days: int
     grade_retry_interval_days: int
     no_category_retest_days: int
@@ -139,6 +140,14 @@ class Mechanics(BaseModel):
         нуля, иначе у потребности из одних желательных тем делить не на что."""
         if set(value) != {"key", "important", "nice"} or min(value.values()) <= 0:
             raise ValueError("нужны веса key, important и nice, все больше нуля")
+        return value
+
+    @field_validator("level_sd_inflation")
+    @classmethod
+    def positive_inflation(cls, value: float) -> float:
+        """Поправка погрешности умножает σ модели: при нуле и ниже погрешности нет."""
+        if value <= 0:
+            raise ValueError("поправка погрешности — больше нуля")
         return value
 
     @field_validator("confidence_language_bands")

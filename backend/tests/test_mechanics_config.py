@@ -52,6 +52,7 @@ def test_grade_parameters_cover_catalog_grades() -> None:
         {"fsp_result_difficulty": {"winner": 1.0, "prize": 0.5, "finalist": 0.0, "regional": 0}},
         {"fsp_result_difficulty": {"winner": 0.5, "prize": 1.0, "finalist": 0.0}},
         {"grade_retry_interval_days": 0},
+        {"level_sd_inflation": 0},
         {"grade_retry_interval_days": 120, "grade_change_interval_days": 90},
     ],
 )

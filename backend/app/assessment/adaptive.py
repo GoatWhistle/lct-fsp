@@ -7,7 +7,7 @@
 
 import random
 from collections.abc import Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import datetime
 from typing import Self
 
@@ -171,4 +171,4 @@ def _topics_by_priority(
 def selection_prior(prior: Prior, threshold: float) -> Prior:
     """Априорное для выбора заданий: среднее в пороге заявленного грейда, чтобы тест сразу шёл
     с заданий нужного уровня. Оценка, по которой решается грейд, считается с общим априорным."""
-    return Prior(prior.topics, prior.weights, prior.theta_sd, prior.deviation_sd, threshold)
+    return replace(prior, mean=threshold)

@@ -17,9 +17,13 @@ from app.skills.models import SkillProfile, SkillProfileTopic
 
 
 def specialization_prior(topics: Sequence[str], mechanics: Mechanics) -> Prior:
-    """Иерархическое априорное по темам специализации с равными весами тем (§3)."""
+    """Иерархическое априорное по темам специализации с равными весами тем и поправкой
+    погрешности (§3)."""
     return Prior.equal_weights(
-        topics, theta_sd=mechanics.theta_prior_sd, deviation_sd=mechanics.topic_deviation_sd
+        topics,
+        theta_sd=mechanics.theta_prior_sd,
+        deviation_sd=mechanics.topic_deviation_sd,
+        sd_inflation=mechanics.level_sd_inflation,
     )
 
 

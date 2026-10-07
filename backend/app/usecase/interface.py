@@ -11,7 +11,7 @@ from types import TracebackType
 from typing import Protocol, Self
 
 from app.domain.attempt import AnsweredPresentation
-from app.domain.candidate import ProfileSheet
+from app.domain.candidate import Candidate, ProfileForm, ProfileSheet
 from app.domain.mail import Mail
 from app.domain.selection import (
     AcceptanceFeatures,
@@ -114,6 +114,24 @@ class UnitOfWork(Protocol):
         tb: TracebackType | None,
     ) -> None:
         """Фиксация без исключения, откат с исключением; исключение не глотается."""
+        ...
+
+
+class CandidateRepository(Protocol):
+    """Кандидаты — анкета, ожидаемая зарплата, категория и профиль навыков её специализации.
+
+    Отдаёт кандидата целиком: что из этого увидит зритель, решает правило раскрытия
+    (`app.domain.candidate.disclosure`), а не хранилище. Пишет только внутри единицы работы и
+    сам не фиксирует. Сейчас — Postgres (`app.repository.candidate`).
+    """
+
+    def get(self, candidate_id: uuid.UUID) -> Candidate:
+        """Кандидат по id. Чего у него нет, то `None`; у неизвестного id нет ничего."""
+        ...
+
+    def save_profile(self, candidate_id: uuid.UUID, form: ProfileForm, now: datetime) -> None:
+        """Заменяет анкету целиком; `now` — время правки. Стек и сферы не из справочника —
+        `UnknownTechnology` и `UnknownIndustry`."""
         ...
 
 

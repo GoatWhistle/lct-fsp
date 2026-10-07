@@ -84,9 +84,12 @@ docker-compose.yml       PostgreSQL, бэкенд, фронт, Mailpit
 функции в `calibration.py`) и путь кандидата к категории (опрос, попытки теста, предъявления,
 категория);
 `skills` — модель навыка IRT 2PL (чистые функции в `irt.py`) и запись профиля навыков, сам
-профиль считает сценарий `app/usecase/skill_profile.py`; банк семейств — в `app/domain/bank/`; `profile` —
-профиль кандидата, PDF-профиль (рендер — `app/adapter/profile_pdf.py`, шрифт PT Sans под OFL
-в `app/adapter/fonts/`) и обезличенная карточка для работодателя; `company` — профиль компании; `matching` — потребность работодателя
+профиль считает сценарий `app/usecase/skill_profile.py`; банк семейств — в `app/domain/bank/`; профиль
+кандидата на слоях — правило раскрытия и карточки в `app/domain/candidate.py`, сценарии анкеты,
+PDF-профиля и карточки для работодателя в `app/usecase/candidate.py`, хранилище в
+`app/repository/candidate.py`, эндпоинты в `app/controller/profile.py`, в `profile` остались
+таблицы (рендер PDF — `app/adapter/profile_pdf.py`, шрифт PT Sans под OFL в
+`app/adapter/fonts/`); `company` — профиль компании; `matching` — потребность работодателя
 и HTTP подборки. Подборка — глубокий модуль: домен `app/domain/selection.py` (блоки, скор,
 объяснение, порядок; важность тем и скор соответствия — `importance.py` и `match.py` там же),
 сценарии `app/usecase/selection.py`, хранилища `app/repository/selection.py` и in-memory

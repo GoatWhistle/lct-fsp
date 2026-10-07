@@ -8,6 +8,7 @@ from fastapi import Depends, Request
 from app.db import UnitOfWorkDep
 from app.usecase.interface import (
     AttemptReader,
+    CandidateRepository,
     Clock,
     Mailer,
     ProfilePdfRenderer,
@@ -61,3 +62,12 @@ SeedsDep = Annotated[SeedSource, Depends(get_seeds)]
 SelectionsDep = Annotated[Selections, Depends(get_selections)]
 SkillModelDep = Annotated[SkillModel, Depends(get_skill_model)]
 AttemptsDep = Annotated[AttemptReader, Depends(get_attempts)]
+
+
+def get_candidates(request: Request, uow: UnitOfWorkDep) -> CandidateRepository:
+    """Репозиторий кандидатов на сессии единицы работы запроса."""
+    candidates: CandidateRepository = request.app.state.candidate_repository(uow)
+    return candidates
+
+
+CandidatesDep = Annotated[CandidateRepository, Depends(get_candidates)]

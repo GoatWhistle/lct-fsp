@@ -7,6 +7,7 @@ grade_confidence: 0.8
 grade_up_hint_confidence: 0.5
 theta_prior_sd: 1.0
 topic_deviation_sd: 0.6
+level_sd_inflation: 1.15
 grade_change_interval_days: 90
 grade_retry_interval_days: 30
 no_category_retest_days: 30
@@ -24,7 +25,7 @@ family_instance_difficulty_sd_max: 0.3
 # Адаптивный тест
 test_min_items: 12
 test_max_items: 30
-test_stop_sd: 0.35
+test_stop_sd: 0.40
 test_min_items_per_topic: 2
 test_max_topic_share: 0.35
 exposure_top_k: 2

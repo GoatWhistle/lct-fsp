@@ -3,6 +3,7 @@
 import itertools
 import math
 import random
+from dataclasses import replace
 
 import pytest
 
@@ -130,6 +131,23 @@ def test_prior_mean_shifts_estimate_but_not_uncertainty_without_data() -> None:
 
     assert shifted.overall().mean == pytest.approx(0.5)
     assert shifted.overall().sd == pytest.approx(estimate(prior(), []).overall().sd)
+
+
+def test_inflation_scales_reported_uncertainty_and_keeps_level() -> None:
+    """Поправка погрешности κ (§3): уровень по теме и общий уровень сообщаются с погрешностью
+    κ σ модели, а среднее и шаг по наблюдениям — те же, что без поправки."""
+    rng = random.Random(5)
+    observations = random_items(rng, 12)
+
+    plain = estimate(prior(), observations)
+    inflated = estimate(replace(prior(), sd_inflation=1.15), observations)
+
+    assert (inflated.mean, inflated.cov) == (plain.mean, plain.cov)
+    for topic in TOPICS:
+        assert inflated.topic(topic).mean == plain.topic(topic).mean
+        assert inflated.topic(topic).sd == pytest.approx(1.15 * plain.topic(topic).sd)
+    assert inflated.overall().mean == plain.overall().mean
+    assert inflated.overall().sd == pytest.approx(1.15 * plain.overall().sd)
 
 
 def test_probability_at_least_threshold_is_normal_tail() -> None:

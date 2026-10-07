@@ -251,8 +251,10 @@ def _pool(db: Session, need: Need, topics: Sequence[str], mechanics: Mechanics) 
         pool[user_id].levels[topic] = Normal(theta, theta_sd)
 
     # Тему добавили в справочник, а профиль пересчитается со следующим сигналом: до тех пор
-    # уровень по ней — априорный (§3), «данных мало».
-    prior = Normal(0.0, math.hypot(mechanics.theta_prior_sd, mechanics.topic_deviation_sd))
+    # уровень по ней — априорный (§3) с поправкой погрешности, как у оценки без наблюдений,
+    # «данных мало».
+    spread = math.hypot(mechanics.theta_prior_sd, mechanics.topic_deviation_sd)
+    prior = Normal(0.0, mechanics.level_sd_inflation * spread)
     for candidate in pool.values():
         for topic in topics:
             candidate.levels.setdefault(topic, prior)

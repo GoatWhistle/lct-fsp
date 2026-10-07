@@ -1,19 +1,31 @@
-"""Симуляция теста на кандидатах с известной истиной — для проверок адаптивности и калибровки.
+"""Симуляция теста на кандидатах с известной истиной — для проверок адаптивности, калибровки и
+честности погрешности.
 
 Истина (уровни кандидатов, параметры семейств) живёт только здесь: движок теста и калибровка
 видят ответы и свои оценки, как в сервисе. Истина отличается от модели оценки, как в наборе D1
 плана валидации: уровни шире априорного оценщика, b* = b₀ + N(0; 0,5²), ln a* = ln a₀ + N(0; 0,3²)
 — калибровке есть что исправлять.
 
-Сравнение адаптивного теста с фиксированным бланком и сходимость калибровки по всем
-специализациям: `uv run python -m tests.simulation`.
+Команды `uv run python -m tests.simulation …`:
+
+- без команды — сравнение адаптивного теста с фиксированным бланком и сходимость калибровки по
+  всем специализациям;
+- `honesty` — честность погрешности уровня и стабильность грейда при повторе на прогретом банке
+  D1;
+- `tune` — подбор поправки погрешности `level_sd_inflation` на настроечном наборе D3 по правилу
+  плана валидации.
 """
 
+import argparse
 import math
+import os
 import random
+import statistics
 from collections import deque
 from collections.abc import Sequence
+from concurrent.futures import ProcessPoolExecutor
 from dataclasses import dataclass, field, replace
+from datetime import UTC, datetime
 
 from app.assessment.adaptive import (
     Blueprint,
@@ -35,12 +47,20 @@ from app.assessment.calibration import (
     rest_levels,
 )
 from app.assessment.catalog import load_catalog
-from app.assessment.determination import grades_by_threshold
+from app.assessment.determination import Assign, Offer, decide, grades_by_threshold
 from app.config import BACKEND_DIR, Mechanics
-from app.skills.irt import Normal, Observation, initial, sigmoid, update
+from app.skills.irt import Normal, Observation, estimate, initial, sigmoid, update
 from app.skills.service import specialization_prior
 
+# Сиды наборов плана валидации: D1 — основной, D3 — настроечный.
 SEED = 20261005
+TUNING_SEED = 7
+# Прогретый банк: ответов на семейство в среднем.
+WARM_RESPONSES = 500
+# Сетка подбора поправки погрешности κ — шаг 0,05.
+INFLATION_GRID = tuple(round(1 + 0.05 * i, 2) for i in range(11))
+# Прошлые попытки определения: в симуляции важен только факт показа, не время.
+_SEEN = datetime(2026, 1, 1, tzinfo=UTC)
 
 
 @dataclass(frozen=True)
@@ -69,6 +89,8 @@ class Run:
     overall: Normal
     # Семейства, взятые сверх потолка показов: под потолком в теме ничего не осталось.
     capped: tuple[str, ...] = ()
+    # Ответы, на которых стоит оценка: прошлых попыток определения и этой.
+    answers: tuple[Observation, ...] = ()
 
     def items_to(self, sd: float) -> int | None:
         return next((n for n, s in enumerate(self.sds, 1) if s <= sd), None)
@@ -134,11 +156,21 @@ class Market:
         a, b = item.truth.discrimination, item.truth.difficulty
         return self.rng.random() < sigmoid(a * (candidate.level[item.family.topic] - b))
 
-    def adaptive(self, candidate: Candidate, *, length: int | None = None) -> Run:
-        """Адаптивный тест; без `length` — до правила остановки, иначе ровно `length` заданий."""
-        threshold = self.mechanics.grade_thresholds[candidate.claimed]
-        test = initial(self.prior)
-        selection = initial(selection_prior(self.prior, threshold))
+    def adaptive(
+        self,
+        candidate: Candidate,
+        *,
+        length: int | None = None,
+        grade: str | None = None,
+        previous: Sequence[Observation] = (),
+        seen: frozenset[str] = frozenset(),
+    ) -> Run:
+        """Адаптивный тест на заявленный грейд; без `length` — до правила остановки, иначе ровно
+        `length` заданий. Дотест каскада (§4) — на `grade`: оценка продолжает ответы `previous`
+        прошлых попыток определения, их семейства `seen` идут после невиданных."""
+        threshold = self.mechanics.grade_thresholds[grade or candidate.claimed]
+        test = estimate(self.prior, previous)
+        selection = estimate(selection_prior(self.prior, threshold), previous)
         counts: dict[str, int] = {}
         shown: list[str] = []
         sds: list[float] = []
@@ -152,7 +184,13 @@ class Market:
         limit = length or self.blueprint.max_items
         while len(shown) < limit:
             options = [
-                Option(code, i.family.topic, *_params(i), shown=tally.get(code, 0))
+                Option(
+                    code,
+                    i.family.topic,
+                    *_params(i),
+                    shown=tally.get(code, 0),
+                    seen_at=_SEEN if code in seen else None,
+                )
                 for code, i in self.items.items()
                 if code not in shown
             ]
@@ -173,8 +211,9 @@ class Market:
             sds.append(test.overall().sd)
             if length is None and should_stop(self.blueprint, counts, test.overall()):
                 break
-        self._finish(set(shown), answered)
-        return Run(sds, shown, test.overall(), tuple(capped))
+        self._finish(set(shown), answered, previous)
+        answers = (*previous, *(obs for _, obs, _ in answered))
+        return Run(sds, shown, test.overall(), tuple(capped), answers)
 
     def fixed(self, candidate: Candidate, length: int, *, target: float | None = None) -> Run:
         """Фиксированный бланк с тем же покрытием тем: по кругу тем, в теме — семейства с
@@ -209,20 +248,26 @@ class Market:
         return sum(w * level[t] for t, w in zip(self.prior.topics, self.prior.weights, strict=True))
 
     def _learn(self, item: Item, response: Response) -> None:
-        if self.calibrate and not item.family.anchor:
+        """Эло до пакетной переоценки; после неё текущие параметры — опорные (§7)."""
+        if self.calibrate and not item.family.anchor and not item.refitted:
             linked = Response(self.before_link.apply(response.level), response.correct)
             item.params = elo_update(item.params, linked, item.responses, self.mechanics)
         item.responses += 1
 
-    def _finish(self, shown: set[str], answered: list[tuple[Item, Observation, Normal]]) -> None:
-        """Остановка попытки, как в сервисе: итоговые оценки без ответа, пересчёт связок шкалы
-        по якорям, пакетная переоценка набравших ответы семейств."""
+    def _finish(
+        self,
+        shown: set[str],
+        answered: list[tuple[Item, Observation, Normal]],
+        previous: Sequence[Observation] = (),
+    ) -> None:
+        """Остановка попытки, как в сервисе: итоговые оценки без ответа по всему определению,
+        пересчёт связок шкалы по якорям, пакетная переоценка набравших ответы семейств."""
         self.window.append(shown)
         self.attempts += 1
         if not self.calibrate:
             return
-        observations = [obs for _, obs, _ in answered]
-        levels = rest_levels(self.prior, observations, range(len(answered)))
+        observations = [*previous, *(obs for _, obs, _ in answered)]
+        levels = rest_levels(self.prior, observations, range(len(previous), len(observations)))
         self.anchors.append(
             [
                 (item.params, Response(before, obs.correct), Response(level, obs.correct))
@@ -319,7 +364,7 @@ def _compare(m: Market, candidates: int) -> str:
         return f"{median(ns):4.1f} ({within:.2f})"
 
     ratio = median(runs["adaptive"]) / median(runs["common"])
-    spread = math.sqrt(sum(v * v for v in z) / len(z) - (sum(z) / len(z)) ** 2)
+    spread = statistics.pstdev(z)
     mean_20 = {k: sum(v) / len(v) for k, v in at_20.items()}
     return (
         f"{cell('adaptive')} | {cell('common')} | {cell('claimed')} | {ratio:.2f} | "
@@ -327,15 +372,216 @@ def _compare(m: Market, candidates: int) -> str:
     )
 
 
-def main() -> None:
-    mechanics = Mechanics.from_yaml(BACKEND_DIR / "config" / "mechanics.yaml")
+def warm(m: Market, responses: int = WARM_RESPONSES) -> Market:
+    """Калибровка на потоке кандидатов до `responses` ответов на семейство в среднем; дальше
+    параметры заморожены."""
+    while mean_responses(m) < responses:
+        m.adaptive(m.candidate())
+    m.calibrate = False
+    return m
+
+
+def true_grade(m: Market, candidate: Candidate) -> str | None:
+    """Истинный грейд — полоса θ̄*; None — ниже порога младшего грейда."""
+    thresholds = m.mechanics.grade_thresholds
+    level = m.overall(candidate)
+    passed = [g for g in grades_by_threshold(thresholds) if level >= thresholds[g]]
+    return passed[-1] if passed else None
+
+
+def determine(m: Market, candidate: Candidate) -> tuple[str | None, Normal]:
+    """Первичное определение категории (§4): тест на заявленный грейд и каскад дотестов вниз.
+    Грейд None — без категории; оценка общего уровня — на конец определения."""
+    grade = candidate.claimed
+    answers: tuple[Observation, ...] = ()
+    seen: frozenset[str] = frozenset()
+    while True:
+        run = m.adaptive(candidate, grade=grade, previous=answers, seen=seen)
+        answers, seen = run.answers, seen | set(run.shown)
+        decision = decide(
+            run.overall,
+            grade,
+            thresholds=m.mechanics.grade_thresholds,
+            confidence=m.mechanics.grade_confidence,
+            has_items=lambda _: True,
+        )
+        match decision:
+            case Assign(assigned):
+                return assigned, run.overall
+            case Offer(lower):
+                grade = lower
+            case _:
+                return None, run.overall
+
+
+@dataclass(frozen=True)
+class Honesty:
+    """Тест на заявленный грейд с лимитом заданий: z = (θ̂ − θ*) / σ̂ общего уровня на остановке,
+    длина теста и сколько семейств взято сверх потолка показов. Погрешность честная, когда
+    sd(z) ≈ 1."""
+
+    z: list[float]
+    lengths: list[int]
+    capped: list[int]
+
+
+def honesty(m: Market, candidates: int) -> Honesty:
+    z, lengths, capped = [], [], []
+    for _ in range(candidates):
+        c = m.candidate()
+        run = m.adaptive(c)
+        z.append((run.overall.mean - m.overall(c)) / run.overall.sd)
+        lengths.append(len(run.shown))
+        capped.append(len(run.capped))
+    return Honesty(z, lengths, capped)
+
+
+@dataclass(frozen=True)
+class Stability:
+    """Повтор первичного определения с независимыми экземплярами (M9) и совпадение с истиной
+    (M10)."""
+
+    # Доля пар с совпавшей категорией, включая «без категории», и из них — на истинном грейде.
+    agreement: float
+    agreement_true: float
+    # Каппа Коэна по категориям.
+    kappa: float
+    # r(θ̄₁, θ̄₂).
+    correlation: float
+    # Доля пар с разницей не больше грейда.
+    within_one: float
+    # Доли определений с грейдом выше истинного и равным ему.
+    overestimate: float
+    exact: float
+
+
+def stability(m: Market, pairs: int) -> Stability:
+    grades: list[str | None] = [None, *grades_by_threshold(m.mechanics.grade_thresholds)]
+    rank = {g: i for i, g in enumerate(grades)}
+    results: list[tuple[str | None, str | None]] = []
+    levels: list[tuple[float, float]] = []
+    over = exact = both_true = 0
+    for _ in range(pairs):
+        c = m.candidate()
+        truth = rank[true_grade(m, c)]
+        (first, first_level), (second, second_level) = determine(m, c), determine(m, c)
+        results.append((first, second))
+        levels.append((first_level.mean, second_level.mean))
+        over += (rank[first] > truth) + (rank[second] > truth)
+        exact += (rank[first] == truth) + (rank[second] == truth)
+        both_true += rank[first] == rank[second] == truth
+    return Stability(
+        agreement=sum(a == b for a, b in results) / pairs,
+        agreement_true=both_true / pairs,
+        kappa=cohen_kappa(results, grades),
+        correlation=pearson([a for a, _ in levels], [b for _, b in levels]),
+        within_one=sum(abs(rank[a] - rank[b]) <= 1 for a, b in results) / pairs,
+        overestimate=over / (2 * pairs),
+        exact=exact / (2 * pairs),
+    )
+
+
+def cohen_kappa(pairs: Sequence[tuple[object, object]], categories: Sequence[object]) -> float:
+    """Каппа Коэна; не определена, когда все определения в одной категории, — тогда nan."""
+    n = len(pairs)
+    observed = sum(a == b for a, b in pairs) / n
+    expected = sum(
+        sum(a == c for a, _ in pairs) / n * sum(b == c for _, b in pairs) / n for c in categories
+    )
+    return (observed - expected) / (1 - expected) if expected < 1 else math.nan
+
+
+def _warm_run(
+    job: tuple[str, int, Mechanics, int, int],
+) -> tuple[str, float, Honesty, Stability | None]:
+    """Прогрев банка специализации и замеры на нём — задача для пула процессов."""
+    code, seed, mechanics, candidates, pairs = job
+    m = warm(market(code, mechanics, seed))
+    measured = honesty(m, candidates)
+    return (
+        code,
+        mechanics.level_sd_inflation,
+        measured,
+        stability(m, pairs) if pairs else None,
+    )
+
+
+def _pool() -> ProcessPoolExecutor:
+    return ProcessPoolExecutor(max(1, (os.cpu_count() or 2) - 1))
+
+
+def report_honesty(mechanics: Mechanics, seed: int, candidates: int, pairs: int) -> None:
+    """Честность погрешности и стабильность грейда по специализациям на прогретом банке."""
+    specializations = [s.code for s in load_catalog().specializations]
+    jobs = [(code, seed, mechanics, candidates, pairs) for code in specializations]
+    print(
+        f"Прогретый банк ({WARM_RESPONSES} ответов на семейство), сид {seed}, "
+        f"κ = {mechanics.level_sd_inflation}, test_stop_sd = {mechanics.test_stop_sd}: "
+        f"{candidates} тестов на заявленный грейд, {pairs} пар первичных определений"
+    )
+    print(
+        "| Специализация | sd(z) | Среднее z | Медиана заданий | Доля до лимита | "
+        "Сверх потолка показов | Совпадение категорий | Из них на истинном грейде | Каппа | "
+        "r(θ̄₁, θ̄₂) | Разница ≤ 1 грейда | Завышение | Точное совпадение |"
+    )
+    print("|---" * 13 + "|")
+    with _pool() as pool:
+        for code, _, h, st in pool.map(_warm_run, jobs):
+            assert st is not None
+            at_limit = sum(n >= mechanics.test_max_items for n in h.lengths) / len(h.lengths)
+            over_cap = sum(h.capped) / sum(h.lengths)
+            print(
+                f"| {code} | {statistics.pstdev(h.z):.3f} | {statistics.fmean(h.z):+.3f} | "
+                f"{median(h.lengths):.0f} | {at_limit:.2f} | {over_cap:.3f} | {st.agreement:.3f} | "
+                f"{st.agreement_true:.3f} | "
+                f"{st.kappa:.3f} | {st.correlation:.3f} | {st.within_one:.3f} | "
+                f"{st.overestimate:.3f} | {st.exact:.3f} |",
+                flush=True,
+            )
+
+
+def tune_inflation(mechanics: Mechanics, candidates: int) -> float:
+    """Подбор `level_sd_inflation` на настроечном наборе D3 по правилу плана валидации.
+
+    Для каждого κ из `INFLATION_GRID` банк прогревается заново — κ меняет и длину теста, и
+    калибровку, — и меряется sd(z) по всем кандидатам всех специализаций вместе. Погрешность
+    модели занижена в c раз, поэтому sd(z) ≈ c / κ: c — среднее κ · sd(z) по сетке, выбранное κ —
+    c, округлённое до шага сетки. По отдельной точке сетки выбирать нельзя: разброс от прогрева
+    банка больше разницы соседних точек."""
+    specializations = [s.code for s in load_catalog().specializations]
+    jobs = [
+        (code, TUNING_SEED, mechanics.model_copy(update={"level_sd_inflation": k}), candidates, 0)
+        for k in INFLATION_GRID
+        for code in specializations
+    ]
+    z: dict[float, dict[str, list[float]]] = {k: {} for k in INFLATION_GRID}
+    with _pool() as pool:
+        for code, k, h, _ in pool.map(_warm_run, jobs):
+            z[k][code] = h.z
+    print(f"Подбор κ: сид {TUNING_SEED}, прогретый банк, {candidates} тестов на специализацию")
+    print("| κ | sd(z) вместе | κ · sd(z) | " + " | ".join(specializations) + " |")
+    print("|---" * (len(specializations) + 3) + "|")
+    understated = []
+    for k, by_code in z.items():
+        pooled = statistics.pstdev([v for code in specializations for v in by_code[code]])
+        understated.append(k * pooled)
+        cells = " | ".join(f"{statistics.pstdev(by_code[code]):.3f}" for code in specializations)
+        print(f"| {k:.2f} | {pooled:.3f} | {k * pooled:.3f} | {cells} |")
+    c = statistics.fmean(understated)
+    step = INFLATION_GRID[1] - INFLATION_GRID[0]
+    chosen = round(round(c / step) * step, 2)
+    print(f"\nc = {c:.3f}, выбрано κ = {chosen:.2f}")
+    return chosen
+
+
+def report(mechanics: Mechanics) -> None:
     specializations = [s.code for s in load_catalog().specializations]
     checkpoints = (50, 100, 200, 500)
 
     print("Калибровка: r(b̂, b*) / RMSE(b̂, b*) при среднем числе ответов на семейство")
     print("| Специализация | " + " | ".join(str(n) for n in checkpoints) + " | RMSE b₀ |")
     print("|---" * (len(checkpoints) + 2) + "|")
-    warm: dict[str, Market] = {}
+    warmed: dict[str, Market] = {}
     for code in specializations:
         m = market(code, mechanics)
         cells = []
@@ -345,7 +591,7 @@ def main() -> None:
             r, error, start = calibration_quality(m)
             cells.append(f"{r:.3f} / {error:.3f}")
         print(f"| {code} | " + " | ".join(cells) + f" | {start:.3f} |", flush=True)
-        warm[code] = m
+        warmed[code] = m
 
     header = (
         "| Специализация | Адаптивный | Общий бланк | Бланк по заявке | Адаптивный / общий | "
@@ -354,7 +600,7 @@ def main() -> None:
     cold = {code: market(code, mechanics) for code in specializations}
     for title, markets in (
         ("Холодный банк — экспертные параметры", cold),
-        ("Прогретый банк — после калибровки выше", warm),
+        ("Прогретый банк — после калибровки выше", warmed),
     ):
         print(f"\n{title}: медиана заданий до σ̄ ≤ test_stop_sd (доля дошедших за лимит)")
         print(header)
@@ -363,6 +609,23 @@ def main() -> None:
             m = markets[code]
             m.calibrate = False
             print(f"| {code} | {_compare(m, 300)} |", flush=True)
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(prog="python -m tests.simulation")
+    parser.add_argument("command", nargs="?", choices=("honesty", "tune"))
+    parser.add_argument("--seed", type=int, default=SEED, help="сид для honesty, по умолчанию D1")
+    parser.add_argument("--candidates", type=int, default=1500)
+    parser.add_argument("--pairs", type=int, default=1500)
+    args = parser.parse_args()
+    mechanics = Mechanics.from_yaml(BACKEND_DIR / "config" / "mechanics.yaml")
+    match args.command:
+        case "honesty":
+            report_honesty(mechanics, args.seed, args.candidates, args.pairs)
+        case "tune":
+            tune_inflation(mechanics, args.candidates)
+        case _:
+            report(mechanics)
 
 
 if __name__ == "__main__":

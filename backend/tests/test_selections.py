@@ -416,7 +416,8 @@ def test_topic_missing_from_profile_counts_as_prior_with_low_data(
     missing = topics["qa.performance"]
     assert missing["theta"] == 0
     assert missing["theta_sd"] == pytest.approx(
-        (mechanics.theta_prior_sd**2 + mechanics.topic_deviation_sd**2) ** 0.5
+        mechanics.level_sd_inflation
+        * (mechanics.theta_prior_sd**2 + mechanics.topic_deviation_sd**2) ** 0.5
     )
     assert missing["low_data"] is True
     assert topics["qa.api"]["verdict"] == "confidently_above"

@@ -1,7 +1,8 @@
-"""Путь кандидата к категории: опрос, попытка теста, предъявления, шаг пути и смена грейда
-(mechanics.md, §4–§6, §11).
+"""Путь кандидата к категории: опрос, попытка теста, предъявления, шаг пути, смена грейда и
+блок по теме (mechanics.md, §4–§6, §11).
 
-Состояние пути выводится из записей: последний опрос, последняя попытка, категория. Состояние
+Состояние пути выводится из записей: последний опрос, последняя попытка пути, категория. Блок по
+теме — тоже попытка, но не шаг пути: стадию, историю и смену грейда он не трогает. Состояние
 попытки — список предъявлений, оценка — чистая функция от него, поэтому прерванный тест
 продолжается с того же места после перезапуска бэкенда. Правила здесь — инварианты механики;
 хранит записи репозиторий попытки, решения принимает сценарий `app.usecase.attempt`.
@@ -9,7 +10,7 @@
 
 import enum
 import uuid
-from collections.abc import Mapping, Sequence
+from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from typing import Any
@@ -65,6 +66,8 @@ class AttemptPurpose(enum.StrEnum):
     determination = "determination"
     # Попытка на грейд выше — отдельное измерение с чистого листа.
     grade_up = "grade_up"
+    # Блок по одной теме категории: уточняет профиль навыков, категорию и грейд не меняет.
+    topic_block = "topic_block"
 
 
 class AttemptOutcome(enum.StrEnum):
@@ -171,6 +174,8 @@ class Attempt:
     continues_attempt_id: uuid.UUID | None
     started_at: datetime
     purpose: AttemptPurpose = AttemptPurpose.determination
+    # Тема блока — только у `topic_block`.
+    topic_code: str | None = None
     finished_at: datetime | None = None
     # Оценка теста на момент остановки: общий уровень θ̄ и его погрешность.
     overall: Normal | None = None
@@ -195,10 +200,16 @@ class Attempt:
     def shown(self) -> set[str]:
         return {p.family_code for p in self.presentations}
 
+    @property
+    def on_path(self) -> bool:
+        """Попытка — шаг пути к категории: определение или попытка вверх, но не блок по теме."""
+        return self.purpose != AttemptPurpose.topic_block
+
 
 @dataclass(frozen=True)
 class PathState:
-    """Записи пути кандидата: последний опрос, последняя попытка, категория."""
+    """Записи пути кандидата: последний опрос, последняя попытка пути, категория. Блок по теме
+    состоянием пути не бывает."""
 
     survey: Survey | None
     attempt: Attempt | None
@@ -231,6 +242,15 @@ def stage_of(state: PathState, now: datetime) -> Stage:
 class AttemptProgress:
     grade: str
     answered: int
+
+
+@dataclass(frozen=True)
+class TopicBlockProgress:
+    """Идущий блок по теме: длина фиксированная — `items` заданий."""
+
+    topic: CatalogRef
+    answered: int
+    items: int
 
 
 @dataclass(frozen=True)
@@ -292,6 +312,8 @@ class PathView:
     grade_up: GradeUp | None = None
     grade_down: str | None = None
     history: tuple[HistoryEntry, ...] = ()
+    # Незавершённый блок по теме: пока он идёт, кабинет показывает его задания.
+    topic_block: TopicBlockProgress | None = None
 
 
 @dataclass(frozen=True)
@@ -328,6 +350,9 @@ class Item:
     topic: Topic
     family_code: str
     instance: bank.Instance
+    # Заданий не больше — у теста; ровно столько — у блока по теме.
+    max_items: int
+    topic_block: bool = False
 
 
 def test_result(
@@ -425,3 +450,39 @@ def path_history(
     ]
     # Сортировка устойчивая: при равном времени попытки идут по номеру.
     return tuple(sorted(entries, key=lambda e: e.at))
+
+
+def topic_block_starts(attempts: Sequence[Attempt]) -> dict[str, datetime]:
+    """Старт последнего блока по каждой теме — и брошенного тоже: иначе блок можно бросать до
+    удобных заданий."""
+    starts: dict[str, datetime] = {}
+    for a in attempts:
+        if a.purpose != AttemptPurpose.topic_block or a.topic_code is None:
+            continue
+        if a.topic_code not in starts or a.started_at > starts[a.topic_code]:
+            starts[a.topic_code] = a.started_at
+    return starts
+
+
+def topic_blocks_held(
+    attempts: Sequence[Attempt], topics: Iterable[str], now: datetime, interval: timedelta
+) -> dict[str, datetime]:
+    """Темы из `topics`, блок по которым ещё держит интервал, — с датой, когда можно. Одно
+    правило для запуска блока и для подсказок обратной связи."""
+    starts = topic_block_starts(attempts)
+    return {
+        topic: at
+        for topic in topics
+        if (at := topic_block_available_at(starts, topic, now, interval)) is not None
+    }
+
+
+def topic_block_available_at(
+    starts: Mapping[str, datetime], topic: str, now: datetime, interval: timedelta
+) -> datetime | None:
+    """Интервал блока по теме (§6): с какого момента можно начать блок по `topic`; None — можно
+    сейчас. Считается от старта последнего блока по этой теме, другие темы его не держат."""
+    start = starts.get(topic)
+    if start is None or start + interval <= now:
+        return None
+    return start + interval

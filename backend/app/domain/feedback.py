@@ -74,8 +74,10 @@ class ActionKind(enum.StrEnum):
 @dataclass(frozen=True)
 class Action:
     kind: ActionKind
-    # Действие можно выполнить сейчас: блока по теме пока нет.
+    # Действие можно выполнить сейчас.
     available: bool
+    # Когда станет можно: блок по теме раньше интервала (§6). У доступного действия — None.
+    available_at: datetime | None = None
 
 
 @dataclass(frozen=True)
@@ -237,11 +239,16 @@ def widest_topic(topics: Sequence[CatalogRef], levels: Mapping[str, Normal]) -> 
     return max(known, key=lambda t: levels[t.code].sd, default=None)
 
 
-def topic_action(topic: str, task_topics: Collection[str]) -> Action:
-    """Регулярное задание по теме, если оно есть; иначе блок по теме — пока недоступен."""
+def topic_action(
+    topic: str, task_topics: Collection[str], block_held: Mapping[str, datetime]
+) -> Action:
+    """Регулярное задание по теме, если оно есть; иначе блок по теме. `block_held` — темы, блок
+    по которым держит интервал (§6), и когда он станет можно."""
     if topic in task_topics:
         return Action(ActionKind.regular_task, True)
-    return Action(ActionKind.topic_block, False)
+    if (held := block_held.get(topic)) is not None:
+        return Action(ActionKind.topic_block, False, held)
+    return Action(ActionKind.topic_block, True)
 
 
 def feedback(
@@ -253,12 +260,14 @@ def feedback(
     candidate_stack: Collection[str],
     narrowed: Narrowed,
     task_topics: Collection[str],
+    block_held: Mapping[str, datetime],
     fsp_linked: bool,
     rules: FeedbackRules,
 ) -> Feedback:
     """Обратная связь по подборкам окна. `specialization` — категории кандидата, None — категории
     нет: профиля и подсказок по темам тоже. `levels` — профиль навыков на «сейчас»,
-    `task_topics` — темы доступных кандидату регулярных заданий.
+    `task_topics` — темы доступных кандидату регулярных заданий, `block_held` — темы, блок по
+    которым ещё держит интервал, с датой, когда можно.
 
     Порог k, агрегаты и подсказки — по одним и тем же подборкам: специализации категории. Иначе
     подсказки могли бы опереться на меньше чем k компаний, а подборки прежней специализации
@@ -269,7 +278,7 @@ def feedback(
     if enough:
         assert specialization is not None
         hints += [
-            Hint(ref, topic_action(ref.code, task_topics), scenario, gain, moved)
+            Hint(ref, topic_action(ref.code, task_topics, block_held), scenario, gain, moved)
             for ref, scenario, gain, moved in topic_hints(
                 own,
                 specialization=specialization,
@@ -281,7 +290,7 @@ def feedback(
             )
         ]
     elif specialization is not None and (widest := widest_topic(topics, levels)) is not None:
-        hints.append(Hint(widest, topic_action(widest.code, task_topics)))
+        hints.append(Hint(widest, topic_action(widest.code, task_topics, block_held)))
     if not fsp_linked:
         # У достижений до привязки нет уровня, и отсутствие ФСП не штрафуется (§11): без числа.
         hints.append(Hint(None, Action(ActionKind.link_fsp, True)))

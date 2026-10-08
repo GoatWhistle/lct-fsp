@@ -210,7 +210,8 @@ class AttemptRepository(AttemptReader, Protocol):
         ...
 
     def state(self, user_id: uuid.UUID) -> PathState:
-        """Записи пути: последний опрос, последняя попытка с предъявлениями, категория."""
+        """Записи пути: последний опрос, последняя попытка пути с предъявлениями — без блоков по
+        теме, — категория."""
         ...
 
     def survey(self, survey_id: uuid.UUID) -> Survey: ...
@@ -220,7 +221,7 @@ class AttemptRepository(AttemptReader, Protocol):
         ...
 
     def attempt_in_progress(self, user_id: uuid.UUID) -> Attempt | None:
-        """Неостановленная попытка кандидата — одна или ни одной."""
+        """Неостановленная попытка кандидата любого назначения — одна или ни одной."""
         ...
 
     def add_attempt(
@@ -231,13 +232,15 @@ class AttemptRepository(AttemptReader, Protocol):
         continues: Attempt | None,
         now: datetime,
         purpose: AttemptPurpose = AttemptPurpose.determination,
+        topic_code: str | None = None,
     ) -> Attempt:
-        """Новая попытка; `continues` — попытка, чью оценку продолжает дотест каскада."""
+        """Новая попытка; `continues` — попытка, чью оценку продолжает дотест каскада,
+        `topic_code` — тема блока по теме."""
         ...
 
     def attempts(self, user_id: uuid.UUID) -> list[Attempt]:
-        """Все попытки кандидата по номеру — для истории и правила ожидания; предъявления
-        реализация может не загружать."""
+        """Все попытки кандидата по номеру, и блоки по теме тоже, — для истории, правила
+        ожидания и интервала блока; предъявления реализация может не загружать."""
         ...
 
     def add_presentation(

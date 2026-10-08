@@ -1,6 +1,8 @@
 """Схемы API обратной связи кандидату. Только числа и темы: ни работодателей, ни потребностей,
 ни подборок, ни других кандидатов."""
 
+from datetime import datetime
+
 from pydantic import BaseModel, Field
 
 from app.controller.schemas import CatalogRef
@@ -21,6 +23,10 @@ class ActionOut(BaseModel):
         "пройти блок по теме; `link_fsp` — привязать ФСП ID"
     )
     available: bool = Field(description="Действие можно выполнить сейчас")
+    available_at: datetime | None = Field(
+        description="Когда действие станет доступно: у `topic_block` раньше интервала блока по "
+        "теме; иначе `null`"
+    )
 
 
 class HintOut(BaseModel):

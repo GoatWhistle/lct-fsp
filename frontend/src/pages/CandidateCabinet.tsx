@@ -38,6 +38,19 @@ export function CandidateCabinet() {
 
   if (error || failed) return <p className="error">{error ?? 'Не удалось загрузить справочники'}</p>
   if (!path || !catalog) return <p className="muted">Загрузка…</p>
+  // Блок по теме идёт при категории: только задания, профиль обновится по итогу.
+  if (path.topic_block) {
+    return (
+      <section className="stack">
+        <h1>Блок по теме «{path.topic_block.topic.name}»</h1>
+        <p className="lead">
+          {path.topic_block.items} заданий по одной теме: ответы уточнят уровень и погрешность в
+          профиле навыков. Категория и грейд от блока не меняются.
+        </p>
+        <TestStep onDone={setPath} />
+      </section>
+    )
+  }
   if (path.stage === 'category') return <CategoryCabinet catalog={catalog} path={path} onChange={setPath} />
   // Попытка вверх идёт при категории: только тест, категория до итога прежняя.
   if (path.stage === 'test' && path.category) {
@@ -189,7 +202,7 @@ function CategoryCabinet({ catalog, path, onChange }: StepProps) {
       )}
       <GradeChangeCard catalog={catalog} path={path} onChange={onChange} />
       <Inbox />
-      <FeedbackCard />
+      <FeedbackCard onStartBlock={onChange} />
       <ProfileCard />
       <div className="card">
         <div className="section-head">

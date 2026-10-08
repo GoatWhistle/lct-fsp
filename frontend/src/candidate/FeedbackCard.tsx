@@ -1,14 +1,16 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router'
-import { api, errorMessage, type Feedback, type FeedbackHint } from '../api/client'
-import { oneDecimal } from './words'
+import { api, errorMessage, type CandidatePath, type Feedback, type FeedbackHint } from '../api/client'
+import { dateTimeWords, oneDecimal } from './words'
+
+type StartBlock = (path: CandidatePath) => void
 
 /**
  * Обратная связь по подборкам: сколько раз кандидат попал в подборки за период, медианное место
  * и что поднимет выше. Работодатели и их потребности не раскрываются; пока компаний мало, есть
  * только общая подсказка.
  */
-export function FeedbackCard() {
+export function FeedbackCard({ onStartBlock }: { onStartBlock: StartBlock }) {
   const [feedback, setFeedback] = useState<Feedback | null>(null)
   const [error, setError] = useState<string | null>(null)
 
@@ -43,7 +45,7 @@ export function FeedbackCard() {
           <ul className="stack">
             {feedback.hints.map((h) => (
               <li key={h.topic?.code ?? h.action.kind}>
-                <HintView hint={h} />
+                <HintView hint={h} onStartBlock={onStartBlock} />
               </li>
             ))}
           </ul>
@@ -53,7 +55,9 @@ export function FeedbackCard() {
   )
 }
 
-function HintView({ hint }: { hint: FeedbackHint }) {
+type HintProps = { hint: FeedbackHint; onStartBlock: StartBlock }
+
+function HintView({ hint, onStartBlock }: HintProps) {
   if (hint.action.kind === 'link_fsp') {
     return (
       <span>
@@ -80,18 +84,46 @@ function HintView({ hint }: { hint: FeedbackHint }) {
           )}
         </>
       )}
-      . <ActionView hint={hint} />
+      . <ActionView hint={hint} onStartBlock={onStartBlock} />
     </span>
   )
 }
 
-function ActionView({ hint }: { hint: FeedbackHint }) {
+function ActionView({ hint, onStartBlock }: HintProps) {
   if (hint.action.kind === 'regular_task') {
     return <Link to="/candidate/tasks">Ответить на регулярное задание</Link>
   }
-  return hint.action.available ? (
-    <span>Пройдите блок по теме.</span>
-  ) : (
-    <span className="muted">Блок по теме скоро появится.</span>
+  return <TopicBlockAction hint={hint} onStartBlock={onStartBlock} />
+}
+
+/** Блок по теме: короткий тест по одной теме, не чаще установленного срока на тему. */
+function TopicBlockAction({ hint, onStartBlock }: HintProps) {
+  const [error, setError] = useState<string | null>(null)
+  const [submitting, setSubmitting] = useState(false)
+  const topic = hint.topic?.code ?? ''
+
+  async function start() {
+    setSubmitting(true)
+    setError(null)
+    const { data, error } = await api.POST('/api/candidate/path/topic-block', { body: { topic } })
+    setSubmitting(false)
+    if (data) onStartBlock(data)
+    else setError(errorMessage(error))
+  }
+
+  if (!hint.action.available) {
+    return (
+      <span className="muted">
+        Блок по теме — можно с {hint.action.available_at ? dateTimeWords(hint.action.available_at) : 'даты повтора'}.
+      </span>
+    )
+  }
+  return (
+    <>
+      <button type="button" className="button button-small" disabled={submitting} onClick={start}>
+        Пройти блок по теме
+      </button>
+      {error && <span className="error"> {error}</span>}
+    </>
   )
 }

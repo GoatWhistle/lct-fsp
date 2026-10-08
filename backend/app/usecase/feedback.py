@@ -2,7 +2,8 @@
 что поднимет выше.
 
 Правила — в домене (`app.domain.feedback`); здесь — чтение подборок, профиля навыков на
-«сейчас», доступных регулярных заданий и прогноз уровня темы после блока по ней. Прогноз —
+«сейчас», доступных регулярных заданий, интервал блока по теме (§6) и прогноз уровня темы после
+блока по ней. Прогноз —
 та же модель навыка, что и профиль: к наблюдениям профиля добавляются `topic_block_items`
 ответов по теме со сложностью около уровня с ожидаемым исходом при p = ½. Без кэша: каждый
 запрос — пересчёт.
@@ -10,9 +11,11 @@
 
 import statistics
 import uuid
+from collections.abc import Iterable
 from datetime import datetime, timedelta
 
 from app.domain import bank
+from app.domain.attempt import topic_blocks_held
 from app.domain.feedback import Feedback, FeedbackRules, Narrowed, feedback
 from app.domain.regular_task import CatalogFilter
 from app.domain.skill import Normal, Observation, SignalSource
@@ -98,6 +101,7 @@ class CandidateFeedback:
                     candidate_stack=stack,
                     narrowed=lambda topic: None,
                     task_topics=(),
+                    block_held={},
                     fsp_linked=person.fsp is not None,
                     rules=self._rules,
                 )
@@ -111,6 +115,7 @@ class CandidateFeedback:
                 candidate_stack=stack,
                 narrowed=self._narrowing(candidate_id, specialization, levels, now),
                 task_topics=self._task_topics(candidate_id, specialization),
+                block_held=self._block_held(candidate_id, levels, now),
                 fsp_linked=person.fsp is not None,
                 rules=self._rules,
             )
@@ -123,6 +128,17 @@ class CandidateFeedback:
             for task in self._tasks.catalog(specialization, CatalogFilter())
             if task.id not in answered
             for topic in task.topics
+        )
+
+    def _block_held(
+        self, candidate_id: uuid.UUID, topics: Iterable[str], now: datetime
+    ) -> dict[str, datetime]:
+        """Темы, блок по которым ещё держит интервал, — с датой, когда можно (§6)."""
+        return topic_blocks_held(
+            self._attempts.attempts(candidate_id),
+            topics,
+            now,
+            timedelta(days=self._mechanics.topic_block_interval_days),
         )
 
     def _narrowing(

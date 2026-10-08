@@ -293,6 +293,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/candidate/path/topic-block": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Начать блок по теме
+         * @description Короткий адаптивный тест по одной теме категории — ровно `topic_block_items` заданий. Ответы уточняют профиль навыков; категорию, грейд и сроки смены грейда блок не меняет. По одной теме — не чаще `topic_block_interval_days` от старта прошлого блока, брошенного тоже: раньше ошибка несёт `available_at`. Задания — через `/item`, как у теста.
+         */
+        post: operations["start_topic_block_api_candidate_path_topic_block_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/candidate/path/item": {
         parameters: {
             query?: never;
@@ -981,6 +1001,11 @@ export interface components {
              * @description Действие можно выполнить сейчас
              */
             available: boolean;
+            /**
+             * Available At
+             * @description Когда действие станет доступно: у `topic_block` раньше интервала блока по теме; иначе `null`
+             */
+            available_at: string | null;
         };
         /**
          * AnswerFormat
@@ -1034,7 +1059,7 @@ export interface components {
          * @description Зачем попытка (mechanics.md, §4).
          * @enum {string}
          */
-        AttemptPurpose: "determination" | "grade_up";
+        AttemptPurpose: "determination" | "grade_up" | "topic_block";
         /**
          * AuthorAnswerOut
          * @description Ответ на задание для его автора — обезличенно: без ФИО, контактов и профиля.
@@ -1493,6 +1518,13 @@ export interface components {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
         };
+        /**
+         * HideableField
+         * @description Поля самоописания, которые кандидат может скрыть из обезличенной карточки (§14). Форматы
+         *     работы, категория и профиль навыков видны всегда.
+         * @enum {string}
+         */
+        HideableField: "stack" | "experience_years" | "city" | "relocation" | "industries";
         /** HintOut */
         HintOut: {
             /** @description Тема; `null` — у привязки ФСП ID темы нет */
@@ -1511,13 +1543,6 @@ export interface components {
              */
             places: number | null;
         };
-        /**
-         * HideableField
-         * @description Поля самоописания, которые кандидат может скрыть из обезличенной карточки (§14). Форматы
-         *     работы, категория и профиль навыков видны всегда.
-         * @enum {string}
-         */
-        HideableField: "stack" | "experience_years" | "city" | "relocation" | "industries";
         /**
          * HistoryEntryOut
          * @description Строка истории: остановленная попытка (`attempt`) или переход вниз (`step_down`).
@@ -1677,9 +1702,14 @@ export interface components {
             number: number;
             /**
              * Max Items
-             * @description Лимит заданий попытки; длина адаптивного теста заранее неизвестна
+             * @description Лимит заданий попытки: у теста длина заранее неизвестна, у блока по теме заданий ровно столько
              */
             max_items: number;
+            /**
+             * Topic Block
+             * @description Задание блока по теме, а не теста
+             */
+            topic_block: boolean;
             topic: components["schemas"]["CatalogRef"];
             /** Prompt */
             prompt: string;
@@ -2006,6 +2036,8 @@ export interface components {
              * @description Попытки и переходы по времени — на шаге `category`
              */
             history: components["schemas"]["HistoryEntryOut"][];
+            /** @description Незавершённый блок по теме: задания и ответы — те же `item`, что у теста */
+            topic_block: components["schemas"]["TopicBlockOut"] | null;
         };
         /** PlacementOut */
         PlacementOut: {
@@ -2607,6 +2639,25 @@ export interface components {
              * @description Грейд выше присвоенного, если стоит попробовать его пройти
              */
             grade_up_hint: string | null;
+        };
+        /** TopicBlockIn */
+        TopicBlockIn: {
+            /**
+             * Topic
+             * @description Код темы из специализации категории
+             */
+            topic: string;
+        };
+        /** TopicBlockOut */
+        TopicBlockOut: {
+            topic: components["schemas"]["CatalogRef"];
+            /** Answered */
+            answered: number;
+            /**
+             * Items
+             * @description Заданий в блоке — ровно столько, без досрочной остановки
+             */
+            items: number;
         };
         /** TopicFitOut */
         TopicFitOut: {
@@ -3416,6 +3467,8 @@ export interface operations {
              *     `grade_not_next` — Попытка вверх — только на следующий грейд после вашего
              *
              *     `grade_change_too_early` — Попытка на этот грейд пока недоступна — грейд меняется не чаще установленного срока
+             *
+             *     `attempt_in_progress` — Сначала закончите начатый тест или блок по теме
              */
             409: {
                 headers: {
@@ -3478,6 +3531,74 @@ export interface operations {
              *     `no_lower_grade` — Ниже вашего грейда грейдов нет
              */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    start_topic_block_api_candidate_path_topic_block_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TopicBlockIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PathOut"];
+                };
+            };
+            /** @description `not_authenticated` — Войдите, чтобы продолжить */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description `wrong_role` — Раздел доступен другой роли */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /**
+             * @description `category_required` — Задания открываются после теста — сначала получите категорию
+             *
+             *     `attempt_in_progress` — Сначала закончите начатый тест или блок по теме
+             *
+             *     `topic_block_too_early` — Блок по этой теме пока недоступен — по одной теме он проходится не чаще срока
+             *
+             *     `path_step_unavailable` — Этот шаг сейчас недоступен — обновите страницу
+             */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description `topic_not_in_category` — Блок по теме — только по темам специализации вашей категории */
+            422: {
                 headers: {
                     [name: string]: unknown;
                 };

@@ -114,7 +114,7 @@ def test_saving_profile_replaces_the_card(candidate: TestClient) -> None:
     ("bad", "code"),
     [
         (entry(start="2021-01", end="2020-12"), "experience_period_invalid"),
-        (entry(start="2999-01", end=None), "experience_start_in_future"),
+        (entry(start="2099-01", end=None), "experience_start_in_future"),
         (entry(stack=["cobol"]), "unknown_technology"),
         (entry(place="Я" * 201), "experience_too_long"),
         (entry(summary="Я" * 2001), "experience_too_long"),

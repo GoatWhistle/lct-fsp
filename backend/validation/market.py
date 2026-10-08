@@ -8,17 +8,23 @@
 
 Истина отличается от модели оценки, как в наборе D1 плана валидации: уровни шире априорного
 оценщика, b* = b₀ + N(0; 0,5²), ln a* = ln a₀ + N(0; 0,3²) — калибровке есть что исправлять.
+
+Кандидат калибровки и D3 — уровни и заявка, отвечает по 2PL истины. Кандидат синтетического рынка
+(`validation.population`) несёт полную истину: персонаж, угадывание и промах, время ответа —
+модель ответа `validation.truth`; часы стенда идут на время его ответа.
 """
 
 import math
 import random
 import uuid
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
+from datetime import timedelta
 
+from app.adapter.code_runner import InProcessCodeRunner
 from app.domain.adaptive import Blueprint, Choice, Option
 from app.domain.attempt import AttemptOutcome, Stage
-from app.domain.bank import Family, families_for_topics
+from app.domain.bank import Family, Instance, families_for_topics, get_family
 from app.domain.calibration import CalibratedFamily, Parameters
 from app.domain.determination import grades_by_threshold
 from app.domain.selection import PoolCandidate
@@ -31,6 +37,7 @@ from composition import elo_calibration, item_selector
 from settings import Mechanics
 from validation.main import Stand, build_stand
 from validation.metrics import pearson, rmse
+from validation.truth import CandidateTruth, Response, ResponseModel, guessing, respond
 
 # Сиды наборов плана валидации: D1 — основной, D3 — настроечный.
 SEED = 20261005
@@ -46,10 +53,32 @@ def expert(grade: str, mechanics: Mechanics) -> Parameters:
     return elo_calibration(MemoryCalibrationRepository(MemoryStore()), mechanics).expert(grade)
 
 
+def true_parameters(
+    families: Sequence[Family], start: Callable[[str], Parameters], rng: random.Random
+) -> dict[str, Parameters]:
+    """Истинные параметры семейств: b* = b₀ + N(0; 0,5²), ln a* = ln a₀ + N(0; 0,3²) от
+    экспертного старта `start(грейд)`. Параметры якоря известны — на этом знании и держится
+    шкала."""
+    truth: dict[str, Parameters] = {}
+    for f in families:
+        expert_start = start(f.grade)
+        truth[f.code] = (
+            expert_start
+            if f.anchor
+            else Parameters(
+                expert_start.discrimination * math.exp(rng.gauss(0, 0.3)),
+                expert_start.difficulty + rng.gauss(0, 0.5),
+            )
+        )
+    return truth
+
+
 @dataclass(frozen=True)
 class Candidate:
     level: dict[str, float]
     claimed: str
+    # Полная истина кандидата синтетического рынка; у кандидатов калибровки и D3 её нет.
+    truth: CandidateTruth | None = None
 
 
 @dataclass(frozen=True)
@@ -108,7 +137,13 @@ class Market:
     банк — сценарий калибровки больше не вызывается.
     """
 
-    def __init__(self, specialization: str, mechanics: Mechanics, seed: int = SEED) -> None:
+    def __init__(
+        self,
+        specialization: str,
+        mechanics: Mechanics,
+        seed: int = SEED,
+        response_model: ResponseModel | None = None,
+    ) -> None:
         self.specialization = specialization
         self.mechanics = mechanics
         self.rng = random.Random(seed)
@@ -119,18 +154,10 @@ class Market:
         self.expert = elo_calibration(self.stand.calibration, mechanics).expert
         self.families = families_for_topics(topics)
         self._topics = {f.code: f.topic for f in self.families}
-        self.truth: dict[str, Parameters] = {}
-        for f in self.families:
-            start = self.expert(f.grade)
-            # Параметры якоря известны — на этом знании и держится шкала.
-            self.truth[f.code] = (
-                start
-                if f.anchor
-                else Parameters(
-                    start.discrimination * math.exp(self.rng.gauss(0, 0.3)),
-                    start.difficulty + self.rng.gauss(0, 0.5),
-                )
-            )
+        self.truth = true_parameters(self.families, self.expert, self.rng)
+        # Модель ответа кандидатов с полной истиной — набора, из которого они; по умолчанию D1.
+        self.response_model = response_model or ResponseModel()
+        self._guess: dict[str, float] = {}
         self.calibrate = True
         self._users = 0
 
@@ -150,10 +177,34 @@ class Market:
         return self._overall(candidate.level)
 
     def respond(self, candidate: Candidate, family_code: str) -> bool:
+        if candidate.truth is not None:
+            return self.answer(candidate.truth, family_code).correct
         truth = self.truth[family_code]
         level = candidate.level[self._topics[family_code]]
         p = sigmoid(truth.discrimination * (level - truth.difficulty))
         return self.rng.random() < p
+
+    def answer(
+        self, truth: CandidateTruth, family_code: str, instance: Instance | None = None
+    ) -> Response:
+        """Ответ и время кандидата с полной истиной на свежий экземпляр; без экземпляра —
+        угадывание по первому экземпляру семейства: вид ответа у семейства один."""
+        if instance is not None:
+            guess = guessing(instance, self.response_model)
+        elif family_code in self._guess:
+            guess = self._guess[family_code]
+        else:
+            first = get_family(family_code).instance(0, InProcessCodeRunner())
+            guess = self._guess[family_code] = guessing(first, self.response_model)
+        return respond(
+            truth,
+            family_code,
+            self._topics[family_code],
+            self.truth[family_code],
+            guess,
+            self.response_model,
+            self.rng,
+        )
 
     def attempt(self, candidate: Candidate, *, stand: Stand | None = None) -> Run:
         """Тест на заявленный грейд — одна попытка до остановки, без дотестов каскада.
@@ -294,7 +345,12 @@ class Market:
         view = paths.start_attempt(user, grade=grade)
         while view.stage == Stage.test:
             item = paths.current_item(user)
-            correct = self.respond(candidate, item.family_code)
+            if candidate.truth is None:
+                correct = self.respond(candidate, item.family_code)
+            else:
+                reply = self.answer(candidate.truth, item.family_code, item.instance)
+                stand.clock.advance(timedelta(seconds=reply.seconds))
+                correct = reply.correct
             response = item.instance.answer if correct else WRONG
             answered = paths.answer(user, presentation_id=item.presentation_id, response=response)
             assert answered.answer.correct == correct, item.family_code
@@ -320,8 +376,15 @@ class Market:
         return sum(w * level[t] for t, w in zip(self.prior.topics, self.prior.weights, strict=True))
 
 
-def market(specialization: str, mechanics: Mechanics, seed: int = SEED) -> Market:
-    return Market(specialization, mechanics, seed)
+def market(
+    specialization: str,
+    mechanics: Mechanics,
+    seed: int = SEED,
+    response_model: ResponseModel | None = None,
+) -> Market:
+    """Рынок специализации; кандидаты набора D2 — с его seed и моделью ответа:
+    `market(code, mechanics, D2.seed, D2.response)`."""
+    return Market(specialization, mechanics, seed, response_model)
 
 
 def calibration_quality(m: Market) -> tuple[float, float, float]:

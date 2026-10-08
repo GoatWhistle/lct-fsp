@@ -14,6 +14,9 @@ __pycache__/
 .mypy_cache/
 .ruff_cache/
 
+# Наборы стенда валидации D1/D2 — воспроизводятся по seed: python -m validation market
+backend/validation/data/market/
+
 # Node
 node_modules/
 frontend/dist/
@@ -27,3 +30,6 @@ frontend/dist/
 
 # Артефакты Windows рядом со скачанными файлами
 *:Zone.Identifier
+
+# Веса локальной модели для llama-server — не в репо
+models/

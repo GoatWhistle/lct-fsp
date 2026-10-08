@@ -187,6 +187,29 @@ class NoLowerGrade(DomainError):
     message = "Ниже вашего грейда грейдов нет"
 
 
+class AttemptInProgress(DomainError):
+    """Одна незавершённая попытка на кандидата: тест на грейд и блок по теме не идут вместе."""
+
+    code = "attempt_in_progress"
+    message = "Сначала закончите начатый тест или блок по теме"
+
+
+class TopicNotInCategory(DomainError):
+    code = "topic_not_in_category"
+    message = "Блок по теме — только по темам специализации вашей категории"
+
+
+class TopicBlockTooEarly(DomainError):
+    """Интервал блока по теме (mechanics.md, §6): дата, с которой можно, — в `available_at`."""
+
+    code = "topic_block_too_early"
+    message = "Блок по этой теме пока недоступен — по одной теме он проходится не чаще срока"
+
+    def __init__(self, available_at: datetime) -> None:
+        super().__init__()
+        self.available_at = available_at
+
+
 # Профиль кандидата.
 
 
@@ -203,6 +226,27 @@ class CandidateNotFound(DomainError):
 class CityRequired(DomainError):
     code = "city_required"
     message = "Укажите город — для офиса и гибрида он обязателен"
+
+
+class ResumeTooLarge(DomainError):
+    code = "resume_too_large"
+    message = (
+        "Резюме слишком большое — сохраните PDF покороче или без картинок, лимиты — под кнопкой "
+        "загрузки"
+    )
+
+
+class ResumeUnreadable(DomainError):
+    code = "resume_unreadable"
+    message = "Не получилось прочитать файл как PDF — сохраните резюме в PDF заново"
+
+
+class ResumeWithoutText(DomainError):
+    code = "resume_without_text"
+    message = (
+        "В PDF нет текста, который можно прочитать: похоже на скан. Загрузите PDF, сохранённый "
+        "из редактора, или заполните профиль вручную"
+    )
 
 
 # Потребность и подборка.
@@ -226,6 +270,11 @@ class InvalidSalaryRange(DomainError):
 class SelectionNotFound(DomainError):
     code = "selection_not_found"
     message = "Подборка не найдена"
+
+
+class NotInSelection(DomainError):
+    code = "not_in_selection"
+    message = "Кандидата нет в выдаче подборки"
 
 
 # Компания.
@@ -320,3 +369,16 @@ class InvitationAlreadyOpen(DomainError):
 class InvitationBudgetExhausted(DomainError):
     code = "invitation_budget_exhausted"
     message = "Бюджет приглашений на эту неделю исчерпан — он обновится в понедельник"
+
+
+class InvitationNotAccepted(DomainError):
+    code = "invitation_not_accepted"
+    message = "Переписка и отзыв доступа — только в принятом приглашении"
+
+
+# Переписка.
+
+
+class InvalidMessageText(DomainError):
+    code = "invalid_message_text"
+    message = "Сообщение пустое или слишком длинное"

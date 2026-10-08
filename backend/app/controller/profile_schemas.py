@@ -21,6 +21,7 @@ from app.controller.path_schemas import CategoryOut, SkillProfileOut
 from app.controller.salary import SALARY_UNIT, Salary, SalaryBasisOut
 from app.controller.schemas import CatalogRef, GradeStatusOut
 from app.domain.candidate import HideableField
+from app.domain.resume_draft import ResumeField
 from app.domain.work import WorkFormat
 
 DISCLOSED = "Раскрывается работодателю только после принятия приглашения или отклика"
@@ -220,4 +221,38 @@ class CandidateCardOut(BaseModel):
     fsp_details: list[FspAchievementOut] | None = Field(
         description="Достижения ФСП полностью — с мероприятием, местом и ролью в команде: только "
         "после принятия приглашения вашей компании; `null` — карточка обезличена"
+    )
+
+
+class GradeHintOut(BaseModel):
+    """Подсказка грейда по стажу и ролям. Только подсказка: грейд выбирает кандидат, категорию
+    определяет тест."""
+
+    grade: CatalogRef = Field(description="Младший из грейдов по стажу и по ролям")
+    by_experience: CatalogRef | None = Field(description="Грейд по стажу; `null` — стажа нет")
+    by_roles: CatalogRef | None = Field(description="Грейд, названный в ролях; `null` — не назван")
+
+
+class ResumeDraftOut(BaseModel):
+    """Черновик анкеты «система поняла так» из резюме. Ничего не сохранено: кандидат правит
+    поля и сохраняет профиль (`PUT /api/candidate/profile`). Ожиданий — формата, города,
+    зарплаты — в черновике нет: их кандидат указывает сам."""
+
+    full_name: str | None
+    contact_email: str | None
+    contact_phone: str | None
+    telegram: str | None = Field(description="Имя пользователя без «@»")
+    stack: list[CatalogRef] = Field(description="Только технологии справочника, в его порядке")
+    job_roles: list[str] = Field(description="Названия ролей из словаря, а не фразы резюме")
+    experience_years: int | None = Field(description="Полных лет; `null` — не найден")
+    soft_skills: list[str] = Field(description="Названия из словаря, а не фразы резюме")
+    confidence: dict[ResumeField, float | None] = Field(
+        description="Уверенность по распознанным полям в [0, 1]; `null` — разбор её не считает. "
+        "Нераспознанных полей здесь нет"
+    )
+    uncertain: list[ResumeField] = Field(
+        description="Распознанные поля с уверенностью ниже `resume_draft_confident` — проверьте их"
+    )
+    grade_hint: GradeHintOut | None = Field(
+        description="Подсказка грейда по стажу и ролям черновика — для шага выбора грейда"
     )

@@ -21,6 +21,7 @@ from app.usecase.attempt import CandidatePath
 from app.usecase.calibration import AnswerCalibration
 from app.usecase.catalog import CatalogQueries
 from app.usecase.company import Companies
+from app.usecase.conversation import Conversations
 from app.usecase.feedback import CandidateFeedback
 from app.usecase.fsp import FspAccounts
 from app.usecase.interface import (
@@ -34,6 +35,7 @@ from app.usecase.invitation import Invitations
 from app.usecase.need import Needs
 from app.usecase.need_draft import NeedDrafts
 from app.usecase.regular_task import RegularTasks
+from app.usecase.resume_draft import ResumeDrafts
 from app.usecase.selection import Selections
 from app.usecase.skill_profile import ProfileFreshness
 from settings import Mechanics
@@ -142,9 +144,19 @@ def get_need_drafts(request: Request, uow: UnitOfWorkDep) -> NeedDrafts:
     return drafts
 
 
+def get_resume_drafts(request: Request, uow: UnitOfWorkDep) -> ResumeDrafts:
+    drafts: ResumeDrafts = request.app.state.resume_drafts(uow)
+    return drafts
+
+
 def get_invitations(request: Request, uow: UnitOfWorkDep) -> Invitations:
     invitations: Invitations = request.app.state.invitations(uow)
     return invitations
+
+
+def get_conversations(request: Request, uow: UnitOfWorkDep) -> Conversations:
+    conversations: Conversations = request.app.state.conversations(uow)
+    return conversations
 
 
 def get_feedback(request: Request, uow: UnitOfWorkDep) -> CandidateFeedback:
@@ -183,10 +195,12 @@ NeedsDep = Annotated[Needs, Depends(get_needs)]
 SelectionsDep = Annotated[Selections, Depends(get_selections)]
 RegularTasksDep = Annotated[RegularTasks, Depends(get_regular_tasks)]
 NeedDraftsDep = Annotated[NeedDrafts, Depends(get_need_drafts)]
+ResumeDraftsDep = Annotated[ResumeDrafts, Depends(get_resume_drafts)]
 CandidatePathDep = Annotated[CandidatePath, Depends(get_candidate_path)]
 AnswerCalibrationDep = Annotated[AnswerCalibration, Depends(get_answer_calibration)]
 CandidatesDep = Annotated[CandidateRepository, Depends(get_candidates)]
 InvitationsDep = Annotated[Invitations, Depends(get_invitations)]
+ConversationsDep = Annotated[Conversations, Depends(get_conversations)]
 FeedbackDep = Annotated[CandidateFeedback, Depends(get_feedback)]
 InvitationReaderDep = Annotated[InvitationReader, Depends(get_invitation_reader)]
 

@@ -14,9 +14,12 @@ from sqlalchemy import Engine, delete, insert, select, update
 
 from app.adapter.clock import FrozenClock
 from app.domain.account import Role
+from app.domain.fsp import FspResult
 from app.repository.orm import (
     CandidateCategory,
     CandidateProfile,
+    FspAchievement,
+    FspSnapshot,
     Grade,
     SkillProfile,
     SkillProfileTopic,
@@ -109,6 +112,14 @@ class Seed:
     levels: dict[str, tuple[float, float]] = field(default_factory=dict)
     stack: list[str] = field(default_factory=list)
     last_signal_at: datetime = field(default_factory=lambda: datetime.now(UTC))
+    # Погрешность общего уровня профиля.
+    overall_sd: float = 0.4
+    # Привязан ФСП ID и есть подтверждённое достижение.
+    fsp: bool = False
+    # False — тест на `grade` не пройден: грейд заявлен, категории и профиля навыков нет.
+    confirmed: bool = True
+    # Стек скрыт из обезличенной карточки.
+    hidden_stack: bool = False
 
 
 def seed(db_engine: Engine, seeds: Sequence[Seed], specialization: str = "qa") -> list[str]:
@@ -127,6 +138,8 @@ def seed(db_engine: Engine, seeds: Sequence[Seed], specialization: str = "qa") -
                 SkillProfileTopic,
                 CandidateProfile,
                 candidate_technologies,
+                FspSnapshot,
+                FspAchievement,
             )
         }
         ids = []
@@ -142,8 +155,22 @@ def seed(db_engine: Engine, seeds: Sequence[Seed], specialization: str = "qa") -
                     "role": Role.candidate,
                     "email_verified_at": now,
                     "created_at": now,
+                    "fsp_id": f"fsp-{uid.hex}" if s.fsp else None,
                 }
             )
+            if s.fsp:
+                rows[FspSnapshot].append({"user_id": uid, "fetched_at": now})
+                rows[FspAchievement].append(
+                    {
+                        "user_id": uid,
+                        "position": 0,
+                        "event": "Чемпионат России по программированию",
+                        "date": now.date(),
+                        "discipline_code": "product",
+                        "place": 1,
+                        "result": FspResult.winner,
+                    }
+                )
             rows[Survey].append(
                 {
                     "id": survey,
@@ -164,37 +191,38 @@ def seed(db_engine: Engine, seeds: Sequence[Seed], specialization: str = "qa") -
                     "started_at": now,
                 }
             )
-            rows[CandidateCategory].append(
-                {
-                    "user_id": uid,
-                    "specialization_code": specialization,
-                    "grade_code": s.grade,
-                    "attempt_id": attempt,
-                    "assigned_at": now,
-                }
-            )
-            rows[SkillProfile].append(
-                {
-                    "id": profile,
-                    "user_id": uid,
-                    "specialization_code": specialization,
-                    "overall_theta": 0.5,
-                    "overall_theta_sd": 0.4,
-                    "observations": 20,
-                    "last_signal_at": now,
-                    "updated_at": now,
-                }
-            )
-            for topic in topics:
-                theta, theta_sd = s.levels.get(topic, (0.5, 0.5))
-                rows[SkillProfileTopic].append(
+            if s.confirmed:
+                rows[CandidateCategory].append(
                     {
-                        "profile_id": profile,
-                        "topic_code": topic,
-                        "theta": theta,
-                        "theta_sd": theta_sd,
+                        "user_id": uid,
+                        "specialization_code": specialization,
+                        "grade_code": s.grade,
+                        "attempt_id": attempt,
+                        "assigned_at": now,
                     }
                 )
+                rows[SkillProfile].append(
+                    {
+                        "id": profile,
+                        "user_id": uid,
+                        "specialization_code": specialization,
+                        "overall_theta": 0.5,
+                        "overall_theta_sd": s.overall_sd,
+                        "observations": 20,
+                        "last_signal_at": now,
+                        "updated_at": now,
+                    }
+                )
+                for topic in topics:
+                    theta, theta_sd = s.levels.get(topic, (0.5, 0.5))
+                    rows[SkillProfileTopic].append(
+                        {
+                            "profile_id": profile,
+                            "topic_code": topic,
+                            "theta": theta,
+                            "theta_sd": theta_sd,
+                        }
+                    )
             if s.stack:
                 rows[CandidateProfile].append(
                     {
@@ -209,6 +237,7 @@ def seed(db_engine: Engine, seeds: Sequence[Seed], specialization: str = "qa") -
                         "relocation": False,
                         "salary_from": 200_000,
                         "updated_at": now,
+                        "hidden_fields": ["stack"] if s.hidden_stack else [],
                     }
                 )
                 rows[candidate_technologies].extend(

@@ -17,7 +17,7 @@ P(принятия) у них нет, порядок — только по са�
 import enum
 import uuid
 from collections import Counter, defaultdict
-from collections.abc import Iterable, Mapping, Sequence
+from collections.abc import Collection, Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 
@@ -34,6 +34,7 @@ from app.domain.match import (
     stack_overlap,
     verdict,
 )
+from app.domain.search import NO_FILTERS, CandidateFilters
 from app.domain.skill import Normal
 from app.domain.work import SalaryRange, WorkFormat
 
@@ -536,6 +537,12 @@ class SelectionDraft:
 @dataclass(frozen=True)
 class Selection(SelectionDraft):
     id: uuid.UUID
+    # Последние применённые фильтры: открытие отдаёт выдачу через них. Сохранённую выдачу они
+    # не меняют, пустые — исходная выдача.
+    filters: CandidateFilters = NO_FILTERS
+    # Кандидаты выдачи, отмеченные работодателем, — в порядке выдачи. Фильтры шортлист не
+    # трогают.
+    shortlist: tuple[uuid.UUID, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -548,6 +555,35 @@ class Summary:
 
 @dataclass(frozen=True)
 class Page(Summary):
-    # Страница общей выдачи с места `offset + 1`.
+    # Кандидатов в каждом блоке после фильтров подборки; без фильтров — равно `totals`.
+    filtered_totals: Mapping[SelectionBlock, int]
+    # Страница выдачи после фильтров с `offset + 1`-й строки; места и ранги — исходные.
     entries: tuple[SelectionEntry, ...]
     offset: int
+
+
+def page_of(
+    summary: Summary,
+    entries: Sequence[SelectionEntry],
+    admitted: Collection[uuid.UUID] | None,
+    *,
+    offset: int,
+    limit: int,
+) -> Page:
+    """Страница выдачи после фильтров: `admitted` — прошедшие их кандидаты, `None` — фильтров
+    нет. Относительный порядок строк — исходный."""
+    shown = [e for e in entries if admitted is None or e.candidate_id in admitted]
+    return Page(
+        summary.selection,
+        summary.totals,
+        block_totals(shown),
+        tuple(shown[offset : offset + limit]),
+        offset,
+    )
+
+
+@dataclass(frozen=True)
+class Shortlist:
+    selection: Selection
+    # Строки выдачи отмеченных кандидатов — по местам, без фильтров подборки.
+    entries: tuple[SelectionEntry, ...]

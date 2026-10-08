@@ -5,7 +5,7 @@ import uuid
 from collections.abc import Collection, Mapping, Sequence
 from datetime import datetime
 
-from sqlalchemy import select
+from sqlalchemy import Select, select
 from sqlalchemy.orm import Session, selectinload
 
 from app.domain.catalog import CatalogRef, FspDiscipline
@@ -69,7 +69,9 @@ class SqlFspRepository:
             self._session.flush()
 
 
-def histories(session: Session, ids: Collection[uuid.UUID]) -> dict[uuid.UUID, FspHistory]:
+def histories(
+    session: Session, ids: Collection[uuid.UUID] | Select[uuid.UUID]
+) -> dict[uuid.UUID, FspHistory]:
     """Достижения кандидатов с привязанным ФСП ID — по запросу на часть, без запроса на
     кандидата. Привязан, но реестр ни разу не ответил — пустая история без даты снимка."""
     linked = list(

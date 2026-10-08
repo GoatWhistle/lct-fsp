@@ -10,21 +10,22 @@ from collections.abc import Collection, Sequence
 from datetime import UTC, datetime
 from typing import Any
 
-from sqlalchemy import ColumnElement, and_, exists, func, insert, select
+from sqlalchemy import ColumnElement, Select, and_, delete, exists, func, insert, select, update
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.orm import Session, aliased
 
-from app.domain.candidate import GradeStatus, GradeStatusKind
+from app.domain.candidate import GradeStatus, GradeStatusKind, HideableField, grade_status
 from app.domain.catalog import CatalogRef, Grade
 from app.domain.errors import SelectionNotFound
 from app.domain.feedback import CandidateSelection
 from app.domain.importance import TopicImportance
 from app.domain.match import Verdict
+from app.domain.search import NO_FILTERS, CandidateFacts, CandidateFilters, CategoryFilter
 from app.domain.selection import (
     Expectations,
     Explanation,
     NeedRequirement,
     NeedSnapshot,
-    Page,
     PoolCandidate,
     Selection,
     SelectionBlock,
@@ -35,14 +36,16 @@ from app.domain.selection import (
     TopicExplanation,
     UnconfirmedCandidate,
 )
-from app.domain.skill import Normal, SignalSource
+from app.domain.skill import Normal, SignalSource, SkillProfileLevels
 from app.domain.work import SalaryBasis, SalaryRange, WorkFormat
 from app.repository.candidate import claimed_grades
-from app.repository.orm.attempt import CandidateCategory, Survey
+from app.repository.fsp import histories
+from app.repository.orm.attempt import CandidateCategory, Survey, TestAttempt
 from app.repository.orm.candidate import CandidateProfile, candidate_technologies
 from app.repository.orm.catalog import Grade as GradeRow
 from app.repository.orm.need import Selection as SelectionRow
 from app.repository.orm.need import SelectionEntry as EntryRow
+from app.repository.orm.need import selection_shortlist
 from app.repository.orm.skill_profile import SkillProfile, SkillProfileTopic
 
 Json = dict[str, Any]
@@ -174,6 +177,101 @@ class SqlCandidatePool:
             for user_id, claim in claimed.items()
         ]
 
+    def facts(self, candidate_ids: Collection[uuid.UUID]) -> list[CandidateFacts]:
+        return self._facts(list(candidate_ids)) if candidate_ids else []
+
+    def searchable(self) -> list[CandidateFacts]:
+        # Подзапросом, а не списком id: база не гоняет весь банк через параметры запроса.
+        everyone = select(CandidateCategory.user_id).union(select(TestAttempt.user_id))
+        return self._facts(select(everyone.subquery().c.user_id))
+
+    def _facts(self, ids: Collection[uuid.UUID] | Select[uuid.UUID]) -> list[CandidateFacts]:
+        db = self._session
+        categories = {
+            user_id: (specialization, Grade(code, name, rank))
+            for user_id, specialization, code, name, rank in db.execute(
+                select(
+                    CandidateCategory.user_id,
+                    CandidateCategory.specialization_code,
+                    GradeRow.code,
+                    GradeRow.name,
+                    GradeRow.rank,
+                )
+                .join(GradeRow, GradeRow.code == CandidateCategory.grade_code)
+                .where(CandidateCategory.user_id.in_(ids))
+            )
+        }
+        claims = claimed_grades(db, ids)
+        in_category = and_(
+            SkillProfile.user_id == CandidateCategory.user_id,
+            SkillProfile.specialization_code == CandidateCategory.specialization_code,
+        )
+        topics: dict[uuid.UUID, dict[str, Normal]] = {}
+        for user_id, topic, theta, theta_sd in db.execute(
+            select(
+                SkillProfile.user_id,
+                SkillProfileTopic.topic_code,
+                SkillProfileTopic.theta,
+                SkillProfileTopic.theta_sd,
+            )
+            .join(SkillProfileTopic, SkillProfileTopic.profile_id == SkillProfile.id)
+            .join(CandidateCategory, in_category)
+            .where(SkillProfile.user_id.in_(ids))
+        ):
+            topics.setdefault(user_id, {})[topic] = Normal(theta, theta_sd)
+        profiles = {
+            user_id: SkillProfileLevels(
+                Normal(theta, theta_sd), topics.get(user_id, {}), 0, last_signal_at
+            )
+            for user_id, theta, theta_sd, last_signal_at in db.execute(
+                select(
+                    SkillProfile.user_id,
+                    SkillProfile.overall_theta,
+                    SkillProfile.overall_theta_sd,
+                    SkillProfile.last_signal_at,
+                )
+                .join(CandidateCategory, in_category)
+                .where(SkillProfile.user_id.in_(ids))
+            )
+        }
+        stacks: dict[uuid.UUID, set[str]] = {}
+        for user_id, technology in db.execute(
+            select(
+                candidate_technologies.c.user_id, candidate_technologies.c.technology_code
+            ).where(
+                candidate_technologies.c.user_id.in_(ids),
+                # Скрытый из карточки стек фильтр не видит.
+                ~exists().where(
+                    CandidateProfile.user_id == candidate_technologies.c.user_id,
+                    CandidateProfile.hidden_fields.any_() == HideableField.stack.value,
+                ),
+            )
+        ):
+            stacks.setdefault(user_id, set()).add(technology)
+        fsp = histories(db, ids)
+
+        found = []
+        for user_id in categories.keys() | claims.keys():
+            category = categories.get(user_id)
+            claim = claims.get(user_id)
+            status = grade_status(category[1] if category else None, claim.grade if claim else None)
+            if status is None:
+                continue
+            # Без категории статус есть только с заявкой.
+            specialization = category[0] if category else claim.specialization if claim else ""
+            history = fsp.get(user_id)
+            found.append(
+                CandidateFacts(
+                    candidate_id=user_id,
+                    specialization=specialization,
+                    status=status,
+                    stack=frozenset(stacks.get(user_id, ())),
+                    fsp_confirmed=bool(history and history.achievements),
+                    profile=profiles.get(user_id),
+                )
+            )
+        return found
+
     def _stacks(
         self, reach: tuple[ColumnElement[bool], ...], technologies: Collection[str]
     ) -> dict[uuid.UUID, set[str]]:
@@ -224,6 +322,7 @@ class SqlSelections:
             need_snapshot=snapshot_json(draft.need),
             stack_cap=draft.stack_cap,
             created_at=draft.created_at,
+            filters=filters_json(NO_FILTERS),
         )
         self._session.add(row)
         self._session.flush()
@@ -251,21 +350,43 @@ class SqlSelections:
                     for e in entries
                 ],
             )
-        return _selection(row)
+        return _selection(row, ())
 
-    def page(self, user_id: uuid.UUID, selection_id: uuid.UUID, *, offset: int, limit: int) -> Page:
+    def get(
+        self, user_id: uuid.UUID, selection_id: uuid.UUID
+    ) -> tuple[Selection, tuple[SelectionEntry, ...]]:
         row = self._session.get(SelectionRow, selection_id)
         if row is None or row.user_id != user_id:
             raise SelectionNotFound()
         entries = self._session.scalars(
-            select(EntryRow)
-            .where(EntryRow.selection_id == row.id)
-            .order_by(EntryRow.position)
-            .offset(offset)
-            .limit(limit)
+            select(EntryRow).where(EntryRow.selection_id == row.id).order_by(EntryRow.position)
         ).all()
-        (summary,) = self._summaries([row])
-        return Page(summary.selection, summary.totals, tuple(_entry(e) for e in entries), offset)
+        shortlist = self._shortlists([row.id]).get(row.id, ())
+        return _selection(row, shortlist), tuple(_entry(e) for e in entries)
+
+    def save_filters(self, selection_id: uuid.UUID, filters: CandidateFilters) -> None:
+        self._session.execute(
+            update(SelectionRow)
+            .where(SelectionRow.id == selection_id)
+            .values(filters=filters_json(filters))
+        )
+
+    def set_shortlisted(
+        self, selection_id: uuid.UUID, candidate_id: uuid.UUID, shortlisted: bool
+    ) -> None:
+        if shortlisted:
+            self._session.execute(
+                pg_insert(selection_shortlist)
+                .values(selection_id=selection_id, candidate_id=candidate_id)
+                .on_conflict_do_nothing()
+            )
+        else:
+            self._session.execute(
+                delete(selection_shortlist).where(
+                    selection_shortlist.c.selection_id == selection_id,
+                    selection_shortlist.c.candidate_id == candidate_id,
+                )
+            )
 
     def summaries(
         self, user_id: uuid.UUID, need_id: uuid.UUID | None, *, limit: int
@@ -331,10 +452,33 @@ class SqlSelections:
         ).all()
         for selection_id, block, count in counts:
             totals[selection_id][block] = count
-        return [Summary(_selection(row), totals[row.id]) for row in rows]
+        shortlists = self._shortlists(totals)
+        return [
+            Summary(_selection(row, shortlists.get(row.id, ())), totals[row.id]) for row in rows
+        ]
+
+    def _shortlists(
+        self, selection_ids: Collection[uuid.UUID]
+    ) -> dict[uuid.UUID, tuple[uuid.UUID, ...]]:
+        """Шортлисты подборок — в порядке выдачи."""
+        listed: dict[uuid.UUID, list[uuid.UUID]] = {}
+        for selection_id, candidate_id in self._session.execute(
+            select(EntryRow.selection_id, EntryRow.candidate_id)
+            .join(
+                selection_shortlist,
+                and_(
+                    selection_shortlist.c.selection_id == EntryRow.selection_id,
+                    selection_shortlist.c.candidate_id == EntryRow.candidate_id,
+                ),
+            )
+            .where(EntryRow.selection_id.in_(selection_ids))
+            .order_by(EntryRow.selection_id, EntryRow.position)
+        ):
+            listed.setdefault(selection_id, []).append(candidate_id)
+        return {s: tuple(c) for s, c in listed.items()}
 
 
-def _selection(row: SelectionRow) -> Selection:
+def _selection(row: SelectionRow, shortlist: tuple[uuid.UUID, ...]) -> Selection:
     return Selection(
         user_id=row.user_id,
         need_id=row.need_id,
@@ -342,6 +486,8 @@ def _selection(row: SelectionRow) -> Selection:
         stack_cap=row.stack_cap,
         created_at=row.created_at,
         id=row.id,
+        filters=filters_of(row.filters),
+        shortlist=shortlist,
     )
 
 
@@ -413,6 +559,44 @@ def snapshot_of(data: Json) -> NeedSnapshot:
             for t in data["topics"]
         ),
         updated_at=datetime.fromisoformat(data["updated_at"]),
+    )
+
+
+def filters_json(filters: CandidateFilters) -> Json:
+    """Фильтры подборки в JSONB — только заданные условия: пустые фильтры — `{}`."""
+    data: Json = {}
+    if filters.specialization is not None:
+        data["specialization"] = filters.specialization
+    if filters.grade is not None:
+        data["grade"] = filters.grade
+    if filters.category is not None:
+        data["category"] = {
+            "specialization": filters.category.specialization,
+            "grade": filters.category.grade,
+        }
+    if filters.stack:
+        data["stack"] = sorted(filters.stack)
+    if filters.fsp_confirmed:
+        data["fsp_confirmed"] = True
+    if filters.confident:
+        data["confident"] = True
+    if filters.grade_status:
+        data["grade_status"] = sorted(k.value for k in filters.grade_status)
+    return data
+
+
+def filters_of(data: Json) -> CandidateFilters:
+    category = data.get("category")
+    return CandidateFilters(
+        specialization=data.get("specialization"),
+        grade=data.get("grade"),
+        category=CategoryFilter(category["specialization"], category["grade"])
+        if category
+        else None,
+        stack=frozenset(data.get("stack", ())),
+        fsp_confirmed=data.get("fsp_confirmed", False),
+        confident=data.get("confident", False),
+        grade_status=frozenset(GradeStatusKind(k) for k in data.get("grade_status", ())),
     )
 
 

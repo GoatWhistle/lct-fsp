@@ -39,7 +39,11 @@ def get_feedback(user: CurrentUser, feedback: FeedbackDep) -> FeedbackOut:
         hints=[
             HintOut(
                 topic=CatalogRef.model_validate(h.topic) if h.topic else None,
-                action=ActionOut(kind=h.action.kind, available=h.action.available),
+                action=ActionOut(
+                    kind=h.action.kind,
+                    available=h.action.available,
+                    available_at=h.action.available_at,
+                ),
                 scenario=h.scenario,
                 gain=h.gain,
                 places=h.places,

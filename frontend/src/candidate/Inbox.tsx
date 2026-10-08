@@ -1,16 +1,18 @@
 import { useCallback, useEffect, useState } from 'react'
 import { api, errorCode, errorMessage, type Invitation } from '../api/client'
 import { salaryWords } from '../components/salary'
+import { Conversation } from '../invitation/Conversation'
 import { invitationStatusWords, isOpen } from '../invitation/words'
 import { dateTimeWords, dateWords } from './words'
 
 /**
  * Входящие приглашения: условия видны до начала общения. Открытие помечает приглашение
- * просмотренным; принятое открывает компании имя, контакты и профиль, кроме ожидаемой зарплаты.
+ * просмотренным; принятое открывает компании имя, контакты и профиль, кроме ожидаемой зарплаты,
+ * и переписку с ней. Доступ к данным можно отозвать — переписка останется.
  */
 const STALE = new Set(['invitation_expired', 'invitation_transition_not_allowed'])
 
-export function Inbox() {
+export function Inbox({ onRead }: { onRead: () => void }) {
   const [invitations, setInvitations] = useState<Invitation[] | null>(null)
   const [error, setError] = useState<string | null>(null)
 
@@ -22,6 +24,14 @@ export function Inbox() {
   }, [])
 
   useEffect(load, [load])
+
+  const read = useCallback(
+    (invitationId: string) => {
+      setInvitations((current) => current?.map((i) => (i.id === invitationId ? { ...i, unread_messages: 0 } : i)) ?? null)
+      onRead()
+    },
+    [onRead],
+  )
 
   function replace(next: Invitation) {
     setInvitations((current) => current?.map((i) => (i.id === next.id ? next : i)) ?? null)
@@ -40,7 +50,9 @@ export function Inbox() {
           </p>
         </div>
       ) : (
-        invitations.map((i) => <InvitationCard key={i.id} invitation={i} onChange={replace} onStale={load} />)
+        invitations.map((i) => (
+          <InvitationCard key={i.id} invitation={i} onChange={replace} onStale={load} onRead={read} />
+        ))
       )}
     </section>
   )
@@ -50,13 +62,18 @@ function InvitationCard({
   invitation,
   onChange,
   onStale,
+  onRead,
 }: {
   invitation: Invitation
   onChange: (invitation: Invitation) => void
   /** Статус на экране устарел — истёк срок или ответ уже записан: перечитать входящие. */
   onStale: () => void
+  onRead: (invitationId: string) => void
 }) {
   const [busy, setBusy] = useState(false)
+  const [expanded, setExpanded] = useState(false)
+  const [confirmRevoke, setConfirmRevoke] = useState(false)
+  const markRead = useCallback(() => onRead(invitation.id), [onRead, invitation.id])
   const [error, setError] = useState<string | null>(null)
   const params = { params: { path: { invitation_id: invitation.id } } }
 
@@ -73,6 +90,7 @@ function InvitationCard({
   }
 
   function toggle(open: boolean) {
+    setExpanded(open)
     if (open && invitation.status === 'sent') {
       run(() => api.POST('/api/candidate/invitations/{invitation_id}/view', params))
     }
@@ -86,6 +104,7 @@ function InvitationCard({
         <span className={invitation.status === 'sent' ? 'tag' : 'muted'}>
           {invitation.status === 'sent' ? 'новое' : invitationStatusWords[invitation.status]}
         </span>
+        {invitation.unread_messages > 0 && <> <span className="tag">сообщений: {invitation.unread_messages}</span></>}
       </summary>
       <p className="prewrap">{invitation.description}</p>
       <p>
@@ -97,8 +116,43 @@ function InvitationCard({
         {open && ` · ответить до ${dateWords(invitation.expires_at)}`}
         {invitation.answered_at && ` · ответ ${dateTimeWords(invitation.answered_at)}`}
       </p>
-      {invitation.status === 'accepted' && (
-        <p className="success">Вы приняли приглашение — компании открыты ваше имя, контакты и профиль.</p>
+      {invitation.status === 'accepted' && !invitation.revoked_at && (
+        <>
+          <p className="success">Вы приняли приглашение — компании открыты ваше имя, контакты и профиль.</p>
+          {confirmRevoke ? (
+            <div className="actions">
+              <span className="hint">
+                Компания снова увидит обезличенную карточку. Вернуть доступ можно, только приняв её новое приглашение.
+              </span>
+              <button
+                type="button"
+                className="button button-small"
+                disabled={busy}
+                onClick={() => run(() => api.POST('/api/candidate/invitations/{invitation_id}/revoke', params))}
+              >
+                Отозвать
+              </button>
+              <button type="button" className="button button-small button-secondary" onClick={() => setConfirmRevoke(false)}>
+                Оставить
+              </button>
+            </div>
+          ) : (
+            <div className="actions">
+              <button type="button" className="button button-small button-secondary" onClick={() => setConfirmRevoke(true)}>
+                Отозвать доступ
+              </button>
+            </div>
+          )}
+        </>
+      )}
+      {invitation.revoked_at && (
+        <p className="hint">
+          Доступ отозван {dateTimeWords(invitation.revoked_at)}: компания видит обезличенную карточку без имени и
+          контактов. Переписка продолжается.
+        </p>
+      )}
+      {invitation.status === 'accepted' && expanded && (
+        <Conversation invitationId={invitation.id} side="candidate" onRead={markRead} />
       )}
       {open && (
         <>

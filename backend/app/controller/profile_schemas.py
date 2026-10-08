@@ -16,10 +16,10 @@ from pydantic import (
     field_validator,
 )
 
-from app.assessment.schemas import CategoryOut, SkillProfileOut
+from app.controller.path_schemas import CategoryOut, SkillProfileOut
+from app.controller.salary import SALARY_UNIT, Salary, SalaryBasisOut
 from app.controller.schemas import CatalogRef
 from app.domain.work import WorkFormat
-from app.salary import SALARY_UNIT, Salary, SalaryBasisOut
 
 DISCLOSED = "Раскрывается работодателю только после принятия приглашения или отклика"
 

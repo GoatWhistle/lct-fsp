@@ -7,10 +7,10 @@ from dataclasses import replace
 from datetime import UTC, datetime
 
 from app.adapter.adaptive import choose, information
-from app.config import Mechanics, Settings
+from app.adapter.irt import Estimate, initial, update
 from app.domain.adaptive import Blueprint, Exposure, Option, selection_prior, should_stop
 from app.domain.skill import Normal, Observation, Prior
-from app.skills.irt import Estimate, initial, update
+from settings import Mechanics, Settings
 from validation.market import Candidate, market
 from validation.metrics import median
 

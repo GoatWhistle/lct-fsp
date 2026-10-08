@@ -17,12 +17,10 @@ from sqlalchemy import Engine, insert
 from sqlalchemy.orm import Session
 
 from app.adapter.acceptance import NoAcceptanceModel
+from app.adapter.catalog_file import load_catalog
 from app.adapter.clock import FrozenClock
 from app.adapter.seed import DerivedSeeds
-from app.assessment.catalog import load_catalog
-from app.assessment.models import CandidateCategory, Survey, TestAttempt
-from app.assessment.models import Technology as TechnologyRow
-from app.config import BACKEND_DIR, Mechanics
+from app.domain.account import Role
 from app.domain.catalog import Grade, Specialization, Technology, Topic
 from app.domain.errors import NeedNotFound, SelectionNotFound
 from app.domain.selection import (
@@ -34,19 +32,29 @@ from app.domain.selection import (
 )
 from app.domain.skill import Normal
 from app.domain.work import SalaryRange, WorkFormat
-from app.identity.models import Role, User
-from app.matching.models import Need as NeedRow
-from app.profile.models import CandidateProfile, candidate_technologies
 from app.repository.memory.selection import MemoryCandidatePool, MemoryNeeds, MemorySelections
 from app.repository.memory.unit_of_work import MemoryStore, MemoryUnitOfWork
-from app.repository.selection import SqlCandidatePool, SqlNeeds, SqlSelections
+from app.repository.need import SqlNeeds
+from app.repository.orm import (
+    CandidateCategory,
+    CandidateProfile,
+    SkillProfile,
+    SkillProfileTopic,
+    Survey,
+    TestAttempt,
+    User,
+    candidate_technologies,
+)
+from app.repository.orm import Need as NeedRow
+from app.repository.orm import Technology as TechnologyRow
+from app.repository.selection import SqlCandidatePool, SqlSelections
 from app.repository.unit_of_work import SqlUnitOfWork
-from app.skills.models import SkillProfile, SkillProfileTopic
 from app.usecase.interface import AcceptanceModel
 from app.usecase.selection import Selections
+from settings import BACKEND_DIR, CATALOG_FILE, Mechanics
 
 T0 = datetime(2026, 10, 7, 12, 0, tzinfo=UTC)
-CATALOG = load_catalog()
+CATALOG = load_catalog(CATALOG_FILE)
 GRADES = {g.code: Grade(g.code, g.name, g.rank) for g in CATALOG.grades}
 SPECIALIZATIONS = {
     s.code: Specialization(s.code, s.name, tuple(Topic(t.code, t.name, s.code) for t in s.topics))

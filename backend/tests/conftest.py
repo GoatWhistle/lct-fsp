@@ -24,13 +24,12 @@ from sqlalchemy.orm import Session
 from app.adapter.clock import FrozenClock
 from app.adapter.mail import MemoryMailer
 from app.adapter.seed import DerivedSeeds
-from app.assessment.catalog import load_catalog, sync_catalog
-from app.config import BACKEND_DIR, Mechanics, Settings
-from app.db import create_db_engine
+from app.domain.account import Role
 from app.domain.mail import Mail
-from app.identity.models import Role
+from app.repository.database import create_db_engine
 from app.repository.unit_of_work import SqlUnitOfWork
-from main import create_app
+from main import create_app, sync_catalog
+from settings import BACKEND_DIR, Mechanics, Settings
 
 PASSWORD = "correct-horse-battery"
 DATABASE_TIMEZONE = "Europe/Moscow"
@@ -100,10 +99,7 @@ def database_url(postgres_server_url: str) -> Iterator[str]:
     alembic_cfg.attributes["database_url"] = url
     alembic_cfg.attributes["configure_logger"] = False
     command.upgrade(alembic_cfg, "head")
-    engine = create_db_engine(url)
-    with transaction(engine) as db:
-        sync_catalog(db, load_catalog())
-    engine.dispose()
+    sync_catalog(Settings(_env_file=None, database_url=url))
 
     yield url
 

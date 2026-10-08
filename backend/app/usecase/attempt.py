@@ -17,7 +17,6 @@ import uuid
 from collections.abc import Iterable, Sequence
 from datetime import datetime, timedelta
 
-from app.config import Mechanics
 from app.domain import bank
 from app.domain.adaptive import Blueprint, Option, selection_prior, should_stop
 from app.domain.attempt import (
@@ -56,6 +55,7 @@ from app.usecase.interface import (
     UnitOfWork,
 )
 from app.usecase.skill_profile import refresh_skill_profile, specialization_prior
+from settings import Mechanics
 
 log = logging.getLogger(__name__)
 

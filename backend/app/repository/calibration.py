@@ -9,10 +9,10 @@ from sqlalchemy import func, select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.orm import Session
 
-from app.assessment.models import FamilyCalibration, FamilyStatus, ScaleLink, TestAttempt
-from app.assessment.models import Presentation as PresentationRow
 from app.domain.calibration import AnchorAnswer, CalibratedFamily, Link, Parameters, Response
 from app.domain.skill import Normal
+from app.repository.orm.attempt import FamilyCalibration, FamilyStatus, ScaleLink, TestAttempt
+from app.repository.orm.attempt import Presentation as PresentationRow
 
 
 def _state_of(row: FamilyCalibration) -> CalibratedFamily:

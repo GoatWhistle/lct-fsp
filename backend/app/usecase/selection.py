@@ -8,7 +8,6 @@ import math
 import uuid
 from datetime import timedelta
 
-from app.config import Mechanics
 from app.domain.selection import (
     Page,
     SelectionDraft,
@@ -24,11 +23,12 @@ from app.usecase.interface import (
     AcceptanceModel,
     CandidatePool,
     Clock,
-    NeedRepository,
+    NeedReader,
     SeedSource,
     SelectionRepository,
     UnitOfWork,
 )
+from settings import Mechanics
 
 
 def selection_rules(mechanics: Mechanics) -> SelectionRules:
@@ -47,7 +47,7 @@ class Selections:
     def __init__(
         self,
         uow: UnitOfWork,
-        needs: NeedRepository,
+        needs: NeedReader,
         pool: CandidatePool,
         selections: SelectionRepository,
         acceptance: AcceptanceModel,

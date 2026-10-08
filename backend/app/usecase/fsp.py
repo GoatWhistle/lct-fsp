@@ -45,6 +45,7 @@ from app.usecase.interface import (
     FspIdProvider,
     FspRegistry,
     FspRepository,
+    RegularTaskReader,
     SessionTokens,
     SkillModel,
     UnitOfWork,
@@ -81,6 +82,7 @@ class FspAccounts:
         accounts: AccountRepository,
         attempts: AttemptRepository,
         fsp: FspRepository,
+        tasks: RegularTaskReader,
         provider: FspIdProvider,
         registry: FspRegistry,
         sessions: SessionTokens,
@@ -92,6 +94,7 @@ class FspAccounts:
         self._accounts = accounts
         self._attempts = attempts
         self._fsp = fsp
+        self._tasks = tasks
         self._provider = provider
         self._registry = registry
         self._sessions = sessions
@@ -228,7 +231,13 @@ class FspAccounts:
 
     def _rebuild(self, user_id: uuid.UUID) -> None:
         rebuild_skill_profiles(
-            self._attempts, self._fsp, self._model, self._mechanics, user_id, self._clock.now()
+            self._attempts,
+            self._tasks,
+            self._fsp,
+            self._model,
+            self._mechanics,
+            user_id,
+            self._clock.now(),
         )
 
     def _status(self, user_id: uuid.UUID) -> FspStatus:

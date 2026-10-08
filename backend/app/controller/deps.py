@@ -32,7 +32,9 @@ from app.usecase.interface import (
 from app.usecase.invitation import Invitations
 from app.usecase.need import Needs
 from app.usecase.need_draft import NeedDrafts
+from app.usecase.regular_task import RegularTasks
 from app.usecase.selection import Selections
+from app.usecase.skill_profile import ProfileFreshness
 from settings import Mechanics
 
 ACCESS_COOKIE = "access_token"
@@ -79,6 +81,11 @@ def get_clock(request: Request) -> Clock:
     return clock
 
 
+def get_profile_freshness(request: Request) -> ProfileFreshness:
+    freshness: ProfileFreshness = request.app.state.profile_freshness
+    return freshness
+
+
 def get_frontend_url(request: Request) -> str:
     """Адрес фронта — куда бэкенд возвращает браузер после ФСП ID."""
     url: str = request.app.state.frontend_url
@@ -89,6 +96,7 @@ MechanicsDep = Annotated[Mechanics, Depends(get_mechanics)]
 SessionCookieDep = Annotated[SessionCookie, Depends(get_session_cookie)]
 ProfilePdfRendererDep = Annotated[ProfilePdfRenderer, Depends(get_profile_pdf_renderer)]
 ClockDep = Annotated[Clock, Depends(get_clock)]
+ProfileFreshnessDep = Annotated[ProfileFreshness, Depends(get_profile_freshness)]
 FrontendUrlDep = Annotated[str, Depends(get_frontend_url)]
 
 
@@ -116,6 +124,11 @@ def get_companies(request: Request, uow: UnitOfWorkDep) -> Companies:
 def get_needs(request: Request, uow: UnitOfWorkDep) -> Needs:
     needs: Needs = request.app.state.needs(uow)
     return needs
+
+
+def get_regular_tasks(request: Request, uow: UnitOfWorkDep) -> RegularTasks:
+    tasks: RegularTasks = request.app.state.regular_tasks(uow)
+    return tasks
 
 
 def get_selections(request: Request, uow: UnitOfWorkDep) -> Selections:
@@ -162,6 +175,7 @@ CatalogQueriesDep = Annotated[CatalogQueries, Depends(get_catalog)]
 CompaniesDep = Annotated[Companies, Depends(get_companies)]
 NeedsDep = Annotated[Needs, Depends(get_needs)]
 SelectionsDep = Annotated[Selections, Depends(get_selections)]
+RegularTasksDep = Annotated[RegularTasks, Depends(get_regular_tasks)]
 NeedDraftsDep = Annotated[NeedDrafts, Depends(get_need_drafts)]
 CandidatePathDep = Annotated[CandidatePath, Depends(get_candidate_path)]
 AnswerCalibrationDep = Annotated[AnswerCalibration, Depends(get_answer_calibration)]

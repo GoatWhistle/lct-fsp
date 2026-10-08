@@ -460,6 +460,7 @@ class SqlAttemptRepository(SqlAttemptReader):
                 rows[topic] = SkillProfileTopic(topic_code=topic)
                 profile.topics.append(rows[topic])
             rows[topic].theta, rows[topic].theta_sd = level.mean, level.sd
+            rows[topic].regular_task = topic in levels.regular_task_topics
             rows[topic].sources = sorted(levels.sources.get(topic, ()))
         self.session.flush()
 

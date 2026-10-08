@@ -183,6 +183,8 @@ class PoolCandidate:
     candidate_id: uuid.UUID
     specialization: str
     grade: Grade
+    # Общий уровень из профиля навыков категории — нужен доводу профиля до «сейчас».
+    overall: Normal
     # Тема → уровень из профиля навыков категории; тем, добавленных после пересчёта, нет.
     levels: Mapping[str, Normal]
     # Технологии потребности в самоописанном стеке — коды; остальные подборке не нужны.
@@ -194,6 +196,8 @@ class PoolCandidate:
     claimed: Grade | None = None
     # Темы профиля, среди источников которых есть ФСП.
     fsp_topics: frozenset[str] = frozenset()
+    # Темы, по которым в профиль вошли ответы на регулярные задания.
+    regular_task_topics: frozenset[str] = frozenset()
 
 
 @dataclass(frozen=True)
@@ -307,6 +311,8 @@ class TopicExplanation:
     verdict: Verdict
     # Погрешность выше `topic_low_data_sd`.
     low_data: bool
+    # Источник уверенности: в профиль по теме вошли ответы на регулярные задания.
+    regular_task: bool = False
     # Среди источников уровня темы — результат ФСП.
     fsp_confirmed: bool = False
 
@@ -329,9 +335,13 @@ class Explanation:
 
 
 def explain(
-    match: Match, rules: SelectionRules, fsp_topics: frozenset[str] = frozenset()
+    match: Match,
+    rules: SelectionRules,
+    regular_task_topics: frozenset[str] = frozenset(),
+    fsp_topics: frozenset[str] = frozenset(),
 ) -> Explanation:
-    """Вклады из скора; `fsp_topics` — темы, уровень которых подтверждён ФСП."""
+    """Вклады из скора; `regular_task_topics` и `fsp_topics` — темы, уровень которых подтверждён
+    регулярным заданием и ФСП."""
     return Explanation(
         topics=tuple(
             TopicExplanation(
@@ -342,6 +352,7 @@ def explain(
                 contribution=fit.contribution,
                 verdict=verdict(fit.probability, rules.verdict_bands),
                 low_data=fit.level.sd > rules.low_data_sd,
+                regular_task=fit.topic in regular_task_topics,
                 fsp_confirmed=fit.topic in fsp_topics,
             )
             for fit in match.topics
@@ -444,7 +455,12 @@ def arrange(
                     match_score=item.match.score,
                     acceptance_probability=probability,
                     mutual_score=mutual[candidate_id],
-                    explanation=explain(item.match, rules, item.candidate.fsp_topics),
+                    explanation=explain(
+                        item.match,
+                        rules,
+                        item.candidate.regular_task_topics,
+                        item.candidate.fsp_topics,
+                    ),
                     stale=is_stale(item.candidate.last_signal_at, now, rules.stale_after),
                 )
             )

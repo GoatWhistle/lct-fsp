@@ -152,7 +152,6 @@ class Mechanics(BaseModel):
     fsp_divergence_theta: float
 
     # Регулярные задания
-    regular_task_interval_days: int
     regular_task_rubric_offsets: dict[int, float]
     regular_task_discrimination: float
 

@@ -39,6 +39,8 @@ class SkillProfileTopic(Base):
     topic_code: Mapped[str] = mapped_column(ForeignKey("topics.code"), primary_key=True)
     theta: Mapped[float]
     theta_sd: Mapped[float]
+    # В уровень вошли ответы на регулярные задания — источник уверенности в объяснении подборки.
+    regular_task: Mapped[bool] = mapped_column(default=False, server_default="false")
     # Уровни доверия, из которых есть наблюдения по теме (`SignalSource`): `fsp` — «подтверждено
     # ФСП» в объяснении подборки.
     sources: Mapped[list[str]] = mapped_column(ARRAY(String(16)), server_default="{}")

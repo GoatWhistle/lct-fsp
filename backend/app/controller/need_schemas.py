@@ -153,6 +153,9 @@ class TopicFitOut(BaseModel):
         "выше, `likely_below` — скорее ниже, `below` — ниже требования"
     )
     low_data: bool = Field(description="Погрешность выше `topic_low_data_sd` — данных мало")
+    regular_task: bool = Field(
+        description="Источник уверенности: уровень по теме подтверждён регулярным заданием"
+    )
     fsp_confirmed: bool = Field(
         description="Уровень подтверждён результатом ФСП — к формулировке «подтверждено ФСП»"
     )

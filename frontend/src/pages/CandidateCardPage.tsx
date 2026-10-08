@@ -41,7 +41,10 @@ export function CandidateCardPage() {
         <CandidateCardView card={current.card} />
       </div>
       <div className="card">
-        {invitationsError ? (
+        {!current.card.category ? (
+          // Приглашают только кандидата с категорией; без неё карточка открыта по отклику.
+          <p className="hint">Пригласить можно после того, как кандидат получит категорию по тесту.</p>
+        ) : invitationsError ? (
           <p className="error">Приглашения не загрузились: {invitationsError}</p>
         ) : (
           sent && (

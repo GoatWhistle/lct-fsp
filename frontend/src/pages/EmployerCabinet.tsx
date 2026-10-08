@@ -5,12 +5,13 @@ import { dateTimeWords, dateWords } from '../candidate/words'
 import { Cabinet } from '../components/Cabinet'
 import { salaryWords } from '../components/salary'
 import { useSentInvitations } from '../employer/invitations'
+import { Vacancies } from '../employer/Vacancies'
 import { needSalaryWords, workFormatWord } from '../employer/words'
 import { Conversation } from '../invitation/Conversation'
 import { useUnreadMessages } from '../invitation/unread'
 import { invitationStatusWords, isOpen } from '../invitation/words'
 
-/** Кабинет работодателя: профиль компании, потребности и подборки по ним. */
+/** Кабинет работодателя: профиль компании, потребности и подборки по ним, приглашения, вакансии и отклики. */
 export function EmployerCabinet() {
   const [company, setCompany] = useState<Company | null | undefined>(undefined)
   const [needs, setNeeds] = useState<Need[] | null>(null)
@@ -46,7 +47,7 @@ export function EmployerCabinet() {
   if (company === undefined || needs === null) return <p className="muted">Загрузка…</p>
 
   return (
-    <Cabinet title="Кабинет работодателя" upcoming={['Вакансии и отклики кандидатов']} unread={unread}>
+    <Cabinet title="Кабинет работодателя" upcoming={[]} unread={unread}>
       <CompanyCard company={company} />
       <section className="stack">
         <div className="section-head">
@@ -74,6 +75,7 @@ export function EmployerCabinet() {
         )}
       </section>
       <InvitationList sent={sent} error={invitationsError} onRead={onRead} />
+      <Vacancies hasCompany={company !== null} />
       <SelectionList selections={selections} error={selectionsError} />
       <div className="card">
         <div className="section-head">

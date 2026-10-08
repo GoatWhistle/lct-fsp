@@ -98,6 +98,31 @@ def test_role_apis_document_401_and_403(spec: dict[str, Any]) -> None:
             )
             for action in ("accept", "decline")
         ],
+        (
+            "POST",
+            "/api/employer/vacancies",
+            {"unknown_specialization", "unknown_grade", "invalid_salary_range", "company_required"},
+        ),
+        (
+            "PUT",
+            "/api/employer/vacancies/{vacancy_id}",
+            {"vacancy_not_found", "vacancy_archived", "invalid_salary_range"},
+        ),
+        ("POST", "/api/employer/vacancies/{vacancy_id}/archive", {"vacancy_not_found"}),
+        (
+            "POST",
+            "/api/candidate/vacancies/{vacancy_id}/apply",
+            {"vacancy_not_found", "vacancy_archived", "already_applied"},
+        ),
+        *[
+            (
+                "POST",
+                f"/api/employer/applications/{{application_id}}/{action}",
+                {"application_not_found", "application_transition_not_allowed"},
+            )
+            for action in ("accept", "decline")
+        ],
+        ("POST", "/api/candidate/applications/{application_id}/revoke", {"application_not_found"}),
     ],
 )
 def test_error_codes_are_documented(

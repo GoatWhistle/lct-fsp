@@ -115,3 +115,25 @@ def ndcg_at(ranked: Sequence[int], pool: Sequence[int], k: int) -> float:
     пуле — nan."""
     ideal = _dcg(sorted(pool, reverse=True)[:k])
     return _dcg(ranked[:k]) / ideal if ideal else math.nan
+
+
+def roc_auc(predicted: Sequence[float], labels: Sequence[int]) -> float:
+    """ROC-AUC — вероятность, что у случайной пары «1 и 0» предсказание выше у единицы; ничьи —
+    пополам. Средние ранги Манна — Уитни; без обоих классов — nan."""
+    n = len(predicted)
+    order = sorted(range(n), key=lambda i: predicted[i])
+    ranks = [0.0] * n
+    i = 0
+    while i < n:
+        j = i
+        while j + 1 < n and predicted[order[j + 1]] == predicted[order[i]]:
+            j += 1
+        for k in range(i, j + 1):
+            ranks[order[k]] = (i + j) / 2 + 1
+        i = j + 1
+    positive = sum(labels)
+    negative = n - positive
+    if not positive or not negative:
+        return math.nan
+    rank_sum = sum(r for r, y in zip(ranks, labels, strict=True) if y)
+    return (rank_sum - positive * (positive + 1) / 2) / (positive * negative)

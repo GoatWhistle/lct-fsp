@@ -22,7 +22,16 @@ from pathlib import Path
 from app.domain.determination import grades_by_threshold
 from app.domain.selection import NeedSnapshot
 from app.usecase.skill_profile import specialization_prior
-from settings import BACKEND_DIR, Mechanics
+from settings import BACKEND_DIR, Mechanics, Settings
+from validation.acceptance import (
+    HOLDOUT_PAIRS,
+    Offer,
+    evaluate,
+    load_baselines,
+    load_model,
+    make_offers,
+    offer_needs,
+)
 from validation.figures import Panel, Series, reliability_svg
 from validation.main import Catalog, catalog
 from validation.metrics import (
@@ -34,7 +43,15 @@ from validation.metrics import (
     precision_at,
     reliability,
 )
-from validation.population import DATASETS, Dataset, Generator, Pair, label, snapshot
+from validation.population import (
+    DATASETS,
+    Dataset,
+    Generator,
+    Pair,
+    SyntheticNeed,
+    label,
+    snapshot,
+)
 from validation.simulate import Adaptivity, Job, Outcome, Scale, SpecRun, run_cold, run_spec
 from validation.truth import CandidateTruth, Persona
 
@@ -78,7 +95,7 @@ PENDING: dict[str, str] = {
     "M3": "нет базовых линий B1–B3 и двойников-накрутчиков",
     "M5": "нет двойников по защищённым признакам и базовых линий B2, B3",
     "M6": "нет рыночной симуляции приглашений",
-    "M7": "нет модели принятия и отложенной синтетики",
+    "M7": "нет файла модели принятия: `uv run python -m validation acceptance`",
     "M8": "нет проверки вкладов объяснений на выдачах стенда",
     "M14": "нет атаки утечкой по схемам S1–S3",
     "M15": "нет прогона детектора утечки",
@@ -107,6 +124,8 @@ class DatasetRuns:
     cold: dict[str, Adaptivity]
     # (потребность, кандидат) → эталон из истины.
     pairs: dict[tuple[uuid.UUID, uuid.UUID], Pair]
+    # Отложенные пары модели принятия (M7) с решениями кандидатов.
+    offers: tuple[Offer, ...] = ()
 
     def truth(self) -> dict[uuid.UUID, CandidateTruth]:
         return {t.id: t for t in self.dataset.truths}
@@ -171,13 +190,16 @@ def collect(
     codes = tuple(specializations or known.specializations)
     before = mechanics.model_copy(update={"level_sd_inflation": 1.0})
     generated: dict[str, Dataset] = {}
+    offered: dict[str, list[SyntheticNeed]] = {}
     futures: dict[tuple[str, str, str], Future[SpecRun] | Future[Adaptivity]] = {}
     with ProcessPoolExecutor(workers or max(1, (os.cpu_count() or 2) - 1)) as pool:
         for name in sets:
             params = DATASETS[name]
             if scale.candidates is not None:
                 params = replace(params, candidates_per_specialization=scale.candidates)
-            dataset = generated[name] = Generator(params, mechanics, known).generate()
+            generator = Generator(params, mechanics, known)
+            dataset = generated[name] = generator.generate()
+            offered[name] = offer_needs(generator, dataset, HOLDOUT_PAIRS)
             stacks = {o.id: frozenset(o.stack) for o in dataset.observed}
             for code in codes:
                 job = Job(
@@ -188,9 +210,10 @@ def collect(
                     tuple(t for t in dataset.truths if t.specialization == code),
                     tuple(n for n in dataset.needs if n.form.specialization == code),
                     stacks,
+                    offer_needs=tuple(n for n in offered[name] if n.form.specialization == code),
                 )
                 futures[name, code, "runs"] = pool.submit(run_spec, job)
-                light = replace(job, mechanics=before, full=False)
+                light = replace(job, mechanics=before, full=False, offer_needs=())
                 futures[name, code, "before"] = pool.submit(run_spec, light)
                 futures[name, code, "cold"] = pool.submit(run_cold, job)
         done = {key: f.result() for key, f in futures.items()}
@@ -204,8 +227,16 @@ def collect(
         pairs = {
             (p.need, p.candidate): p for p in label(dataset.truths, dataset.needs, known, mechanics)
         }
+        runs_ = part(name, "runs")
+        scored = {need: s for run in runs_.values() for need, s in run.offers.items()}
+        needs = [n for n in offered[name] if n.form.specialization in codes]
         found[name] = DatasetRuns(
-            dataset, part(name, "runs"), part(name, "before"), part(name, "cold"), pairs
+            dataset,
+            runs_,
+            part(name, "before"),
+            part(name, "cold"),
+            pairs,
+            tuple(make_offers(dataset, needs, scored, mechanics, HOLDOUT_PAIRS)),
         )
     return Runs(mechanics, known, scale, codes, found)
 
@@ -1002,6 +1033,60 @@ def m13(runs: Runs) -> Section:
         "адаптивности ограничен сверху размером банка, а не правилом выбора."
     )
     return judged("M13", body, verdicts)
+
+
+# --- M7 ----------------------------------------------------------------------------------------
+
+
+@section("M7")
+def m7(runs: Runs) -> Section:
+    model, baselines = load_model(Settings().acceptance_model_file), load_baselines()
+    if model is None or baselines is None:
+        return pending("M7")
+    verdicts, parts = {}, []
+    for name, data in runs.sets.items():
+        if not data.offers:
+            continue
+        e = evaluate(model, baselines, data.offers)
+        mono = e.monotonicity
+        verdicts[name] = verdict_of(
+            [e.model.roc_auc >= 0.75, e.model.ece <= 0.05, mono.share == 1.0]
+        )
+        parts.append(
+            f"**{name.upper()}.** Пар {e.pairs}, доля принятий {f(e.accepted)}.\n\n"
+            + table(
+                ["Модель", "ROC-AUC", "ECE"],
+                [
+                    ["CatBoost", f"**{f(e.model.roc_auc)}**", f"**{f(e.model.ece)}**"],
+                    [
+                        "Логистическая регрессия по вилке к ожиданию",
+                        f(e.logistic.roc_auc),
+                        f(e.logistic.ece),
+                    ],
+                    [
+                        "Константа — доля принятий обучения",
+                        f(e.constant.roc_auc),
+                        f(e.constant.ece),
+                    ],
+                ],
+            )
+            + f"\n\nМонотонность: вилка — {mono.salary_ok} из {mono.salary_total} соседних точек "
+            f"сетки, загрузка — {mono.load_ok} из {mono.load_total}; всего "
+            f"**{f(100 * mono.share, 1)} %**."
+        )
+    if not parts:
+        return pending("M7")
+    body = (
+        "Модель — CatBoost из файла `backend/app/adapter/acceptance_model.cbm`, обученная "
+        "командой `uv run python -m validation acceptance` на своём сиде; базовые линии — на тех "
+        "же обучающих парах. Отложенные пары — подборки по потребностям набора: top-K по S и "
+        "случайные кандидаты сверх них, решения — по правилу синтетического кандидата из скрытой "
+        "склонности, которой модель не видит. ECE — 10 равных корзин. Сетка монотонности — "
+        "отношение середины вилки к ожиданию 0,5–2,0 шагом 0,05 и открытые приглашения 0–10 на "
+        "первых 50 парах. Порог: ROC-AUC не ниже 0,75, ECE не выше 0,05, монотонность в 100 % "
+        "точек.\n\n" + "\n\n".join(parts)
+    )
+    return judged("M7", body, verdicts)
 
 
 # --- M19 ---------------------------------------------------------------------------------------

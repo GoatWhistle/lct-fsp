@@ -772,3 +772,40 @@ details summary {
     padding: 0.35rem 0.25rem;
   }
 }
+
+.invitation-summary {
+  margin: 0.25rem 0 0;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.invite-form {
+  border-top: 1px solid var(--border);
+  padding-top: 0.75rem;
+}
+
+.disclosed {
+  border-left: 3px solid var(--accent);
+  padding-left: 0.75rem;
+}
+
+.disclosed h3,
+.disclosed p {
+  margin: 0 0 0.35rem;
+}
+
+.invitation-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.invitation-card p {
+  margin: 0;
+}
+
+.invitation-card.unread {
+  border-color: var(--accent);
+}

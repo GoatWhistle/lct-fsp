@@ -31,6 +31,8 @@ from app.controller.catalog import router as catalog_router
 from app.controller.company import router as company_router
 from app.controller.deps import SessionCookie
 from app.controller.errors import install_error_handlers
+from app.controller.invitation import candidate_router as inbox_router
+from app.controller.invitation import employer_router as invitations_router
 from app.controller.need import router as needs_router
 from app.controller.need import selections_router
 from app.controller.path import router as path_router
@@ -43,6 +45,7 @@ from app.repository.candidate import SqlCandidateRepository
 from app.repository.catalog import SqlCatalog
 from app.repository.company import SqlCompanies
 from app.repository.database import create_db_engine
+from app.repository.invitation import SqlInvitations
 from app.repository.need import SqlNeeds
 from app.repository.selection import SqlCandidatePool, SqlSelections
 from app.repository.unit_of_work import SqlUnitOfWork
@@ -125,8 +128,12 @@ def create_app(
             uow.session, mechanics.grade_thresholds, mechanics.grade_confidence
         )
 
+    def invitation_repository(uow: SqlUnitOfWork) -> SqlInvitations:
+        return SqlInvitations(uow.session)
+
     app.state.unit_of_work = unit_of_work
     app.state.candidate_repository = candidate_repository
+    app.state.invitation_repository = invitation_repository
     app.state.profile_pdf_renderer = profile_pdf_renderer or FpdfProfileRenderer()
     app.state.clock = clock = clock or SystemClock()
     seeds = seeds or SecureSeeds()
@@ -163,6 +170,8 @@ def create_app(
             companies=lambda uow: SqlCompanies(uow.session),
             needs=lambda uow: SqlNeeds(uow.session),
             catalog=lambda uow: SqlCatalog(uow.session),
+            candidates=candidate_repository,
+            invitations=invitation_repository,
         ),
         mechanics=mechanics,
         passwords=passwords or Argon2Passwords(),
@@ -175,6 +184,7 @@ def create_app(
     app.state.companies = platform.companies
     app.state.needs = platform.needs
     app.state.catalog = platform.catalog
+    app.state.invitations = platform.invitations
 
     install_error_handlers(app)
     app.include_router(auth_router)
@@ -186,6 +196,8 @@ def create_app(
     app.include_router(needs_router)
     app.include_router(selections_router)
     app.include_router(candidates_router)
+    app.include_router(invitations_router)
+    app.include_router(inbox_router)
     app.include_router(catalog_router)
 
     @app.get("/api/health", tags=["service"], summary="Проверка, что бэкенд жив")

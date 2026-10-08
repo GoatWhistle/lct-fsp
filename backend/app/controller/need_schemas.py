@@ -8,6 +8,7 @@ from pydantic import BaseModel, Field, StringConstraints
 
 from app.controller.salary import SALARY_UNIT, Salary, SalaryBasisOut
 from app.controller.schemas import CatalogRef, GradeStatusOut
+from app.domain.candidate import GradeStatusKind
 from app.domain.importance import TopicImportance
 from app.domain.match import Verdict
 from app.domain.need_draft import DraftField
@@ -139,6 +140,48 @@ class NeedSnapshot(SalaryBasisOut):
     updated_at: datetime = Field(description="Версия потребности, по которой построена подборка")
 
 
+class CategoryFilterIn(BaseModel):
+    specialization: str = Field(description="Код специализации")
+    grade: str = Field(description="Код грейда")
+
+
+class CandidateFiltersIn(BaseModel):
+    """Фильтры кандидатов — одни для поиска по банку и уточнения подборки. Все необязательны,
+    вместе — пересечение условий; пустой объект не сужает ничего."""
+
+    specialization: str | None = Field(
+        default=None,
+        description="Код специализации: категории, без неё — заявленного грейда",
+    )
+    grade: str | None = Field(
+        default=None,
+        description="Код грейда, по которому кандидат в выдаче: категории, без неё — заявленный",
+    )
+    category: CategoryFilterIn | None = Field(
+        default=None, description="Категория по тесту — неподтверждённый грейд её не даёт"
+    )
+    stack: list[str] = Field(
+        default_factory=list,
+        max_length=50,
+        description="Коды технологий: в самоописанном стеке есть хотя бы одна",
+    )
+    fsp_confirmed: bool = Field(
+        default=False, description="Только с подтверждёнными достижениями ФСП"
+    )
+    confident: bool = Field(
+        default=False,
+        description="Только с уверенным уровнем: погрешность общего уровня профиля не выше "
+        "`search_confident_sd`. Без категории профиля нет — не проходит",
+    )
+    grade_status: list[GradeStatusKind] = Field(
+        default_factory=list, description="Статус грейда — любой из перечисленных"
+    )
+
+
+class CandidateFiltersOut(CandidateFiltersIn):
+    """Применённые фильтры — те же поля, что на входе."""
+
+
 class TopicFitOut(BaseModel):
     topic: CatalogRef
     importance: TopicImportance
@@ -229,6 +272,55 @@ class SelectionOut(SelectionSummaryOut):
     need: NeedSnapshot
     stack_cap: float = Field(description="λ — потолок вклада самоописания на момент построения")
     offset: int
-    entries: list[SelectionEntryOut] = Field(
-        description="Страница общей выдачи с места `offset + 1`"
+    filters: CandidateFiltersOut = Field(
+        description="Последние применённые фильтры: открытие подборки отдаёт выдачу через них"
     )
+    filtered_exact_total: int = Field(description="Точных после фильтров")
+    filtered_nearby_total: int = Field(description="Близких после фильтров")
+    filtered_unconfirmed_total: int = Field(description="Нижнего блока после фильтров")
+    shortlist: list[uuid.UUID] = Field(
+        description="Шортлист в порядке выдачи — от фильтров не зависит"
+    )
+    entries: list[SelectionEntryOut] = Field(
+        description="Страница выдачи после фильтров с `offset + 1`-й строки; места и ранги — "
+        "исходные, без фильтров — вся выдача"
+    )
+
+
+class ShortlistOut(BaseModel):
+    selection_id: uuid.UUID
+    entries: list[SelectionEntryOut] = Field(
+        description="Отмеченные кандидаты в порядке выдачи, без фильтров подборки"
+    )
+
+
+class SearchHitOut(BaseModel):
+    """Кандидат в поиске — обезличенно, как в подборке. Карточка —
+    `GET /api/employer/candidates/{candidate_id}`."""
+
+    candidate_id: uuid.UUID
+    position: int = Field(
+        description="Место в выдаче с 1: сначала с категорией, затем — с неподтверждённым грейдом"
+    )
+    specialization: str = Field(
+        description="Код специализации категории, без неё — заявленного грейда"
+    )
+    grade_status: GradeStatusOut
+    theta: float | None = Field(
+        description="Общий уровень по профилю навыков на «сейчас»; `null` — категории нет, "
+        "профиля навыков тоже"
+    )
+    theta_sd: float | None = Field(description="Погрешность общего уровня")
+    grade_probability: float | None = Field(
+        description="P(общий уровень ≥ порог грейда категории) — по ней порядок; `null` — "
+        "категории нет"
+    )
+    fsp_confirmed: bool = Field(description="Есть подтверждённые достижения ФСП")
+
+
+class SearchOut(BaseModel):
+    filters: CandidateFiltersOut
+    total: int = Field(description="Найдено всего")
+    unconfirmed_total: int = Field(description="Из них — с неподтверждённым грейдом")
+    offset: int
+    entries: list[SearchHitOut] = Field(description="Страница выдачи с места `offset + 1`")

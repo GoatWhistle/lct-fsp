@@ -45,6 +45,9 @@ STATUS: dict[type[e.DomainError], int] = {
     e.GradeNotNext: 409,
     e.GradeChangeTooEarly: 409,
     e.NoLowerGrade: 409,
+    e.AttemptInProgress: 409,
+    e.TopicNotInCategory: 422,
+    e.TopicBlockTooEarly: 409,
     e.ProfileNotFound: 404,
     e.CandidateNotFound: 404,
     e.CityRequired: 422,
@@ -55,6 +58,7 @@ STATUS: dict[type[e.DomainError], int] = {
     e.TopicNotInSpecialization: 422,
     e.InvalidSalaryRange: 422,
     e.SelectionNotFound: 404,
+    e.NotInSelection: 404,
     e.CompanyRequired: 409,
     e.TaskNotFound: 404,
     e.TaskTopicsCount: 422,
@@ -72,6 +76,8 @@ STATUS: dict[type[e.DomainError], int] = {
     e.InvitationExpired: 409,
     e.InvitationAlreadyOpen: 409,
     e.InvitationBudgetExhausted: 409,
+    e.InvitationNotAccepted: 409,
+    e.InvalidMessageText: 422,
 }
 
 

@@ -11,6 +11,7 @@ from app.domain.errors import (
     InvitationAlreadyOpen,
     InvitationBudgetExhausted,
     InvitationExpired,
+    InvitationNotAccepted,
     InvitationTransitionNotAllowed,
 )
 from app.domain.invitation import (
@@ -22,6 +23,7 @@ from app.domain.invitation import (
     answered,
     budget_week,
     check_can_send,
+    revoked,
     transition,
     viewed,
 )
@@ -181,3 +183,27 @@ def test_can_send_after_previous_expired_though_stored_open(status: InvitationSt
     budget = InvitationBudget(limit=20, used=1, resets_at=T0)
 
     check_can_send(budget, invitation(status), T0 + TTL, TTL)
+
+
+# Отзыв доступа.
+
+
+def test_revoke_marks_accepted_once() -> None:
+    now = T0 + timedelta(days=2)
+
+    first = revoked(invitation(S.accepted), now)
+    again = revoked(first, now + timedelta(days=1))
+
+    assert (first.status, first.revoked_at) == (S.accepted, now)
+    assert first.is_revoked
+    assert again == first
+
+
+@pytest.mark.parametrize("status", [S.sent, S.viewed, S.declined, S.expired])
+def test_revoke_of_not_accepted_is_rejected(status: InvitationStatus) -> None:
+    with pytest.raises(InvitationNotAccepted):
+        revoked(invitation(status), T0)
+
+
+def test_new_invitation_is_not_revoked() -> None:
+    assert not invitation(S.accepted).is_revoked

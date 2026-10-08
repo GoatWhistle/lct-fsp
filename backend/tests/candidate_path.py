@@ -126,6 +126,11 @@ def grant_category(db_engine: Engine, user_id: str) -> None:
                     "specialization_code": "qa",
                     "grade_code": "middle",
                     "started_at": now,
+                    "finished_at": now,
+                    "overall_theta": 0.5,
+                    "overall_theta_sd": 0.4,
+                    "outcome": "assigned",
+                    "outcome_grade_code": "middle",
                 }
             ],
         )

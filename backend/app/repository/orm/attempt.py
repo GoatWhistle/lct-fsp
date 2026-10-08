@@ -6,7 +6,7 @@ import uuid
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import BigInteger, Enum, ForeignKey, String, UniqueConstraint
+from sqlalchemy import BigInteger, CheckConstraint, Enum, ForeignKey, String, UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -37,7 +37,13 @@ class TestAttempt(Base):
     на которую ссылается `continues_attempt_id`: вместе они — одно определение категории."""
 
     __tablename__ = "test_attempts"
-    __table_args__ = (UniqueConstraint("user_id", "number"),)
+    __table_args__ = (
+        UniqueConstraint("user_id", "number"),
+        # Тема — ровно у блока по теме.
+        CheckConstraint(
+            "(purpose = 'topic_block') = (topic_code IS NOT NULL)", name="topic_block_topic"
+        ),
+    )
     __test__ = False  # имя начинается с Test — pytest не должен собирать класс как тест
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
@@ -62,6 +68,8 @@ class TestAttempt(Base):
         ),
         default=AttemptPurpose.determination,
     )
+    # Тема блока по теме — только у попытки `topic_block`.
+    topic_code: Mapped[str | None] = mapped_column(ForeignKey("topics.code"))
 
     # Оценка теста на момент остановки: общий уровень θ̄ и его погрешность.
     overall_theta: Mapped[float | None]

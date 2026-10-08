@@ -33,6 +33,8 @@ from app.controller.path_schemas import (
     SurveyIn,
     SurveyOut,
     TestResultOut,
+    TopicBlockIn,
+    TopicBlockOut,
     level_view,
     skill_profile_view,
 )
@@ -88,6 +90,7 @@ def submit_survey(
         errors.GradeNotOffered,
         errors.GradeNotNext,
         errors.GradeChangeTooEarly,
+        errors.AttemptInProgress,
         errors.UnknownGrade,
     ),
 )
@@ -109,6 +112,27 @@ def step_down(user: CurrentUser, paths: CandidatePathDep, mechanics: MechanicsDe
     return _path_out(paths.step_down(user.id), mechanics)
 
 
+@router.post(
+    "/topic-block",
+    summary="Начать блок по теме",
+    description="Короткий адаптивный тест по одной теме категории — ровно `topic_block_items` "
+    "заданий. Ответы уточняют профиль навыков; категорию, грейд и сроки смены грейда блок не "
+    "меняет. По одной теме — не чаще `topic_block_interval_days` от старта прошлого блока, "
+    "брошенного тоже: раньше ошибка несёт `available_at`. Задания — через `/item`, как у теста.",
+    responses=error_responses(
+        errors.CategoryRequired,
+        errors.TopicNotInCategory,
+        errors.AttemptInProgress,
+        errors.TopicBlockTooEarly,
+        errors.StepUnavailable,
+    ),
+)
+def start_topic_block(
+    body: TopicBlockIn, user: CurrentUser, paths: CandidatePathDep, mechanics: MechanicsDep
+) -> PathOut:
+    return _path_out(paths.start_topic_block(user.id, topic=body.topic), mechanics)
+
+
 @router.get(
     "/item",
     summary="Текущее задание теста",
@@ -116,12 +140,13 @@ def step_down(user: CurrentUser, paths: CandidatePathDep, mechanics: MechanicsDe
     "запрос отдаёт то же задание. Эталон и параметры экземпляра не отдаются.",
     responses=error_responses(errors.NoTestInProgress),
 )
-def get_item(user: CurrentUser, paths: CandidatePathDep, mechanics: MechanicsDep) -> ItemOut:
+def get_item(user: CurrentUser, paths: CandidatePathDep) -> ItemOut:
     item = paths.current_item(user.id)
     return ItemOut(
         id=item.presentation_id,
         number=item.number,
-        max_items=mechanics.test_max_items,
+        max_items=item.max_items,
+        topic_block=item.topic_block,
         topic=CatalogRef.model_validate(item.topic),
         prompt=item.instance.prompt,
         code=item.instance.code,
@@ -178,6 +203,15 @@ def _path_out(view: PathView, mechanics: Mechanics) -> PathOut:
         ),
         grade_down=view.grade_down,
         history=[_history_out(entry) for entry in view.history],
+        topic_block=(
+            TopicBlockOut(
+                topic=CatalogRef.model_validate(view.topic_block.topic),
+                answered=view.topic_block.answered,
+                items=view.topic_block.items,
+            )
+            if view.topic_block
+            else None
+        ),
     )
 
 

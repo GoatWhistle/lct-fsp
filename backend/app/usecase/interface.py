@@ -1,7 +1,7 @@
 """Порты — всё, что можно заменить другой реализацией (docs/adr/0001-layers-and-ports.md).
 
-Типы портов — из `app.domain`; реализации — в `app.adapter` и `app.repository`, сборка — в
-`backend/main.py`.
+Типы портов — из `app.domain`; реализации — в `app.adapter` и `app.repository`, выбор реализаций —
+в точках сборки `backend/main.py` и `backend/validation/main.py`.
 """
 
 import random

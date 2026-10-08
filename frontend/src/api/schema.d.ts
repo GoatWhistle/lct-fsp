@@ -437,7 +437,7 @@ export interface paths {
         };
         /**
          * Карточка кандидата
-         * @description Категория, профиль навыков и структурная часть самоописания. ФИО, контакты и свободный текст — только после принятия приглашения вашей компании; ожидаемой зарплаты нет никогда. Есть только у кандидата с категорией.
+         * @description Статус грейда, категория, профиль навыков и структурная часть самоописания. ФИО, контакты и свободный текст — только после принятия приглашения вашей компании; ожидаемой зарплаты нет никогда. Есть у кандидата с категорией или с заявленным грейдом.
          */
         get: operations["get_candidate_card_api_employer_candidates__candidate_id__get"];
         put?: never;
@@ -713,8 +713,9 @@ export interface components {
              * Format: uuid
              */
             id: string;
-            /** @description Категория по тесту */
-            category: components["schemas"]["CategoryOut"];
+            /** @description Категория по тесту; `null` — тест не пройден, грейд только заявлен */
+            category: components["schemas"]["CategoryOut"] | null;
+            grade_status: components["schemas"]["GradeStatusOut"];
             /** @description Профиль навыков специализации */
             skill_profile: components["schemas"]["SkillProfileOut"] | null;
             /** @description Самоописание; `null` — кандидат ещё не заполнил профиль */
@@ -844,6 +845,24 @@ export interface components {
              * @description P(общий уровень ≥ порог грейда)
              */
             probability: number;
+        };
+        /**
+         * GradeStatusKind
+         * @enum {string}
+         */
+        GradeStatusKind: "confirmed" | "below_claimed" | "unconfirmed";
+        /**
+         * GradeStatusOut
+         * @description Что тест сказал о заявленном грейде. Заявленный — грейд первой попытки определения
+         *     категории: дотест каскада его не меняет.
+         */
+        GradeStatusOut: {
+            /** @description `confirmed` — подтверждён тестом; `below_claimed` — заявлен `claimed`, подтверждён `confirmed` ниже; `unconfirmed` — заявлен, тест не пройден */
+            kind: components["schemas"]["GradeStatusKind"];
+            /** @description Заявленный грейд */
+            claimed: components["schemas"]["CatalogRef"];
+            /** @description Грейд категории; `null` — категории нет */
+            confirmed: components["schemas"]["CatalogRef"] | null;
         };
         /** HTTPValidationError */
         HTTPValidationError: {
@@ -1403,10 +1422,10 @@ export interface components {
          * SelectionBlock
          * @enum {string}
          */
-        SelectionBlock: "exact" | "nearby";
+        SelectionBlock: "exact" | "nearby" | "unconfirmed";
         /**
          * SelectionEntryOut
-         * @description Кандидат в подборке — обезличенно: место, категория, соответствие и его объяснение.
+         * @description Кандидат в подборке — обезличенно: место, статус грейда, соответствие и его объяснение.
          *     Карточка — `GET /api/employer/candidates/{candidate_id}`.
          */
         SelectionEntryOut: {
@@ -1417,36 +1436,37 @@ export interface components {
             candidate_id: string;
             /**
              * Position
-             * @description Место в общей выдаче с 1: сначала точные, затем близкие
+             * @description Место в общей выдаче с 1: сначала точные, затем близкие, затем неподтверждённые
              */
             position: number;
-            /** @description `exact` — категория совпадает с потребностью, `nearby` — соседний грейд */
+            /** @description `exact` — категория совпадает с потребностью, `nearby` — соседний грейд, `unconfirmed` — категории нет, заявлен грейд потребности */
             block: components["schemas"]["SelectionBlock"];
             /**
              * Rank
              * @description Место внутри блока с 1
              */
             rank: number;
-            /** @description Грейд категории кандидата */
+            /** @description Грейд категории кандидата; в блоке `unconfirmed` — заявленный */
             grade: components["schemas"]["CatalogRef"];
+            grade_status: components["schemas"]["GradeStatusOut"];
             /**
              * Match Score
-             * @description Соответствие — сумма вкладов тем и стека
+             * @description Соответствие — сумма вкладов тем и стека; `null` — блок `unconfirmed`: скора по темам нет
              */
-            match_score: number;
+            match_score: number | null;
             /**
              * Acceptance Probability
-             * @description P(принятия); `null` — модели принятия ещё нет, множитель 1
+             * @description P(принятия); `null` — модели принятия ещё нет, множитель 1, или блок `unconfirmed`
              */
             acceptance_probability: number | null;
             /**
              * Mutual Score
-             * @description Соответствие × P(принятия) — по нему порядок
+             * @description Соответствие × P(принятия) — по нему порядок; `null` — блок `unconfirmed`: порядок по доле стека потребности в самоописании
              */
-            mutual_score: number;
+            mutual_score: number | null;
             /**
              * Topics
-             * @description Вклады тем в порядке тем специализации
+             * @description Вклады тем в порядке тем специализации; в блоке `unconfirmed` — пусто
              */
             topics: components["schemas"]["TopicFitOut"][];
             stack: components["schemas"]["StackFitOut"];
@@ -1485,6 +1505,11 @@ export interface components {
              * @description Близких — соседнего грейда
              */
             nearby_total: number;
+            /**
+             * Unconfirmed Total
+             * @description Без категории, заявивших грейд потребности, — нижний блок
+             */
+            unconfirmed_total: number;
             /**
              * Created At
              * Format: date-time
@@ -1533,6 +1558,11 @@ export interface components {
              * @description Близких — соседнего грейда
              */
             nearby_total: number;
+            /**
+             * Unconfirmed Total
+             * @description Без категории, заявивших грейд потребности, — нижний блок
+             */
+            unconfirmed_total: number;
             /**
              * Created At
              * Format: date-time
@@ -1635,9 +1665,9 @@ export interface components {
             overlap: number;
             /**
              * Contribution
-             * @description Вклад самоописания: λ · o, не больше λ
+             * @description Вклад самоописания: λ · o, не больше λ; `null` — нижний блок, скора нет
              */
-            contribution: number;
+            contribution: number | null;
         };
         /**
          * Stage

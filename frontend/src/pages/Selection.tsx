@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { Link, useNavigate, useParams } from 'react-router'
 import {
   api,
@@ -13,12 +13,13 @@ import { dateTimeWords, percent } from '../candidate/words'
 import { CandidateCardView } from '../employer/CandidateCardView'
 import { InviteAction } from '../employer/Invite'
 import { useSentInvitations } from '../employer/invitations'
-import { contributionWords, importanceWord, verdictWords, workFormatWord } from '../employer/words'
+import { contributionWords, gradeStatusWords, importanceWord, verdictWords, workFormatWord } from '../employer/words'
 import { latestByCandidate } from '../invitation/words'
 
 const PAGE = 20
 
-/** Подборка: выдача на момент построения — категория потребности, затем близкие, с объяснением. */
+/** Подборка: выдача на момент построения — категория потребности, затем близкие, с объяснением; ниже всех —
+ * кандидаты с неподтверждённым грейдом. */
 export function Selection() {
   const { id } = useParams()
   const [loaded, setLoaded] = useState<{ id: string; selection: SelectionData | null; error: string | null } | null>(
@@ -55,7 +56,7 @@ function SelectionView({ first }: { first: SelectionData }) {
   const [error, setError] = useState<string | null>(null)
   const { sent, error: invitationsError, reload: reloadInvitations } = useSentInvitations()
   const { need } = first
-  const total = first.exact_total + first.nearby_total
+  const total = first.exact_total + first.nearby_total + first.unconfirmed_total
   const invitations: Invitations = useMemo(
     () => ({
       latest: latestByCandidate(sent?.invitations ?? []),
@@ -88,6 +89,7 @@ function SelectionView({ first }: { first: SelectionData }) {
 
   const exact = entries.filter((e) => e.block === 'exact')
   const nearby = entries.filter((e) => e.block === 'nearby')
+  const unconfirmed = entries.filter((e) => e.block === 'unconfirmed')
   const key = need.topics.filter((t) => t.importance === 'key')
 
   return (
@@ -138,13 +140,14 @@ function SelectionView({ first }: { first: SelectionData }) {
       <div className="card">
         <h2>Как считается соответствие</h2>
         <p>
-          В подборку попадают только кандидаты, чью категорию подтвердил тест. По каждой теме — вероятность,
+          Соответствие считается только кандидатам, чью категорию подтвердил тест. По каждой теме — вероятность,
           что уровень кандидата не ниже порога грейда {need.grade.name}; вес темы — её важность в потребности.
           Стек из самоописания ничем не подтверждён и добавляет не больше{' '}
           {Math.round(first.stack_cap * 100)} п. п. Соответствие — сумма вкладов.
         </p>
         <p className="hint">
-          Порядок — по соответствию: модель вероятности принятия приглашения ещё не обучена. Карточки
+          Порядок — по соответствию: модель вероятности принятия приглашения ещё не обучена. Кандидаты, которые
+          заявили грейд {need.grade.name}, но тест не прошли, — отдельным блоком ниже всех подтверждённых. Карточки
           обезличены — имя и контакты откроются, когда кандидат примет приглашение.
         </p>
         {sent && (
@@ -175,6 +178,20 @@ function SelectionView({ first }: { first: SelectionData }) {
       {first.nearby_total > 0 && nearby.length > 0 && (
         <Block title="Близкие — соседний грейд" count={first.nearby_total} entries={nearby} invitations={invitations} />
       )}
+      {first.unconfirmed_total > 0 && unconfirmed.length > 0 && (
+        <Block
+          title="Грейд не подтверждён"
+          count={first.unconfirmed_total}
+          entries={unconfirmed}
+          invitations={invitations}
+        >
+          <p className="hint">
+            Заявили грейд {need.grade.name}, но тест его не подтвердил: категории нет, соответствие по темам не
+            считается. Порядок — только по стеку потребности в самоописании: по словам кандидата, тестом не
+            подтверждено.
+          </p>
+        </Block>
+      )}
 
       {error && <p className="error">{error}</p>}
       {entries.length < total && (
@@ -200,34 +217,68 @@ function Block({
   count,
   entries,
   invitations,
+  children,
 }: {
   title: string
   count: number
   entries: SelectionEntry[]
   invitations: Invitations
+  children?: ReactNode
 }) {
   return (
     <section className="stack">
       <h2>
         {title} <span className="muted">· {count}</span>
       </h2>
-      {entries.map((entry) => (
-        <EntryCard key={entry.candidate_id} entry={entry} invitations={invitations} />
-      ))}
+      {children}
+      {entries.map((entry) =>
+        entry.match_score === null ? (
+          <UnconfirmedCard key={entry.candidate_id} entry={entry} />
+        ) : (
+          <EntryCard key={entry.candidate_id} entry={entry} score={entry.match_score} invitations={invitations} />
+        ),
+      )}
     </section>
   )
 }
 
-function EntryCard({ entry, invitations }: { entry: SelectionEntry; invitations: Invitations }) {
+function stackWords(stack: SelectionEntry['stack']): string {
+  if (stack.total === 0) return 'в потребности нет стека'
+  if (stack.matched.length === 0) return `нет технологий потребности (0 из ${stack.total})`
+  return `${stack.matched.map((t) => t.name).join(', ')} — ${stack.matched.length} из ${stack.total}`
+}
+
+/** Кандидат нижнего блока: без скора — только заявленный грейд и стек со слов кандидата. Пригласить
+ * можно кандидата с категорией. */
+function UnconfirmedCard({ entry }: { entry: SelectionEntry }) {
   return (
     <article className="card match-card">
       <div className="section-head">
         <div>
-          <span className="muted">Категория {entry.grade.name}</span>
+          <span className="muted">{gradeStatusWords(entry.grade_status)}</span>
+          <h3>Кандидат №{entry.rank}</h3>
+        </div>
+      </div>
+      <p>
+        Стек: {stackWords(entry.stack)} <span className="hint">— по словам кандидата, тестом не подтверждено</span>
+      </p>
+      <CardDetails candidateId={entry.candidate_id} />
+    </article>
+  )
+}
+
+function EntryCard({ entry, score, invitations }: { entry: SelectionEntry; score: number; invitations: Invitations }) {
+  return (
+    <article className="card match-card">
+      <div className="section-head">
+        <div>
+          <span className="muted">
+            Категория {entry.grade.name} · {gradeStatusWords(entry.grade_status)}
+          </span>
           <h3>Кандидат №{entry.rank}</h3>
         </div>
         <div className="match-score">
-          <strong>{Math.round(entry.match_score * 100)} %</strong>
+          <strong>{Math.round(score * 100)} %</strong>
           <span className="muted">соответствие</span>
         </div>
       </div>
@@ -258,14 +309,8 @@ function EntryCard({ entry, invitations }: { entry: SelectionEntry; invitations:
               Стек из самоописания
               <span className="hint importance-source">не подтверждён, не больше потолка</span>
             </th>
-            <td>
-              {entry.stack.total === 0
-                ? 'в потребности нет стека'
-                : entry.stack.matched.length === 0
-                  ? `нет технологий потребности (0 из ${entry.stack.total})`
-                  : `${entry.stack.matched.map((t) => t.name).join(', ')} — ${entry.stack.matched.length} из ${entry.stack.total}`}
-            </td>
-            <td className="num">{contributionWords(entry.stack.contribution)}</td>
+            <td>{stackWords(entry.stack)}</td>
+            <td className="num">{contributionWords(entry.stack.contribution ?? 0)}</td>
           </tr>
         </tbody>
       </table>

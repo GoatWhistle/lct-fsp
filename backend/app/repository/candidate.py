@@ -2,16 +2,17 @@
 
 import uuid
 from collections import defaultdict
-from collections.abc import Mapping, Sequence
+from collections.abc import Collection, Mapping, Sequence
 from datetime import datetime
-from typing import Any
+from typing import Any, NamedTuple
 
-from sqlalchemy import Row, Select, and_, select
+from sqlalchemy import Row, Select, and_, exists, select, union_all
 from sqlalchemy.dialects.postgresql import insert as pg_insert
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, aliased
 
 from app.domain import candidate
 from app.domain.catalog import CatalogRef
+from app.domain.catalog import Grade as GradeRef
 from app.domain.errors import UnknownIndustry, UnknownTechnology
 from app.domain.skill import SignalSource
 from app.domain.work import WorkFormat
@@ -25,6 +26,7 @@ from app.repository.orm import (
     SkillProfileTopic,
     Specialization,
     Technology,
+    TestAttempt,
     Topic,
     candidate_industries,
     candidate_technologies,
@@ -79,11 +81,14 @@ class SqlCandidateRepository:
         """Кандидаты, у которых есть хоть что-то, — по запросу на часть, без запроса на
         кандидата."""
         db = self.session
-        categories = {
-            user_id: candidate.Category(
-                CatalogRef(specialization_code, specialization_name),
-                CatalogRef(grade_code, grade_name),
-                assigned_at,
+        categories: dict[uuid.UUID, tuple[candidate.Category, GradeRef]] = {
+            user_id: (
+                candidate.Category(
+                    CatalogRef(specialization_code, specialization_name),
+                    CatalogRef(grade_code, grade_name),
+                    assigned_at,
+                ),
+                GradeRef(grade_code, grade_name, grade_rank),
             )
             for (
                 user_id,
@@ -92,6 +97,7 @@ class SqlCandidateRepository:
                 specialization_name,
                 grade_code,
                 grade_name,
+                grade_rank,
             ) in db.execute(
                 select(
                     CandidateCategory.user_id,
@@ -100,6 +106,7 @@ class SqlCandidateRepository:
                     Specialization.name,
                     Grade.code,
                     Grade.name,
+                    Grade.rank,
                 )
                 .join(Specialization, Specialization.code == CandidateCategory.specialization_code)
                 .join(Grade, Grade.code == CandidateCategory.grade_code)
@@ -125,12 +132,19 @@ class SqlCandidateRepository:
             .order_by(Industry.position)
         )
         skill_profiles = self._skill_profiles(ids)
+        claimed = claimed_grades(db, ids)
         fsp = histories(db, ids)
 
         result = {}
-        for candidate_id in (
-            categories.keys() | profiles.keys() | skill_profiles.keys() | fsp.keys()
-        ):
+        everyone = (
+            categories.keys()
+            | profiles.keys()
+            | skill_profiles.keys()
+            | claimed.keys()
+            | fsp.keys()
+        )
+        for candidate_id in everyone:
+            category, category_grade = categories.get(candidate_id, (None, None))
             row = profiles.get(candidate_id)
             profile = (
                 _profile(row, stacks.get(candidate_id, ()), industries.get(candidate_id, ()))
@@ -141,8 +155,11 @@ class SqlCandidateRepository:
                 id=candidate_id,
                 profile=profile,
                 expected_salary=row.salary_from if row else None,
-                category=categories.get(candidate_id),
+                category=category,
                 skill_profile=skill_profiles.get(candidate_id),
+                grade_status=candidate.grade_status(
+                    category_grade, claim.grade if (claim := claimed.get(candidate_id)) else None
+                ),
                 fsp=fsp.get(candidate_id),
             )
         return result
@@ -235,6 +252,60 @@ class SqlCandidateRepository:
         if len(industries) != len(unique):
             raise UnknownIndustry()
         return industries
+
+
+class Claim(NamedTuple):
+    grade: GradeRef
+    # Специализация попыток цепочки.
+    specialization: str
+
+
+def claimed_grades(
+    session: Session, ids: Collection[uuid.UUID] | Select[uuid.UUID]
+) -> dict[uuid.UUID, Claim]:
+    """Заявленный грейд (§12) — грейд первой попытки цепочки: у кандидата с категорией — цепочки,
+    которая её дала, без категории — последней попытки. Нет попытки — нет и заявки. `ids` —
+    кандидаты списком или запросом их id; цепочки разматывает база, сюда приходит по строке на
+    кандидата."""
+    if not isinstance(ids, Select) and not ids:
+        return {}
+    later = aliased(TestAttempt)
+    latest = select(TestAttempt.user_id, TestAttempt.id.label("attempt_id")).where(
+        TestAttempt.user_id.in_(ids),
+        ~exists().where(later.user_id == TestAttempt.user_id, later.number > TestAttempt.number),
+        ~exists().where(CandidateCategory.user_id == TestAttempt.user_id),
+    )
+    categorized = select(CandidateCategory.user_id, CandidateCategory.attempt_id).where(
+        CandidateCategory.user_id.in_(ids)
+    )
+    starts = union_all(categorized, latest).subquery()
+    chain = (
+        select(
+            starts.c.user_id,
+            TestAttempt.grade_code,
+            TestAttempt.specialization_code,
+            TestAttempt.continues_attempt_id,
+        )
+        .join(TestAttempt, TestAttempt.id == starts.c.attempt_id)
+        .cte(recursive=True)
+    )
+    chain = chain.union_all(
+        select(
+            chain.c.user_id,
+            TestAttempt.grade_code,
+            TestAttempt.specialization_code,
+            TestAttempt.continues_attempt_id,
+        ).join(TestAttempt, TestAttempt.id == chain.c.continues_attempt_id)
+    )
+    roots = session.execute(
+        select(chain.c.user_id, Grade.code, Grade.name, Grade.rank, chain.c.specialization_code)
+        .join(Grade, Grade.code == chain.c.grade_code)
+        .where(chain.c.continues_attempt_id.is_(None))
+    )
+    return {
+        user_id: Claim(GradeRef(code, name, rank), specialization)
+        for user_id, code, name, rank, specialization in roots
+    }
 
 
 _PROFILE_COLUMNS = (

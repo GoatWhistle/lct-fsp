@@ -34,6 +34,7 @@ export type Invitation = components['schemas']['InvitationOut']
 export type InvitationStatus = components['schemas']['InvitationStatus']
 export type InvitationBudget = components['schemas']['InvitationBudgetOut']
 export type SentInvitations = components['schemas']['SentInvitationsOut']
+export type GradeStatus = components['schemas']['GradeStatusOut']
 
 export const api = createClient<paths>({ credentials: 'same-origin' })
 

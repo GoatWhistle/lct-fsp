@@ -3,8 +3,9 @@
 Данные кандидата идут к зрителю только через правило раскрытия: сценарий берёт кандидата из
 репозитория целиком, проводит через `disclosure` и отдаёт controller'у карточку. Кандидат видит
 и меняет только свою анкету — его id приходит из сессии, чужого эндпоинты не принимают.
-Работодатель получает карточку только кандидата с категорией: выдача строится по категориям,
-кандидата без неё для работодателя нет.
+Работодатель получает карточку только кандидата со статусом грейда: с категорией или с
+заявленным грейдом — такого показывает нижний блок подборки. Кандидата без того и другого для
+работодателя нет.
 """
 
 import uuid
@@ -82,11 +83,11 @@ def employer_card(
     employer_id: uuid.UUID,
     candidate_id: uuid.UUID,
 ) -> AnonymizedCard | DisclosedCard:
-    """Карточка кандидата для работодателя; без категории — `CandidateNotFound`. Раскрывает её
-    принятое приглашение компании; откликов пока нет."""
+    """Карточка кандидата для работодателя; без категории и заявленного грейда —
+    `CandidateNotFound`. Раскрывает её принятое приглашение компании; откликов пока нет."""
     with uow:
         candidate = candidates.get(candidate_id)
-        if candidate.category is None:
+        if candidate.grade_status is None:
             raise CandidateNotFound()
         access = employer_access(invitations, employer_id, candidate_id)
     return disclosure(candidate, EmployerViewer(employer_id), access)

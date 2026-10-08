@@ -29,7 +29,7 @@ from app.controller.profile_schemas import (
     ProfileOut,
     SelfReportedOut,
 )
-from app.controller.schemas import CatalogRef
+from app.controller.schemas import CatalogRef, GradeStatusOut
 from app.domain import candidate as domain
 from app.domain import errors
 from app.domain.account import Role
@@ -126,9 +126,9 @@ def download_pdf(
 @employer_router.get(
     "/{candidate_id}",
     summary="Карточка кандидата",
-    description="Категория, профиль навыков и структурная часть самоописания. ФИО, контакты и "
-    "свободный текст — только после принятия приглашения вашей компании; ожидаемой зарплаты нет "
-    "никогда. Есть только у кандидата с категорией.",
+    description="Статус грейда, категория, профиль навыков и структурная часть самоописания. "
+    "ФИО, контакты и свободный текст — только после принятия приглашения вашей компании; "
+    "ожидаемой зарплаты нет никогда. Есть у кандидата с категорией или с заявленным грейдом.",
     responses=error_responses(errors.CandidateNotFound),
 )
 def get_candidate_card(
@@ -214,7 +214,8 @@ def _card_out(card: domain.AnonymizedCard | domain.DisclosedCard) -> CandidateCa
         )
     return CandidateCardOut(
         id=card.candidate_id,
-        category=CategoryOut.model_validate(card.category),
+        category=CategoryOut.model_validate(card.category) if card.category else None,
+        grade_status=GradeStatusOut.model_validate(card.grade_status),
         skill_profile=skill_profile_view(card.skill_profile) if card.skill_profile else None,
         self_reported=_self_reported_out(card.self_reported) if card.self_reported else None,
         fsp_achievements=[FspAnonymizedAchievementOut.model_validate(a) for a in achievements],

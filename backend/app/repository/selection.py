@@ -65,9 +65,12 @@ class SqlCandidatePool:
                 GradeRow.name,
                 GradeRow.rank,
                 SkillProfile.last_signal_at,
+                SkillProfile.overall_theta,
+                SkillProfile.overall_theta_sd,
                 SkillProfileTopic.topic_code,
                 SkillProfileTopic.theta,
                 SkillProfileTopic.theta_sd,
+                SkillProfileTopic.regular_task,
                 SkillProfileTopic.sources,
             )
             .join(GradeRow, GradeRow.code == CandidateCategory.grade_code)
@@ -82,15 +85,34 @@ class SqlCandidatePool:
             .where(*reach)
         ).all()
 
-        grades: dict[uuid.UUID, tuple[Grade, datetime | None]] = {}
+        heads: dict[uuid.UUID, tuple[Grade, datetime | None, Normal]] = {}
         topics: dict[uuid.UUID, dict[str, Normal]] = {}
+        confirmed: dict[uuid.UUID, set[str]] = {}
         fsp_topics: dict[uuid.UUID, set[str]] = {}
-        for user_id, code, name, rank, last_signal_at, topic, theta, theta_sd, sources in levels:
-            if user_id not in grades:
-                grades[user_id] = (Grade(code, name, rank), last_signal_at)
-                topics[user_id] = {}
-                fsp_topics[user_id] = set()
+        for (
+            user_id,
+            code,
+            name,
+            rank,
+            last_signal_at,
+            overall,
+            overall_sd,
+            topic,
+            theta,
+            theta_sd,
+            regular_task,
+            sources,
+        ) in levels:
+            if user_id not in heads:
+                heads[user_id] = (
+                    Grade(code, name, rank),
+                    last_signal_at,
+                    Normal(overall, overall_sd),
+                )
+                topics[user_id], confirmed[user_id], fsp_topics[user_id] = {}, set(), set()
             topics[user_id][topic] = Normal(theta, theta_sd)
+            if regular_task:
+                confirmed[user_id].add(topic)
             if SignalSource.fsp in sources:
                 fsp_topics[user_id].add(topic)
 
@@ -107,14 +129,16 @@ class SqlCandidatePool:
                 candidate_id=user_id,
                 specialization=specialization,
                 grade=grade,
+                overall=overall,
                 levels=topics[user_id],
                 stack=frozenset(stacks.get(user_id, ())),
                 last_signal_at=last_signal_at,
                 expectations=expectations.get(user_id),
+                regular_task_topics=frozenset(confirmed[user_id]),
                 claimed=claim.grade if (claim := claimed.get(user_id)) else None,
                 fsp_topics=frozenset(fsp_topics[user_id]),
             )
-            for user_id, (grade, last_signal_at) in grades.items()
+            for user_id, (grade, last_signal_at, overall) in heads.items()
         ]
 
     def unconfirmed(
@@ -360,6 +384,7 @@ def explanation_json(explanation: Explanation) -> Json:
                 "contribution": float(t.contribution),
                 "verdict": t.verdict.value,
                 "low_data": t.low_data,
+                "regular_task": t.regular_task,
                 "fsp_confirmed": t.fsp_confirmed,
             }
             for t in explanation.topics
@@ -384,6 +409,7 @@ def explanation_of(data: Json) -> Explanation:
                 contribution=float(t["contribution"]),
                 verdict=Verdict(t["verdict"]),
                 low_data=t["low_data"],
+                regular_task=t["regular_task"],
                 fsp_confirmed=t["fsp_confirmed"],
             )
             for t in data["topics"]

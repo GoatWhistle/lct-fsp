@@ -16,6 +16,7 @@ import pytest
 from sqlalchemy import Engine, insert
 from sqlalchemy.orm import Session
 
+from app.adapter import irt
 from app.adapter.acceptance import NoAcceptanceModel
 from app.adapter.catalog_file import load_catalog
 from app.adapter.clock import FrozenClock
@@ -101,8 +102,14 @@ class CandidateSeed:
     expectations: Expectations | None = None
     specialization: str = "qa"
     last_signal_at: datetime = T0
+    # Темы, по которым в профиль вошли ответы на регулярные задания.
+    regular_task_topics: frozenset[str] = frozenset()
     # Заявленный грейд, если каскад дал категорию ниже: попытка на него и дотест на `grade`.
     claimed: str | None = None
+
+
+# Общий уровень профиля в обвязке — один на всех кандидатов.
+OVERALL = Normal(0.5, 0.4)
 
 
 @dataclass
@@ -180,6 +187,7 @@ class MemoryHarness(Harness):
             self.pool,
             MemorySelections(store),
             acceptance,
+            irt,
             self.clock,
             DerivedSeeds(0),
             mechanics,
@@ -207,10 +215,12 @@ class MemoryHarness(Harness):
             candidate_id=uuid.uuid4(),
             specialization=seed.specialization,
             grade=GRADES[seed.grade],
+            overall=OVERALL,
             levels=_levels(seed),
             stack=frozenset(seed.stack),
             last_signal_at=seed.last_signal_at,
             expectations=seed.expectations,
+            regular_task_topics=seed.regular_task_topics,
             claimed=GRADES[seed.claimed] if seed.claimed else None,
         )
         self.pool.add(candidate)
@@ -241,6 +251,7 @@ class PostgresHarness(Harness):
             SqlCandidatePool(session),
             SqlSelections(session),
             acceptance,
+            irt,
             self.clock,
             DerivedSeeds(0),
             mechanics,
@@ -340,8 +351,8 @@ class PostgresHarness(Harness):
                     "id": profile,
                     "user_id": uid,
                     "specialization_code": spec,
-                    "overall_theta": 0.5,
-                    "overall_theta_sd": 0.4,
+                    "overall_theta": OVERALL.mean,
+                    "overall_theta_sd": OVERALL.sd,
                     "observations": 20,
                     "last_signal_at": at,
                     "updated_at": at,
@@ -353,6 +364,7 @@ class PostgresHarness(Harness):
                     "topic_code": topic,
                     "theta": level.mean,
                     "theta_sd": level.sd,
+                    "regular_task": topic in seed.regular_task_topics,
                 }
                 for topic, level in _levels(seed).items()
             )
@@ -701,6 +713,43 @@ def test_stale_profile_is_marked(make: Callable[..., Harness], mechanics: Mechan
     entries = h.selections.build(h.employer, h.need(), limit=20).entries
 
     assert {e.candidate_id: e.stale for e in entries} == {fresh: False, stale: True}
+
+
+def test_profile_is_brought_to_now_before_scoring(
+    make: Callable[..., Harness], mechanics: Mechanics
+) -> None:
+    """Свежесть (§11): без сигналов погрешность растёт на sd_год² за год, уровень остаётся, а
+    уверенность выше требования падает."""
+    h = make()
+    years = 2
+    long_ago = T0 - timedelta(days=365.25 * years)
+    levels = {"qa.api": (1.5, 0.3)}
+    fresh, old = h.candidates(
+        [CandidateSeed(levels=levels), CandidateSeed(levels=levels, last_signal_at=long_ago)]
+    )
+
+    entries = h.selections.build(h.employer, h.need(), limit=20).entries
+
+    api = {
+        e.candidate_id: next(t for t in e.explanation.topics if t.topic == "qa.api")
+        for e in entries
+    }
+    assert api[old].theta == api[fresh].theta == 1.5
+    assert api[fresh].theta_sd == pytest.approx(0.3)
+    assert api[old].theta_sd ** 2 == pytest.approx(
+        0.3**2 + years * mechanics.profile_decay_sd_per_year**2
+    )
+    assert api[old].probability < api[fresh].probability
+
+
+def test_regular_task_is_a_source_of_confidence_by_topic(make: Callable[..., Harness]) -> None:
+    h = make()
+    h.candidate(CandidateSeed(regular_task_topics=frozenset({"qa.api"})))
+
+    (entry,) = h.selections.build(h.employer, h.need(), limit=20).entries
+
+    confirmed = {t.topic for t in entry.explanation.topics if t.regular_task}
+    assert confirmed == {"qa.api"}
 
 
 class Boom(Exception):

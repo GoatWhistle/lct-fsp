@@ -9,28 +9,33 @@ import enum
 import math
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Protocol, Self
+
+# Год свежести (§11) — юлианский: високосные годы не дают скачков.
+YEAR = timedelta(days=365.25)
 
 
 class SignalSource(enum.StrEnum):
-    """Уровень доверия, из которого пришло наблюдение (§11). Проверочный блок и регулярные
-    задания встанут рядом."""
+    """Уровень доверия, из которого пришло наблюдение (§11). Проверочный блок встанет рядом."""
 
     fsp = "fsp"
     test = "test"
+    regular_task = "regular_task"
 
 
 @dataclass(frozen=True)
 class Observation:
     """Ответ на задание (или иное наблюдение) по теме; `weight` — вес уровня доверия, `source` —
-    сам уровень."""
+    сам уровень, `at` — момент наблюдения. Без момента — только там, где уровень не затухает: в
+    оценке теста."""
 
     topic: str
     correct: bool
     discrimination: float
     difficulty: float
     weight: float = 1.0
+    at: datetime | None = None
     source: SignalSource = SignalSource.test
 
 
@@ -49,6 +54,8 @@ class Prior:
     """Априорное: θ_s ~ N(mean, theta_sd²), δ_t ~ N(0, deviation_sd²); веса тем w_t, Σ w_t = 1.
 
     `sd_inflation` — поправка погрешности κ (§3): оценка сообщает погрешность κ σ модели.
+    `decay_sd_per_year` — свежесть (§11): без сигналов дисперсия сообщаемого уровня каждой темы и
+    общего уровня растёт на его квадрат за год, но не выше априорной; 0 — уровень не затухает.
     """
 
     topics: tuple[str, ...]
@@ -57,6 +64,21 @@ class Prior:
     deviation_sd: float
     mean: float = 0.0
     sd_inflation: float = 1.0
+    decay_sd_per_year: float = 0.0
+
+    def topic_variance(self) -> float:
+        """Априорная дисперсия сообщаемого уровня темы: κ² (s_θ² + s_δ²)."""
+        return self.sd_inflation**2 * (self.theta_sd**2 + self.deviation_sd**2)
+
+    def overall_variance(self) -> float:
+        """Априорная дисперсия сообщаемого общего уровня: κ² (s_θ² + s_δ² Σ w_t²)."""
+        spread = self.deviation_sd**2 * sum(w * w for w in self.weights)
+        return self.sd_inflation**2 * (self.theta_sd**2 + spread)
+
+    def decay_variance(self, elapsed: timedelta) -> float:
+        """Прирост дисперсии сообщаемого уровня за `elapsed` без сигналов; назад время не идёт."""
+        years = max(elapsed, timedelta(0)) / YEAR
+        return self.decay_sd_per_year**2 * years
 
     @classmethod
     def equal_weights(
@@ -67,9 +89,12 @@ class Prior:
         deviation_sd: float,
         mean: float = 0.0,
         sd_inflation: float = 1.0,
+        decay_sd_per_year: float = 0.0,
     ) -> Self:
         weights = tuple(1.0 / len(topics) for _ in topics)
-        return cls(tuple(topics), weights, theta_sd, deviation_sd, mean, sd_inflation)
+        return cls(
+            tuple(topics), weights, theta_sd, deviation_sd, mean, sd_inflation, decay_sd_per_year
+        )
 
 
 class SkillEstimate(Protocol):
@@ -86,13 +111,19 @@ class SkillEstimate(Protocol):
 @dataclass(frozen=True)
 class SkillProfileLevels:
     """Профиль навыков по специализации (§11): общий уровень, уровни тем, число наблюдений и
-    момент последнего сигнала — `None`, пока сигналов нет. `sources` — из каких уровней доверия
-    есть наблюдения по теме; темы без наблюдений в нём нет."""
+    момент последнего сигнала — `None`, пока сигналов нет. Уровни — на момент последнего
+    сигнала; к «сейчас» их доводит модель навыка (`SkillModel.advance`). `sources` — из каких
+    уровней доверия есть наблюдения по теме; темы без наблюдений в нём нет.
+
+    `regular_task_topics` — темы, по которым в профиль вошли ответы на регулярные задания: в
+    объяснении подборки это источник уверенности «подтверждено регулярным заданием».
+    """
 
     overall: Normal
     topics: Mapping[str, Normal]
     observations: int
     last_signal_at: datetime | None
+    regular_task_topics: frozenset[str] = frozenset()
     sources: Mapping[str, frozenset[SignalSource]] = field(default_factory=dict)
 
 

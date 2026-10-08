@@ -66,14 +66,16 @@ BARE_SNAPSHOT_JSON = (
 
 EXPLANATION = Explanation(
     topics=(
-        TopicExplanation("qa.api", 1.0, 0.4, 0.9, 0.6, Verdict.confidently_above, False, True),
+        TopicExplanation(
+            "qa.api", 1.0, 0.4, 0.9, 0.6, Verdict.confidently_above, False, fsp_confirmed=True
+        ),
     ),
     stack=StackExplanation(("pytest",), 1.0, 0.15),
 )
 EXPLANATION_JSON = (
     '{"topics": [{"topic": "qa.api", "theta": 1.0, "theta_sd": 0.4, "probability": 0.9, '
     '"contribution": 0.6, "verdict": "confidently_above", "low_data": false, '
-    '"fsp_confirmed": true}], '
+    '"regular_task": false, "fsp_confirmed": true}], '
     '"stack": {"matched": ["pytest"], "overlap": 1.0, "contribution": 0.15}}'
 )
 

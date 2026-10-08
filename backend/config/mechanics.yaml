@@ -80,7 +80,6 @@ fsp_result_discrimination: 2.0
 fsp_divergence_theta: 1.0
 
 # Регулярные задания
-regular_task_interval_days: 14
 regular_task_rubric_offsets: {1: -0.5, 2: 0.0, 3: 0.5}
 regular_task_discrimination: 1.0
 

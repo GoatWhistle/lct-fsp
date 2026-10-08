@@ -5,7 +5,7 @@
 и меняет только свою анкету — его id приходит из сессии, чужого эндпоинты не принимают.
 Работодатель получает карточку только кандидата со статусом грейда: с категорией или с
 заявленным грейдом — такого показывает нижний блок подборки. Кандидата без того и другого для
-работодателя нет.
+работодателя нет. Профиль навыков в карточке — на «сейчас» (`ProfileFreshness`).
 """
 
 import uuid
@@ -31,6 +31,7 @@ from app.usecase.interface import (
     ProfilePdfRenderer,
     UnitOfWork,
 )
+from app.usecase.skill_profile import ProfileFreshness
 
 
 @dataclass(frozen=True)
@@ -40,10 +41,14 @@ class ProfilePdf:
 
 
 def own_profile(
-    uow: UnitOfWork, candidates: CandidateRepository, candidate_id: uuid.UUID
+    uow: UnitOfWork,
+    candidates: CandidateRepository,
+    candidate_id: uuid.UUID,
+    clock: Clock,
+    freshness: ProfileFreshness,
 ) -> DisclosedCard:
     with uow:
-        return _own(candidates.get(candidate_id))
+        return _own(freshness.candidate(candidates.get(candidate_id), clock.now()))
 
 
 def save_profile(
@@ -52,10 +57,12 @@ def save_profile(
     candidate_id: uuid.UUID,
     form: ProfileForm,
     clock: Clock,
+    freshness: ProfileFreshness,
 ) -> DisclosedCard:
     with uow:
-        candidates.save_profile(candidate_id, form, clock.now())
-        return _own(candidates.get(candidate_id))
+        now = clock.now()
+        candidates.save_profile(candidate_id, form, now)
+        return _own(freshness.candidate(candidates.get(candidate_id), now))
 
 
 def profile_pdf(
@@ -64,16 +71,18 @@ def profile_pdf(
     renderer: ProfilePdfRenderer,
     candidate_id: uuid.UUID,
     clock: Clock,
+    freshness: ProfileFreshness,
     *,
     grade_confidence: float,
 ) -> ProfilePdf:
     """PDF-профиль — для самого кандидата: собирается из его раскрытой карточки."""
+    now = clock.now()
     with uow:
-        card = _own(candidates.get(candidate_id))
+        card = _own(freshness.candidate(candidates.get(candidate_id), now))
     sheet = ProfileSheet.of(card, grade_confidence)
     if sheet is None:
         raise ProfileNotFound()
-    return ProfilePdf(sheet.disclosed.full_name, renderer.render(sheet, now=clock.now()))
+    return ProfilePdf(sheet.disclosed.full_name, renderer.render(sheet, now=now))
 
 
 def employer_card(
@@ -82,6 +91,8 @@ def employer_card(
     invitations: InvitationReader,
     employer_id: uuid.UUID,
     candidate_id: uuid.UUID,
+    clock: Clock,
+    freshness: ProfileFreshness,
 ) -> AnonymizedCard | DisclosedCard:
     """Карточка кандидата для работодателя; без категории и заявленного грейда —
     `CandidateNotFound`. Раскрывает её принятое приглашение компании; откликов пока нет."""
@@ -90,7 +101,8 @@ def employer_card(
         if candidate.grade_status is None:
             raise CandidateNotFound()
         access = employer_access(invitations, employer_id, candidate_id)
-    return disclosure(candidate, EmployerViewer(employer_id), access)
+    fresh = freshness.candidate(candidate, clock.now())
+    return disclosure(fresh, EmployerViewer(employer_id), access)
 
 
 def employer_access(

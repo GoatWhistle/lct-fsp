@@ -3,18 +3,22 @@
 Уровень по теме — общая часть плюс отклонение темы: θ_t = θ_s + δ_t. Совместное апостериорное
 (θ_s, δ_1, …, δ_T) приближается нормальным N(μ, Σ); наблюдения учитываются по порядку, каждое —
 шагом Ньютона к моде; в профиле навыков шаг повторяется до сходимости моды (§3, §11). Погрешность
-уровня — σ модели с поправкой κ. Всё здесь — чистые функции: без БД и состояния, детерминированы.
+уровня — σ модели с поправкой κ. Между наблюдениями к Σ добавляется шум свежести по общей части
+уровня (§11). Всё здесь — чистые функции: без БД и состояния, детерминированы.
 
-Модуль целиком — реализация порта `app.usecase.interface.SkillModel` (`initial`, `estimate`).
+Модуль целиком — реализация порта `app.usecase.interface.SkillModel` (`initial`, `estimate`,
+`advance`).
 """
 
+import dataclasses
 import math
 from collections.abc import Iterable
 from dataclasses import dataclass
+from datetime import datetime, timedelta
 
-from app.domain.skill import Normal, Observation, Prior, sigmoid
+from app.domain.skill import Normal, Observation, Prior, SkillProfileLevels, sigmoid
 
-__all__ = ["Estimate", "estimate", "initial", "sigmoid", "update"]
+__all__ = ["Estimate", "advance", "diffuse", "estimate", "initial", "sigmoid", "update"]
 
 # Сходимость моды по наблюдению: шаг по проекции на hᵀ меньше допуска, θ. Итераций — с запасом:
 # одномерный Ньютон по выпуклой функции сходится за 3–6 шагов.
@@ -99,12 +103,67 @@ def update(est: Estimate, obs: Observation, *, to_mode: bool = False) -> Estimat
     return Estimate(est.topics, est.weights, mean, cov, est.sd_inflation)
 
 
+def decay_step(prior: Prior, elapsed: timedelta, variances: Iterable[float]) -> float:
+    """Прирост дисперсии сообщаемых уровней за `elapsed` (§11, «Свежесть»).
+
+    Шум Q Δt идёт в общую часть θ_s: дисперсия уровня каждой темы и общего уровня растёт на одно
+    и то же q. Чтобы ни одна из них не стала выше априорной, q не больше наименьшего зазора до
+    априорной; `variances` — текущие сообщаемые дисперсии: темы, затем общий уровень.
+    """
+    q = prior.decay_variance(elapsed)
+    if q <= 0.0:
+        return 0.0
+    *topics, overall = variances
+    gaps = [prior.topic_variance() - v for v in topics] + [prior.overall_variance() - overall]
+    return max(0.0, min(q, *gaps))
+
+
+def diffuse(est: Estimate, prior: Prior, elapsed: timedelta) -> Estimate:
+    """Σ + Q Δt: время без сигналов расширяет оценку по общей части уровня, среднее не меняется."""
+    reported = [est.topic(t).sd ** 2 for t in est.topics] + [est.overall().sd ** 2]
+    q = decay_step(prior, elapsed, reported) / est.sd_inflation**2
+    if q == 0.0:
+        return est
+    cov = [list(row) for row in est.cov]
+    cov[0][0] += q
+    return dataclasses.replace(est, cov=tuple(tuple(row) for row in cov))
+
+
 def estimate(
     prior: Prior, observations: Iterable[Observation], *, to_mode: bool = False
 ) -> Estimate:
-    """(априорное, упорядоченные наблюдения) → (μ, Σ); `to_mode` — каждое наблюдение до
-    сходимости моды, как в профиле навыков."""
+    """(априорное, упорядоченные наблюдения) → (μ, Σ) на момент последнего наблюдения; `to_mode` —
+    каждое наблюдение до сходимости моды, как в профиле навыков. С затуханием в априорном каждому
+    наблюдению нужен момент `at`."""
     est = initial(prior)
+    last: datetime | None = None
     for obs in observations:
+        if prior.decay_sd_per_year > 0.0:
+            if obs.at is None:
+                raise ValueError("уровень затухает — у наблюдения нужен момент")
+            if last is not None:
+                est = diffuse(est, prior, obs.at - last)
+            last = obs.at
         est = update(est, obs, to_mode=to_mode)
     return est
+
+
+def advance(prior: Prior, levels: SkillProfileLevels, now: datetime) -> SkillProfileLevels:
+    """Сохранённый профиль — на момент последнего сигнала — доводится до `now`: тот же шум, что
+    в `diffuse`, по сохранённым уровням. Темы, которых нет в априорном, не затухают."""
+    if levels.last_signal_at is None:
+        return levels
+    topics = {t: n for t, n in levels.topics.items() if t in prior.topics}
+    reported = [n.sd**2 for n in topics.values()] + [levels.overall.sd**2]
+    q = decay_step(prior, now - levels.last_signal_at, reported)
+    if q == 0.0:
+        return levels
+
+    def widened(level: Normal) -> Normal:
+        return Normal(level.mean, math.sqrt(level.sd**2 + q))
+
+    return dataclasses.replace(
+        levels,
+        overall=widened(levels.overall),
+        topics={t: widened(n) if t in topics else n for t, n in levels.topics.items()},
+    )

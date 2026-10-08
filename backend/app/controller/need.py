@@ -323,6 +323,7 @@ def _selection_out(page: Page) -> SelectionOut:
                         contribution=fit.contribution,
                         verdict=fit.verdict,
                         low_data=fit.low_data,
+                        regular_task=fit.regular_task,
                         fsp_confirmed=fit.fsp_confirmed,
                     )
                     for fit in explanation.topics

@@ -22,6 +22,7 @@ from app.repository.memory.attempt import MemoryAttemptRepository
 from app.repository.memory.calibration import MemoryCalibrationRepository
 from app.repository.memory.catalog import MemoryCatalog
 from app.repository.memory.fsp import MemoryFspEvidence
+from app.repository.memory.regular_task import MemoryRegularTasks
 from app.repository.memory.selection import MemoryCandidatePool, MemoryNeeds, MemorySelections
 from app.repository.memory.unit_of_work import MemoryStore, MemoryUnitOfWork
 from app.usecase.attempt import CandidatePath
@@ -152,6 +153,7 @@ def build_stand(
     usecases = build_usecases(
         Repositories[MemoryUnitOfWork](
             attempts=lambda uow: _attempts(uow.store, known, mechanics),
+            regular_tasks=lambda uow: MemoryRegularTasks(uow.store),
             fsp=lambda uow: MemoryFspEvidence(uow.store, known.fsp_disciplines.values()),
             calibration=lambda uow: MemoryCalibrationRepository(uow.store),
             needs=lambda uow: MemoryNeeds(uow.store),

@@ -15,6 +15,7 @@ from app.controller.deps import (
     CurrentUser,
     InvitationReaderDep,
     MechanicsDep,
+    ProfileFreshnessDep,
     ProfilePdfRendererDep,
     UnitOfWorkDep,
     role_guard,
@@ -59,9 +60,13 @@ employer_router = APIRouter(
     description="Только свой: кандидат определяется по сессии. `null` — профиль ещё не заполнен.",
 )
 def get_profile(
-    user: CurrentUser, uow: UnitOfWorkDep, candidates: CandidatesDep
+    user: CurrentUser,
+    uow: UnitOfWorkDep,
+    candidates: CandidatesDep,
+    clock: ClockDep,
+    freshness: ProfileFreshnessDep,
 ) -> ProfileOut | None:
-    return _profile_out(usecase.own_profile(uow, candidates, user.id))
+    return _profile_out(usecase.own_profile(uow, candidates, user.id, clock, freshness))
 
 
 @router.put(
@@ -77,8 +82,9 @@ def save_profile(
     uow: UnitOfWorkDep,
     candidates: CandidatesDep,
     clock: ClockDep,
+    freshness: ProfileFreshnessDep,
 ) -> ProfileOut:
-    card = usecase.save_profile(uow, candidates, user.id, _form(body), clock)
+    card = usecase.save_profile(uow, candidates, user.id, _form(body), clock, freshness)
     out = _profile_out(card)
     assert out is not None, "анкета только что сохранена"
     return out
@@ -105,9 +111,16 @@ def download_pdf(
     mechanics: MechanicsDep,
     renderer: ProfilePdfRendererDep,
     clock: ClockDep,
+    freshness: ProfileFreshnessDep,
 ) -> Response:
     pdf = usecase.profile_pdf(
-        uow, candidates, renderer, user.id, clock, grade_confidence=mechanics.grade_confidence
+        uow,
+        candidates,
+        renderer,
+        user.id,
+        clock,
+        freshness,
+        grade_confidence=mechanics.grade_confidence,
     )
     filename = quote(f"Профиль кандидата — {pdf.full_name}.pdf")
     return Response(
@@ -137,8 +150,13 @@ def get_candidate_card(
     uow: UnitOfWorkDep,
     candidates: CandidatesDep,
     invitations: InvitationReaderDep,
+    clock: ClockDep,
+    freshness: ProfileFreshnessDep,
 ) -> CandidateCardOut:
-    return _card_out(usecase.employer_card(uow, candidates, invitations, user.id, candidate_id))
+    card = usecase.employer_card(
+        uow, candidates, invitations, user.id, candidate_id, clock, freshness
+    )
+    return _card_out(card)
 
 
 def _form(body: ProfileIn) -> domain.ProfileForm:

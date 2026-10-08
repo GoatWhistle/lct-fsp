@@ -305,6 +305,9 @@ function EntryCard({ entry, score, invitations }: { entry: SelectionEntry; score
               <th scope="row">
                 {t.topic.name}
                 <span className="hint importance-source">{importanceWord(t.importance).toLowerCase()}</span>
+                {t.regular_task && (
+                  <span className="hint importance-source">подтверждено регулярным заданием</span>
+                )}
               </th>
               <td>
                 {t.low_data ? (

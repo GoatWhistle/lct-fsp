@@ -149,7 +149,9 @@ docker-compose.yml       PostgreSQL, бэкенд, фронт, Mailpit, Keycloak
 `controller/auth.py`, `repository/account.py`; потребность — `need.py` в каждом слое; путь
 кандидата к категории — `domain/attempt.py`, `usecase/attempt.py`, `controller/path.py`,
 `repository/attempt.py`; подборка — `selection.py`, P(принятия) — за портом `AcceptanceModel`;
-приглашение — `invitation.py` в каждом слое, статус «истекло» выводит домен при чтении.
+регулярные задания — `regular_task.py` в каждом слое, свежесть профиля — `ProfileFreshness` в
+`usecase/skill_profile.py`; приглашение — `invitation.py` в каждом слое, статус «истекло» выводит
+домен при чтении.
 Вход — по email и паролю или через ФСП ID (`controller/fsp.py`, сценарии — `usecase/fsp.py`),
 пароль хранится хэшем argon2, сессия — подписанный токен в httpOnly-cookie. Права проверяет
 бэкенд: разделы `/api/candidate/*` и `/api/employer/*`

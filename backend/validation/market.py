@@ -18,7 +18,7 @@ import math
 import random
 import uuid
 from collections.abc import Callable, Iterable, Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import timedelta
 
 from app.adapter.code_runner import InProcessCodeRunner
@@ -265,17 +265,12 @@ class Market:
                     return Determination(user, None, run.overall)
 
     def enlist(
-        self,
-        user: uuid.UUID,
-        *,
-        stack: frozenset[str] = frozenset(),
-        claimed: str | None = None,
-        as_id: uuid.UUID | None = None,
+        self, user: uuid.UUID, *, stack: frozenset[str] = frozenset(), claimed: str | None = None
     ) -> bool:
         """Кандидат с категорией — в пул подборки стенда: категория и профиль навыков её
         специализации, как их записал путь кандидата, и самоописанный стек `stack`. Ожиданий у
         синтетики нет. Без категории в пул не попадает — False; с заявкой `claimed` попадает в
-        нижний блок. `as_id` — двойник: те же категория и профиль под другим id в пуле.
+        нижний блок.
 
         Последний сигнал профиля — «сейчас»: часы стенда шагают на попытку дальше ожидания смены
         грейда, и возраст профиля в подборке был бы артефактом этого шага, а не свежестью."""
@@ -287,13 +282,13 @@ class Market:
                 if claimed is not None:
                     stand.pool.add_unconfirmed(
                         UnconfirmedCandidate(
-                            as_id or user, self.specialization, stand.catalog.grades[claimed], stack
+                            user, self.specialization, stand.catalog.grades[claimed], stack
                         )
                     )
                 return False
             stand.pool.add(
                 PoolCandidate(
-                    candidate_id=as_id or user,
+                    candidate_id=user,
                     specialization=self.specialization,
                     grade=stand.catalog.grades[category.grade.code],
                     overall=Normal(profile.overall.theta, profile.overall.theta_sd),
@@ -307,6 +302,15 @@ class Market:
                 )
             )
         return True
+
+    def twin(self, user: uuid.UUID, twin_id: uuid.UUID, stack: frozenset[str]) -> None:
+        """Двойник кандидата `user` в пуле подборки: та же запись — категория, профиль и время
+        последнего сигнала, — под id `twin_id` и со стеком `stack`. Кандидата нет в пуле — нет
+        и двойника."""
+        for name in ("pool", "unconfirmed"):
+            members = self.stand.store.collection(name)
+            if user in members:
+                members[twin_id] = replace(members[user], candidate_id=twin_id, stack=stack)
 
     def fixed(self, candidate: Candidate, length: int, *, target: float | None = None) -> Run:
         """Базовая линия — фиксированный бланк с тем же покрытием тем: по кругу тем, в теме —

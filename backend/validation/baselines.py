@@ -125,7 +125,9 @@ class Bm25:
 
 # --- B2 ------------------------------------------------------------------------------------------
 
-# Тексты → векторы единичной длины.
+# Тексты → векторы единичной длины. Вектор текста не зависит от соседей по вызову: в пачке он
+# зависел бы от выравнивания в последних битах, и ничьи расходились бы между прогонами с разным
+# составом наборов.
 Encoder = Callable[[Sequence[str]], list[list[float]]]
 # Префиксы асимметричного поиска по карточке модели e5: вакансия — запрос, резюме — документ.
 QUERY = "query: "
@@ -142,11 +144,10 @@ class Embeddings:
         self._vectors: dict[str, list[float]] = {}
 
     def prepare(self, texts: Iterable[str]) -> None:
-        """Посчитать векторы — с префиксами, как их возьмёт `score`. По одному тексту за вызов:
-        в пачке вектор зависел бы от соседей по выравниванию в последних битах, и ничьи
-        расходились бы между прогонами с разным составом наборов."""
-        for text in sorted(set(texts) - set(self._vectors)):
-            self._vectors[text] = self._encode([text])[0]
+        """Посчитать векторы — с префиксами, как их возьмёт `score`."""
+        missing = sorted(set(texts) - set(self._vectors))
+        if missing:
+            self._vectors.update(zip(missing, self._encode(missing), strict=True))
 
     def _vector(self, text: str) -> list[float]:
         if text not in self._vectors:

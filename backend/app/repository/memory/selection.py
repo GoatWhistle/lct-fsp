@@ -9,11 +9,12 @@ import uuid
 from collections.abc import Collection, Sequence
 from datetime import datetime
 
+from app.domain.candidate import grade_status
 from app.domain.errors import NeedNotFound, SelectionNotFound
 from app.domain.feedback import CandidateSelection
+from app.domain.search import CandidateFacts, CandidateFilters
 from app.domain.selection import (
     Need,
-    Page,
     PoolCandidate,
     Selection,
     SelectionDraft,
@@ -23,6 +24,7 @@ from app.domain.selection import (
     block_of,
     block_totals,
 )
+from app.domain.skill import SkillProfileLevels
 from app.repository.memory.unit_of_work import MemoryStore
 
 
@@ -76,6 +78,44 @@ class MemoryCandidatePool:
             and c.candidate_id not in categorized
         ]
 
+    def facts(self, candidate_ids: Collection[uuid.UUID]) -> list[CandidateFacts]:
+        wanted = frozenset(candidate_ids)
+        return [f for f in self.searchable() if f.candidate_id in wanted]
+
+    def searchable(self) -> list[CandidateFacts]:
+        categorized = self._store.collection("pool")
+        found = [_pool_facts(c) for c in categorized.values()]
+        found.extend(
+            _unconfirmed_facts(c)
+            for c in self._store.collection("unconfirmed").values()
+            if c.candidate_id not in categorized
+        )
+        return found
+
+
+def _pool_facts(candidate: PoolCandidate) -> CandidateFacts:
+    status = grade_status(candidate.grade, candidate.claimed)
+    assert status is not None
+    return CandidateFacts(
+        candidate_id=candidate.candidate_id,
+        specialization=candidate.specialization,
+        status=status,
+        stack=candidate.stack,
+        # Достижений в пуле нет — есть темы, подтверждённые ФСП.
+        fsp_confirmed=bool(candidate.fsp_topics),
+        profile=SkillProfileLevels(
+            candidate.overall, candidate.levels, 0, candidate.last_signal_at
+        ),
+    )
+
+
+def _unconfirmed_facts(candidate: UnconfirmedCandidate) -> CandidateFacts:
+    status = grade_status(None, candidate.claimed)
+    assert status is not None
+    return CandidateFacts(
+        candidate.candidate_id, candidate.specialization, status, candidate.stack, False, None
+    )
+
 
 class MemorySelections:
     """Подборки по порядку сохранения; id — по номеру: на стенде прогон воспроизводим."""
@@ -89,11 +129,29 @@ class MemorySelections:
         selections[selection.id] = (selection, tuple(entries))
         return selection
 
-    def page(self, user_id: uuid.UUID, selection_id: uuid.UUID, *, offset: int, limit: int) -> Page:
+    def get(
+        self, user_id: uuid.UUID, selection_id: uuid.UUID
+    ) -> tuple[Selection, tuple[SelectionEntry, ...]]:
         selection, entries = self._store.collection("selections").get(selection_id, (None, ()))
         if selection is None or selection.user_id != user_id:
             raise SelectionNotFound()
-        return Page(selection, block_totals(entries), entries[offset : offset + limit], offset)
+        return selection, entries
+
+    def save_filters(self, selection_id: uuid.UUID, filters: CandidateFilters) -> None:
+        selections = self._store.collection("selections")
+        selection, entries = selections[selection_id]
+        selections[selection_id] = (dataclasses.replace(selection, filters=filters), entries)
+
+    def set_shortlisted(
+        self, selection_id: uuid.UUID, candidate_id: uuid.UUID, shortlisted: bool
+    ) -> None:
+        selections = self._store.collection("selections")
+        selection, entries = selections[selection_id]
+        marked = set(selection.shortlist) - {candidate_id}
+        if shortlisted:
+            marked.add(candidate_id)
+        listed = tuple(e.candidate_id for e in entries if e.candidate_id in marked)
+        selections[selection_id] = (dataclasses.replace(selection, shortlist=listed), entries)
 
     def summaries(
         self, user_id: uuid.UUID, need_id: uuid.UUID | None, *, limit: int

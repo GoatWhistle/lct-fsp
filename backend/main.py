@@ -42,6 +42,7 @@ from app.controller.fsp import router as fsp_auth_router
 from app.controller.invitation import candidate_router as inbox_router
 from app.controller.invitation import employer_router as invitations_router
 from app.controller.need import router as needs_router
+from app.controller.need import search_router as candidate_search_router
 from app.controller.need import selections_router
 from app.controller.path import router as path_router
 from app.controller.profile import employer_router as candidates_router
@@ -266,6 +267,7 @@ def create_app(
     app.include_router(company_router)
     app.include_router(needs_router)
     app.include_router(selections_router)
+    app.include_router(candidate_search_router)
     app.include_router(candidates_router)
     app.include_router(employer_tasks_router)
     app.include_router(candidate_tasks_router)

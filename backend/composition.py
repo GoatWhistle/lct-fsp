@@ -19,6 +19,7 @@ from app.adapter.calibration import EloCalibration
 from app.adapter.text_model import Completion, ModelTextUnderstanding, WithFallback
 from app.adapter.text_rules import RulesTextUnderstanding, Synonyms
 from app.domain.bank.runner import CodeRunner
+from app.domain.experience import ExperienceLimits
 from app.domain.resume_draft import GradeHintRule
 from app.usecase.account import Accounts, VerificationLinks
 from app.usecase.attempt import CandidatePath
@@ -110,6 +111,15 @@ def named_completion(name: str, timeout: float) -> Completion:
     if completion is None:
         raise ValueError(unknown)
     return completion(timeout)
+
+
+def experience_limits(mechanics: Mechanics) -> ExperienceLimits:
+    return ExperienceLimits(
+        entries_max=mechanics.experience_entries_max,
+        line_max=mechanics.experience_line_max,
+        summary_max=mechanics.experience_summary_max,
+        stack_max=mechanics.experience_stack_max,
+    )
 
 
 def elo_calibration(repository: CalibrationRepository, mechanics: Mechanics) -> EloCalibration:
@@ -375,6 +385,7 @@ def build_platform_usecases[U: UnitOfWork](
             rule=grade_hints,
             max_bytes=mechanics.resume_max_bytes,
             confident=mechanics.resume_draft_confident,
+            experience_limits=experience_limits(mechanics),
         )
 
     return PlatformUsecases(

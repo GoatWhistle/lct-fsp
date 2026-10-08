@@ -65,3 +65,37 @@ export function yearsWords(years: number): string {
   if (last >= 2 && last <= 4 && (lastTwo < 12 || lastTwo > 14)) return `${years} года`
   return `${years} лет`
 }
+
+/** Годы по технологии, кратные половине: «меньше полугода», «полгода», «1,5 года», «5 лет». */
+export function technologyYearsWords(years: number): string {
+  if (years < 0.5) return 'меньше полугода'
+  if (years === 0.5) return 'полгода'
+  if (!Number.isInteger(years)) return `${oneDecimal.format(years)} года`
+  return yearsWords(years)
+}
+
+const months = [
+  'январь',
+  'февраль',
+  'март',
+  'апрель',
+  'май',
+  'июнь',
+  'июль',
+  'август',
+  'сентябрь',
+  'октябрь',
+  'ноябрь',
+  'декабрь',
+]
+
+/** Месяц `ГГГГ-ММ` словами: «март 2021». */
+export function monthWords(month: string): string {
+  const [year, number] = month.split('-')
+  return `${months[Number(number) - 1]} ${year}`
+}
+
+/** Период записи опыта: «март 2021 — по сейчас». */
+export function periodWords(start: string, end: string | null | undefined): string {
+  return `${monthWords(start)} — ${end ? monthWords(end) : 'по сейчас'}`
+}

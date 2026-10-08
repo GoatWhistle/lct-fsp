@@ -109,3 +109,9 @@ resume_max_content_bytes: 20971520
 resume_min_font_pt: 4.0
 resume_max_lightness: 0.9
 resume_draft_confident: 0.8
+
+# Карточка опыта
+experience_entries_max: 20
+experience_line_max: 200
+experience_summary_max: 2000
+experience_stack_max: 30

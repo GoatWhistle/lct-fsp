@@ -16,6 +16,7 @@ from fastapi.security import APIKeyCookie
 from app.controller.errors import error_responses
 from app.domain.account import Account, Role
 from app.domain.errors import NotAuthenticated, WrongRole
+from app.domain.experience import ExperienceLimits
 from app.usecase.account import Accounts
 from app.usecase.attempt import CandidatePath
 from app.usecase.calibration import AnswerCalibration
@@ -84,6 +85,11 @@ def get_clock(request: Request) -> Clock:
     return clock
 
 
+def get_experience_limits(request: Request) -> ExperienceLimits:
+    limits: ExperienceLimits = request.app.state.experience_limits
+    return limits
+
+
 def get_profile_freshness(request: Request) -> ProfileFreshness:
     freshness: ProfileFreshness = request.app.state.profile_freshness
     return freshness
@@ -96,6 +102,7 @@ def get_frontend_url(request: Request) -> str:
 
 
 MechanicsDep = Annotated[Mechanics, Depends(get_mechanics)]
+ExperienceLimitsDep = Annotated[ExperienceLimits, Depends(get_experience_limits)]
 SessionCookieDep = Annotated[SessionCookie, Depends(get_session_cookie)]
 ProfilePdfRendererDep = Annotated[ProfilePdfRenderer, Depends(get_profile_pdf_renderer)]
 ClockDep = Annotated[Clock, Depends(get_clock)]

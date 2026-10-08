@@ -171,6 +171,7 @@ class Mechanics(BaseModel):
     invitation_ttl_days: int
     acceptance_target_probability: float
     salary_hint_rounding_rub: int
+    message_max_length: int = Field(gt=0)
 
     # Обратная связь
     feedback_min_companies: int

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router'
 import { api, errorMessage, type Company, type Need, type SelectionSummary, type SentInvitations } from '../api/client'
 import { dateTimeWords, dateWords } from '../candidate/words'
@@ -6,6 +6,8 @@ import { Cabinet } from '../components/Cabinet'
 import { salaryWords } from '../components/salary'
 import { useSentInvitations } from '../employer/invitations'
 import { needSalaryWords, workFormatWord } from '../employer/words'
+import { Conversation } from '../invitation/Conversation'
+import { useUnreadMessages } from '../invitation/unread'
 import { invitationStatusWords, isOpen } from '../invitation/words'
 
 /** Кабинет работодателя: профиль компании, потребности и подборки по ним. */
@@ -15,7 +17,12 @@ export function EmployerCabinet() {
   const [selections, setSelections] = useState<SelectionSummary[]>([])
   const [selectionsError, setSelectionsError] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const { sent, error: invitationsError } = useSentInvitations()
+  const { sent, error: invitationsError, reload: reloadInvitations } = useSentInvitations()
+  const { unread, reload: reloadUnread } = useUnreadMessages('employer')
+  const onRead = useCallback(() => {
+    reloadUnread()
+    reloadInvitations()
+  }, [reloadUnread, reloadInvitations])
 
   useEffect(() => {
     Promise.all([
@@ -39,7 +46,7 @@ export function EmployerCabinet() {
   if (company === undefined || needs === null) return <p className="muted">Загрузка…</p>
 
   return (
-    <Cabinet title="Кабинет работодателя" upcoming={['Вакансии и отклики кандидатов']}>
+    <Cabinet title="Кабинет работодателя" upcoming={['Вакансии и отклики кандидатов']} unread={unread}>
       <CompanyCard company={company} />
       <section className="stack">
         <div className="section-head">
@@ -66,7 +73,7 @@ export function EmployerCabinet() {
           ))
         )}
       </section>
-      <InvitationList sent={sent} error={invitationsError} />
+      <InvitationList sent={sent} error={invitationsError} onRead={onRead} />
       <SelectionList selections={selections} error={selectionsError} />
       <div className="card">
         <div className="section-head">
@@ -128,8 +135,19 @@ function CompanyCard({ company }: { company: Company | null }) {
   )
 }
 
-/** Отправленные приглашения со статусами и остаток бюджета на неделю. */
-function InvitationList({ sent, error }: { sent: SentInvitations | null; error: string | null }) {
+/**
+ * Отправленные приглашения со статусами и остаток бюджета на неделю. У принятого — переписка с
+ * кандидатом и пометка, если кандидат отозвал доступ к своим данным.
+ */
+function InvitationList({
+  sent,
+  error,
+  onRead,
+}: {
+  sent: SentInvitations | null
+  error: string | null
+  onRead: () => void
+}) {
   if (error) return <p className="error">Приглашения не загрузились: {error}</p>
   if (!sent) return null
   const { budget, invitations } = sent
@@ -155,8 +173,9 @@ function InvitationList({ sent, error }: { sent: SentInvitations | null; error: 
             {invitations.map((i) => (
               <li key={i.id}>
                 <span className={i.status === 'accepted' ? 'tag' : 'muted'}>{invitationStatusWords[i.status]}</span>{' '}
+                {i.revoked_at && <span className="fsp-tag">доступ отозван</span>}{' '}
                 <Link to={`/employer/candidates/${i.candidate_id}`}>
-                  {i.status === 'accepted' ? 'Контакты кандидата' : 'Карточка кандидата'}
+                  {i.status === 'accepted' && !i.revoked_at ? 'Контакты кандидата' : 'Карточка кандидата'}
                 </Link>
                 <span className="muted">
                   {' '}
@@ -164,12 +183,32 @@ function InvitationList({ sent, error }: { sent: SentInvitations | null; error: 
                   {isOpen(i) && ` · ответ до ${dateWords(i.expires_at)}`}
                 </span>
                 <p className="hint invitation-summary">{i.description}</p>
+                {i.revoked_at && (
+                  <p className="hint">
+                    Кандидат отозвал доступ {dateWords(i.revoked_at)}: вы снова видите обезличенную карточку.
+                    Переписка продолжается.
+                  </p>
+                )}
+                {i.status === 'accepted' && <ConversationToggle invitationId={i.id} unread={i.unread_messages} onRead={onRead} />}
               </li>
             ))}
           </ul>
         </div>
       )}
     </section>
+  )
+}
+
+/** Переписка разворачивается по клику: открытие отмечает сообщения прочитанными. */
+function ConversationToggle({ invitationId, unread, onRead }: { invitationId: string; unread: number; onRead: () => void }) {
+  const [open, setOpen] = useState(false)
+  return (
+    <details onToggle={(e) => setOpen(e.currentTarget.open)}>
+      <summary>
+        Переписка{unread > 0 && <> <span className="tag">новых: {unread}</span></>}
+      </summary>
+      {open && <Conversation invitationId={invitationId} side="employer" onRead={onRead} />}
+    </details>
   )
 }
 

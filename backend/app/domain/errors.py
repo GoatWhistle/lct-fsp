@@ -251,6 +251,11 @@ class SelectionNotFound(DomainError):
     message = "Подборка не найдена"
 
 
+class NotInSelection(DomainError):
+    code = "not_in_selection"
+    message = "Кандидата нет в выдаче подборки"
+
+
 # Компания.
 
 
@@ -343,3 +348,16 @@ class InvitationAlreadyOpen(DomainError):
 class InvitationBudgetExhausted(DomainError):
     code = "invitation_budget_exhausted"
     message = "Бюджет приглашений на эту неделю исчерпан — он обновится в понедельник"
+
+
+class InvitationNotAccepted(DomainError):
+    code = "invitation_not_accepted"
+    message = "Переписка и отзыв доступа — только в принятом приглашении"
+
+
+# Переписка.
+
+
+class InvalidMessageText(DomainError):
+    code = "invalid_message_text"
+    message = "Сообщение пустое или слишком длинное"

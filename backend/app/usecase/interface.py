@@ -45,6 +45,7 @@ from app.domain.catalog import (
     Topic,
 )
 from app.domain.company import Company, CompanyForm
+from app.domain.conversation import Message, Side
 from app.domain.feedback import CandidateSelection
 from app.domain.fsp import (
     FspAchievement,
@@ -65,10 +66,10 @@ from app.domain.regular_task import (
     TaskAnswer,
     TaskTerms,
 )
+from app.domain.search import CandidateFacts, CandidateFilters
 from app.domain.selection import (
     AcceptanceFeatures,
     Need,
-    Page,
     PoolCandidate,
     Selection,
     SelectionDraft,
@@ -587,6 +588,16 @@ class CandidatePool(Protocol):
         только из `technologies`. Порядок не важен."""
         ...
 
+    def facts(self, candidate_ids: Collection[uuid.UUID]) -> list[CandidateFacts]:
+        """Что фильтры знают о кандидатах из `candidate_ids` — сейчас, а не на момент подборки.
+        Кандидата без статуса грейда в ответе нет; профиль навыков — на момент последнего
+        сигнала. Порядок не важен."""
+        ...
+
+    def searchable(self) -> list[CandidateFacts]:
+        """То же по всей базе: все кандидаты с категорией или заявленным грейдом."""
+        ...
+
 
 class SelectionRepository(Protocol):
     """Сохранённые подборки: снимок потребности и выдача. Формат хранения снимка и объяснения
@@ -596,8 +607,22 @@ class SelectionRepository(Protocol):
         """Сохраняет подборку с выдачей и даёт ей id."""
         ...
 
-    def page(self, user_id: uuid.UUID, selection_id: uuid.UUID, *, offset: int, limit: int) -> Page:
-        """Страница выдачи по местам; чужая или несуществующая подборка — `SelectionNotFound`."""
+    def get(
+        self, user_id: uuid.UUID, selection_id: uuid.UUID
+    ) -> tuple[Selection, tuple[SelectionEntry, ...]]:
+        """Подборка с фильтрами и шортлистом и вся её выдача по местам; чужая или
+        несуществующая — `SelectionNotFound`."""
+        ...
+
+    def save_filters(self, selection_id: uuid.UUID, filters: CandidateFilters) -> None:
+        """Заменяет фильтры подборки; выдачу не трогает."""
+        ...
+
+    def set_shortlisted(
+        self, selection_id: uuid.UUID, candidate_id: uuid.UUID, shortlisted: bool
+    ) -> None:
+        """Отмечает кандидата выдачи или снимает отметку; повтор ничего не меняет. Что кандидат
+        в выдаче, проверяет сценарий."""
         ...
 
     def summaries(
@@ -759,7 +784,7 @@ class InvitationReader(Protocol):
     """Чтение приглашений для правила раскрытия. Сейчас — Postgres (`app.repository.invitation`)."""
 
     def accepted(self, employer_id: uuid.UUID, candidate_id: uuid.UUID) -> bool:
-        """Есть ли у компании принятое приглашение этому кандидату."""
+        """Есть ли у компании принятое и не отозванное приглашение этому кандидату."""
         ...
 
 
@@ -789,7 +814,7 @@ class InvitationRepository(InvitationReader, Protocol):
         ...
 
     def save(self, invitation: Invitation) -> None:
-        """Записывает статус, время просмотра и ответа; истёкшее не записывается."""
+        """Записывает статус, время просмотра, ответа и отзыва; истёкшее не записывается."""
         ...
 
     def by_candidate(self, candidate_id: uuid.UUID) -> list[Invitation]: ...
@@ -802,6 +827,28 @@ class InvitationRepository(InvitationReader, Protocol):
 
     def sent_since(self, employer_id: uuid.UUID, since: datetime) -> int:
         """Сколько приглашений компания отправила с момента `since`, в любом статусе."""
+        ...
+
+
+class MessageRepository(Protocol):
+    """Сообщения переписки в приглашениях. Пишет только внутри единицы работы и сам не фиксирует.
+    Сейчас — Postgres (`app.repository.conversation`)."""
+
+    def add(self, invitation_id: uuid.UUID, author: Side, text: str, now: datetime) -> Message:
+        """Новое непрочитанное сообщение; `now` — время отправки."""
+        ...
+
+    def by_invitation(self, invitation_id: uuid.UUID) -> list[Message]:
+        """Переписка приглашения в порядке записи — старые сверху."""
+        ...
+
+    def mark_read(self, invitation_id: uuid.UUID, reader: Side, now: datetime) -> None:
+        """Сообщения другой стороны в приглашении, ещё не прочитанные, — прочитаны в `now`."""
+        ...
+
+    def unread(self, reader: Side, user_id: uuid.UUID) -> dict[uuid.UUID, int]:
+        """Непрочитанные сообщения другой стороны по приглашениям, где пользователь `user_id` —
+        сторона `reader`; приглашения без непрочитанного не попадают."""
         ...
 
 

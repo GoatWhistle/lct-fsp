@@ -1,24 +1,42 @@
 """Сценарии подборки (mechanics.md, §12–13): построить по потребности или черновику, открыть,
-список.
+список, уточнить фильтрами, шортлист — и поиск по банку кандидатов.
 
 Перестроение — тот же сценарий «построить» по потребности подборки: каждый вызов — новая
 подборка. Время, соль ничьих и P(принятия) приходят через порты, фиксирует единица работы.
+
+Фильтры на входе — доменная `CandidateFilters`: форма работодателя и чат-поиск зовут
+`refine` и `search` одинаково, своей фильтрации у них нет.
 """
 
+import dataclasses
 import math
 import uuid
-from datetime import timedelta
+from collections.abc import Collection, Sequence
+from datetime import datetime, timedelta
 
+from app.domain.errors import NotInSelection
 from app.domain.need import NeedForm, need_content
+from app.domain.search import (
+    CandidateFacts,
+    CandidateFilters,
+    SearchPage,
+    admits,
+    search_order,
+)
 from app.domain.selection import (
     NeedContent,
     Page,
+    Selection,
     SelectionDraft,
+    SelectionEntry,
     SelectionRules,
+    Shortlist,
     Summary,
     acceptance_features,
     arrange,
+    block_totals,
     need_snapshot,
+    page_of,
     score,
     showcase,
 )
@@ -49,6 +67,27 @@ def selection_rules(mechanics: Mechanics) -> SelectionRules:
         stale_after=timedelta(days=mechanics.profile_stale_days),
         missing_level=Normal(0.0, mechanics.level_sd_inflation * spread),
     )
+
+
+def row_facts(
+    entry: SelectionEntry, specialization: str, current: CandidateFacts | None
+) -> CandidateFacts:
+    """Факты для фильтра строки подборки: грейд и статус — те, что показывает строка, со
+    снимком на момент построения; специализация — потребности. Стек, ФСП и профиль — сейчас;
+    кандидата без статуса сейчас фильтры по ним не пропускают."""
+    return CandidateFacts(
+        candidate_id=entry.candidate_id,
+        specialization=specialization,
+        status=entry.status,
+        stack=current.stack if current else frozenset(),
+        fsp_confirmed=current.fsp_confirmed if current else False,
+        profile=current.profile if current else None,
+    )
+
+
+def _shortlist(selection: Selection, entries: Sequence[SelectionEntry]) -> Shortlist:
+    listed = set(selection.shortlist)
+    return Shortlist(selection, tuple(e for e in entries if e.candidate_id in listed))
 
 
 class Selections:
@@ -131,12 +170,104 @@ class Selections:
         )
         draft = SelectionDraft(user_id, need_id, snapshot, rules.stack_cap, now)
         selection = self._selections.add(draft, entries)
-        return self._selections.page(user_id, selection.id, offset=0, limit=limit)
+        return page_of(
+            Summary(selection, block_totals(entries)), entries, None, offset=0, limit=limit
+        )
 
     def open(self, user_id: uuid.UUID, selection_id: uuid.UUID, *, offset: int, limit: int) -> Page:
-        """Сохранённая выдача — та же при каждом открытии; чужая подборка — `SelectionNotFound`."""
+        """Сохранённая выдача — та же при каждом открытии — через последние применённые фильтры;
+        чужая подборка — `SelectionNotFound`."""
         with self._uow:
-            return self._selections.page(user_id, selection_id, offset=offset, limit=limit)
+            selection, entries = self._selections.get(user_id, selection_id)
+            return self._page(selection, entries, offset=offset, limit=limit)
+
+    def refine(
+        self,
+        user_id: uuid.UUID,
+        selection_id: uuid.UUID,
+        filters: CandidateFilters,
+        *,
+        offset: int,
+        limit: int,
+    ) -> Page:
+        """Заменяет фильтры подборки и отдаёт выдачу через них. Выдача только сужается: места,
+        ранги, скоры и порядок — сохранённые; пустые фильтры — исходная выдача."""
+        with self._uow:
+            selection, entries = self._selections.get(user_id, selection_id)
+            self._selections.save_filters(selection.id, filters)
+            selection = dataclasses.replace(selection, filters=filters)
+            return self._page(selection, entries, offset=offset, limit=limit)
+
+    def shortlist(
+        self, user_id: uuid.UUID, selection_id: uuid.UUID, candidate_id: uuid.UUID, listed: bool
+    ) -> Shortlist:
+        """Отмечает кандидата выдачи или снимает отметку. Кандидата нет в выдаче подборки —
+        `NotInSelection`."""
+        with self._uow:
+            selection, entries = self._selections.get(user_id, selection_id)
+            if all(e.candidate_id != candidate_id for e in entries):
+                raise NotInSelection()
+            self._selections.set_shortlisted(selection.id, candidate_id, listed)
+            return _shortlist(*self._selections.get(user_id, selection_id))
+
+    def shortlisted(self, user_id: uuid.UUID, selection_id: uuid.UUID) -> Shortlist:
+        """Шортлист в порядке выдачи — без фильтров подборки."""
+        with self._uow:
+            return _shortlist(*self._selections.get(user_id, selection_id))
+
+    def search(self, filters: CandidateFilters, *, offset: int, limit: int) -> SearchPage:
+        """Поиск по всему банку без потребности: подтверждённые — по уверенности в уровне
+        грейда категории, неподтверждённые — ниже всех."""
+        with self._uow:
+            found = self._pool.searchable()
+        now = self._clock.now()
+        admitted = [f for f in self._fresh(found, now) if self._admits(filters, f)]
+        hits = search_order(admitted, self._mechanics.grade_thresholds)
+        return SearchPage(
+            filters=filters,
+            total=len(hits),
+            unconfirmed_total=sum(h.facts.status.confirmed is None for h in hits),
+            hits=tuple(hits[offset : offset + limit]),
+            offset=offset,
+        )
+
+    def _page(
+        self,
+        selection: Selection,
+        entries: Sequence[SelectionEntry],
+        *,
+        offset: int,
+        limit: int,
+    ) -> Page:
+        summary = Summary(selection, block_totals(entries))
+        filters = selection.filters
+        if filters.empty:
+            return page_of(summary, entries, None, offset=offset, limit=limit)
+        current = {
+            f.candidate_id: f
+            for f in self._fresh(
+                self._pool.facts([e.candidate_id for e in entries]), self._clock.now()
+            )
+        }
+        specialization = selection.need.specialization.code
+        admitted = {
+            e.candidate_id
+            for e in entries
+            if self._admits(filters, row_facts(e, specialization, current.get(e.candidate_id)))
+        }
+        return page_of(summary, entries, admitted, offset=offset, limit=limit)
+
+    def _admits(self, filters: CandidateFilters, facts: CandidateFacts) -> bool:
+        return admits(filters, facts, confident_sd=self._mechanics.search_confident_sd)
+
+    def _fresh(self, found: Collection[CandidateFacts], now: datetime) -> list[CandidateFacts]:
+        """Профили навыков — на «сейчас»: погрешность без новых сигналов растёт."""
+        return [
+            f
+            if f.profile is None
+            else dataclasses.replace(f, profile=self._freshness.levels(f.profile, now))
+            for f in found
+        ]
 
     def summaries(
         self, user_id: uuid.UUID, need_id: uuid.UUID | None, *, limit: int

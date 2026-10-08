@@ -21,6 +21,7 @@ from app.usecase.attempt import CandidatePath
 from app.usecase.calibration import AnswerCalibration
 from app.usecase.catalog import CatalogQueries
 from app.usecase.company import Companies
+from app.usecase.conversation import Conversations
 from app.usecase.feedback import CandidateFeedback
 from app.usecase.fsp import FspAccounts
 from app.usecase.interface import (
@@ -147,6 +148,11 @@ def get_invitations(request: Request, uow: UnitOfWorkDep) -> Invitations:
     return invitations
 
 
+def get_conversations(request: Request, uow: UnitOfWorkDep) -> Conversations:
+    conversations: Conversations = request.app.state.conversations(uow)
+    return conversations
+
+
 def get_feedback(request: Request, uow: UnitOfWorkDep) -> CandidateFeedback:
     feedback: CandidateFeedback = request.app.state.feedback(uow)
     return feedback
@@ -187,6 +193,7 @@ CandidatePathDep = Annotated[CandidatePath, Depends(get_candidate_path)]
 AnswerCalibrationDep = Annotated[AnswerCalibration, Depends(get_answer_calibration)]
 CandidatesDep = Annotated[CandidateRepository, Depends(get_candidates)]
 InvitationsDep = Annotated[Invitations, Depends(get_invitations)]
+ConversationsDep = Annotated[Conversations, Depends(get_conversations)]
 FeedbackDep = Annotated[CandidateFeedback, Depends(get_feedback)]
 InvitationReaderDep = Annotated[InvitationReader, Depends(get_invitation_reader)]
 

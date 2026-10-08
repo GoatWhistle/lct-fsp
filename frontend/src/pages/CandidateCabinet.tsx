@@ -12,6 +12,7 @@ import { SkillProfileView, TestResultView } from '../candidate/Results'
 import { SurveyStep } from '../candidate/SurveyStep'
 import { TestStep } from '../candidate/TestStep'
 import { dateWords, levelWords } from '../candidate/words'
+import { useUnreadMessages } from '../invitation/unread'
 
 const steps = ['Опрос', 'Грейд', 'Тест', 'Категория']
 const stepOf: Record<CandidatePath['stage'], number> = {
@@ -182,8 +183,9 @@ function OfferStep({ catalog, path, onChange }: StepProps) {
 function CategoryCabinet({ catalog, path, onChange }: StepProps) {
   const category = path.category
   const hint = path.result?.grade_up_hint
+  const { unread, reload } = useUnreadMessages('candidate')
   return (
-    <Cabinet title="Кабинет кандидата" upcoming={[]}>
+    <Cabinet title="Кабинет кандидата" upcoming={[]} unread={unread}>
       {category && (
         <div className="card">
           <span className="muted">Ваша категория</span>
@@ -201,7 +203,7 @@ function CategoryCabinet({ catalog, path, onChange }: StepProps) {
         </div>
       )}
       <GradeChangeCard catalog={catalog} path={path} onChange={onChange} />
-      <Inbox />
+      <Inbox onRead={reload} />
       <FeedbackCard onStartBlock={onChange} />
       <ProfileCard />
       <div className="card">

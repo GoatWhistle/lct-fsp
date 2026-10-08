@@ -1,7 +1,8 @@
 """Потребности работодателя и подборки по ним: кого ищет, стек, грейд, формат, вилка, важность
-тем — и выдача кандидатов с объяснением."""
+тем — и выдача кандидатов с объяснением, её уточнение фильтрами, шортлист и поиск по банку."""
 
 import uuid
+from collections.abc import Sequence
 from typing import Annotated
 
 from fastapi import APIRouter, Query, status
@@ -16,6 +17,9 @@ from app.controller.deps import (
 )
 from app.controller.errors import error_responses
 from app.controller.need_schemas import (
+    CandidateFiltersIn,
+    CandidateFiltersOut,
+    CategoryFilterIn,
     NeedDraftOut,
     NeedIn,
     NeedOut,
@@ -24,9 +28,12 @@ from app.controller.need_schemas import (
     NeedTextIn,
     OutOfCatalogOut,
     RequirementOut,
+    SearchHitOut,
+    SearchOut,
     SelectionEntryOut,
     SelectionOut,
     SelectionSummaryOut,
+    ShortlistOut,
     StackFitOut,
     TopicFitOut,
     TopicImportanceIn,
@@ -37,8 +44,9 @@ from app.domain import errors
 from app.domain.account import Role
 from app.domain.need import NEED_ERRORS, NeedForm, TopicView
 from app.domain.need_draft import CheckedDraft, CheckedOutOfCatalog
+from app.domain.search import CandidateFilters, CategoryFilter, SearchHit, SearchPage
 from app.domain.selection import NeedSnapshot as Snapshot
-from app.domain.selection import Page, SelectionBlock, Summary
+from app.domain.selection import Page, SelectionBlock, SelectionEntry, Shortlist, Summary
 from app.usecase.need import NeedView
 
 router = APIRouter(
@@ -50,6 +58,13 @@ router = APIRouter(
 
 selections_router = APIRouter(
     prefix="/api/employer/selections",
+    tags=["employer-selections"],
+    dependencies=role_guard(Role.employer),
+    responses=ROLE_RESPONSES,
+)
+
+search_router = APIRouter(
+    prefix="/api/employer/candidates",
     tags=["employer-selections"],
     dependencies=role_guard(Role.employer),
     responses=ROLE_RESPONSES,
@@ -167,11 +182,27 @@ def list_selections(
     return [_summary_out(s) for s in selections.summaries(user.id, need_id, limit=limit)]
 
 
+@search_router.post(
+    "/search",
+    summary="Поиск по банку кандидатов",
+    description="Без потребности, по всей базе: кандидаты с категорией — по уверенности, что "
+    "общий уровень не ниже порога грейда категории; с заявленным неподтверждённым грейдом — ниже "
+    "всех подтверждённых. Карточки обезличены. Ничего не сохраняется.",
+)
+def search_candidates(
+    body: CandidateFiltersIn,
+    selections: SelectionsDep,
+    offset: Offset = 0,
+    limit: Limit = 20,
+) -> SearchOut:
+    return _search_out(selections.search(_filters(body), offset=offset, limit=limit))
+
+
 @selections_router.get(
     "/{selection_id}",
     summary="Подборка",
     description="Выдача на момент построения — та же при каждом открытии, даже если потребность "
-    "или профили кандидатов с тех пор изменились.",
+    "или профили кандидатов с тех пор изменились, — через последние применённые фильтры.",
     responses=error_responses(errors.SelectionNotFound),
 )
 def get_selection(
@@ -182,6 +213,90 @@ def get_selection(
     limit: Limit = 20,
 ) -> SelectionOut:
     return _selection_out(selections.open(user.id, selection_id, offset=offset, limit=limit))
+
+
+@selections_router.put(
+    "/{selection_id}/filters",
+    summary="Уточнить подборку фильтрами",
+    description="Заменяет фильтры подборки и отдаёт выдачу через них. Выдача только сужается: "
+    "места, ранги, скоры и объяснения — сохранённые, порядок — исходный. Пустой объект — сброс "
+    "к исходной выдаче. Сохранённая выдача не меняется.",
+    responses=error_responses(errors.SelectionNotFound),
+)
+def refine_selection(
+    selection_id: uuid.UUID,
+    body: CandidateFiltersIn,
+    user: CurrentUser,
+    selections: SelectionsDep,
+    offset: Offset = 0,
+    limit: Limit = 20,
+) -> SelectionOut:
+    return _selection_out(
+        selections.refine(user.id, selection_id, _filters(body), offset=offset, limit=limit)
+    )
+
+
+@selections_router.get(
+    "/{selection_id}/shortlist",
+    summary="Шортлист подборки",
+    responses=error_responses(errors.SelectionNotFound),
+)
+def get_shortlist(
+    selection_id: uuid.UUID, user: CurrentUser, selections: SelectionsDep
+) -> ShortlistOut:
+    return _shortlist_out(selections.shortlisted(user.id, selection_id))
+
+
+@selections_router.put(
+    "/{selection_id}/shortlist/{candidate_id}",
+    summary="Добавить в шортлист",
+    description="Только кандидата из выдачи этой подборки; повтор ничего не меняет.",
+    responses=error_responses(errors.SelectionNotFound, errors.NotInSelection),
+)
+def add_to_shortlist(
+    selection_id: uuid.UUID, candidate_id: uuid.UUID, user: CurrentUser, selections: SelectionsDep
+) -> ShortlistOut:
+    return _shortlist_out(selections.shortlist(user.id, selection_id, candidate_id, True))
+
+
+@selections_router.delete(
+    "/{selection_id}/shortlist/{candidate_id}",
+    summary="Убрать из шортлиста",
+    responses=error_responses(errors.SelectionNotFound, errors.NotInSelection),
+)
+def remove_from_shortlist(
+    selection_id: uuid.UUID, candidate_id: uuid.UUID, user: CurrentUser, selections: SelectionsDep
+) -> ShortlistOut:
+    return _shortlist_out(selections.shortlist(user.id, selection_id, candidate_id, False))
+
+
+def _filters(body: CandidateFiltersIn) -> CandidateFilters:
+    return CandidateFilters(
+        specialization=body.specialization,
+        grade=body.grade,
+        category=CategoryFilter(body.category.specialization, body.category.grade)
+        if body.category
+        else None,
+        stack=frozenset(body.stack),
+        fsp_confirmed=body.fsp_confirmed,
+        confident=body.confident,
+        grade_status=frozenset(body.grade_status),
+    )
+
+
+def _filters_out(filters: CandidateFilters) -> CandidateFiltersOut:
+    category = filters.category
+    return CandidateFiltersOut(
+        specialization=filters.specialization,
+        grade=filters.grade,
+        category=CategoryFilterIn(specialization=category.specialization, grade=category.grade)
+        if category
+        else None,
+        stack=sorted(filters.stack),
+        fsp_confirmed=filters.fsp_confirmed,
+        confident=filters.confident,
+        grade_status=sorted(filters.grade_status),
+    )
 
 
 def _form(body: NeedIn) -> NeedForm:
@@ -294,13 +409,62 @@ def _snapshot_out(need: Snapshot) -> NeedSnapshot:
 
 
 def _selection_out(page: Page) -> SelectionOut:
-    need = _snapshot_out(page.selection.need)
+    selection = page.selection
+    need = _snapshot_out(selection.need)
+    return SelectionOut(
+        **_summary_out(page).model_dump(),
+        need=need,
+        stack_cap=selection.stack_cap,
+        offset=page.offset,
+        filters=_filters_out(selection.filters),
+        filtered_exact_total=page.filtered_totals[SelectionBlock.exact],
+        filtered_nearby_total=page.filtered_totals[SelectionBlock.nearby],
+        filtered_unconfirmed_total=page.filtered_totals[SelectionBlock.unconfirmed],
+        shortlist=list(selection.shortlist),
+        entries=_entries_out(need, page.entries),
+    )
+
+
+def _shortlist_out(shortlist: Shortlist) -> ShortlistOut:
+    need = _snapshot_out(shortlist.selection.need)
+    return ShortlistOut(
+        selection_id=shortlist.selection.id, entries=_entries_out(need, shortlist.entries)
+    )
+
+
+def _search_out(page: SearchPage) -> SearchOut:
+    return SearchOut(
+        filters=_filters_out(page.filters),
+        total=page.total,
+        unconfirmed_total=page.unconfirmed_total,
+        offset=page.offset,
+        entries=[_hit_out(hit) for hit in page.hits],
+    )
+
+
+def _hit_out(hit: SearchHit) -> SearchHitOut:
+    facts = hit.facts
+    # Профиль навыков — только у кандидата с категорией.
+    profile = facts.profile if facts.status.confirmed else None
+    return SearchHitOut(
+        candidate_id=facts.candidate_id,
+        position=hit.position,
+        specialization=facts.specialization,
+        grade_status=GradeStatusOut.model_validate(facts.status),
+        theta=profile.overall.mean if profile else None,
+        theta_sd=profile.overall.sd if profile else None,
+        grade_probability=hit.grade_probability,
+        fsp_confirmed=facts.fsp_confirmed,
+    )
+
+
+def _entries_out(need: NeedSnapshot, entries: Sequence[SelectionEntry]) -> list[SelectionEntryOut]:
     requirements = {t.topic.code: t for t in need.topics}
     technologies = {t.code: t for t in need.stack}
-    entries = []
-    for entry in page.entries:
+    out = []
+    for entry in entries:
         explanation = entry.explanation
-        entries.append(
+        out.append(
             SelectionEntryOut(
                 candidate_id=entry.candidate_id,
                 position=entry.position,
@@ -337,10 +501,4 @@ def _selection_out(page: Page) -> SelectionOut:
                 stale=entry.stale,
             )
         )
-    return SelectionOut(
-        **_summary_out(page).model_dump(),
-        need=need,
-        stack_cap=page.selection.stack_cap,
-        offset=page.offset,
-        entries=entries,
-    )
+    return out

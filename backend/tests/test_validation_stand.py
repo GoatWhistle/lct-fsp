@@ -8,6 +8,8 @@ import uuid
 from concurrent.futures import ProcessPoolExecutor
 from pathlib import Path
 
+import pytest
+
 from app.domain.selection import Need
 from app.domain.work import SalaryRange, WorkFormat
 from settings import BACKEND_DIR, Mechanics, Settings
@@ -85,6 +87,7 @@ def _job(seed: int) -> tuple[Honesty, Stability]:
     return honesty(m, 10), stability(m, 5)
 
 
+@pytest.mark.simulation
 def test_same_seed_gives_same_numbers_across_processes() -> None:
     with ProcessPoolExecutor(2) as pool:
         first, second = pool.map(_job, [7, 7])

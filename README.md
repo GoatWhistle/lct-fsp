@@ -88,9 +88,18 @@ docker compose up --build
 docker compose run --rm --build tests
 ```
 
-Тесты ходят в бэкенд через HTTP API; на сервере PostgreSQL создаётся временная база и
-удаляется после прогона. Без Docker Compose, с [uv](https://docs.astral.sh/uv/) и Docker:
-`cd backend && uv run pytest` — PostgreSQL поднимется в контейнере сам.
+Контейнер гоняет весь набор. Тесты трёх уровней — маркеры pytest, правило разметки — в
+`backend/tests/conftest.py`:
+
+- `unit` — без базы и долгих прогонов; `uv run pytest` без флагов гоняет только их;
+- `integration` — ходят в бэкенд через HTTP API или в хранилище напрямую; на сервере PostgreSQL
+  создаётся временная база и удаляется после прогона;
+- `simulation` — свойства механик на синтетике: сходимость калибровки, потолок показов, точность
+  адаптивного теста.
+
+Без Docker Compose, с [uv](https://docs.astral.sh/uv/) и Docker, из `backend/`: `uv run pytest`
+— unit, `uv run pytest -m integration` — PostgreSQL поднимется в контейнере сам,
+`uv run pytest -m simulation`, весь набор — `uv run pytest -m ""`.
 
 Стенд валидации — синтетические кандидаты с известной истиной проходят те же сценарии теста и
 калибровки, что HTTP, на in-memory хранилищах. Команды из `backend/`:
@@ -182,7 +191,7 @@ uv run uvicorn --factory main:create_app --reload
 Проверки перед PR:
 
 ```sh
-cd backend && uv run ruff check . && uv run ruff format --check . && uv run mypy . && uv run pytest
+cd backend && uv run ruff check . && uv run ruff format --check . && uv run mypy . && uv run pytest -m ""
 cd frontend && npm run lint && npm run build
 ```
 

@@ -1,4 +1,13 @@
-"""Тесты ходят в бэкенд через HTTP API и пишут во временную PostgreSQL.
+"""Три уровня тестов — маркеры `unit`, `integration`, `simulation`; `uv run pytest` гоняет
+только `unit`, остальные — `-m integration`, `-m simulation`, весь набор — `-m ""`.
+
+- `integration` — тест ходит в PostgreSQL: через HTTP API или в хранилище напрямую. Маркер
+  ставится сам, если тесту нужна фикстура базы; вариант `postgres` параметризованной фикстуры,
+  которая берёт базу через `getfixturevalue`, помечается в `pytest.param` — без маркера
+  `db_engine` роняет тест.
+- `simulation` — свойство механики на синтетике: сотни прогонов, долго и без базы. Ставится
+  руками.
+- `unit` — всё остальное, ставится само.
 
 Сервер PostgreSQL — `TEST_DATABASE_URL` (любая база на нём, нужны права на CREATE DATABASE)
 или контейнер testcontainers. На сервере создаётся своя база на прогон и удаляется после.
@@ -15,6 +24,7 @@ from datetime import UTC, datetime
 import pytest
 from alembic import command
 from alembic.config import Config
+from argon2 import PasswordHasher, profiles
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from sqlalchemy import Engine, text
@@ -25,6 +35,7 @@ from app.adapter.clock import FrozenClock
 from app.adapter.fsp_id import MemoryFspId
 from app.adapter.fsp_registry import MemoryFspRegistry
 from app.adapter.mail import MemoryMailer
+from app.adapter.password import Argon2Passwords
 from app.adapter.seed import DerivedSeeds
 from app.domain.account import Role
 from app.domain.mail import Mail
@@ -77,6 +88,20 @@ class Seeds:
         return value
 
 
+TIERS = ("unit", "integration", "simulation")
+
+
+def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:
+    for item in items:
+        if "postgres_server_url" in getattr(item, "fixturenames", ()):
+            item.add_marker(pytest.mark.integration)
+        tiers = [t for t in TIERS if item.get_closest_marker(t)]
+        if len(tiers) > 1:
+            raise pytest.UsageError(f"{item.nodeid}: сразу несколько уровней — {tiers}")
+        if not tiers:
+            item.add_marker(pytest.mark.unit)
+
+
 @pytest.fixture(scope="session")
 def postgres_server_url() -> Iterator[str]:
     if url := os.environ.get("TEST_DATABASE_URL"):
@@ -111,7 +136,9 @@ def database_url(postgres_server_url: str) -> Iterator[str]:
 
 
 @pytest.fixture
-def db_engine(database_url: str) -> Iterator[Engine]:
+def db_engine(request: pytest.FixtureRequest, database_url: str) -> Iterator[Engine]:
+    if request.node.get_closest_marker("integration") is None:
+        pytest.fail("тест ходит в базу без маркера integration: pytest.param(..., marks=...)")
     engine = create_db_engine(database_url)
     yield engine
     with engine.begin() as conn:
@@ -129,9 +156,18 @@ def settings(database_url: str) -> Settings:
     )
 
 
-@pytest.fixture
-def mechanics(settings: Settings) -> Mechanics:
-    return Mechanics.from_yaml(settings.mechanics_file)
+@pytest.fixture(scope="session")
+def mechanics() -> Mechanics:
+    """Механики из конфига — одни на прогон: модель неизменяемая, тест меняет её через
+    `model_copy`. Базы не требуют — годятся и in-memory тестам."""
+    return Mechanics.from_yaml(Settings(_env_file=None).mechanics_file)
+
+
+@pytest.fixture(scope="session")
+def passwords() -> Argon2Passwords:
+    """argon2 с минимальными параметрами: хэш того же формата, но каждый вход и регистрация
+    не стоят десятков миллисекунд."""
+    return Argon2Passwords(PasswordHasher.from_parameters(profiles.CHEAPEST))
 
 
 @pytest.fixture
@@ -172,6 +208,7 @@ def app(
     seeds: Seeds,
     fsp_id: MemoryFspId,
     fsp_registry: MemoryFspRegistry,
+    passwords: Argon2Passwords,
 ) -> Iterator[FastAPI]:
     app = create_app(
         settings,
@@ -181,6 +218,7 @@ def app(
         seeds=seeds,
         fsp_id=fsp_id,
         fsp_registry=fsp_registry,
+        passwords=passwords,
     )
     yield app
     app.state.engine.dispose()

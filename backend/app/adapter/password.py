@@ -7,8 +7,9 @@ from argon2.exceptions import VerificationError
 
 
 class Argon2Passwords:
-    def __init__(self) -> None:
-        self._hasher = PasswordHasher()
+    def __init__(self, hasher: PasswordHasher | None = None) -> None:
+        # Параметры argon2 — у `hasher`; по умолчанию — рекомендованные библиотекой.
+        self._hasher = hasher or PasswordHasher()
         # Хэш случайного пароля: проверка входа на неизвестный адрес идёт столько же, сколько на
         # известный, — по времени ответа не узнать, кто зарегистрирован.
         self._decoy = self._hasher.hash(secrets.token_urlsafe(32))

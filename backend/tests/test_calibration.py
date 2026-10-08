@@ -262,6 +262,7 @@ def test_link_is_identity_when_anchor_answers_contradict_levels() -> None:
     assert fit_link(anchors, min_responses=1) == Link()
 
 
+@pytest.mark.simulation
 def test_calibration_converges_on_simulated_candidates() -> None:
     """Истинные параметры отличаются от экспертных, уровни кандидатов шире априорного (D1). После
     в среднем `calibration_refit_min_responses` ответов на семейство сложности коррелируют с

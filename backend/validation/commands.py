@@ -6,7 +6,9 @@
   банке D1;
 - `tune_inflation` — подбор поправки погрешности `level_sd_inflation` на настроечном наборе D3
   по правилу плана валидации;
-- `report_parsing` — M21, точность разбора потребности из текста по полям на размеченном наборе.
+- `report_parsing` — M21, точность разбора потребности из текста по полям на размеченном наборе;
+- `write_market` — синтетический рынок D1 или D2 файлами: истина, наблюдаемое, потребности и
+  эталон пар (`validation.population`).
 
 Прогоны специализаций идут в пуле процессов; каждый процесс собирает свой стенд из seed прогона.
 """
@@ -16,13 +18,13 @@ import logging
 import os
 import statistics
 from concurrent.futures import ProcessPoolExecutor
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 
 from app.adapter.catalog_file import load_catalog
 from app.domain.determination import grades_by_threshold
 from settings import CATALOG_FILE, MECHANICS_FILE, Mechanics
-from validation.main import build_stand
+from validation.main import build_stand, catalog
 from validation.market import (
     SEED,
     TUNING_SEED,
@@ -36,9 +38,13 @@ from validation.market import (
 )
 from validation.metrics import cohen_kappa, median, pearson
 from validation.parsing import load_labeled, parsing_table, run_parsing
+from validation.population import DATASETS, Generator, write
 
 # Набор D5 — тексты вакансий с разметкой; формат — validation/data/need_texts.md.
 D5_FILE = Path(__file__).resolve().parent / "data" / "d5_need_texts.yaml"
+
+# Каталог наборов D1 и D2: файлы воспроизводятся по seed и в репо не хранятся.
+MARKET_DIR = Path(__file__).resolve().parent / "data" / "market"
 
 # Сетка подбора поправки погрешности κ — шаг 0,05.
 INFLATION_GRID = tuple(round(1 + 0.05 * i, 2) for i in range(11))
@@ -287,11 +293,39 @@ def report_parsing(mechanics: Mechanics, dataset: Path) -> None:
     print(parsing_table(run_parsing(labeled, drafts.parse)))
 
 
+def write_market(
+    mechanics: Mechanics, name: str, seed: int | None, candidates: int | None, out: Path
+) -> None:
+    """Набор `name` в `out/<name>`; `seed` и `candidates` (на специализацию) — вместо плановых."""
+    params = DATASETS[name]
+    if seed is not None:
+        params = replace(params, seed=seed)
+    if candidates is not None:
+        params = replace(params, candidates_per_specialization=candidates)
+    known = catalog()
+    dataset = Generator(params, mechanics, known).generate()
+    directory = out / name
+    write(dataset, directory, known, mechanics)
+    print(
+        f"{name}: сид {params.seed}, кандидатов {len(dataset.truths)}, работодателей "
+        f"{len(dataset.employers)}, потребностей {len(dataset.needs)} → {directory}"
+    )
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(prog="python -m validation")
-    parser.add_argument("command", nargs="?", choices=("honesty", "tune", "parsing"))
-    parser.add_argument("--seed", type=int, default=SEED, help="сид для honesty, по умолчанию D1")
-    parser.add_argument("--candidates", type=int, default=1500)
+    parser.add_argument("command", nargs="?", choices=("honesty", "tune", "parsing", "market"))
+    parser.add_argument(
+        "--seed", type=int, default=None, help="сид для honesty и market, по умолчанию плановый"
+    )
+    parser.add_argument(
+        "--candidates",
+        type=int,
+        default=None,
+        help="кандидатов: для honesty и tune — тестов (1500), для market — на специализацию (600)",
+    )
+    parser.add_argument("--set", choices=sorted(DATASETS), default="d1", help="набор для market")
+    parser.add_argument("--out", type=Path, default=MARKET_DIR, help="каталог наборов market")
     parser.add_argument("--pairs", type=int, default=1500)
     parser.add_argument(
         "--dataset",
@@ -306,10 +340,17 @@ def main() -> None:
     mechanics = Mechanics.from_yaml(MECHANICS_FILE)
     match args.command:
         case "honesty":
-            report_honesty(mechanics, args.seed, args.candidates, args.pairs)
+            report_honesty(
+                mechanics,
+                SEED if args.seed is None else args.seed,
+                1500 if args.candidates is None else args.candidates,
+                args.pairs,
+            )
         case "tune":
-            tune_inflation(mechanics, args.candidates)
+            tune_inflation(mechanics, 1500 if args.candidates is None else args.candidates)
         case "parsing":
             report_parsing(mechanics, args.dataset)
+        case "market":
+            write_market(mechanics, args.set, args.seed, args.candidates, args.out)
         case _:
             report(mechanics)

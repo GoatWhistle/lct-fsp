@@ -13,7 +13,7 @@ RUN uv sync --frozen --no-dev --no-install-project
 FROM base AS test
 RUN uv sync --frozen --no-install-project
 COPY . .
-CMD ["pytest"]
+CMD ["pytest", "-m", ""]
 
 FROM base AS runtime
 COPY . .

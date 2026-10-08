@@ -52,7 +52,7 @@ class Storage:
     new_user: Callable[[], uuid.UUID]
 
 
-@pytest.fixture(params=["memory", "postgres"])
+@pytest.fixture(params=["memory", pytest.param("postgres", marks=pytest.mark.integration)])
 def storage(request: pytest.FixtureRequest) -> Iterator[Storage]:
     if request.param == "memory":
         store = MemoryStore()

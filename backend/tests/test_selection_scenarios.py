@@ -53,7 +53,7 @@ from app.repository.selection import SqlCandidatePool, SqlSelections
 from app.repository.unit_of_work import SqlUnitOfWork
 from app.usecase.interface import AcceptanceModel
 from app.usecase.selection import Selections
-from settings import BACKEND_DIR, CATALOG_FILE, Mechanics
+from settings import CATALOG_FILE, Mechanics
 
 T0 = datetime(2026, 10, 7, 12, 0, tzinfo=UTC)
 CATALOG = load_catalog(CATALOG_FILE)
@@ -471,7 +471,7 @@ def _profile_row(user_id: uuid.UUID, expectations: Expectations) -> dict[str, An
     }
 
 
-@pytest.fixture(params=["memory", "postgres"])
+@pytest.fixture(params=["memory", pytest.param("postgres", marks=pytest.mark.integration)])
 def make(request: pytest.FixtureRequest, mechanics: Mechanics) -> Iterator[Callable[..., Harness]]:
     opened: list[PostgresHarness] = []
 
@@ -485,12 +485,6 @@ def make(request: pytest.FixtureRequest, mechanics: Mechanics) -> Iterator[Calla
     yield harness
     for h in opened:
         h.uow.close()
-
-
-@pytest.fixture
-def mechanics() -> Mechanics:
-    """Механики из репозитория — in-memory тестам база не нужна."""
-    return Mechanics.from_yaml(BACKEND_DIR / "config" / "mechanics.yaml")
 
 
 def remote(salary_from: int) -> Expectations:

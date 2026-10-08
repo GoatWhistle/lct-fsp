@@ -6,6 +6,8 @@ import random
 from dataclasses import replace
 from datetime import UTC, datetime
 
+import pytest
+
 from app.adapter.adaptive import choose, information
 from app.adapter.irt import Estimate, initial, update
 from app.domain.adaptive import Blueprint, Exposure, Option, selection_prior, should_stop
@@ -160,6 +162,7 @@ def test_candidates_with_same_answers_get_different_sets() -> None:
     assert sum(overlap) / len(overlap) < 0.5
 
 
+@pytest.mark.simulation
 def test_family_exposure_stays_under_cap() -> None:
     """Доля попыток окна, где показано семейство, не выше потолка. Сверх потолка семейство
     берётся только запасным выбором — когда под потолком в теме ничего не осталось (§6): в первых
@@ -186,6 +189,7 @@ def test_family_exposure_stays_under_cap() -> None:
     assert fallbacks / picks < 0.01
 
 
+@pytest.mark.simulation
 def test_adaptive_reaches_target_precision_in_fewer_items_than_fixed_blueprint() -> None:
     """Банк с известными параметрами, без лимита заданий у обоих: медиана числа заданий до
     σ̄ ≤ `test_stop_sd` у адаптивного меньше, чем у общего фиксированного бланка с тем же

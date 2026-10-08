@@ -543,6 +543,11 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /**
+         * AnswerFormat
+         * @enum {string}
+         */
+        AnswerFormat: "value" | "choice" | "ordering";
         /** AnswerIn */
         AnswerIn: {
             /**
@@ -734,11 +739,13 @@ export interface components {
              * @description Листинг, таблица или граф к условию — моноширинно
              */
             code: string | null;
+            /** @description `value` — ответ вводится текстом; `choice` — буква одного варианта; `ordering` — буквы всех вариантов в верном порядке строкой, например «KBXF» */
+            answer_format: components["schemas"]["AnswerFormat"];
             /**
              * Options
-             * @description Варианты; пусто — ответ вводится текстом
+             * @description Варианты по алфавиту букв; буквы и порядок текстов свои у каждого экземпляра
              */
-            options: string[];
+            options: components["schemas"]["OptionOut"][];
         };
         /**
          * LevelBandOut
@@ -915,6 +922,16 @@ export interface components {
             updated_at: string;
             /** @description Все суммы платформы — до вычета НДФЛ (`gross`) */
             readonly salary_basis: components["schemas"]["SalaryBasis"];
+        };
+        /** OptionOut */
+        OptionOut: {
+            /**
+             * Letter
+             * @description Буква варианта — её кандидат и отвечает
+             */
+            letter: string;
+            /** Text */
+            text: string;
         };
         /** PathOut */
         PathOut: {

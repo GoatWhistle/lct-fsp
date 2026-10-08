@@ -45,7 +45,8 @@ def presented(seeds: Seeds, item: Json) -> tuple[Family, int]:
 
 
 def _shows(instance: Instance, item: Json) -> bool:
-    return (instance.prompt, instance.code, list(instance.options)) == (
+    options = [{"letter": o.letter, "text": o.text} for o in instance.options]
+    return (instance.prompt, instance.code, options) == (
         item["prompt"],
         item["code"],
         item["options"],

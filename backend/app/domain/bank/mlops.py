@@ -4,10 +4,11 @@
 import math
 import random
 
-from app.domain.bank.family import Instance, rounded
+from app.domain.bank.family import Instance, Kind, kind, rounded
 from app.domain.bank.runner import CodeRunner
 
 
+@kind(Kind.COMPUTE)
 def split_sizes(rng: random.Random, runner: CodeRunner) -> Instance:
     n = rng.randint(500, 20000)
     test = rng.choice([0.1, 0.15, 0.2, 0.25])
@@ -24,6 +25,7 @@ def split_sizes(rng: random.Random, runner: CodeRunner) -> Instance:
     return Instance(prompt, f"{rest - val_n} {val_n} {test_n}", {"n": n, "test": test, "val": val})
 
 
+@kind(Kind.COMPUTE)
 def batch_inference(rng: random.Random, runner: CodeRunner) -> Instance:
     samples = rng.randint(1000, 200000)
     batch = rng.choice([32, 64, 128, 256, 512])
@@ -41,6 +43,7 @@ def batch_inference(rng: random.Random, runner: CodeRunner) -> Instance:
     return Instance(prompt, f"{batches} {rounded(seconds, 1)}", params)
 
 
+@kind(Kind.COMPUTE)
 def dag_duration(rng: random.Random, runner: CodeRunner) -> Instance:
     names = ["extract", "clean", "features", "train", "evaluate", "report"]
     durations = {n: rng.randint(2, 30) for n in names}
@@ -62,6 +65,7 @@ def dag_duration(rng: random.Random, runner: CodeRunner) -> Instance:
     return Instance(prompt, answer, {"durations": durations, "deps": deps}, code="\n".join(lines))
 
 
+@kind(Kind.COMPUTE)
 def psi_drift(rng: random.Random, runner: CodeRunner) -> Instance:
     expected = [rng.randint(5, 40) for _ in range(4)]
     actual = [max(1, e + rng.randint(-12, 12)) for e in expected]
@@ -82,6 +86,7 @@ def psi_drift(rng: random.Random, runner: CodeRunner) -> Instance:
     )
 
 
+@kind(Kind.TRACE)
 def registry_stages(rng: random.Random, runner: CodeRunner) -> Instance:
     versions = {v: "None" for v in range(1, 5)}
     events = []
@@ -106,6 +111,7 @@ def registry_stages(rng: random.Random, runner: CodeRunner) -> Instance:
     return Instance(prompt, answer, {"events": events}, code="\n".join(events))
 
 
+@kind(Kind.COMPUTE)
 def replicas_needed(rng: random.Random, runner: CodeRunner) -> Instance:
     rps = rng.randrange(50, 3000, 10)
     latency_ms = rng.choice([20, 40, 50, 80, 100, 200])
@@ -128,6 +134,7 @@ def replicas_needed(rng: random.Random, runner: CodeRunner) -> Instance:
     return Instance(prompt, f"{per_replica:g} {replicas}", params)
 
 
+@kind(Kind.COMPUTE)
 def canary_requests(rng: random.Random, runner: CodeRunner) -> Instance:
     steps = [rng.choice([1, 5, 10]), rng.choice([20, 25]), rng.choice([50]), 100]
     minutes = rng.choice([10, 15, 30])
@@ -157,6 +164,7 @@ def canary_requests(rng: random.Random, runner: CodeRunner) -> Instance:
     )
 
 
+@kind(Kind.COMPUTE)
 def ab_test_z(rng: random.Random, runner: CodeRunner) -> Instance:
     n_a, n_b = rng.randrange(1000, 20000, 100), rng.randrange(1000, 20000, 100)
     p_a = rng.randint(20, 120) / 1000
@@ -177,6 +185,7 @@ def ab_test_z(rng: random.Random, runner: CodeRunner) -> Instance:
     return Instance(prompt, f"{rounded(z, 2)} {verdict}", params)
 
 
+@kind(Kind.COMPUTE)
 def feature_freshness(rng: random.Random, runner: CodeRunner) -> Instance:
     ttl = rng.choice([5, 10, 15, 30])
     updates = sorted(rng.sample(range(0, 120, 5), rng.randint(3, 5)))
@@ -199,6 +208,7 @@ def feature_freshness(rng: random.Random, runner: CodeRunner) -> Instance:
     return Instance(prompt, " ".join(answers), {"ttl": ttl, "updates": updates, "reads": reads})
 
 
+@kind(Kind.COMPUTE)
 def degradation_alerts(rng: random.Random, runner: CodeRunner) -> Instance:
     threshold = rng.choice([0.80, 0.85, 0.9])
     days = rng.randint(2, 3)
@@ -242,6 +252,7 @@ def _cron_matches(field: str, value: int) -> bool:
     return False
 
 
+@kind(Kind.TRACE)
 def cron_runs(rng: random.Random, runner: CodeRunner) -> Instance:
     minute = rng.choice(["0", "15", "*/15", "*/20", "0,30", "5"])
     hour = rng.choice(["*", "*/2", "*/3", "9-18", "0,12", "6-9,18"])
@@ -268,6 +279,7 @@ def cron_runs(rng: random.Random, runner: CodeRunner) -> Instance:
     )
 
 
+@kind(Kind.COMPUTE)
 def spot_training_cost(rng: random.Random, runner: CodeRunner) -> Instance:
     hours = rng.randint(4, 40)
     price = rng.choice([2.5, 3.2, 4.0, 1.8])

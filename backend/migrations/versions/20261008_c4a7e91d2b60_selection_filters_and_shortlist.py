@@ -4,7 +4,7 @@
 подборок фильтров нет и шортлист пуст: открываются с исходной выдачей.
 
 Revision ID: c4a7e91d2b60
-Revises: b7e2c4d91f3a
+Revises: c4a7e91d2f60
 Create Date: 2026-10-08 18:20:41.512094
 
 """
@@ -16,7 +16,7 @@ from alembic import op
 from sqlalchemy.dialects import postgresql
 
 revision: str = "c4a7e91d2b60"
-down_revision: str | Sequence[str] | None = "b7e2c4d91f3a"
+down_revision: str | Sequence[str] | None = "c4a7e91d2f60"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 

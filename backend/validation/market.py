@@ -16,7 +16,6 @@ import uuid
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 
-from app.config import Mechanics
 from app.domain.adaptive import Blueprint, Choice, Option
 from app.domain.attempt import AttemptOutcome, Stage
 from app.domain.bank import Family, families_for_topics
@@ -29,6 +28,7 @@ from app.repository.memory.unit_of_work import MemoryStore
 from app.usecase.interface import ItemSelector
 from app.usecase.skill_profile import specialization_prior
 from composition import elo_calibration, item_selector
+from settings import Mechanics
 from validation.main import Stand, build_stand
 from validation.metrics import pearson, rmse
 

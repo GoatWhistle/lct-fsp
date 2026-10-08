@@ -17,9 +17,9 @@ import statistics
 from concurrent.futures import ProcessPoolExecutor
 from dataclasses import dataclass
 
-from app.assessment.catalog import load_catalog
-from app.config import BACKEND_DIR, Mechanics
+from app.adapter.catalog_file import load_catalog
 from app.domain.determination import grades_by_threshold
+from settings import CATALOG_FILE, MECHANICS_FILE, Mechanics
 from validation.market import (
     SEED,
     TUNING_SEED,
@@ -128,7 +128,7 @@ def _pool() -> ProcessPoolExecutor:
 
 def report_honesty(mechanics: Mechanics, seed: int, candidates: int, pairs: int) -> None:
     """Честность погрешности и стабильность грейда по специализациям на прогретом банке."""
-    specializations = [s.code for s in load_catalog().specializations]
+    specializations = [s.code for s in load_catalog(CATALOG_FILE).specializations]
     jobs = [(code, seed, mechanics, candidates, pairs) for code in specializations]
     print(
         f"Прогретый банк ({WARM_RESPONSES} ответов на семейство), сид {seed}, "
@@ -164,7 +164,7 @@ def tune_inflation(mechanics: Mechanics, candidates: int) -> float:
     модели занижена в c раз, поэтому sd(z) ≈ c / κ: c — среднее κ · sd(z) по сетке, выбранное κ —
     c, округлённое до шага сетки. По отдельной точке сетки выбирать нельзя: разброс от прогрева
     банка больше разницы соседних точек."""
-    specializations = [s.code for s in load_catalog().specializations]
+    specializations = [s.code for s in load_catalog(CATALOG_FILE).specializations]
     jobs = [
         (code, TUNING_SEED, mechanics.model_copy(update={"level_sd_inflation": k}), candidates, 0)
         for k in INFLATION_GRID
@@ -234,7 +234,7 @@ def _compare(m: Market, candidates: int) -> str:
 
 
 def report(mechanics: Mechanics) -> None:
-    specializations = [s.code for s in load_catalog().specializations]
+    specializations = [s.code for s in load_catalog(CATALOG_FILE).specializations]
     checkpoints = (50, 100, 200, 500)
 
     print("Калибровка: r(b̂, b*) / RMSE(b̂, b*) при среднем числе ответов на семейство")
@@ -280,7 +280,7 @@ def main() -> None:
     # Предупреждения сценариев о потолке показов и выводе семейств из выдачи на тысячах попыток
     # забили бы отчёт: сверх потолка стенд считает сам, в таблице.
     logging.basicConfig(level=logging.ERROR)
-    mechanics = Mechanics.from_yaml(BACKEND_DIR / "config" / "mechanics.yaml")
+    mechanics = Mechanics.from_yaml(MECHANICS_FILE)
     match args.command:
         case "honesty":
             report_honesty(mechanics, args.seed, args.candidates, args.pairs)

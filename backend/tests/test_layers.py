@@ -1,11 +1,12 @@
 """Направление зависимостей слоёв (docs/adr/0001-layers-and-ports.md).
 
-`domain` не знает библиотек хранения, схем и HTTP и не тянет их через другие пакеты `app`;
-`usecase` не знает реализаций портов и контроллеров; in-memory хранилища не знают SQLAlchemy и
-ничего из `app`, кроме домена, портов и себя; `skills` не знает теста — пакеты `assessment` и
-`skills` не зависят друг от друга по кругу. Импорты читаются из исходников, а не из
-`sys.modules`: так ловится и импорт внутри функции, и импорт под `TYPE_CHECKING`; относительный
-импорт сводится к полному имени.
+В `app` только пакеты слоёв. `domain` не знает библиотек хранения, схем, HTTP и конфига и не тянет
+их через другие пакеты `app`; `usecase` не знает реализаций портов и контроллеров; ORM — только в
+`repository`, FastAPI — только в `controller`; адаптеры и контроллеры не знают хранилищ, а
+хранилища — адаптеров и HTTP; in-memory хранилища не знают SQLAlchemy и ничего из `app`, кроме
+домена, портов и себя. Импорты читаются из исходников, а не из `sys.modules`: так ловится и
+импорт внутри функции, и импорт под `TYPE_CHECKING`; относительный импорт сводится к полному
+имени.
 """
 
 import ast
@@ -14,7 +15,7 @@ from pathlib import Path
 
 import pytest
 
-from app.config import BACKEND_DIR
+from settings import BACKEND_DIR
 
 
 @dataclass(frozen=True)
@@ -23,22 +24,34 @@ class Rule:
     allowed: tuple[str, ...] = ()
 
 
-# Исполнение кода генераторов — за портом `CodeRunner`: SQLite домену не виден.
+LAYERS = ("domain", "usecase", "controller", "adapter", "repository")
+
+# Исполнение кода генераторов — за портом `CodeRunner`: SQLite домену не виден. Числа механик
+# домен получает значениями — конфиг `settings` ему не виден.
 DOMAIN = Rule(
-    banned=("sqlalchemy", "pydantic", "pydantic_settings", "fastapi", "sqlite3", "app"),
+    banned=(
+        "sqlalchemy",
+        "pydantic",
+        "pydantic_settings",
+        "fastapi",
+        "sqlite3",
+        "settings",
+        "app",
+    ),
     allowed=("app.domain",),
 )
-# Сценарии не знают реализаций портов: ни адаптеров и репозиториев, ни модулей алгоритмов —
-# модели навыка (`app.skills`) и движка теста (`app.assessment`).
-USECASE = Rule(
-    banned=("app.adapter", "app.repository", "app.controller", "app.assessment", "app.skills")
-)
+# Сценарии не знают реализаций портов: ни адаптеров — модели навыка, выбора задания,
+# калибровки, — ни репозиториев.
+USECASE = Rule(banned=("sqlalchemy", "fastapi", "app.adapter", "app.repository", "app.controller"))
+# Модель навыка и другие алгоритмы — адаптеры: хранение и HTTP им не видны.
+ADAPTER = Rule(banned=("sqlalchemy", "fastapi", "app.repository", "app.controller"))
+# Контроллер получает от сценария доменные значения, а не строки ORM.
+CONTROLLER = Rule(banned=("sqlalchemy", "app.repository", "app.adapter"))
+REPOSITORY = Rule(banned=("fastapi", "pydantic", "app.adapter", "app.controller"))
 MEMORY = Rule(
     banned=("sqlalchemy", "app"),
     allowed=("app.domain", "app.usecase", "app.repository.memory"),
 )
-# Профиль навыков не знает теста: предъявления он читает через порт чтения попытки.
-SKILLS = Rule(banned=("app.assessment",))
 
 
 def _within(module: str, prefixes: tuple[str, ...]) -> bool:
@@ -82,8 +95,10 @@ def violations(package: Path, rule: Rule) -> list[str]:
     [
         ("domain", DOMAIN),
         ("usecase", USECASE),
+        ("adapter", ADAPTER),
+        ("controller", CONTROLLER),
+        ("repository", REPOSITORY),
         ("repository/memory", MEMORY),
-        ("skills", SKILLS),
     ],
 )
 def test_layer_imports_only_inward(layer: str, rule: Rule) -> None:
@@ -111,21 +126,26 @@ MEMORY_PEEKS_AT_SQL = "from ..unit_of_work import SqlUnitOfWork\n"
         ("domain", DOMAIN, "def f() -> None:\n    import fastapi\n", "fastapi"),
         ("domain", DOMAIN, "def f() -> None:\n    import sqlite3\n", "sqlite3"),
         ("domain", DOMAIN, "from contextlib import closing\nimport sqlite3\n", "sqlite3"),
-        ("domain", DOMAIN, "from app.db import Base\n", "app.db"),
-        ("domain", DOMAIN, "from ..assessment import models\n", "app.assessment"),
+        ("domain", DOMAIN, "from app.repository.database import Base\n", "app.repository.database"),
+        ("domain", DOMAIN, "from settings import Mechanics\n", "settings"),
         # Домен получает момент и seed значениями — порты и их реализации ему не видны.
         ("domain", DOMAIN, "from app.usecase.interface import Clock\n", "app.usecase.interface"),
         ("domain", DOMAIN, "from app.adapter.clock import SystemClock\n", "app.adapter.clock"),
         ("domain", DOMAIN, "from ..adapter import seed\n", "app.adapter.seed"),
         ("usecase", USECASE, "from app.repository import users\n", "app.repository"),
-        ("usecase", USECASE, "from app.skills.irt import estimate\n", "app.skills.irt"),
-        ("usecase", USECASE, "from ..assessment import models\n", "app.assessment.models"),
+        ("usecase", USECASE, "from app.adapter.irt import estimate\n", "app.adapter.irt"),
+        ("usecase", USECASE, "from ..repository.orm import User\n", "app.repository.orm"),
+        ("usecase", USECASE, "from sqlalchemy import select\n", "sqlalchemy"),
         ("usecase", USECASE, "import app.controller.errors\n", "app.controller.errors"),
         ("usecase", USECASE, "from ..controller.errors import STATUS\n", "app.controller.errors"),
         ("repository/memory", MEMORY, "from sqlalchemy.orm import Session\n", "sqlalchemy.orm"),
         ("repository/memory", MEMORY, MEMORY_PEEKS_AT_SQL, "app.repository.unit_of_work"),
-        ("skills", SKILLS, "from app.assessment.models import Topic\n", "app.assessment.models"),
-        ("skills", SKILLS, "from ..assessment import service\n", "app.assessment.service"),
+        ("adapter", ADAPTER, "from app.repository.orm import Topic\n", "app.repository.orm"),
+        ("adapter", ADAPTER, "from sqlalchemy.orm import Session\n", "sqlalchemy.orm"),
+        ("controller", CONTROLLER, "from ..repository.orm import Need\n", "app.repository.orm"),
+        ("controller", CONTROLLER, "from sqlalchemy import select\n", "sqlalchemy"),
+        ("repository", REPOSITORY, "from fastapi import Depends\n", "fastapi"),
+        ("repository", REPOSITORY, "from ..controller.deps import x\n", "app.controller.deps"),
     ],
 )
 def test_planted_violation_is_caught(
@@ -134,6 +154,26 @@ def test_planted_violation_is_caught(
     package = plant(tmp_path, layer, source)
 
     assert any(v.endswith(f": {caught}") for v in violations(package, rule))
+
+
+def outside_layers(app_dir: Path) -> list[str]:
+    """Что лежит в `app` вне пакетов слоёв, кроме `__init__.py` и кэша байткода."""
+    allowed = {*LAYERS, "__init__.py", "__pycache__"}
+    return sorted(p.name for p in app_dir.iterdir() if p.name not in allowed)
+
+
+def test_app_holds_only_layers() -> None:
+    assert outside_layers(BACKEND_DIR / "app") == []
+
+
+def test_module_outside_layers_is_caught(tmp_path: Path) -> None:
+    for name in LAYERS:
+        (tmp_path / name).mkdir()
+    (tmp_path / "__init__.py").write_text("")
+    (tmp_path / "identity").mkdir()
+    (tmp_path / "salary.py").write_text("")
+
+    assert outside_layers(tmp_path) == ["identity", "salary.py"]
 
 
 def test_domain_may_import_itself(tmp_path: Path) -> None:

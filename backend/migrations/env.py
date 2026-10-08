@@ -3,9 +3,9 @@ from logging.config import fileConfig
 from alembic import context
 from sqlalchemy import pool
 
-import app.models  # noqa: F401 — регистрирует все таблицы в Base.metadata
-from app.config import Settings
-from app.db import Base, create_db_engine
+import app.repository.orm  # noqa: F401 — регистрирует все таблицы в Base.metadata
+from app.repository.database import Base, create_db_engine
+from settings import Settings
 
 config = context.config
 if config.config_file_name is not None and config.attributes.get("configure_logger", True):

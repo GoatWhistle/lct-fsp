@@ -3,7 +3,7 @@ from collections.abc import Callable
 import pytest
 from fastapi.testclient import TestClient
 
-from app.identity.models import Role
+from app.domain.account import Role
 
 
 @pytest.mark.parametrize(

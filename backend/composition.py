@@ -3,6 +3,8 @@
 Прод (`main.py`) и стенд валидации (`validation/main.py`) только выбирают реализации портов и
 передают их сюда; сценарии собираются здесь одинаково для обоих. Сценарий живёт на единице
 работы: проводка отдаёт фабрики сценариев от неё, репозитории приходят фабриками от неё же.
+Сценарии механик (`build_usecases`) нужны обоим; сценарии кабинетов — учётки, компании,
+потребностей, справочников (`build_platform_usecases`) — только проду.
 
 Пакет стенда отсюда не импортируется — это проверяет тест на импорты.
 """
@@ -12,24 +14,37 @@ from dataclasses import dataclass
 
 from app.adapter.adaptive import MaxInformationSelector
 from app.adapter.calibration import EloCalibration
-from app.config import Mechanics
 from app.domain.bank.runner import CodeRunner
+from app.usecase.account import Accounts, VerificationLinks
 from app.usecase.attempt import CandidatePath
 from app.usecase.calibration import AnswerCalibration
+from app.usecase.catalog import CatalogQueries, CatalogSync
+from app.usecase.company import Companies
 from app.usecase.interface import (
     AcceptanceModel,
+    AccountRepository,
     AttemptRepository,
     CalibrationRepository,
     CandidatePool,
+    CatalogRepository,
+    CatalogSource,
     Clock,
+    CompanyRepository,
+    EmailVerificationRepository,
     ItemSelector,
+    Mailer,
+    NeedReader,
     NeedRepository,
+    PasswordHasher,
     SeedSource,
     SelectionRepository,
+    SessionTokens,
     SkillModel,
     UnitOfWork,
 )
+from app.usecase.need import Needs
 from app.usecase.selection import Selections
+from settings import Mechanics
 
 
 def item_selector(mechanics: Mechanics) -> MaxInformationSelector:
@@ -65,7 +80,7 @@ class Repositories[U: UnitOfWork]:
 
     attempts: Callable[[U], AttemptRepository]
     calibration: Callable[[U], CalibrationRepository]
-    needs: Callable[[U], NeedRepository]
+    needs: Callable[[U], NeedReader]
     pool: Callable[[U], CandidatePool]
     selections: Callable[[U], SelectionRepository]
 
@@ -123,3 +138,76 @@ def build_usecases[U: UnitOfWork](
         )
 
     return Usecases(calibration, candidate_path, answer_calibration, selections)
+
+
+@dataclass(frozen=True)
+class PlatformRepositories[U: UnitOfWork]:
+    """Фабрики репозиториев кабинетов от единицы работы."""
+
+    accounts: Callable[[U], AccountRepository]
+    verifications: Callable[[U], EmailVerificationRepository]
+    companies: Callable[[U], CompanyRepository]
+    needs: Callable[[U], NeedRepository]
+    catalog: Callable[[U], CatalogRepository]
+
+
+@dataclass(frozen=True)
+class PlatformUsecases[U: UnitOfWork]:
+    """Фабрики сценариев кабинетов от единицы работы."""
+
+    accounts: Callable[[U], Accounts]
+    companies: Callable[[U], Companies]
+    needs: Callable[[U], Needs]
+    catalog: Callable[[U], CatalogQueries]
+
+
+def build_platform_usecases[U: UnitOfWork](
+    repositories: PlatformRepositories[U],
+    *,
+    mechanics: Mechanics,
+    passwords: PasswordHasher,
+    sessions: SessionTokens,
+    mailer: Mailer,
+    clock: Clock,
+    links: VerificationLinks,
+) -> PlatformUsecases[U]:
+    def accounts(uow: U) -> Accounts:
+        return Accounts(
+            uow,
+            repositories.accounts(uow),
+            repositories.verifications(uow),
+            passwords,
+            sessions,
+            mailer,
+            clock,
+            links,
+        )
+
+    def companies(uow: U) -> Companies:
+        return Companies(uow, repositories.companies(uow), repositories.catalog(uow), clock)
+
+    def needs(uow: U) -> Needs:
+        return Needs(
+            uow,
+            repositories.needs(uow),
+            repositories.catalog(uow),
+            clock,
+            key_min_technologies=mechanics.need_key_topic_min_technologies,
+        )
+
+    def catalog(uow: U) -> CatalogQueries:
+        return CatalogQueries(uow, repositories.catalog(uow))
+
+    return PlatformUsecases(accounts, companies, needs, catalog)
+
+
+def catalog_sync[U: UnitOfWork](
+    catalog: Callable[[U], CatalogRepository], source: CatalogSource
+) -> Callable[[U], CatalogSync]:
+    """Синхронизация справочника из источника `source` — при старте бэкенда и из командной
+    строки."""
+
+    def sync(uow: U) -> CatalogSync:
+        return CatalogSync(uow, catalog(uow), source)
+
+    return sync

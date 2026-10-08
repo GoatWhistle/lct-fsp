@@ -5,7 +5,7 @@ import os
 import subprocess
 import sys
 
-from app.config import BACKEND_DIR
+from settings import BACKEND_DIR
 
 # Импорт `main` в чистом процессе без переменных окружения, где чтение настроек, создание
 # движка и любое сетевое соединение — ошибка.

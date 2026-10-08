@@ -10,13 +10,13 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 
+from app.adapter import irt
 from app.adapter.adaptive import MaxInformationSelector
 from app.adapter.calibration import EloCalibration
+from app.adapter.catalog_file import load_catalog
 from app.adapter.clock import FrozenClock
 from app.adapter.code_runner import InProcessCodeRunner
 from app.adapter.seed import DerivedSeeds
-from app.assessment.catalog import load_catalog
-from app.config import Mechanics, Settings
 from app.domain import bank
 from app.domain.attempt import PathView, Stage
 from app.domain.bank import Family, get_family
@@ -27,13 +27,13 @@ from app.domain.skill import Normal
 from app.repository.memory.attempt import MemoryAttemptRepository
 from app.repository.memory.calibration import MemoryCalibrationRepository
 from app.repository.memory.unit_of_work import MemoryStore, MemoryUnitOfWork
-from app.skills import irt
 from app.usecase.attempt import CandidatePath
 from app.usecase.calibration import AnswerCalibration
+from settings import CATALOG_FILE, Mechanics, Settings
 
 T0 = datetime(2026, 10, 7, 12, 0, tzinfo=UTC)
 MECHANICS = Mechanics.from_yaml(Settings().mechanics_file)
-CATALOG = load_catalog()
+CATALOG = load_catalog(CATALOG_FILE)
 GRADES = {g.code: Grade(g.code, g.name, g.rank) for g in CATALOG.grades}
 SPECIALIZATIONS = {
     s.code: Specialization(s.code, s.name, tuple(Topic(t.code, t.name, s.code) for t in s.topics))

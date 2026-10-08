@@ -15,9 +15,10 @@ from app.adapter.catalog_file import load_catalog
 from app.adapter.clock import SimulatedClock
 from app.adapter.code_runner import InProcessCodeRunner
 from app.adapter.seed import DerivedSeeds
-from app.domain.catalog import Grade, Specialization, Technology
+from app.domain.catalog import FspDiscipline, Grade, Specialization, Technology
 from app.repository.memory.attempt import MemoryAttemptRepository
 from app.repository.memory.calibration import MemoryCalibrationRepository
+from app.repository.memory.fsp import MemoryFspEvidence
 from app.repository.memory.selection import MemoryCandidatePool, MemoryNeeds, MemorySelections
 from app.repository.memory.unit_of_work import MemoryStore, MemoryUnitOfWork
 from app.usecase.attempt import CandidatePath
@@ -38,6 +39,7 @@ class Catalog:
     specializations: dict[str, Specialization]
     grades: dict[str, Grade]
     technologies: dict[str, Technology]
+    fsp_disciplines: dict[str, FspDiscipline]
 
 
 def catalog() -> Catalog:
@@ -48,6 +50,7 @@ def catalog() -> Catalog:
         technologies={
             t.code: Technology(t.code, t.name, tuple(sorted(t.topics))) for t in loaded.technologies
         },
+        fsp_disciplines={d.code: d for d in loaded.fsp_disciplines},
     )
 
 
@@ -130,6 +133,7 @@ def build_stand(
     usecases = build_usecases(
         Repositories[MemoryUnitOfWork](
             attempts=lambda uow: _attempts(uow.store, known, mechanics),
+            fsp=lambda uow: MemoryFspEvidence(uow.store, known.fsp_disciplines.values()),
             calibration=lambda uow: MemoryCalibrationRepository(uow.store),
             needs=lambda uow: MemoryNeeds(uow.store),
             pool=lambda uow: MemoryCandidatePool(uow.store),

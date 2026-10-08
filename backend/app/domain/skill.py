@@ -5,22 +5,33 @@
 `app.usecase.interface.SkillModel`, сейчас IRT 2PL в `app/adapter/irt.py`.
 """
 
+import enum
 import math
 from collections.abc import Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Protocol, Self
 
 
+class SignalSource(enum.StrEnum):
+    """Уровень доверия, из которого пришло наблюдение (§11). Проверочный блок и регулярные
+    задания встанут рядом."""
+
+    fsp = "fsp"
+    test = "test"
+
+
 @dataclass(frozen=True)
 class Observation:
-    """Ответ на задание (или иное наблюдение) по теме; `weight` — вес уровня доверия."""
+    """Ответ на задание (или иное наблюдение) по теме; `weight` — вес уровня доверия, `source` —
+    сам уровень."""
 
     topic: str
     correct: bool
     discrimination: float
     difficulty: float
     weight: float = 1.0
+    source: SignalSource = SignalSource.test
 
 
 @dataclass(frozen=True)
@@ -75,12 +86,14 @@ class SkillEstimate(Protocol):
 @dataclass(frozen=True)
 class SkillProfileLevels:
     """Профиль навыков по специализации (§11): общий уровень, уровни тем, число наблюдений и
-    момент последнего сигнала — `None`, пока сигналов нет."""
+    момент последнего сигнала — `None`, пока сигналов нет. `sources` — из каких уровней доверия
+    есть наблюдения по теме; темы без наблюдений в нём нет."""
 
     overall: Normal
     topics: Mapping[str, Normal]
     observations: int
     last_signal_at: datetime | None
+    sources: Mapping[str, frozenset[SignalSource]] = field(default_factory=dict)
 
 
 def normal_cdf(z: float) -> float:

@@ -25,6 +25,7 @@ from app.domain.candidate import (
     disclosure,
 )
 from app.domain.catalog import CatalogRef
+from app.domain.fsp import AnonymizedAchievement
 from app.domain.skill import Normal
 from app.domain.work import WorkFormat
 
@@ -89,8 +90,22 @@ def field_types(cls: type) -> set[type]:
 def test_anonymized_card_has_no_hidden_fields_by_type() -> None:
     names = {f.name for f in dataclasses.fields(AnonymizedCard)}
 
-    assert names == {"candidate_id", "self_reported", "category", "skill_profile", "grade_status"}
+    assert names == {
+        "candidate_id",
+        "self_reported",
+        "category",
+        "skill_profile",
+        "fsp_achievements",
+        "grade_status",
+    }
     assert not names & HIDDEN
+    # Достижение ФСП в карточке — тип результата, дисциплина и год: мероприятие, место и команда
+    # узнают человека.
+    assert {f.name for f in dataclasses.fields(AnonymizedAchievement)} == {
+        "result",
+        "discipline",
+        "year",
+    }
     # Самоописание в карточке — только структурная часть, без раскрываемого.
     assert not {f.name for f in dataclasses.fields(SelfReported)} & HIDDEN
     assert Disclosed not in field_types(AnonymizedCard)

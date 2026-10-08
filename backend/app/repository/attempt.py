@@ -81,6 +81,7 @@ def _attempt_of(row: models.TestAttempt, *, presentations: bool = True) -> Attem
         continues_attempt_id=row.continues_attempt_id,
         started_at=row.started_at,
         purpose=row.purpose,
+        topic_code=row.topic_code,
         finished_at=row.finished_at,
         overall=overall,
         outcome=row.outcome,
@@ -146,7 +147,10 @@ class SqlAttemptRepository(SqlAttemptReader):
         )
         attempt = db.scalar(
             select(models.TestAttempt)
-            .where(models.TestAttempt.user_id == user_id)
+            .where(
+                models.TestAttempt.user_id == user_id,
+                models.TestAttempt.purpose != AttemptPurpose.topic_block,
+            )
             .order_by(models.TestAttempt.number.desc())
             .limit(1)
         )
@@ -193,6 +197,7 @@ class SqlAttemptRepository(SqlAttemptReader):
         continues: Attempt | None,
         now: datetime,
         purpose: AttemptPurpose = AttemptPurpose.determination,
+        topic_code: str | None = None,
     ) -> Attempt:
         row = models.TestAttempt(
             user_id=user_id,
@@ -203,6 +208,7 @@ class SqlAttemptRepository(SqlAttemptReader):
             continues_attempt_id=continues.id if continues else None,
             started_at=now,
             purpose=purpose,
+            topic_code=topic_code,
         )
         self.session.add(row)
         self.session.flush()

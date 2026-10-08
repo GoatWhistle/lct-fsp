@@ -3,12 +3,14 @@
 
 import json
 from collections.abc import Callable
+from datetime import datetime, timedelta
 from typing import Any
 
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import Engine
 
+from app.adapter.clock import FrozenClock
 from app.domain.account import Role
 from settings import Mechanics
 from tests.candidate_path import grant_category, with_company
@@ -62,8 +64,25 @@ def test_without_selections_feedback_is_few_with_general_hint(me: TestClient) ->
     general, fsp = body["hints"]
     assert general["topic"]["code"].startswith("qa.")
     assert (general["gain"], general["scenario"], general["places"]) == (None, None, None)
-    assert general["action"]["available"] is False
+    assert general["action"] == {"kind": "topic_block", "available": True, "available_at": None}
     assert (fsp["topic"], fsp["gain"]) == (None, None)
+
+
+def test_topic_block_is_held_until_interval_after_start(
+    me: TestClient, clock: FrozenClock, mechanics: Mechanics
+) -> None:
+    """Блок по теме подсказки начат — до конца интервала действие недоступно с датой, когда
+    можно; блок по другой теме по-прежнему доступен."""
+    (general,) = [h for h in feedback(me)["hints"] if h["action"]["kind"] == "topic_block"]
+    topic = general["topic"]["code"]
+    started = me.post("/api/candidate/path/topic-block", json={"topic": topic})
+    assert started.status_code == 200, started.text
+
+    (held,) = [h for h in feedback(me)["hints"] if h["action"]["kind"] == "topic_block"]
+    allowed = clock.now() + timedelta(days=mechanics.topic_block_interval_days)
+    assert held["topic"]["code"] == topic
+    assert held["action"]["available"] is False
+    assert datetime.fromisoformat(held["action"]["available_at"]) == allowed
 
 
 def test_candidate_without_category_gets_only_fsp_hint(signed_in: SignIn) -> None:
@@ -96,7 +115,7 @@ def test_below_k_companies_no_placement_at_k_there_is(
     for hint in topic_hints:
         assert hint["gain"] >= mechanics.feedback_min_gain
         assert hint["scenario"] in ("narrow", "raise")
-        assert hint["action"] == {"kind": "topic_block", "available": False}
+        assert hint["action"] == {"kind": "topic_block", "available": True, "available_at": None}
 
 
 def test_many_selections_of_one_company_do_not_reach_k(

@@ -119,6 +119,7 @@ def run(
     current: dict[str, Normal] | None = None,
     narrowed: Narrower | None = None,
     task_topics: frozenset[str] = frozenset(),
+    block_held: dict[str, datetime] | None = None,
     fsp_linked: bool = True,
     categorized: bool = True,
     candidate_stack: frozenset[str] = frozenset({"pytest"}),
@@ -133,6 +134,7 @@ def run(
         candidate_stack=candidate_stack,
         narrowed=narrowed or Narrower(current, 0.5),
         task_topics=task_topics,
+        block_held=block_held or {},
         fsp_linked=fsp_linked,
         rules=rules,
     )
@@ -296,6 +298,7 @@ def test_topic_without_narrowing_forecast_gets_raise_only() -> None:
         candidate_stack=frozenset(),
         narrowed=no_forecast,
         task_topics=frozenset(),
+        block_held={},
         fsp_linked=True,
         rules=RULES,
     )
@@ -366,6 +369,7 @@ def test_places_are_counted_against_saved_neighbor_scores() -> None:
         candidate_stack=stack,
         narrowed=no_forecast,
         task_topics=frozenset(),
+        block_held={},
         fsp_linked=True,
         rules=RULES,
     )
@@ -386,7 +390,7 @@ def test_narrowing_forecast_is_asked_once_per_topic() -> None:
 # Действия.
 
 
-def test_regular_task_action_when_task_on_topic_else_unavailable_topic_block() -> None:
+def test_regular_task_action_when_task_on_topic_else_topic_block() -> None:
     selections = [selection() for _ in range(RULES.min_companies)]
 
     result = run(
@@ -397,9 +401,30 @@ def test_regular_task_action_when_task_on_topic_else_unavailable_topic_block() -
 
     actions = {h.topic.code: h.action for h in result.hints if h.topic is not None}
     assert actions["qa.theory"].kind is ActionKind.regular_task
-    assert actions["qa.theory"].available
+    assert actions["qa.theory"].available and actions["qa.theory"].available_at is None
     others = [a for code, a in actions.items() if code != "qa.theory"]
-    assert others and all(a.kind is ActionKind.topic_block and not a.available for a in others)
+    assert others and all(
+        a.kind is ActionKind.topic_block and a.available and a.available_at is None for a in others
+    )
+
+
+@pytest.mark.parametrize("enough", [True, False])
+def test_topic_block_held_by_interval_is_unavailable_with_date(enough: bool) -> None:
+    """Блок по теме раньше интервала недоступен — с датой, когда можно; по другим темам — можно."""
+    selections = [selection() for _ in range(RULES.min_companies if enough else 0)]
+    held = T0 + timedelta(days=12)
+
+    result = run(
+        selections,
+        block_held=dict.fromkeys(CODES, held),
+        rules=dataclasses.replace(RULES, min_gain=0),
+    )
+    free = run(selections, block_held={"qa.unknown": held}, rules=RULES)
+
+    blocks = [h.action for h in result.hints if h.action.kind is ActionKind.topic_block]
+    assert blocks and all(not a.available and a.available_at == held for a in blocks)
+    others = [h.action for h in free.hints if h.action.kind is ActionKind.topic_block]
+    assert others and all(a.available and a.available_at is None for a in others)
 
 
 @pytest.mark.parametrize("enough", [True, False])
@@ -475,6 +500,7 @@ def follow_top_hint(seed: int) -> tuple[float, float] | None:
         candidate_stack=stack,
         narrowed=narrowed,
         task_topics=frozenset(),
+        block_held={},
         fsp_linked=True,
         rules=RULES,
     )

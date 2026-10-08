@@ -29,7 +29,17 @@ from app.domain.attempt import (
 from app.domain.bank import Family, get_family
 from app.domain.calibration import ExpertGap, Parameters
 from app.domain.catalog import Grade, Specialization, Topic
-from app.domain.errors import GradeChangeTooEarly, GradeNotNext, NoLowerGrade, StepUnavailable
+from app.domain.errors import (
+    AttemptInProgress,
+    CategoryRequired,
+    GradeChangeTooEarly,
+    GradeNotNext,
+    NoLowerGrade,
+    NoTestInProgress,
+    StepUnavailable,
+    TopicBlockTooEarly,
+    TopicNotInCategory,
+)
 from app.domain.skill import Normal
 from app.repository.memory.attempt import MemoryAttemptRepository
 from app.repository.memory.calibration import MemoryCalibrationRepository
@@ -471,3 +481,180 @@ def test_grade_up_only_to_next_grade(paths: CandidatePath, answer_items: AnswerI
         paths.start_attempt(user, grade="senior")
     with pytest.raises(GradeNotNext):
         paths.start_attempt(user, grade="junior")
+
+
+# Блок по теме (§6).
+
+BLOCK_TOPIC = "qa.api"
+
+
+def _answer_block(
+    paths: CandidatePath,
+    calibrations: AnswerCalibration,
+    user: uuid.UUID,
+    correct: Callable[[Family], bool],
+) -> tuple[PathView, list[str]]:
+    """Отвечает на задания блока до его конца, как контроллер; возвращает шаг пути и семейства
+    заданий по порядку."""
+    view, shown = paths.path(user), []
+    while view.topic_block is not None:
+        item = paths.current_item(user)
+        assert item.topic_block and item.max_items == MECHANICS.topic_block_items
+        family = get_family(item.family_code)
+        shown.append(family.code)
+        response = item.instance.answer if correct(family) else WRONG
+        answered = paths.answer(user, presentation_id=item.presentation_id, response=response)
+        calibrations.calibrate(answered.answer)
+        view = answered.view
+    return view, shown
+
+
+def _topic_level(view: PathView, topic: str) -> tuple[float, float]:
+    assert view.profile is not None
+    level = next(t.level for t in view.profile.topics if t.topic.code == topic)
+    return level.theta, level.theta_sd
+
+
+def test_topic_block_refines_profile_and_keeps_path(
+    paths: CandidatePath,
+    attempts: MemoryAttemptRepository,
+    store: MemoryStore,
+    calibrations: AnswerCalibration,
+    clock: FrozenClock,
+    answer_items: AnswerItems,
+) -> None:
+    """Блок — ровно `topic_block_items` заданий по семействам темы: предъявления сохранены и
+    сдвигают калибровку семейств, уровень и погрешность темы в профиле меняются. Категория,
+    журнал смен, стадия, история и попытка вверх — как до блока."""
+    user = _determine(paths, answer_items, claimed="junior")
+    clock.shift(timedelta(hours=1))
+    before = paths.path(user)
+    changes = attempts.category_changes(user)
+    responses = {code: f.responses for code, f in store.collection("families").items()}
+
+    started = paths.start_topic_block(user, topic=BLOCK_TOPIC)
+    assert started.topic_block is not None
+    assert (started.topic_block.topic.code, started.topic_block.answered) == (BLOCK_TOPIC, 0)
+    assert started.topic_block.items == MECHANICS.topic_block_items
+    view, shown = _answer_block(paths, calibrations, user, lambda family: False)
+
+    assert len(shown) == MECHANICS.topic_block_items == len(set(shown))
+    assert all(get_family(code).topic == BLOCK_TOPIC for code in shown)
+    block = attempts.attempts(user)[-1]
+    assert block.purpose == AttemptPurpose.topic_block and block.finished_at is not None
+    assert [p.family_code for p in block.presentations] == shown
+    assert all(p.topic_theta_rest is not None for p in block.presentations)
+    families = store.collection("families")
+    assert all(families[code].responses == responses.get(code, 0) + 1 for code in shown)
+
+    assert view.topic_block is None
+    assert _topic_level(view, BLOCK_TOPIC) != _topic_level(before, BLOCK_TOPIC)
+    assert view.profile is not None and before.profile is not None
+    assert view.profile.updated_at > before.profile.updated_at
+    assert (view.stage, view.category, view.result) == (
+        before.stage,
+        before.category,
+        before.result,
+    )
+    assert (view.history, view.grade_up, view.grade_down) == (
+        before.history,
+        before.grade_up,
+        before.grade_down,
+    )
+    assert attempts.category_changes(user) == changes
+
+
+def test_topic_block_too_early_counts_from_start(
+    paths: CandidatePath,
+    calibrations: AnswerCalibration,
+    clock: FrozenClock,
+    answer_items: AnswerItems,
+) -> None:
+    """Интервал — от старта прошлого блока по теме, а не от его конца: блок, брошенный и
+    законченный через месяц, держит тему тот же срок. По другой теме блок можно сразу."""
+    user = _determine(paths, answer_items)
+    started_at = clock.now()
+    allowed = started_at + timedelta(days=MECHANICS.topic_block_interval_days)
+    paths.start_topic_block(user, topic=BLOCK_TOPIC)
+    paths.current_item(user)
+    clock.shift(timedelta(days=MECHANICS.topic_block_interval_days - 1))
+    _answer_block(paths, calibrations, user, lambda family: True)
+
+    with pytest.raises(TopicBlockTooEarly) as early:
+        paths.start_topic_block(user, topic=BLOCK_TOPIC)
+    assert early.value.available_at == allowed
+
+    other = paths.start_topic_block(user, topic="qa.theory")
+    assert other.topic_block is not None and other.topic_block.topic.code == "qa.theory"
+    _answer_block(paths, calibrations, user, lambda family: True)
+
+    clock.shift(timedelta(days=1))
+    assert paths.start_topic_block(user, topic=BLOCK_TOPIC).topic_block is not None
+
+
+def test_topic_block_needs_category_and_its_topic(
+    paths: CandidatePath, answer_items: AnswerItems
+) -> None:
+    newcomer = uuid.uuid4()
+    paths.submit_survey(newcomer, specialization="qa")
+    with pytest.raises(CategoryRequired):
+        paths.start_topic_block(newcomer, topic=BLOCK_TOPIC)
+
+    user = _determine(paths, answer_items)
+    with pytest.raises(TopicNotInCategory):
+        paths.start_topic_block(user, topic="backend.databases")
+    with pytest.raises(TopicNotInCategory):
+        paths.start_topic_block(user, topic="qa.unknown")
+
+
+def test_one_unfinished_attempt_per_candidate(
+    paths: CandidatePath,
+    calibrations: AnswerCalibration,
+    answer_items: AnswerItems,
+) -> None:
+    """Пока идёт блок, попытка вверх не начинается, и наоборот; брошенный блок продолжается с
+    того же задания."""
+    user = _determine(paths, answer_items, claimed="junior")
+    paths.start_topic_block(user, topic=BLOCK_TOPIC)
+    first = paths.current_item(user)
+
+    with pytest.raises(AttemptInProgress):
+        paths.start_attempt(user, grade="middle")
+    with pytest.raises(AttemptInProgress):
+        paths.start_topic_block(user, topic="qa.theory")
+    assert paths.current_item(user).presentation_id == first.presentation_id
+
+    _answer_block(paths, calibrations, user, lambda family: True)
+    paths.start_attempt(user, grade="middle")
+    with pytest.raises(AttemptInProgress):
+        paths.start_topic_block(user, topic="qa.theory")
+
+
+def test_block_stops_when_topic_families_leave_rotation(
+    paths: CandidatePath,
+    attempts: MemoryAttemptRepository,
+    store: MemoryStore,
+    calibrations: AnswerCalibration,
+    answer_items: AnswerItems,
+) -> None:
+    """Калибровка вывела оставшиеся семейства темы из выдачи посреди блока — блок
+    останавливается при запросе задания, а не висит незавершённой попыткой."""
+    user = _determine(paths, answer_items)
+    paths.start_topic_block(user, topic=BLOCK_TOPIC)
+    item = paths.current_item(user)
+    calibrations.calibrate(
+        paths.answer(user, presentation_id=item.presentation_id, response=WRONG).answer
+    )
+    repository = MemoryCalibrationRepository(store)
+    for family in bank.families_for_topics([BLOCK_TOPIC]):
+        if family.code != item.family_code:
+            row = repository.locked(family.code, Parameters(1.0, 0.0))
+            row.in_rotation = False
+            repository.save(row)
+
+    with pytest.raises(NoTestInProgress):
+        paths.current_item(user)
+
+    assert paths.path(user).topic_block is None
+    block = attempts.attempts(user)[-1]
+    assert block.purpose == AttemptPurpose.topic_block and block.finished_at is not None

@@ -715,7 +715,10 @@ class CandidatePath:
         """Флаги времени ответов попытки (§8): модель времени семейства — по верным ответам
         других попыток; трудность — по оценке до ответа. В оценку время не входит."""
         answered = [p for p in attempt.presentations if p.answered_at is not None]
-        times = self._attempts.response_times({p.family_code for p in answered}, attempt.id)
+        hard_p = self._mechanics.rt_hard_item_p
+        # Модель времени нужна только там, где флаг возможен: верный ответ на трудное задание.
+        candidates = {p.family_code for p in answered if p.correct and _p_before(p) <= hard_p}
+        times = self._attempts.response_times(candidates, attempt.id)
         models = {
             code: ResponseTimes.fit(seconds, self._mechanics.rt_min_responses)
             for code, seconds in times.items()
@@ -723,7 +726,7 @@ class CandidatePath:
         for p in answered:
             assert p.correct is not None and p.response_time_ms is not None
             p.time_flag = time_flag(
-                sigmoid(p.discrimination * (p.topic_theta_before - p.difficulty)),
+                _p_before(p),
                 p.correct,
                 p.response_time_ms / 1000,
                 models.get(p.family_code),
@@ -1110,6 +1113,11 @@ class CandidatePath:
 
     def _blueprint(self, prior: Prior) -> Blueprint:
         return blueprint_of(prior, self._mechanics)
+
+
+def _p_before(p: Presentation) -> float:
+    """P(верно) по оценке темы до ответа и параметрам семейства на момент показа."""
+    return sigmoid(p.discrimination * (p.topic_theta_before - p.difficulty))
 
 
 def _bank(prior: Prior) -> list[bank.Family]:

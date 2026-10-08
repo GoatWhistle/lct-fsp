@@ -14,8 +14,8 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 
 from app.domain.adaptive import Option
-from app.domain.calibration import Parameters
-from app.domain.skill import SkillEstimate, sigmoid
+from app.domain.calibration import Parameters, expected_correct
+from app.domain.skill import Normal, SkillEstimate, sigmoid
 
 # MAD нормального распределения — 0,6745 σ: множитель приводит MAD к σ.
 _MAD_TO_SD = 1.4826
@@ -25,17 +25,18 @@ _MIN_LOG_SPREAD = 0.05
 
 
 def cusum_step(
-    cusum: float, reference: Parameters, level: float, correct: bool, *, shift: float
+    cusum: float, reference: Parameters, level: Normal, correct: bool, *, shift: float
 ) -> float:
     """Шаг risk-adjusted Bernoulli CUSUM (Steiner и др., 2000): S ← max(0, S + W).
 
     W — логарифм отношения правдоподобий ответа при семействе, ставшем легче на `shift`, и при
     опорных параметрах; `level` — оценка кандидата по теме до ответа. Поправка на уровень
-    встроена: верный ответ сильного кандидата почти ничего не прибавляет.
+    встроена: верный ответ сильного кандидата почти ничего не прибавляет. Вероятность — с учётом
+    погрешности оценки, как в шаге Эло (§7): в начале теста оценка неточна, и без поправки верные
+    ответы сильных кандидатов на трудные задания выглядели бы неожиданными.
     """
-    a, b = reference.discrimination, reference.difficulty
-    p0 = sigmoid(a * (level - b))
-    p1 = sigmoid(a * (level - b + shift))
+    p0 = expected_correct(reference, level)
+    p1 = expected_correct(reference, Normal(level.mean + shift, level.sd))
     w = math.log(p1 / p0) if correct else math.log((1 - p1) / (1 - p0))
     return max(0.0, cusum + w)
 

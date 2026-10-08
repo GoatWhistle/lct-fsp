@@ -97,3 +97,95 @@ def reliability_svg(title: str, panels: Sequence[Panel]) -> str:
         )
     out.append("</svg>")
     return "\n".join(out) + "\n"
+
+
+@dataclass(frozen=True)
+class Curve:
+    label: str
+    points: Sequence[tuple[float, float]]
+
+
+@dataclass(frozen=True)
+class CurvePanel:
+    title: str
+    x: str
+    y: str
+    curves: Sequence[Curve]
+    # Горизонтальная линия порога; None — без неё.
+    threshold: float | None = None
+
+
+def curves_svg(title: str, panels: Sequence[CurvePanel]) -> str:
+    """Ломаные по точкам: по панели на показатель, по ломаной на серию. Оси — от нуля до
+    наибольшего значения панели с запасом; порог — пунктиром."""
+    width = PAD + len(panels) * (SIZE + PAD * 2)
+    legend_y = SIZE + PAD * 3 + 6
+    height = legend_y + 12 * len(panels[0].curves) + 8
+    out = [
+        f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}" '
+        f'viewBox="0 0 {width} {height}" font-family="sans-serif" font-size="11">',
+        f'<rect width="{width}" height="{height}" fill="#ffffff"/>',
+        f'<text x="{PAD}" y="18" font-size="13" font-weight="bold">{title}</text>',
+    ]
+    for i, panel in enumerate(panels):
+        left = PAD + i * (SIZE + PAD * 2) + PAD
+        top = PAD + 10
+        xs = [x for c in panel.curves for x, _ in c.points]
+        ys = [y for c in panel.curves for _, y in c.points]
+        if panel.threshold is not None:
+            ys.append(panel.threshold)
+        x_low, x_high = min(xs), max(xs)
+        y_low = min(0.0, min(ys))
+        y_high = max(ys) * 1.1 if max(ys) > 0 else 1.0
+        x_span = (x_high - x_low) or 1.0
+        y_span = (y_high - y_low) or 1.0
+
+        def at(px: float, py: float, left: float = left, top: float = top) -> tuple[str, str]:
+            x = left + (px - x_low) / x_span * SIZE  # noqa: B023
+            y = top + (1 - (py - y_low) / y_span) * SIZE  # noqa: B023
+            return _n(x), _n(y)
+
+        out.append(f'<text x="{left}" y="{top - 6}" font-weight="bold">{panel.title}</text>')
+        out.append(
+            f'<rect x="{left}" y="{top}" width="{SIZE}" height="{SIZE}" fill="none" '
+            'stroke="#9ca3af"/>'
+        )
+        for tick in sorted(set(xs)):
+            x, _ = at(tick, y_low)
+            out.append(
+                f'<text x="{x}" y="{_n(top + SIZE + 13)}" text-anchor="middle">{tick:g}</text>'
+            )
+        for tick in (y_low, (y_low + y_high) / 2, y_high):
+            _, y = at(x_low, tick)
+            out.append(f'<text x="{_n(left - 4)}" y="{y}" text-anchor="end">{tick:.2f}</text>')
+        if panel.threshold is not None:
+            (x1, y1), (x2, y2) = at(x_low, panel.threshold), at(x_high, panel.threshold)
+            out.append(
+                f'<line x1="{x1}" y1="{y1}" x2="{x2}" y2="{y2}" stroke="#9ca3af" '
+                'stroke-dasharray="4 3"/>'
+            )
+        out.append(
+            f'<text x="{_n(left + SIZE / 2)}" y="{_n(top + SIZE + 27)}" '
+            f'text-anchor="middle">{panel.x}</text>'
+        )
+        out.append(
+            f'<text x="{_n(left - 30)}" y="{_n(top + SIZE / 2)}" text-anchor="middle" '
+            f'transform="rotate(-90 {_n(left - 30)} {_n(top + SIZE / 2)})">{panel.y}</text>'
+        )
+        for curve, color in zip(panel.curves, COLORS, strict=False):
+            points = [at(x, y) for x, y in curve.points]
+            out.append(
+                f'<polyline fill="none" stroke="{color}" stroke-width="1.5" points="'
+                + " ".join(f"{x},{y}" for x, y in points)
+                + '"/>'
+            )
+            for x, y in points:
+                out.append(f'<circle cx="{x}" cy="{y}" r="3" fill="{color}"/>')
+    for j, curve in enumerate(panels[0].curves):
+        row = legend_y + 12 * j
+        out.append(
+            f'<rect x="{PAD}" y="{row - 8}" width="10" height="10" fill="{COLORS[j]}"/>'
+            f'<text x="{PAD + 16}" y="{row}">{curve.label}</text>'
+        )
+    out.append("</svg>")
+    return "\n".join(out) + "\n"

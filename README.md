@@ -152,7 +152,14 @@ docker compose run --rm --build tests
   метрике плана пишется в [`docs/validation-report.md`](docs/validation-report.md), картинки —
   рядом, в `docs/validation-report/`. Тот же прогон — тот же файл байт в байт; полный прогон
   идёт в пуле процессов десятки минут, `--candidates`, `--pairs`, `--warm`, `--compare` и
-  `--report` — для короткого прогона в другой файл;
+  `--report` — для короткого прогона в другой файл, `--no-protection` — без экспериментов
+  защиты M14–M17. M16 (б) берёт ответы модели из записи `validation/data/recorded/d7.*.json`,
+  без сети;
+- `uv run python -m validation drift` — подбор порога детектора дрейфа `drift_cusum_h` на
+  настроечном наборе D3;
+- `uv run python -m validation llm --record N` — M16 (б), D7: живой прогон модели через тест в N
+  процессов с записью её ответов (`--model` — модель по имени сборки); уже записанное модель не
+  спрашивают;
 - `uv run python -m validation honesty` — честность погрешности уровня и стабильность грейда на
   прогретом банке D1 (`--seed`, `--candidates`, `--pairs`);
 - `uv run python -m validation tune` — подбор поправки погрешности `level_sd_inflation` на

@@ -6,7 +6,7 @@
 Иначе запись считается подтверждённой — заявка той категории не известна.
 
 Revision ID: 3f1c9a7d2e64
-Revises: 7c604420b704
+Revises: 3e1f0c9a7b42
 Create Date: 2026-10-08 12:00:00.000000
 
 """
@@ -17,7 +17,7 @@ import sqlalchemy as sa
 from alembic import op
 
 revision: str = "3f1c9a7d2e64"
-down_revision: str | Sequence[str] | None = "7c604420b704"
+down_revision: str | Sequence[str] | None = "3e1f0c9a7b42"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 

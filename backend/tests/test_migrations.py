@@ -14,7 +14,7 @@ from app.repository.database import create_db_engine
 from settings import BACKEND_DIR
 
 T0 = datetime(2026, 10, 7, 12, 0, tzinfo=UTC)
-BEFORE_GRADE_STATUS = "7c604420b704"
+BEFORE_GRADE_STATUS = "3e1f0c9a7b42"
 GRADE_STATUS = "3f1c9a7d2e64"
 
 

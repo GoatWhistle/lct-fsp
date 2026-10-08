@@ -72,6 +72,19 @@ docker compose up --build
 уходит. Специализации вне справочника (1С, геймдев) получают честный ответ и ближайшие
 специализации кнопками.
 
+Вместо правил разбирать может локальная модель — `llama-server` из llama.cpp на CPU, в отдельной
+сети compose без выхода наружу. По умолчанию она выключена: на D5 замерены только правила, а
+модель становится вариантом по умолчанию только по замеру
+([ADR 0002](docs/adr/0002-text-understanding-port.md)). Включение — файл модели GGUF в `models/`
+и
+
+```sh
+LLAMA_MODEL_FILE=<файл>.gguf TEXT_UNDERSTANDING=llama docker compose --profile llama up --build
+```
+
+Модель отвечает только значениями справочника; не ответила за `TEXT_UNDERSTANDING_TIMEOUT_SECONDS`
+или ответила сбоем — разбор отвечает правилами, интерфейс разницы не показывает.
+
 В карточке потребности — «Сформировать подборку»: кандидаты с категорией потребности, затем
 «близкие» соседнего грейда, по убыванию соответствия. У каждого — соответствие и его объяснение:
 вклад каждой темы и самоописанного стека, сумма вкладов равна соответствию. Карточка кандидата
@@ -112,7 +125,8 @@ docker compose run --rm --build tests
   настроечном наборе D3;
 - `uv run python -m validation parsing` — M21, точность разбора потребности из текста по полям на
   размеченном наборе D5 (`--dataset` — другой файл того же формата,
-  `validation/data/need_texts.md`).
+  `validation/data/need_texts.md`); `--model <имя>` — разбор моделью из записи её ответов, без
+  сети, `--record N` — сначала дописать в запись недостающие ответы в N потоков.
 
 Банк заданий — тоже из `backend/`:
 
@@ -139,7 +153,7 @@ backend/                 FastAPI + SQLAlchemy + Alembic, PostgreSQL
     controller/          роутеры FastAPI, схемы Pydantic, зависимости, guard ролей
     adapter/             реализации портов: модель навыка IRT, выбор задания, калибровка,
                          почта, PDF, пароли, токен входа, файл справочника, ФСП ID (OIDC),
-                         реестр ФСП, разбор текста на правилах
+                         реестр ФСП, разбор текста на правилах и моделью (llama.cpp)
     repository/          хранилища на Postgres, ORM всех таблиц (`orm/`), in-memory (`memory/`)
   config/mechanics.yaml  параметры механик — те же, что в docs/parameters.md
   config/catalog.yaml    справочники: грейды, сферы бизнеса, специализации, темы, технологии,
@@ -150,7 +164,7 @@ backend/                 FastAPI + SQLAlchemy + Alembic, PostgreSQL
   tests/                 тесты через HTTP API и сценарии на in-memory хранилищах
 frontend/                React + TypeScript (Vite), на стенде — nginx
 keycloak/                realm, который изображает ФСП ID, — генерирует backend/fsp_stub.py
-docker-compose.yml       PostgreSQL, бэкенд, фронт, Mailpit, Keycloak
+docker-compose.yml       PostgreSQL, бэкенд, фронт, Mailpit, Keycloak; llama-server — profile llama
 ```
 
 Зависимости слоёв идут внутрь, к `domain`; `tests/test_layers.py` это проверяет. Сущность

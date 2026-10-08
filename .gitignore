@@ -27,3 +27,6 @@ frontend/dist/
 
 # Артефакты Windows рядом со скачанными файлами
 *:Zone.Identifier
+
+# Веса локальной модели для llama-server — не в репо
+models/

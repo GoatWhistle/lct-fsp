@@ -6,7 +6,9 @@
 
 Набор покрывает механику (mechanics.md, §11): победитель, призёр, только финалы, только отборы,
 без истории, командные результаты с ролью, дисциплины без тем и участники с сильными
-результатами для демонстрации расхождения ФСП и теста.
+результатами для демонстрации расхождения ФСП и теста. Демо-участников
+`demo-<специализация>-<грейд>` привязывает к своим кандидатам демо-засев `seed_demo.py`;
+синтетический рынок стенда валидации пишет достижения в том же формате (`achievement`).
 """
 
 import json
@@ -50,6 +52,16 @@ EVENTS = {
     ),
     "robotics": ("Кубок ФСП по программированию робототехники",),
     "uav": ("Чемпионат ФСП по программированию беспилотных авиационных систем",),
+}
+
+# Дисциплины, в которых выступают специалисты специализации, — синтетический рынок стенда и
+# демо-участники.
+DISCIPLINES = {
+    "backend": ("algorithmic", "product", "security"),
+    "frontend": ("algorithmic", "product"),
+    "data-ml": ("algorithmic", "product"),
+    "qa": ("product", "security"),
+    "devops": ("product", "security"),
 }
 
 # Тип результата → места в итоговой таблице.
@@ -152,7 +164,60 @@ PERSONAS = (
 )
 
 
-def _achievement(
+# Демо-участники: по одному на категорию «специализация × грейд». Демо-засев (`seed_demo.py`)
+# привязывает их к демо-кандидатам с ФСП: вход в ФСП ID под `demo-<специализация>-<грейд>`
+# открывает кандидата этой категории. Результат растёт с грейдом.
+DEMO_NAMES = (
+    ("Антон", "Бэкендов"),
+    ("Белла", "Серверова"),
+    ("Валерий", "Запросов"),
+    ("Галина", "Очередёва"),
+    ("Денис", "Вёрсткин"),
+    ("Ева", "Компонентова"),
+    ("Жора", "Браузеров"),
+    ("Зоя", "Реактова"),
+    ("Игорь", "Выборкин"),
+    ("Карина", "Признакова"),
+    ("Лев", "Моделев"),
+    ("Мария", "Датасетова"),
+    ("Никита", "Проверкин"),
+    ("Ольга", "Багова"),
+    ("Павел", "Автотестов"),
+    ("Римма", "Нагрузова"),
+    ("Семён", "Конвейеров"),
+    ("Таисия", "Кластерова"),
+    ("Ульян", "Скриптов"),
+    ("Фаина", "Метрикова"),
+)
+DEMO_GRADES = ("intern", "junior", "middle", "senior")
+
+
+def demo_username(specialization: str, grade: str) -> str:
+    return f"demo-{specialization}-{grade}"
+
+
+def _demo_plan(specialization: str, grade: str) -> Plan:
+    first, *_ = DISCIPLINES[specialization]
+    match grade:
+        case "intern":
+            return (("participant", first, None), ("finalist", "product", None))
+        case "junior":
+            return (("finalist", first, None),)
+        case "middle":
+            return (("prize", "product", specialization), ("finalist", first, None))
+        case _:
+            return (("winner", first, None), ("prize", "product", specialization))
+
+
+DEMO_PERSONAS = tuple(
+    Persona(demo_username(code, grade), first, last, _demo_plan(code, grade))
+    for (code, grade), (first, last) in zip(
+        ((c, g) for c in DISCIPLINES for g in DEMO_GRADES), DEMO_NAMES, strict=True
+    )
+)
+
+
+def achievement(
     rng: random.Random, result: str, discipline: str, role: str | None
 ) -> dict[str, Any]:
     day = date(rng.choice(YEARS), rng.randint(1, 9), rng.randint(1, 28))
@@ -172,9 +237,9 @@ def generate(seed: int = SEED) -> tuple[dict[str, Any], dict[str, list[dict[str,
     rng = random.Random(seed)
     users = []
     registry: dict[str, list[dict[str, Any]]] = {}
-    for persona in PERSONAS:
+    for persona in (*PERSONAS, *DEMO_PERSONAS):
         sub = str(uuid.UUID(int=rng.getrandbits(128), version=4))
-        achievements = [_achievement(rng, *step) for step in persona.plan]
+        achievements = [achievement(rng, *step) for step in persona.plan]
         registry[sub] = sorted(achievements, key=lambda a: a["date"])
         users.append(
             {

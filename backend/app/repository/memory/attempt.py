@@ -97,7 +97,7 @@ class MemoryAttemptRepository:
 
     def state(self, user_id: uuid.UUID) -> PathState:
         surveys = self._store.collection("user_surveys").get(user_id, [])
-        attempts = self._of_user(user_id)
+        attempts = [a for a in self._of_user(user_id) if a.on_path]
         return PathState(
             survey=surveys[-1] if surveys else None,
             attempt=attempts[-1] if attempts else None,
@@ -129,6 +129,7 @@ class MemoryAttemptRepository:
         continues: Attempt | None,
         now: datetime,
         purpose: AttemptPurpose = AttemptPurpose.determination,
+        topic_code: str | None = None,
     ) -> Attempt:
         mine = self._store.collection("user_attempts").setdefault(user_id, [])
         attempt = Attempt(
@@ -141,6 +142,7 @@ class MemoryAttemptRepository:
             continues_attempt_id=continues.id if continues else None,
             started_at=now,
             purpose=purpose,
+            topic_code=topic_code,
         )
         self._attempts()[attempt.id] = attempt
         mine.append(attempt)

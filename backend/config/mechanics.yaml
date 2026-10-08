@@ -94,6 +94,7 @@ invitation_weekly_budget: 20
 invitation_ttl_days: 7
 acceptance_target_probability: 0.6
 salary_hint_rounding_rub: 10000
+message_max_length: 4000
 
 # Обратная связь
 feedback_min_companies: 5

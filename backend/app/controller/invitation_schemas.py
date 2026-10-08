@@ -1,4 +1,4 @@
-"""Схемы API приглашений: отправка, ответ кандидата и бюджет компании."""
+"""Схемы API приглашений: отправка, ответ кандидата, бюджет компании и переписка."""
 
 import uuid
 from datetime import datetime
@@ -7,6 +7,7 @@ from typing import Annotated
 from pydantic import BaseModel, Field, StringConstraints
 
 from app.controller.salary import SALARY_UNIT, Salary, SalaryBasisOut
+from app.domain.conversation import Side
 from app.domain.invitation import InvitationStatus
 
 
@@ -38,6 +39,10 @@ class InvitationOut(SalaryBasisOut):
     viewed_at: datetime | None
     answered_at: datetime | None
     expires_at: datetime = Field(description="До какого момента можно ответить")
+    revoked_at: datetime | None = Field(
+        description="Когда кандидат отозвал доступ: карточка снова обезличена, переписка идёт"
+    )
+    unread_messages: int = Field(description="Непрочитанные сообщения другой стороны")
 
 
 class InvitationBudgetOut(BaseModel):
@@ -50,3 +55,15 @@ class InvitationBudgetOut(BaseModel):
 class SentInvitationsOut(BaseModel):
     budget: InvitationBudgetOut
     invitations: list[InvitationOut] = Field(description="Новые сверху")
+
+
+class MessageIn(BaseModel):
+    text: str = Field(description="Только текст; пустой или длиннее предела — 422")
+
+
+class MessageOut(BaseModel):
+    id: uuid.UUID
+    author: Side = Field(description="Чья сторона написала")
+    text: str
+    sent_at: datetime
+    read_at: datetime | None = Field(description="Когда прочитала другая сторона")

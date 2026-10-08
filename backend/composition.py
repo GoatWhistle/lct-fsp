@@ -10,11 +10,14 @@
 Пакет стенда отсюда не импортируется — это проверяет тест на импорты.
 """
 
+import importlib
 from collections.abc import Callable
 from dataclasses import dataclass
 
 from app.adapter.adaptive import MaxInformationSelector
 from app.adapter.calibration import EloCalibration
+from app.adapter.text_model import Completion, ModelTextUnderstanding, WithFallback
+from app.adapter.text_rules import RulesTextUnderstanding, Synonyms
 from app.domain.bank.runner import CodeRunner
 from app.domain.resume_draft import GradeHintRule
 from app.usecase.account import Accounts, VerificationLinks
@@ -22,6 +25,7 @@ from app.usecase.attempt import CandidatePath
 from app.usecase.calibration import AnswerCalibration
 from app.usecase.catalog import CatalogQueries, CatalogSync
 from app.usecase.company import Companies
+from app.usecase.conversation import Conversations
 from app.usecase.feedback import CandidateFeedback
 from app.usecase.fsp import FspAccounts
 from app.usecase.interface import (
@@ -43,6 +47,7 @@ from app.usecase.interface import (
     InvitationRepository,
     ItemSelector,
     Mailer,
+    MessageRepository,
     NeedReader,
     NeedRepository,
     PasswordHasher,
@@ -65,12 +70,46 @@ from app.usecase.selection import Selections
 from app.usecase.skill_profile import ProfileFreshness
 from settings import Mechanics
 
+# Пакет моделей разбора текста, которые собираются только по имени: модуль `<пакет>.<имя>` с
+# функцией `completion(timeout: float) -> Completion`. Пакета может не быть — тогда есть только
+# правила и llama.
+NAMED_MODELS = "app.adapter.demo"
+
 
 def item_selector(mechanics: Mechanics) -> MaxInformationSelector:
     """Выбор задания с пулом и потолком показов из конфига механик."""
     return MaxInformationSelector(
         top_k=mechanics.exposure_top_k, max_rate=mechanics.exposure_max_rate
     )
+
+
+def model_understanding(
+    complete: Completion, synonyms: Synonyms, *, timeout: float
+) -> TextUnderstanding:
+    """Разбор моделью за `complete` с откатом на правила того же словаря: сбой или ответ позже
+    `timeout` секунд — черновик правил в том же запросе."""
+    model = ModelTextUnderstanding(complete, list(synonyms.cities), synonyms.experience_years)
+    return WithFallback(model, RulesTextUnderstanding(synonyms), timeout=timeout)
+
+
+def named_completion(name: str, timeout: float) -> Completion:
+    """Модель из пакета `NAMED_MODELS` по имени из окружения — без прямого импорта. Нет модуля —
+    понятная ошибка сборки, а не падение на первом запросе."""
+    unknown = f"неизвестный разбор текста {name!r}: есть rules и llama"
+    module_name = f"{NAMED_MODELS}.{name}"
+    # Тесты и служебные модули пакета — не модели: их сборка не импортирует.
+    if not name.isidentifier() or name.startswith(("_", "test")):
+        raise ValueError(unknown)
+    try:
+        module = importlib.import_module(module_name)
+    except ModuleNotFoundError as e:
+        if e.name not in {NAMED_MODELS, module_name}:
+            raise
+        raise ValueError(unknown) from e
+    completion: Callable[[float], Completion] | None = getattr(module, "completion", None)
+    if completion is None:
+        raise ValueError(unknown)
+    return completion(timeout)
 
 
 def elo_calibration(repository: CalibrationRepository, mechanics: Mechanics) -> EloCalibration:
@@ -199,6 +238,7 @@ class PlatformRepositories[U: UnitOfWork]:
     fsp: Callable[[U], FspRepository]
     candidates: Callable[[U], CandidateRepository]
     invitations: Callable[[U], InvitationRepository]
+    messages: Callable[[U], MessageRepository]
     selections: Callable[[U], SelectionRepository]
     calibration: Callable[[U], CalibrationRepository]
 
@@ -214,6 +254,7 @@ class PlatformUsecases[U: UnitOfWork]:
     regular_tasks: Callable[[U], RegularTasks]
     fsp_accounts: Callable[[U], FspAccounts]
     invitations: Callable[[U], Invitations]
+    conversations: Callable[[U], Conversations]
     feedback: Callable[[U], CandidateFeedback]
     resume_drafts: Callable[[U], ResumeDrafts]
 
@@ -300,6 +341,15 @@ def build_platform_usecases[U: UnitOfWork](
             ttl_days=mechanics.invitation_ttl_days,
         )
 
+    def conversations(uow: U) -> Conversations:
+        return Conversations(
+            uow,
+            repositories.invitations(uow),
+            repositories.messages(uow),
+            clock,
+            max_length=mechanics.message_max_length,
+        )
+
     def feedback(uow: U) -> CandidateFeedback:
         return CandidateFeedback(
             uow,
@@ -335,6 +385,7 @@ def build_platform_usecases[U: UnitOfWork](
         regular_tasks,
         fsp_accounts,
         invitations,
+        conversations,
         feedback,
         resume_drafts,
     )

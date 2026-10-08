@@ -25,6 +25,7 @@ from app.domain.account import Role
 from app.domain.candidate import GradeStatus, GradeStatusKind
 from app.domain.catalog import CatalogRef, Grade, Specialization, Technology, Topic
 from app.domain.errors import NeedNotFound, SelectionNotFound
+from app.domain.fsp import FspResult
 from app.domain.selection import (
     AcceptanceFeatures,
     Expectations,
@@ -43,6 +44,8 @@ from app.repository.need import SqlNeeds
 from app.repository.orm import (
     CandidateCategory,
     CandidateProfile,
+    FspAchievement,
+    FspSnapshot,
     SkillProfile,
     SkillProfileTopic,
     Survey,
@@ -106,9 +109,12 @@ class CandidateSeed:
     regular_task_topics: frozenset[str] = frozenset()
     # Заявленный грейд, если каскад дал категорию ниже: попытка на него и дотест на `grade`.
     claimed: str | None = None
+    overall: Normal | None = None
+    # Привязан ФСП ID и есть подтверждённое достижение.
+    fsp: bool = False
 
 
-# Общий уровень профиля в обвязке — один на всех кандидатов.
+# Общий уровень профиля в обвязке по умолчанию.
 OVERALL = Normal(0.5, 0.4)
 
 
@@ -219,13 +225,15 @@ class MemoryHarness(Harness):
             candidate_id=uuid.uuid4(),
             specialization=seed.specialization,
             grade=GRADES[seed.grade],
-            overall=OVERALL,
+            overall=seed.overall or OVERALL,
             levels=_levels(seed),
             stack=frozenset(seed.stack),
             last_signal_at=seed.last_signal_at,
             expectations=seed.expectations,
             regular_task_topics=seed.regular_task_topics,
             claimed=GRADES[seed.claimed] if seed.claimed else None,
+            # В пуле достижений нет — есть темы, подтверждённые ФСП.
+            fsp_topics=frozenset(QA_TOPICS[:1]) if seed.fsp else frozenset(),
         )
         self.pool.add(candidate)
         return candidate.candidate_id
@@ -324,6 +332,8 @@ class PostgresHarness(Harness):
             SkillProfileTopic,
             CandidateProfile,
             candidate_technologies,
+            FspSnapshot,
+            FspAchievement,
         )
         rows: dict[Any, list[dict[str, Any]]] = {table: [] for table in tables}
         ids = []
@@ -332,7 +342,23 @@ class PostgresHarness(Harness):
             ids.append(uid)
             at = seed.last_signal_at
             spec = seed.specialization
-            rows[User].append(self._user_row(uid, Role.candidate))
+            rows[User].append(
+                self._user_row(uid, Role.candidate)
+                | {"fsp_id": f"fsp-{uid.hex}" if seed.fsp else None}
+            )
+            if seed.fsp:
+                rows[FspSnapshot].append({"user_id": uid, "fetched_at": at})
+                rows[FspAchievement].append(
+                    {
+                        "user_id": uid,
+                        "position": 0,
+                        "event": "Чемпионат России по программированию",
+                        "date": at.date(),
+                        "discipline_code": "product",
+                        "place": 1,
+                        "result": FspResult.winner,
+                    }
+                )
             rows[Survey].append(
                 {
                     "id": survey,
@@ -358,8 +384,8 @@ class PostgresHarness(Harness):
                     "id": profile,
                     "user_id": uid,
                     "specialization_code": spec,
-                    "overall_theta": OVERALL.mean,
-                    "overall_theta_sd": OVERALL.sd,
+                    "overall_theta": (seed.overall or OVERALL).mean,
+                    "overall_theta_sd": (seed.overall or OVERALL).sd,
                     "observations": 20,
                     "last_signal_at": at,
                     "updated_at": at,

@@ -3,24 +3,30 @@
 
 import math
 import random
+from datetime import UTC, datetime
 
 import pytest
 
 from app.adapter import irt
 from app.adapter.irt import estimate, sigmoid
+from app.domain import bank
 from app.domain.calibration import (
+    ExpertGap,
     Link,
     Parameters,
     Response,
     elo_step,
     elo_update,
+    expert_gap,
     fit_link,
-    needs_review,
     refit,
 )
 from app.domain.skill import Normal, Observation
+from app.repository.memory.calibration import MemoryCalibrationRepository
+from app.repository.memory.unit_of_work import MemoryStore
 from app.usecase.attempt import rest_levels
 from app.usecase.skill_profile import specialization_prior
+from composition import elo_calibration
 from settings import Mechanics, Settings
 from validation.market import calibration_quality, expert, market, mean_responses
 
@@ -91,14 +97,23 @@ def test_answer_of_uncertain_candidate_moves_difficulty_less() -> None:
     assert start.difficulty - sure.difficulty > start.difficulty - unsure.difficulty > 0
 
 
-def test_review_when_reference_is_much_easier_than_expert() -> None:
+@pytest.mark.parametrize(
+    ("difficulty", "flag"),
+    [
+        (-0.1, ExpertGap.EASIER),
+        (0.1, None),
+        (1.9, None),
+        (2.1, ExpertGap.HARDER),
+    ],
+)
+def test_reference_is_checked_against_expert_both_ways(
+    difficulty: float, flag: ExpertGap | None
+) -> None:
     start = Parameters(1.2, 1.0)
 
     gap = MECHANICS.calibration_expert_gap_review
 
-    assert needs_review(Parameters(1.2, -0.1), start, expert_gap=gap)
-    assert not needs_review(Parameters(1.2, 0.1), start, expert_gap=gap)
-    assert not needs_review(Parameters(1.2, 2.5), start, expert_gap=gap)
+    assert expert_gap(Parameters(1.2, difficulty), start, gap=gap) is flag
 
 
 def calibrated_responses(
@@ -128,6 +143,45 @@ def test_refit_recovers_parameters_from_calibrated_levels() -> None:
 
     assert math.sqrt(sum(e * e for e in errors_b) / len(errors_b)) < 0.15
     assert abs(sum(errors_log_a) / len(errors_log_a)) < 0.05
+
+
+class AnsweredCalibrationRepository(MemoryCalibrationRepository):
+    """Калибровка в памяти с готовыми ответами на семейства: истинная сложность — по коду."""
+
+    def __init__(self, truth: dict[str, float]) -> None:
+        super().__init__(MemoryStore())
+        rng = random.Random(7)
+        self.answers = {
+            code: calibrated_responses(Parameters(1.2, b), 3000, rng) for code, b in truth.items()
+        }
+
+    def rest_answers(self, code: str) -> list[Response]:
+        return self.answers.get(code, [])
+
+    def ready_responses(self, code: str) -> int:
+        return len(self.answers.get(code, []))
+
+
+def test_refit_takes_easier_family_out_and_only_flags_harder_one() -> None:
+    """Легче экспертной — утечка или ошибка эксперта: из выдачи до проверки. Тяжелее — кандидату
+    не подыгрывает: остаётся в выдаче, пометка — в отчёт покрытия."""
+    middle = [f for f in bank.BANK if f.grade == "middle" and not f.anchor]
+    easy, hard, fair = middle[:3]
+    expert_b = MECHANICS.expert_difficulty_by_grade["middle"]
+    calibration = elo_calibration(
+        AnsweredCalibrationRepository(
+            {easy.code: expert_b - 2.5, hard.code: expert_b + 2.5, fair.code: expert_b}
+        ),
+        MECHANICS,
+    )
+
+    calibration.refit_due([easy.code, hard.code, fair.code], "backend", datetime.now(UTC))
+
+    assert set(calibration.current([easy, hard, fair])) == {hard.code, fair.code}
+    assert calibration.expert_gaps([easy, hard, fair]) == {
+        easy.code: ExpertGap.EASIER,
+        hard.code: ExpertGap.HARDER,
+    }
 
 
 def test_refit_without_responses_keeps_expert_parameters() -> None:

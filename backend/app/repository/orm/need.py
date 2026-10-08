@@ -19,6 +19,7 @@ from sqlalchemy import CheckConstraint, Column, Enum, ForeignKey, String, Table,
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
+from app.domain.candidate import GradeStatusKind
 from app.domain.importance import TopicImportance
 from app.domain.selection import SelectionBlock
 from app.domain.work import WorkFormat
@@ -122,7 +123,7 @@ class SelectionEntry(Base):
     selection_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("selections.id", ondelete="CASCADE"), primary_key=True
     )
-    # Место в общей выдаче с 1: сначала точные, затем «близкие».
+    # Место в общей выдаче с 1: сначала точные, затем «близкие», затем неподтверждённые.
     position: Mapped[int] = mapped_column(primary_key=True)
     candidate_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"), index=True
@@ -138,14 +139,28 @@ class SelectionEntry(Base):
     )
     # Место внутри блока с 1.
     rank: Mapped[int]
-    # Грейд категории кандидата на момент построения — со снимком названия, без ссылки на
-    # справочник: правка справочника старую выдачу не меняет.
+    # Грейд, по которому кандидат в блоке, на момент построения: категории, в нижнем блоке —
+    # заявленный. Со снимком названия, без ссылки на справочник: правка справочника старую
+    # выдачу не меняет.
     grade_code: Mapped[str] = mapped_column(String(32))
     grade_name: Mapped[str] = mapped_column(String(64))
-    match_score: Mapped[float]
-    # P(принятия); NULL — модели принятия нет, множитель 1.
+    grade_status: Mapped[GradeStatusKind] = mapped_column(
+        Enum(
+            GradeStatusKind,
+            native_enum=False,
+            create_constraint=True,
+            length=16,
+            name="grade_status",
+        )
+    )
+    # Заявленный грейд — тоже снимком.
+    claimed_grade_code: Mapped[str] = mapped_column(String(32))
+    claimed_grade_name: Mapped[str] = mapped_column(String(64))
+    # NULL — нижний блок: скора по темам нет.
+    match_score: Mapped[float | None]
+    # P(принятия); NULL — модели принятия нет, множитель 1, или нижний блок.
     acceptance_probability: Mapped[float | None]
-    mutual_score: Mapped[float]
+    mutual_score: Mapped[float | None]
     # Вклады тем и стека — `Explanation`; коды тем и технологий, названия — из снимка. Как и
     # снимок, правка схемы — вместе с миграцией данных.
     explanation: Mapped[dict[str, Any]] = mapped_column(JSONB)

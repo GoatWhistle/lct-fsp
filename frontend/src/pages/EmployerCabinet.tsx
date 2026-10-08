@@ -1,9 +1,12 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router'
-import { api, errorMessage, type Company, type Need, type SelectionSummary } from '../api/client'
+import { api, errorMessage, type Company, type Need, type SelectionSummary, type SentInvitations } from '../api/client'
 import { dateTimeWords, dateWords } from '../candidate/words'
 import { Cabinet } from '../components/Cabinet'
+import { salaryWords } from '../components/salary'
+import { useSentInvitations } from '../employer/invitations'
 import { needSalaryWords, workFormatWord } from '../employer/words'
+import { invitationStatusWords, isOpen } from '../invitation/words'
 
 /** Кабинет работодателя: профиль компании, потребности и подборки по ним. */
 export function EmployerCabinet() {
@@ -12,6 +15,7 @@ export function EmployerCabinet() {
   const [selections, setSelections] = useState<SelectionSummary[]>([])
   const [selectionsError, setSelectionsError] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const { sent, error: invitationsError } = useSentInvitations()
 
   useEffect(() => {
     Promise.all([
@@ -35,7 +39,7 @@ export function EmployerCabinet() {
   if (company === undefined || needs === null) return <p className="muted">Загрузка…</p>
 
   return (
-    <Cabinet title="Кабинет работодателя" upcoming={['Приглашения и их статусы']}>
+    <Cabinet title="Кабинет работодателя" upcoming={['Вакансии и отклики кандидатов']}>
       <CompanyCard company={company} />
       <section className="stack">
         <div className="section-head">
@@ -62,6 +66,7 @@ export function EmployerCabinet() {
           ))
         )}
       </section>
+      <InvitationList sent={sent} error={invitationsError} />
       <SelectionList selections={selections} error={selectionsError} />
     </Cabinet>
   )
@@ -111,6 +116,51 @@ function CompanyCard({ company }: { company: Company | null }) {
   )
 }
 
+/** Отправленные приглашения со статусами и остаток бюджета на неделю. */
+function InvitationList({ sent, error }: { sent: SentInvitations | null; error: string | null }) {
+  if (error) return <p className="error">Приглашения не загрузились: {error}</p>
+  if (!sent) return null
+  const { budget, invitations } = sent
+  return (
+    <section className="stack">
+      <div className="section-head">
+        <h2>Приглашения</h2>
+        <span className="muted">
+          Осталось на неделю: <strong>{budget.remaining}</strong> из {budget.limit} · обновится{' '}
+          {dateTimeWords(budget.resets_at)}
+        </span>
+      </div>
+      {invitations.length === 0 ? (
+        <div className="card">
+          <p>
+            Приглашайте кандидатов из подборки: кандидат увидит компанию, описание и вилку, а вы — его
+            имя и контакты, когда он примет приглашение.
+          </p>
+        </div>
+      ) : (
+        <div className="card">
+          <ul className="selection-list">
+            {invitations.map((i) => (
+              <li key={i.id}>
+                <span className={i.status === 'accepted' ? 'tag' : 'muted'}>{invitationStatusWords[i.status]}</span>{' '}
+                <Link to={`/employer/candidates/${i.candidate_id}`}>
+                  {i.status === 'accepted' ? 'Контакты кандидата' : 'Карточка кандидата'}
+                </Link>
+                <span className="muted">
+                  {' '}
+                  · {salaryWords(i.salary_from, i.salary_to)} · отправлено {dateWords(i.sent_at)}
+                  {isOpen(i) && ` · ответ до ${dateWords(i.expires_at)}`}
+                </span>
+                <p className="hint invitation-summary">{i.description}</p>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </section>
+  )
+}
+
 /** Последние подборки — в том числе по удалённым потребностям: они открываются по снимку. */
 function SelectionList({ selections, error }: { selections: SelectionSummary[]; error: string | null }) {
   if (error) return <p className="error">Подборки не загрузились: {error}</p>
@@ -128,6 +178,7 @@ function SelectionList({ selections, error }: { selections: SelectionSummary[]; 
                 · {s.specialization.name} · {s.grade.name} · {dateTimeWords(s.created_at)} · {s.exact_total} в
                 категории
                 {s.nearby_total > 0 && `, ${s.nearby_total} близких`}
+                {s.unconfirmed_total > 0 && `, ${s.unconfirmed_total} с неподтверждённым грейдом`}
                 {!s.need_id && ' · потребность удалена'}
               </span>
             </li>
@@ -194,6 +245,7 @@ function NeedCard({ need, selections }: { need: Need; selections: SelectionSumma
           <Link to={`/employer/selections/${last.id}`}>
             Последняя подборка от {dateWords(last.created_at)}: {last.exact_total} в категории
             {last.nearby_total > 0 && `, ${last.nearby_total} близких`}
+            {last.unconfirmed_total > 0 && `, ${last.unconfirmed_total} с неподтверждённым грейдом`}
           </Link>
         )}
       </div>

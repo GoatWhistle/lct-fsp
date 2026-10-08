@@ -13,23 +13,27 @@ from app.controller.deps import (
     CandidatesDep,
     ClockDep,
     CurrentUser,
+    InvitationReaderDep,
     MechanicsDep,
     ProfilePdfRendererDep,
     UnitOfWorkDep,
     role_guard,
 )
 from app.controller.errors import error_responses
+from app.controller.fsp_schemas import FspAchievementOut, FspAnonymizedAchievementOut
 from app.controller.path_schemas import CategoryOut, skill_profile_view
 from app.controller.profile_schemas import (
     CandidateCardOut,
+    DisclosedOut,
     ProfileIn,
     ProfileOut,
     SelfReportedOut,
 )
-from app.controller.schemas import CatalogRef
+from app.controller.schemas import CatalogRef, GradeStatusOut
 from app.domain import candidate as domain
 from app.domain import errors
 from app.domain.account import Role
+from app.domain.fsp import anonymized
 from app.usecase import candidate as usecase
 
 PROFILE_ERRORS = (errors.UnknownTechnology, errors.UnknownIndustry, errors.CityRequired)
@@ -122,15 +126,19 @@ def download_pdf(
 @employer_router.get(
     "/{candidate_id}",
     summary="Карточка кандидата",
-    description="Обезличенная: категория, профиль навыков и структурная часть самоописания. Без "
-    "ФИО, контактов, свободного текста и ожидаемой зарплаты. Есть только у кандидата с "
-    "категорией.",
+    description="Статус грейда, категория, профиль навыков и структурная часть самоописания. "
+    "ФИО, контакты и свободный текст — только после принятия приглашения вашей компании; "
+    "ожидаемой зарплаты нет никогда. Есть у кандидата с категорией или с заявленным грейдом.",
     responses=error_responses(errors.CandidateNotFound),
 )
 def get_candidate_card(
-    candidate_id: uuid.UUID, user: CurrentUser, uow: UnitOfWorkDep, candidates: CandidatesDep
+    candidate_id: uuid.UUID,
+    user: CurrentUser,
+    uow: UnitOfWorkDep,
+    candidates: CandidatesDep,
+    invitations: InvitationReaderDep,
 ) -> CandidateCardOut:
-    return _card_out(usecase.employer_card(uow, candidates, user.id, candidate_id))
+    return _card_out(usecase.employer_card(uow, candidates, invitations, user.id, candidate_id))
 
 
 def _form(body: ProfileIn) -> domain.ProfileForm:
@@ -184,11 +192,33 @@ def _profile_out(card: domain.DisclosedCard) -> ProfileOut | None:
 
 
 def _card_out(card: domain.AnonymizedCard | domain.DisclosedCard) -> CandidateCardOut:
-    """Карточка для работодателя. Раскрытой части в схеме ответа пока нет: раскрывать нечем —
-    ни приглашений, ни откликов ещё не существует."""
+    """Карточка для работодателя как её отдало правило раскрытия: раскрытая часть — только у
+    раскрытой. Ожидаемая зарплата в схему не входит. Достижения ФСП обезличенно — всегда,
+    полностью — только у раскрытой."""
+    disclosed = None
+    if isinstance(card, domain.AnonymizedCard):
+        achievements, details = card.fsp_achievements, None
+    else:
+        achievements = tuple(anonymized(a) for a in card.fsp_achievements)
+        details = [FspAchievementOut.model_validate(a) for a in card.fsp_achievements]
+    if isinstance(card, domain.DisclosedCard) and card.profile is not None:
+        d = card.profile.disclosed
+        disclosed = DisclosedOut(
+            full_name=d.full_name,
+            contact_email=d.contact_email,
+            contact_phone=d.contact_phone,
+            telegram=d.telegram,
+            about=d.about,
+            job_roles=list(d.job_roles),
+            soft_skills=list(d.soft_skills),
+        )
     return CandidateCardOut(
         id=card.candidate_id,
-        category=CategoryOut.model_validate(card.category),
+        category=CategoryOut.model_validate(card.category) if card.category else None,
+        grade_status=GradeStatusOut.model_validate(card.grade_status),
         skill_profile=skill_profile_view(card.skill_profile) if card.skill_profile else None,
         self_reported=_self_reported_out(card.self_reported) if card.self_reported else None,
+        fsp_achievements=[FspAnonymizedAchievementOut.model_validate(a) for a in achievements],
+        disclosed=disclosed,
+        fsp_details=details,
     )

@@ -8,12 +8,13 @@
 import random
 from typing import Any
 
-from app.domain.bank.family import Instance
+from app.domain.bank.family import Instance, Kind, kind
 from app.domain.bank.runner import CodeRunner
 
 PROMPT = "Ответ — значения через пробел по порядку."
 
 
+@kind(Kind.TRACE)
 def state_batching(rng: random.Random, runner: CodeRunner) -> Instance:
     plain, functional = rng.randint(1, 3), rng.randint(0, 3)
     step = rng.randint(1, 5)
@@ -42,6 +43,7 @@ def state_batching(rng: random.Random, runner: CodeRunner) -> Instance:
     )
 
 
+@kind(Kind.TRACE)
 def list_render(rng: random.Random, runner: CodeRunner) -> Instance:
     items: list[dict[str, Any]] = [
         {
@@ -82,6 +84,7 @@ def list_render(rng: random.Random, runner: CodeRunner) -> Instance:
     return Instance(prompt, answer, {"items": items, "limit": limit, "desc": sort_desc}, code=code)
 
 
+@kind(Kind.TRACE)
 def reducer_actions(rng: random.Random, runner: CodeRunner) -> Instance:
     state = {"count": rng.randint(0, 30), "step": rng.randint(1, 4)}
     initial = (
@@ -120,6 +123,7 @@ def reducer_actions(rng: random.Random, runner: CodeRunner) -> Instance:
     return Instance(prompt, f"{state['count']} {state['step']}", {"actions": actions}, code=code)
 
 
+@kind(Kind.TRACE)
 def memo_rerenders(rng: random.Random, runner: CodeRunner) -> Instance:
     # Родитель App с состоянием; дети — memo или нет, получают проп-примитив, объект или колбэк.
     children = []
@@ -168,6 +172,7 @@ def memo_rerenders(rng: random.Random, runner: CodeRunner) -> Instance:
     return Instance(prompt, " ".join(rerender) or "0", params, code="\n".join(lines))
 
 
+@kind(Kind.TRACE)
 def effect_runs(rng: random.Random, runner: CodeRunner) -> Instance:
     renders = []
     a = b = 0
@@ -209,6 +214,7 @@ def effect_runs(rng: random.Random, runner: CodeRunner) -> Instance:
     return Instance(prompt, answer, {"renders": renders}, code=code)
 
 
+@kind(Kind.TRACE)
 def immutable_update(rng: random.Random, runner: CodeRunner) -> Instance:
     qty, price, city = (
         rng.randint(1, 60),
@@ -239,6 +245,7 @@ def immutable_update(rng: random.Random, runner: CodeRunner) -> Instance:
     return Instance(prompt, answer, {"qty": qty, "new_qty": new_qty, "mutate": mutate}, code=code)
 
 
+@kind(Kind.TRACE)
 def use_memo_recompute(rng: random.Random, runner: CodeRunner) -> Instance:
     renders = []
     items, sort, query = 0, "asc", "a"
@@ -267,6 +274,7 @@ def use_memo_recompute(rng: random.Random, runner: CodeRunner) -> Instance:
     return Instance(prompt, " ".join(map(str, filtered_at)), {"renders": renders}, code=code)
 
 
+@kind(Kind.TRACE)
 def key_remount(rng: random.Random, runner: CodeRunner) -> Instance:
     ids = rng.sample(range(10, 99), 5)
     typed = {i: rng.choice(["кот", "дом", "лес", "сад", "мир", "сок", "лук"]) for i in ids}
@@ -297,6 +305,7 @@ def key_remount(rng: random.Random, runner: CodeRunner) -> Instance:
     return Instance(prompt, " ".join(shown), params, code=code)
 
 
+@kind(Kind.TRACE)
 def context_consumers(rng: random.Random, runner: CodeRunner) -> Instance:
     tree = [("Layout", rng.random() < 0.5, False)] + [
         (name, rng.random() < 0.5, rng.random() < 0.5)
@@ -335,6 +344,7 @@ def context_consumers(rng: random.Random, runner: CodeRunner) -> Instance:
     return Instance(prompt, " ".join(rerender) or "0", params, code="\n".join(lines))
 
 
+@kind(Kind.TRACE)
 def stale_closure(rng: random.Random, runner: CodeRunner) -> Instance:
     ticks = rng.randint(2, 9)
     step = rng.randint(1, 5)
@@ -361,6 +371,7 @@ def stale_closure(rng: random.Random, runner: CodeRunner) -> Instance:
     )
 
 
+@kind(Kind.COMPUTE)
 def keyed_diff(rng: random.Random, runner: CodeRunner) -> Instance:
     old = rng.sample("ABCDEFGH", 8)
     new = [k for k in old if rng.random() < 0.75]
@@ -396,6 +407,7 @@ def keyed_diff(rng: random.Random, runner: CodeRunner) -> Instance:
     return Instance(prompt, answer, {"old": old, "new": new})
 
 
+@kind(Kind.TRACE)
 def batched_renders(rng: random.Random, runner: CodeRunner) -> Instance:
     legacy = rng.random() < 0.4
     handlers = []

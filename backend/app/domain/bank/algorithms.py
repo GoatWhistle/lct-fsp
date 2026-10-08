@@ -5,13 +5,14 @@ import random
 import string
 from collections import deque
 
-from app.domain.bank.family import Instance
+from app.domain.bank.family import Instance, Kind, kind
 from app.domain.bank.python_code import PROMPT, run_python
 from app.domain.bank.runner import CodeRunner
 
 LETTERS = string.ascii_uppercase
 
 
+@kind(Kind.TRACE)
 def range_count(rng: random.Random, runner: CodeRunner) -> Instance:
     step = rng.randint(2, 7)
     start, stop = rng.randint(-10, 20), rng.randint(30, 90)
@@ -40,6 +41,7 @@ def search(items, target):
 """
 
 
+@kind(Kind.TRACE)
 def binary_search_steps(rng: random.Random, runner: CodeRunner) -> Instance:
     items = sorted(rng.sample(range(1, 100), rng.randint(11, 18)))
     target = (
@@ -60,6 +62,7 @@ def _connected_graph(rng: random.Random, n: int, extra: int) -> list[tuple[int, 
     return sorted(edges)
 
 
+@kind(Kind.COMPUTE)
 def bfs_order(rng: random.Random, runner: CodeRunner) -> Instance:
     n = rng.randint(6, 7)
     adjacency: dict[int, list[int]] = {v: [] for v in range(n)}
@@ -90,6 +93,7 @@ def bfs_order(rng: random.Random, runner: CodeRunner) -> Instance:
     return Instance(prompt, "".join(order), params, code=code)
 
 
+@kind(Kind.COMPUTE)
 def shortest_path(rng: random.Random, runner: CodeRunner) -> Instance:
     n = 6
     # Прямое ребро A — F всегда есть и тяжёлое: короткий путь приходится искать в обход.
@@ -124,6 +128,7 @@ def shortest_path(rng: random.Random, runner: CodeRunner) -> Instance:
     return Instance(prompt, str(dist[n - 1]), params, code=code)
 
 
+@kind(Kind.TRACE)
 def nested_loops(rng: random.Random, runner: CodeRunner) -> Instance:
     n, m, shift = rng.randint(4, 12), rng.randint(5, 15), rng.randint(0, 3)
     code = (
@@ -137,6 +142,7 @@ def nested_loops(rng: random.Random, runner: CodeRunner) -> Instance:
     return Instance(PROMPT, run_python(runner, code), params, code=code)
 
 
+@kind(Kind.TRACE)
 def binary_search_probes(rng: random.Random, runner: CodeRunner) -> Instance:
     items = sorted(rng.sample(range(1, 100), rng.randint(11, 18)))
     target = (
@@ -156,6 +162,7 @@ def binary_search_probes(rng: random.Random, runner: CodeRunner) -> Instance:
     return Instance(prompt, answer, {"items": items, "target": target}, code=code)
 
 
+@kind(Kind.TRACE)
 def stack_ops(rng: random.Random, runner: CodeRunner) -> Instance:
     ops: list[str] = []
     stack: list[int] = []
@@ -191,6 +198,7 @@ def count_pairs(nums, limit):
 """
 
 
+@kind(Kind.TRACE)
 def pairs_count(rng: random.Random, runner: CodeRunner) -> Instance:
     nums = [rng.randint(1, 50) for _ in range(rng.randint(8, 12))]
     limit = rng.randint(30, 70)
@@ -199,6 +207,7 @@ def pairs_count(rng: random.Random, runner: CodeRunner) -> Instance:
     return Instance(prompt, run_python(runner, code), {"nums": nums, "limit": limit}, code=code)
 
 
+@kind(Kind.TRACE)
 def log_loop(rng: random.Random, runner: CodeRunner) -> Instance:
     n, k = rng.randint(20, 300), rng.choice([2, 3])
     code = (
@@ -230,6 +239,7 @@ def _render(adjacency: dict[int, list[int]]) -> str:
     )
 
 
+@kind(Kind.COMPUTE)
 def dfs_order(rng: random.Random, runner: CodeRunner) -> Instance:
     adjacency = _adjacency(rng, rng.randint(6, 7), extra=rng.randint(1, 3))
     order: list[str] = []
@@ -252,6 +262,7 @@ def dfs_order(rng: random.Random, runner: CodeRunner) -> Instance:
     return Instance(prompt, "".join(order), params, code=_render(adjacency))
 
 
+@kind(Kind.COMPUTE)
 def topological_order(rng: random.Random, runner: CodeRunner) -> Instance:
     n = rng.randint(6, 7)
     order = rng.sample(range(n), n)
@@ -285,6 +296,7 @@ def topological_order(rng: random.Random, runner: CodeRunner) -> Instance:
     return Instance(prompt, "".join(result), params, code=code)
 
 
+@kind(Kind.COMPUTE)
 def linear_probing(rng: random.Random, runner: CodeRunner) -> Instance:
     size = rng.choice([7, 11, 13])
     keys = rng.sample(range(10, 100), rng.randint(5, 7))
@@ -304,6 +316,7 @@ def linear_probing(rng: random.Random, runner: CodeRunner) -> Instance:
     return Instance(prompt, " ".join(map(str, slots)), {"size": size, "keys": keys})
 
 
+@kind(Kind.COMPUTE)
 def knapsack(rng: random.Random, runner: CodeRunner) -> Instance:
     items = [(rng.randint(2, 9), rng.randint(5, 40)) for _ in range(5)]
     capacity = rng.randint(10, 20)
@@ -319,6 +332,7 @@ def knapsack(rng: random.Random, runner: CodeRunner) -> Instance:
     return Instance(prompt, str(best[capacity]), {"items": items, "capacity": capacity}, code=code)
 
 
+@kind(Kind.COMPUTE)
 def shortest_distances(rng: random.Random, runner: CodeRunner) -> Instance:
     n = 6
     edges = [(a, b, rng.randint(1, 12)) for a, b in _connected_graph(rng, n, extra=4)]

@@ -3,8 +3,9 @@
 Данные кандидата идут к зрителю только через правило раскрытия: сценарий берёт кандидата из
 репозитория целиком, проводит через `disclosure` и отдаёт controller'у карточку. Кандидат видит
 и меняет только свою анкету — его id приходит из сессии, чужого эндпоинты не принимают.
-Работодатель получает карточку только кандидата с категорией: выдача строится по категориям,
-кандидата без неё для работодателя нет.
+Работодатель получает карточку только кандидата со статусом грейда: с категорией или с
+заявленным грейдом — такого показывает нижний блок подборки. Кандидата без того и другого для
+работодателя нет.
 """
 
 import uuid
@@ -12,6 +13,7 @@ from dataclasses import dataclass
 
 from app.domain.candidate import (
     NO_ACCESS,
+    Access,
     AnonymizedCard,
     Candidate,
     CandidateViewer,
@@ -22,7 +24,13 @@ from app.domain.candidate import (
     disclosure,
 )
 from app.domain.errors import CandidateNotFound, ProfileNotFound
-from app.usecase.interface import CandidateRepository, Clock, ProfilePdfRenderer, UnitOfWork
+from app.usecase.interface import (
+    CandidateRepository,
+    Clock,
+    InvitationReader,
+    ProfilePdfRenderer,
+    UnitOfWork,
+)
 
 
 @dataclass(frozen=True)
@@ -71,16 +79,26 @@ def profile_pdf(
 def employer_card(
     uow: UnitOfWork,
     candidates: CandidateRepository,
+    invitations: InvitationReader,
     employer_id: uuid.UUID,
     candidate_id: uuid.UUID,
 ) -> AnonymizedCard | DisclosedCard:
-    """Карточка кандидата для работодателя; без категории — `CandidateNotFound`. Входов доступа
-    пока нет: приглашений и откликов не существует — карточка обезличена."""
+    """Карточка кандидата для работодателя; без категории и заявленного грейда —
+    `CandidateNotFound`. Раскрывает её принятое приглашение компании; откликов пока нет."""
     with uow:
         candidate = candidates.get(candidate_id)
-    if candidate.category is None:
-        raise CandidateNotFound()
-    return disclosure(candidate, EmployerViewer(employer_id), NO_ACCESS)
+        if candidate.grade_status is None:
+            raise CandidateNotFound()
+        access = employer_access(invitations, employer_id, candidate_id)
+    return disclosure(candidate, EmployerViewer(employer_id), access)
+
+
+def employer_access(
+    invitations: InvitationReader, employer_id: uuid.UUID, candidate_id: uuid.UUID
+) -> Access:
+    """Входы доступа компании к кандидату — для каждого сценария, отдающего его данные
+    работодателю. Внутри блока единицы работы."""
+    return Access(invitation_accepted=invitations.accepted(employer_id, candidate_id))
 
 
 def _own(candidate: Candidate) -> DisclosedCard:

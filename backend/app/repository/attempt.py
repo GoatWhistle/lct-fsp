@@ -14,7 +14,7 @@ from sqlalchemy.orm import Session, selectinload
 from app.domain import candidate
 from app.domain.attempt import AnsweredPresentation, Attempt, PathState, Presentation, Survey
 from app.domain.catalog import CatalogRef, Topic
-from app.domain.skill import Normal, SkillProfileLevels
+from app.domain.skill import Normal, SignalSource, SkillProfileLevels
 from app.repository import orm as models
 from app.repository.catalog import ref_of, topic_of
 from app.repository.orm import SkillProfile, SkillProfileTopic, User
@@ -347,7 +347,9 @@ class SqlAttemptRepository(SqlAttemptReader):
             overall=self._level(row.overall_theta, row.overall_theta_sd),
             topics=tuple(
                 candidate.TopicLevel(
-                    CatalogRef(t.topic.code, t.topic.name), self._level(t.theta, t.theta_sd)
+                    CatalogRef(t.topic.code, t.topic.name),
+                    self._level(t.theta, t.theta_sd),
+                    frozenset(SignalSource(source) for source in t.sources),
                 )
                 for t in topics
             ),
@@ -381,7 +383,17 @@ class SqlAttemptRepository(SqlAttemptReader):
                 rows[topic] = SkillProfileTopic(topic_code=topic)
                 profile.topics.append(rows[topic])
             rows[topic].theta, rows[topic].theta_sd = level.mean, level.sd
+            rows[topic].sources = sorted(levels.sources.get(topic, ()))
         self.session.flush()
+
+    def profiled_specializations(self, user_id: uuid.UUID) -> list[str]:
+        return list(
+            self.session.scalars(
+                select(SkillProfile.specialization_code)
+                .where(SkillProfile.user_id == user_id)
+                .order_by(SkillProfile.specialization_code)
+            )
+        )
 
     def _level(self, theta: float, theta_sd: float) -> candidate.Level:
         return candidate.Level(theta, theta_sd, tuple(self._thresholds.items()), self._confidence)

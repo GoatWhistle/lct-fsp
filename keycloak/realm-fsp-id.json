@@ -1,0 +1,262 @@
+{
+  "realm": "fsp-id",
+  "displayName": "ФСП ID",
+  "enabled": true,
+  "sslRequired": "none",
+  "registrationAllowed": false,
+  "loginWithEmailAllowed": true,
+  "internationalizationEnabled": true,
+  "supportedLocales": [
+    "ru"
+  ],
+  "defaultLocale": "ru",
+  "clients": [
+    {
+      "clientId": "lct-platform",
+      "name": "Подбор ИТ-специалистов ФСП",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "clientAuthenticatorType": "client-secret",
+      "secret": "dev-only-fsp-id-client-secret",
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": false,
+      "implicitFlowEnabled": false,
+      "serviceAccountsEnabled": false,
+      "redirectUris": [
+        "http://localhost:3000/api/auth/fsp/callback",
+        "http://localhost:8000/api/auth/fsp/callback"
+      ],
+      "webOrigins": [],
+      "attributes": {
+        "pkce.code.challenge.method": "S256"
+      }
+    }
+  ],
+  "users": [
+    {
+      "id": "f38b2ffc-80a4-4f5a-91c9-bc701e7ea419",
+      "username": "fsp-winner",
+      "email": "fsp-winner@fsp-id.example",
+      "emailVerified": true,
+      "firstName": "Алина",
+      "lastName": "Победова",
+      "enabled": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "fsp-demo-2026",
+          "temporary": false
+        }
+      ]
+    },
+    {
+      "id": "af67d461-e416-4207-9094-499602f0ee99",
+      "username": "fsp-prize",
+      "email": "fsp-prize@fsp-id.example",
+      "emailVerified": true,
+      "firstName": "Борис",
+      "lastName": "Призёров",
+      "enabled": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "fsp-demo-2026",
+          "temporary": false
+        }
+      ]
+    },
+    {
+      "id": "b91dddd9-1389-4372-a341-738c837a7935",
+      "username": "fsp-finalist",
+      "email": "fsp-finalist@fsp-id.example",
+      "emailVerified": true,
+      "firstName": "Вера",
+      "lastName": "Финалова",
+      "enabled": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "fsp-demo-2026",
+          "temporary": false
+        }
+      ]
+    },
+    {
+      "id": "66160227-1737-4472-ac16-72297608d942",
+      "username": "fsp-qualifier",
+      "email": "fsp-qualifier@fsp-id.example",
+      "emailVerified": true,
+      "firstName": "Глеб",
+      "lastName": "Отборов",
+      "enabled": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "fsp-demo-2026",
+          "temporary": false
+        }
+      ]
+    },
+    {
+      "id": "2106119e-c40d-41b5-b97a-762393550840",
+      "username": "fsp-no-history",
+      "email": "fsp-no-history@fsp-id.example",
+      "emailVerified": true,
+      "firstName": "Дарья",
+      "lastName": "Новикова",
+      "enabled": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "fsp-demo-2026",
+          "temporary": false
+        }
+      ]
+    },
+    {
+      "id": "b464c554-f675-499b-8c83-e786d1711cbd",
+      "username": "fsp-team-frontend",
+      "email": "fsp-team-frontend@fsp-id.example",
+      "emailVerified": true,
+      "firstName": "Егор",
+      "lastName": "Командин",
+      "enabled": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "fsp-demo-2026",
+          "temporary": false
+        }
+      ]
+    },
+    {
+      "id": "edf165da-b6ea-4ff5-b82a-fe6bac9f21df",
+      "username": "fsp-team-data",
+      "email": "fsp-team-data@fsp-id.example",
+      "emailVerified": true,
+      "firstName": "Жанна",
+      "lastName": "Данилова",
+      "enabled": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "fsp-demo-2026",
+          "temporary": false
+        }
+      ]
+    },
+    {
+      "id": "807c7e30-a598-40db-8cbf-d2ec8c53765f",
+      "username": "fsp-team-qa",
+      "email": "fsp-team-qa@fsp-id.example",
+      "emailVerified": true,
+      "firstName": "Захар",
+      "lastName": "Тестов",
+      "enabled": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "fsp-demo-2026",
+          "temporary": false
+        }
+      ]
+    },
+    {
+      "id": "0879d955-025f-487c-84df-8a13d4f398ee",
+      "username": "fsp-team-devops",
+      "email": "fsp-team-devops@fsp-id.example",
+      "emailVerified": true,
+      "firstName": "Ирина",
+      "lastName": "Деплоева",
+      "enabled": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "fsp-demo-2026",
+          "temporary": false
+        }
+      ]
+    },
+    {
+      "id": "42969a50-3328-4e16-abe8-0fa95c24c1ae",
+      "username": "fsp-security",
+      "email": "fsp-security@fsp-id.example",
+      "emailVerified": true,
+      "firstName": "Кирилл",
+      "lastName": "Защитин",
+      "enabled": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "fsp-demo-2026",
+          "temporary": false
+        }
+      ]
+    },
+    {
+      "id": "c8fb4456-b76d-40c3-b078-22db703e53cf",
+      "username": "fsp-robotics",
+      "email": "fsp-robotics@fsp-id.example",
+      "emailVerified": true,
+      "firstName": "Лидия",
+      "lastName": "Роботова",
+      "enabled": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "fsp-demo-2026",
+          "temporary": false
+        }
+      ]
+    },
+    {
+      "id": "694baad6-db4c-4492-bf5f-85e231d06d9c",
+      "username": "fsp-divergent-algo",
+      "email": "fsp-divergent-algo@fsp-id.example",
+      "emailVerified": true,
+      "firstName": "Максим",
+      "lastName": "Разногласов",
+      "enabled": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "fsp-demo-2026",
+          "temporary": false
+        }
+      ]
+    },
+    {
+      "id": "0b6ec6f3-9efe-4fda-9eed-fcfc3f724926",
+      "username": "fsp-divergent-product",
+      "email": "fsp-divergent-product@fsp-id.example",
+      "emailVerified": true,
+      "firstName": "Нина",
+      "lastName": "Расходова",
+      "enabled": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "fsp-demo-2026",
+          "temporary": false
+        }
+      ]
+    },
+    {
+      "id": "991f77c9-f551-4bfd-a197-63c59682e074",
+      "username": "fsp-unverified",
+      "email": "fsp-unverified@fsp-id.example",
+      "emailVerified": false,
+      "firstName": "Олег",
+      "lastName": "Неподтверждённый",
+      "enabled": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "fsp-demo-2026",
+          "temporary": false
+        }
+      ]
+    }
+  ]
+}

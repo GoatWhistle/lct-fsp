@@ -6,7 +6,7 @@ import posixpath
 import random
 from collections import Counter
 
-from app.domain.bank.family import Instance
+from app.domain.bank.family import Instance, Kind, kind
 from app.domain.bank.runner import CodeRunner
 
 RWX = "rwx"
@@ -18,6 +18,7 @@ def _symbolic(mode: int) -> str:
     )
 
 
+@kind(Kind.COMPUTE)
 def chmod_modes(rng: random.Random, runner: CodeRunner) -> Instance:
     modes = [rng.randrange(0, 0o1000) for _ in range(3)]
     to_octal = rng.random() < 0.5
@@ -38,6 +39,7 @@ def chmod_modes(rng: random.Random, runner: CodeRunner) -> Instance:
     return Instance(prompt, answer, {"modes": modes, "to_octal": to_octal})
 
 
+@kind(Kind.TRACE)
 def path_navigation(rng: random.Random, runner: CodeRunner) -> Instance:
     dirs = ["etc", "var", "log", "nginx", "app", "srv", "data", "home", "user", "tmp"]
     cwd = "/" + "/".join(rng.sample(dirs, rng.randint(1, 3)))
@@ -68,6 +70,7 @@ def path_navigation(rng: random.Random, runner: CodeRunner) -> Instance:
     )
 
 
+@kind(Kind.COMPUTE)
 def umask_perms(rng: random.Random, runner: CodeRunner) -> Instance:
     umask = rng.choice([0, 2]) * 64 + rng.choice([0, 2, 3, 5, 7]) * 8 + rng.choice([0, 2, 5, 6, 7])
     mode = rng.choice([0o600, 0o640, 0o644, 0o700, 0o750, 0o755, 0o775])
@@ -82,6 +85,7 @@ def umask_perms(rng: random.Random, runner: CodeRunner) -> Instance:
     return Instance(prompt, answer, {"umask": umask, "mode": mode})
 
 
+@kind(Kind.COMPUTE)
 def cidr_hosts(rng: random.Random, runner: CodeRunner) -> Instance:
     prefix = rng.randint(20, 30)
     address = ipaddress.IPv4Address(rng.randint(0x0A000000, 0x0AFFFFFF))
@@ -98,6 +102,7 @@ def cidr_hosts(rng: random.Random, runner: CodeRunner) -> Instance:
     )
 
 
+@kind(Kind.TRACE)
 def exit_chain(rng: random.Random, runner: CodeRunner) -> Instance:
     names = "abcdef"[: rng.randint(5, 6)]
     cmds = [(name, rng.choice([0, 0, 1, 2, 127])) for name in names]
@@ -124,6 +129,7 @@ def exit_chain(rng: random.Random, runner: CodeRunner) -> Instance:
     return Instance(prompt, " ".join([*ran, str(status)]), {"cmds": cmds, "ops": ops}, code=line)
 
 
+@kind(Kind.COMPUTE)
 def subnet_membership(rng: random.Random, runner: CodeRunner) -> Instance:
     prefix = rng.randint(22, 28)
     base = ipaddress.IPv4Address(rng.randint(0xC0A80000, 0xC0A8FFFF))
@@ -148,6 +154,7 @@ def subnet_membership(rng: random.Random, runner: CodeRunner) -> Instance:
     )
 
 
+@kind(Kind.TRACE)
 def sort_uniq(rng: random.Random, runner: CodeRunner) -> Instance:
     ips = [f"10.0.0.{rng.randint(1, 9)}" for _ in range(rng.randint(10, 14))]
     counts = Counter(ips)
@@ -165,6 +172,7 @@ def sort_uniq(rng: random.Random, runner: CodeRunner) -> Instance:
     return Instance(prompt, answer, {"ips": ips}, code=code)
 
 
+@kind(Kind.TRACE)
 def firewall_rules(rng: random.Random, runner: CodeRunner) -> Instance:
     sources = ["10.0.0.0/8", "192.168.0.0/16", "0.0.0.0/0", "10.1.0.0/16"]
     policy = rng.choice(["DROP", "ACCEPT"])
@@ -215,6 +223,7 @@ def firewall_rules(rng: random.Random, runner: CodeRunner) -> Instance:
     )
 
 
+@kind(Kind.TRACE)
 def longest_prefix(rng: random.Random, runner: CodeRunner) -> Instance:
     routes = [
         ("0.0.0.0/0", "gw-default"),
@@ -253,6 +262,7 @@ def longest_prefix(rng: random.Random, runner: CodeRunner) -> Instance:
     )
 
 
+@kind(Kind.COMPUTE)
 def handshake_latency(rng: random.Random, runner: CodeRunner) -> Instance:
     rtt = rng.randrange(10, 300, 5)
     tls = rng.choice(["1.2", "1.3"])
@@ -272,6 +282,7 @@ def handshake_latency(rng: random.Random, runner: CodeRunner) -> Instance:
 GREP_PATTERNS = ["ERROR", "-i error", "-v INFO", "-E 'WARN|ERROR'", "-c svc-a"]
 
 
+@kind(Kind.TRACE)
 def grep_count(rng: random.Random, runner: CodeRunner) -> Instance:
     levels = [rng.choice(["INFO", "WARN", "ERROR", "DEBUG", "error"]) for _ in range(12)]
     lines = [
@@ -314,6 +325,7 @@ _DAEMONS = [("sshd", 22), ("nginx", 80), ("postgres", 5432), ("redis-server", 63
 _DAEMONS += [("node", 3000), ("prometheus", 9090), ("grafana", 3001)]
 
 
+@kind(Kind.COMPUTE)
 def listening_ports(rng: random.Random, runner: CodeRunner) -> Instance:
     host = f"192.168.{rng.randint(0, 9)}.{rng.randint(10, 250)}"
     sockets = []
@@ -345,6 +357,7 @@ def listening_ports(rng: random.Random, runner: CodeRunner) -> Instance:
     )
 
 
+@kind(Kind.COMPUTE)
 def load_average(rng: random.Random, runner: CodeRunner) -> Instance:
     servers = []
     for name in rng.sample(["app-1", "app-2", "db-1", "cache-1", "batch-1", "web-1"], 4):

@@ -4,7 +4,7 @@ import random
 from collections.abc import Sequence
 from typing import Any
 
-from app.domain.bank.family import Instance
+from app.domain.bank.family import Instance, Kind, choice, kind, ordering
 from app.domain.bank.runner import CodeRunner, Rows, Schema
 
 CUSTOMERS = ["anna", "boris", "vera", "gleb", "dina", "egor", "zoya", "igor"]
@@ -43,6 +43,7 @@ def _instance(runner: CodeRunner, schema: Schema, query: str, params: dict[str, 
     return Instance(PROMPT, run_sql(runner, schema, query), params, code=f"{tables}\n\n{query}")
 
 
+@kind(Kind.TRACE)
 def count_where(rng: random.Random, runner: CodeRunner) -> Instance:
     rows = _orders(rng, 8)
     threshold, status = rng.randrange(200, 800, 50), rng.choice(STATUSES[:2])
@@ -51,6 +52,7 @@ def count_where(rng: random.Random, runner: CodeRunner) -> Instance:
     return _instance(runner, {"orders": (ORDER_COLUMNS, rows)}, query, params)
 
 
+@kind(Kind.TRACE)
 def group_having(rng: random.Random, runner: CodeRunner) -> Instance:
     rows = _orders(rng, 9)
     threshold = rng.randrange(600, 1500, 100)
@@ -65,6 +67,7 @@ def group_having(rng: random.Random, runner: CodeRunner) -> Instance:
     return _instance(runner, {"orders": (ORDER_COLUMNS, rows)}, query, {"threshold": threshold})
 
 
+@kind(Kind.TRACE)
 def left_join_on(rng: random.Random, runner: CodeRunner) -> Instance:
     names = rng.sample(CUSTOMERS, 5)
     customers: Rows = [(i + 1, name) for i, name in enumerate(names)]
@@ -84,6 +87,7 @@ def left_join_on(rng: random.Random, runner: CodeRunner) -> Instance:
     return _instance(runner, schema, query, {"threshold": threshold})
 
 
+@kind(Kind.TRACE)
 def window_rank(rng: random.Random, runner: CodeRunner) -> Instance:
     rows = _orders(rng, 9)
     # Ничья внутри покупателя — ловушка: RANK отдаёт обеим строкам одно место.
@@ -118,6 +122,7 @@ def _seq_instance(
     return Instance(SEQ_PROMPT, " ".join(result), params, code=f"{tables}\n\n{query}")
 
 
+@kind(Kind.TRACE)
 def sum_where(rng: random.Random, runner: CodeRunner) -> Instance:
     rows = _orders(rng, 8)
     threshold, status = rng.randrange(200, 800, 50), rng.choice(STATUSES[:2])
@@ -126,6 +131,7 @@ def sum_where(rng: random.Random, runner: CodeRunner) -> Instance:
     return _instance(runner, {"orders": (ORDER_COLUMNS, rows)}, query, params)
 
 
+@kind(Kind.TRACE)
 def order_limit(rng: random.Random, runner: CodeRunner) -> Instance:
     rows = _orders(rng, 9)
     limit, offset = rng.randint(2, 4), rng.randint(1, 3)
@@ -140,6 +146,7 @@ def order_limit(rng: random.Random, runner: CodeRunner) -> Instance:
     return _instance(runner, {"orders": (ORDER_COLUMNS, rows)}, query, params)
 
 
+@kind(Kind.TRACE)
 def group_having_sum(rng: random.Random, runner: CodeRunner) -> Instance:
     rows = _orders(rng, 10)
     threshold = rng.randrange(600, 1500, 100)
@@ -154,6 +161,7 @@ def group_having_sum(rng: random.Random, runner: CodeRunner) -> Instance:
     return _instance(runner, {"orders": (ORDER_COLUMNS, rows)}, query, {"threshold": threshold})
 
 
+@kind(Kind.TRACE)
 def case_when_sum(rng: random.Random, runner: CodeRunner) -> Instance:
     rows = _orders(rng, 8)
     paid_sign, other = rng.choice([("amount", "0"), ("amount", "-amount"), ("amount / 10", "0")])
@@ -168,6 +176,7 @@ def case_when_sum(rng: random.Random, runner: CodeRunner) -> Instance:
     return _instance(runner, {"orders": (ORDER_COLUMNS, rows)}, query, params)
 
 
+@kind(Kind.TRACE)
 def like_between(rng: random.Random, runner: CodeRunner) -> Instance:
     rows = _orders(rng, 9)
     low = rng.randrange(150, 500, 50)
@@ -181,6 +190,7 @@ def like_between(rng: random.Random, runner: CodeRunner) -> Instance:
     return _instance(runner, {"orders": (ORDER_COLUMNS, rows)}, query, params)
 
 
+@kind(Kind.TRACE)
 def null_aggregates(rng: random.Random, runner: CodeRunner) -> Instance:
     rows = [
         (i + 1, rng.choice(CUSTOMERS[:5]), rng.choice([None, None, *range(10, 200, 10)]))
@@ -191,6 +201,7 @@ def null_aggregates(rng: random.Random, runner: CodeRunner) -> Instance:
     return _seq_instance(runner, schema, query, {})
 
 
+@kind(Kind.TRACE)
 def left_join_groups(rng: random.Random, runner: CodeRunner) -> Instance:
     names = sorted(rng.sample(CUSTOMERS, 5))
     customers: Rows = [(i + 1, name) for i, name in enumerate(names)]
@@ -219,6 +230,7 @@ def left_join_groups(rng: random.Random, runner: CodeRunner) -> Instance:
     return Instance(prompt, instance.answer, {**instance.params, "threshold": threshold}, code=code)
 
 
+@kind(Kind.TRACE)
 def correlated_subquery(rng: random.Random, runner: CodeRunner) -> Instance:
     rows = _orders(rng, 10)
     op = rng.choice([">", "<"])
@@ -231,6 +243,7 @@ def correlated_subquery(rng: random.Random, runner: CodeRunner) -> Instance:
     return _instance(runner, {"orders": (ORDER_COLUMNS, rows)}, query, {"op": op})
 
 
+@kind(Kind.TRACE)
 def union_sums(rng: random.Random, runner: CodeRunner) -> Instance:
     shop = [(rng.randrange(100, 600, 50),) for _ in range(rng.randint(4, 6))]
     web = [
@@ -248,6 +261,7 @@ def union_sums(rng: random.Random, runner: CodeRunner) -> Instance:
     return _seq_instance(runner, schema, query, {})
 
 
+@kind(Kind.TRACE)
 def running_window(rng: random.Random, runner: CodeRunner) -> Instance:
     rows = [(i + 1, rng.randrange(10, 250, 5)) for i in range(rng.randint(6, 8))]
     before = rng.randint(1, 2)
@@ -262,6 +276,7 @@ def running_window(rng: random.Random, runner: CodeRunner) -> Instance:
     return _instance(runner, schema, query, {"before": before})
 
 
+@kind(Kind.TRACE)
 def lag_changes(rng: random.Random, runner: CodeRunner) -> Instance:
     rows = [(i + 1, rng.randrange(100, 300, 10)) for i in range(rng.randint(7, 9))]
     query = "SELECT day, price - LAG(price) OVER (ORDER BY day) AS diff\nFROM prices\nORDER BY day;"
@@ -276,6 +291,7 @@ def lag_changes(rng: random.Random, runner: CodeRunner) -> Instance:
     return Instance(prompt, answer, instance.params, code=code)
 
 
+@kind(Kind.TRACE)
 def distinct_count(rng: random.Random, runner: CodeRunner) -> Instance:
     rows = _orders(rng, rng.randint(8, 10))
     status = rng.choice(STATUSES)
@@ -292,6 +308,7 @@ def distinct_count(rng: random.Random, runner: CodeRunner) -> Instance:
     return Instance(prompt, instance.answer, instance.params, code=instance.code)
 
 
+@kind(Kind.TRACE)
 def exists_subquery(rng: random.Random, runner: CodeRunner) -> Instance:
     names = sorted(rng.sample(CUSTOMERS, 5))
     customers: Rows = [(i + 1, name) for i, name in enumerate(names)]
@@ -318,6 +335,7 @@ def exists_subquery(rng: random.Random, runner: CodeRunner) -> Instance:
     return Instance(prompt, instance.answer or "0", instance.params, code=instance.code)
 
 
+@kind(Kind.TRACE)
 def self_join(rng: random.Random, runner: CodeRunner) -> Instance:
     names = rng.sample(CUSTOMERS, 6)
     # Начальник — сотрудник с меньшим id или никто: дерево без циклов.
@@ -343,3 +361,96 @@ def self_join(rng: random.Random, runner: CodeRunner) -> Instance:
         "внутри строки — по столбцам; если строк нет — 0."
     )
     return Instance(prompt, instance.answer or "0", instance.params, code=instance.code)
+
+
+# (что делают транзакции, аномалия, которую нельзя допустить, самый слабый уровень PostgreSQL)
+ISOLATION_CASES = [
+    (
+        "Сервис {service} пишет строки в {table} в длинной транзакции, а дашборд в это время "
+        "считает по ним суммы. Дашборд не должен видеть строки, транзакция которых ещё не "
+        "зафиксирована.",
+        "грязное чтение",
+        "READ COMMITTED",
+    ),
+    (
+        "Отчёт {service} в одной транзакции дважды читает остаток по одной строке {table}: "
+        "сначала для заголовка, потом для итога, — а между чтениями её может изменить и "
+        "зафиксировать другая транзакция. Оба чтения должны вернуть одно и то же.",
+        "неповторяющееся чтение",
+        "REPEATABLE READ",
+    ),
+    (
+        "Выгрузка {service} в одной транзакции сначала считает COUNT(*) строк {table} за день, "
+        "потом выбирает сами строки; параллельно добавляются новые. Число и выборка должны "
+        "сойтись.",
+        "фантомное чтение",
+        "REPEATABLE READ",
+    ),
+    (
+        "В {table} должен оставаться хотя бы один дежурный. Две транзакции {service} "
+        "одновременно проверяют, что дежурных двое, и каждая снимает с дежурства своего — "
+        "разные строки.",
+        "асимметрия записи",
+        "SERIALIZABLE",
+    ),
+    (
+        "Две транзакции {service} одновременно читают баланс строки {table}, прибавляют к нему "
+        "в приложении и записывают UPDATE … SET balance = :новый. Ни одно пополнение не должно "
+        "потеряться молча.",
+        "потерянное обновление",
+        "REPEATABLE READ",
+    ),
+]
+ISOLATION_LEVELS = ["READ COMMITTED", "REPEATABLE READ", "SERIALIZABLE"]
+SERVICES = ["billing", "orders", "payouts", "loyalty", "inventory", "scheduler", "ledger"]
+TABLES = ["accounts", "shifts", "orders", "payments", "stock", "invoices", "balances"]
+
+
+@kind(Kind.SCENARIO_CHOICE)
+def isolation_choice(rng: random.Random, runner: CodeRunner) -> Instance:
+    """Самый слабый уровень изоляции под сценарий: уровень сильнее — лишние откаты."""
+    case, anomaly, level = rng.choice(ISOLATION_CASES)
+    service, table = rng.choice(SERVICES), rng.choice(TABLES)
+    prompt = (
+        case.format(service=service, table=table) + " Какой самый слабый уровень изоляции "
+        "PostgreSQL это гарантирует? Уровень сильнее нужного — лишние откаты по ошибке "
+        "сериализации."
+    )
+    wrong = [other for other in ISOLATION_LEVELS if other != level]
+    params = {"anomaly": anomaly, "service": service, "table": table}
+    return choice(rng, prompt, level, wrong, params)
+
+
+COLUMN_RENAMES = [
+    ("users", "name", "full_name"),
+    ("orders", "sum", "amount"),
+    ("payments", "ts", "paid_at"),
+    ("products", "descr", "description"),
+    ("accounts", "mail", "email"),
+    ("invoices", "num", "number"),
+    ("events", "type", "kind"),
+]
+
+
+@kind(Kind.ORDERING)
+def column_rename(rng: random.Random, runner: CodeRunner) -> Instance:
+    """Переименование столбца большой таблицы без простоя — расширение и сжатие схемы: старый
+    код работает на каждом шаге, откат возможен до удаления старого столбца. Порядок единственный:
+    каждый шаг опирается на предыдущий."""
+    table, old, new = rng.choice(COLUMN_RENAMES)
+    rows = rng.choice([4, 12, 30, 80, 150])
+    steps = [
+        f"ALTER TABLE {table} ADD COLUMN {new} — без DEFAULT и NOT NULL",
+        f"выкатить код, который пишет и в {old}, и в {new}",
+        f"перенести {old} в {new} у старых строк пачками",
+        f"выкатить код, который читает {new}",
+        f"выкатить код, который больше не пишет в {old}",
+        f"ALTER TABLE {table} DROP COLUMN {old}",
+    ]
+    prompt = (
+        f"В таблице {table} {rows} млн строк, приложение работает без перерыва и выкатывается "
+        f"по одному экземпляру. Столбец {old} нужно заменить на {new} без простоя и с "
+        "возможностью отката до последнего шага. Расположите шаги по порядку. Ответ — буквы "
+        "вариантов в этом порядке, например «KBXF»."
+    )
+    return ordering(rng, prompt, steps, {"table": table, "rows": rows})

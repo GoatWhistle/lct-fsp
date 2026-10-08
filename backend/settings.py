@@ -173,6 +173,14 @@ class Mechanics(BaseModel):
     feedback_hints_max: int
     feedback_min_gain: float
 
+    # Резюме из PDF
+    resume_max_bytes: int = Field(gt=0)
+    resume_max_pages: int = Field(gt=0)
+    resume_max_content_bytes: int = Field(gt=0)
+    resume_min_font_pt: float = Field(ge=0)
+    resume_max_lightness: float = Field(gt=0, le=1)
+    resume_draft_confident: float = Field(ge=0, le=1)
+
     @field_validator("need_importance_weights")
     @classmethod
     def weight_for_every_importance(cls, value: dict[str, float]) -> dict[str, float]:

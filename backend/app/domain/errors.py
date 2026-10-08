@@ -205,6 +205,27 @@ class CityRequired(DomainError):
     message = "Укажите город — для офиса и гибрида он обязателен"
 
 
+class ResumeTooLarge(DomainError):
+    code = "resume_too_large"
+    message = (
+        "Резюме слишком большое — сохраните PDF покороче или без картинок, лимиты — под кнопкой "
+        "загрузки"
+    )
+
+
+class ResumeUnreadable(DomainError):
+    code = "resume_unreadable"
+    message = "Не получилось прочитать файл как PDF — сохраните резюме в PDF заново"
+
+
+class ResumeWithoutText(DomainError):
+    code = "resume_without_text"
+    message = (
+        "В PDF нет текста, который можно прочитать: похоже на скан. Загрузите PDF, сохранённый "
+        "из редактора, или заполните профиль вручную"
+    )
+
+
 # Потребность и подборка.
 
 

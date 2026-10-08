@@ -25,6 +25,7 @@ from app.repository.orm.catalog import (
     technology_topics,
 )
 from app.repository.orm.company import Company
+from app.repository.orm.invitation import Invitation
 from app.repository.orm.need import (
     Need,
     NeedTopicImportance,
@@ -43,6 +44,7 @@ __all__ = [
     "FamilyStatus",
     "Grade",
     "Industry",
+    "Invitation",
     "Need",
     "NeedTopicImportance",
     "Presentation",

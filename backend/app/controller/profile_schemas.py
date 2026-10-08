@@ -148,14 +148,30 @@ class ProfileIn(BaseModel):
         return username
 
 
+class DisclosedOut(BaseModel):
+    """Раскрытая часть анкеты: ФИО, контакты и свободный текст. Ожидаемой зарплаты нет и здесь."""
+
+    full_name: str
+    contact_email: str
+    contact_phone: str | None
+    telegram: str | None = Field(description="Имя пользователя без «@»")
+    about: str
+    job_roles: list[str]
+    soft_skills: list[str]
+
+
 class CandidateCardOut(BaseModel):
-    """Обезличенная карточка: решение — по навыкам. Без ФИО, контактов, свободного текста
-    («о себе», роли, софт-скиллы) и ожидаемой зарплаты; фото, возраст и вуз платформа не
-    собирает."""
+    """Карточка кандидата для работодателя. До принятия приглашения — обезличенная: решение по
+    навыкам, без ФИО, контактов, свободного текста («о себе», роли, софт-скиллы) и ожидаемой
+    зарплаты; фото, возраст и вуз платформа не собирает. Ожидаемой зарплаты нет и после."""
 
     id: uuid.UUID
     category: CategoryOut = Field(description="Категория по тесту")
     skill_profile: SkillProfileOut | None = Field(description="Профиль навыков специализации")
     self_reported: SelfReportedOut | None = Field(
         description="Самоописание; `null` — кандидат ещё не заполнил профиль"
+    )
+    disclosed: DisclosedOut | None = Field(
+        description="ФИО, контакты и свободный текст — только после принятия приглашения вашей "
+        "компании; `null` — карточка обезличена или профиль не заполнен"
     )

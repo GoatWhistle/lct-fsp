@@ -40,8 +40,10 @@ from app.repository.orm.need import (
 )
 from app.repository.orm.regular_task import RegularTask, RegularTaskAnswer, RegularTaskTopic
 from app.repository.orm.skill_profile import SkillProfile, SkillProfileTopic
+from app.repository.orm.vacancy import Application, Vacancy
 
 __all__ = [
+    "Application",
     "CandidateCategory",
     "CandidateProfile",
     "CategoryChange",
@@ -73,6 +75,7 @@ __all__ = [
     "TestAttempt",
     "Topic",
     "User",
+    "Vacancy",
     "candidate_industries",
     "candidate_technologies",
     "fsp_discipline_topics",

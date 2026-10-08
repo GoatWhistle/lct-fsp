@@ -4,8 +4,9 @@
 передают их сюда; сценарии собираются здесь одинаково для обоих. Сценарий живёт на единице
 работы: проводка отдаёт фабрики сценариев от неё, репозитории приходят фабриками от неё же.
 Сценарии механик, подбора и разбора потребности из текста (`build_usecases`) нужны обоим;
-сценарии кабинетов — учётки, ФСП ID, компании, потребностей, приглашений, справочников,
-регулярных заданий, обратной связи кандидату (`build_platform_usecases`) — только проду.
+сценарии кабинетов — учётки, ФСП ID, компании, потребностей, приглашений, вакансий и откликов,
+справочников, регулярных заданий, обратной связи кандидату (`build_platform_usecases`) — только
+проду.
 
 Пакет стенда отсюда не импортируется — это проверяет тест на импорты.
 """
@@ -31,6 +32,7 @@ from app.usecase.fsp import FspAccounts
 from app.usecase.interface import (
     AcceptanceModel,
     AccountRepository,
+    ApplicationRepository,
     AttemptRepository,
     CalibrationRepository,
     CandidatePool,
@@ -60,6 +62,7 @@ from app.usecase.interface import (
     SkillModel,
     TextUnderstanding,
     UnitOfWork,
+    VacancyRepository,
 )
 from app.usecase.invitation import Invitations
 from app.usecase.need import Needs
@@ -68,6 +71,7 @@ from app.usecase.regular_task import RegularTasks
 from app.usecase.resume_draft import ResumeDrafts
 from app.usecase.selection import Selections
 from app.usecase.skill_profile import ProfileFreshness
+from app.usecase.vacancy import Applications, Vacancies
 from settings import Mechanics
 
 # Пакет моделей разбора текста, которые собираются только по имени: модуль `<пакет>.<имя>` с
@@ -241,6 +245,8 @@ class PlatformRepositories[U: UnitOfWork]:
     messages: Callable[[U], MessageRepository]
     selections: Callable[[U], SelectionRepository]
     calibration: Callable[[U], CalibrationRepository]
+    vacancies: Callable[[U], VacancyRepository]
+    applications: Callable[[U], ApplicationRepository]
 
 
 @dataclass(frozen=True)
@@ -257,6 +263,8 @@ class PlatformUsecases[U: UnitOfWork]:
     conversations: Callable[[U], Conversations]
     feedback: Callable[[U], CandidateFeedback]
     resume_drafts: Callable[[U], ResumeDrafts]
+    vacancies: Callable[[U], Vacancies]
+    applications: Callable[[U], Applications]
 
 
 def build_platform_usecases[U: UnitOfWork](
@@ -334,6 +342,7 @@ def build_platform_usecases[U: UnitOfWork](
         return Invitations(
             uow,
             repositories.invitations(uow),
+            repositories.applications(uow),
             repositories.candidates(uow),
             repositories.companies(uow),
             clock,
@@ -377,6 +386,26 @@ def build_platform_usecases[U: UnitOfWork](
             confident=mechanics.resume_draft_confident,
         )
 
+    def vacancies(uow: U) -> Vacancies:
+        return Vacancies(
+            uow,
+            repositories.vacancies(uow),
+            repositories.companies(uow),
+            repositories.catalog(uow),
+            clock,
+        )
+
+    def applications(uow: U) -> Applications:
+        return Applications(
+            uow,
+            repositories.applications(uow),
+            repositories.vacancies(uow),
+            repositories.invitations(uow),
+            repositories.candidates(uow),
+            clock,
+            ttl_days=mechanics.invitation_ttl_days,
+        )
+
     return PlatformUsecases(
         accounts,
         companies,
@@ -388,6 +417,8 @@ def build_platform_usecases[U: UnitOfWork](
         conversations,
         feedback,
         resume_drafts,
+        vacancies,
+        applications,
     )
 
 

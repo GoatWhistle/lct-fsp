@@ -21,11 +21,12 @@ from app.adapter.code_runner import InProcessCodeRunner
 from app.domain.calibration import (
     Parameters,
     Response,
+    ceiling_gain,
+    ceilings,
     expected_correct,
     item_fit_rmsd,
     refit,
 )
-from app.domain.skill import sigmoid
 from settings import Mechanics
 from validation.main import catalog
 from validation.market import TUNING_SEED, Market, corrupted_families, mean_responses
@@ -123,7 +124,14 @@ def measure(responses: Sequence[Response], start: Parameters, mechanics: Mechani
         rmsd_expert=item_fit_rmsd(responses, expert_shape, groups=groups),
         discrimination=fitted.discrimination,
         upper_shortfall=upper_shortfall(responses, expert_shape),
-        ceiling_gain=ceiling_gain(responses, start, fitted, sd_b, sd_log_a),
+        ceiling_gain=ceiling_gain(
+            responses,
+            start,
+            fitted,
+            ceilings=ceilings(mechanics.item_fit_ceiling_min, mechanics.item_fit_ceiling_step),
+            difficulty_prior_sd=sd_b,
+            log_discrimination_prior_sd=sd_log_a,
+        ),
     )
 
 
@@ -135,88 +143,6 @@ def upper_shortfall(responses: Sequence[Response], params: Parameters) -> float:
     if not upper:
         return 0.0
     return sum(p for p, _ in upper) / len(upper) - sum(u for _, u in upper) / len(upper)
-
-
-# Потолки модели Г4: d = 1 — сама 2PL, поэтому перевес не меньше нуля.
-CEILINGS = tuple(round(0.3 + 0.05 * i, 2) for i in range(15))
-
-
-def ceiling_gain(
-    responses: Sequence[Response],
-    start: Parameters,
-    fitted: Parameters,
-    sd_b: float,
-    sd_log_a: float,
-) -> float:
-    """max по d из `CEILINGS` логарифма апостериорной плотности модели P = d · p(a, b) с теми же
-    штрафами на b и ln a минус то же у переоценённой 2PL."""
-    base = log_posterior(responses, start, fitted, 1.0, sd_b, sd_log_a)
-    best = max(
-        log_posterior(
-            responses, start, refit_ceiling(responses, start, d, sd_b, sd_log_a), d, sd_b, sd_log_a
-        )
-        for d in CEILINGS
-    )
-    return best - base
-
-
-def log_posterior(
-    responses: Sequence[Response],
-    start: Parameters,
-    params: Parameters,
-    ceiling: float,
-    sd_b: float,
-    sd_log_a: float,
-) -> float:
-    log_a, log_a0 = math.log(params.discrimination), math.log(start.discrimination)
-    total = -((params.difficulty - start.difficulty) ** 2) / (2 * sd_b**2) - (
-        log_a - log_a0
-    ) ** 2 / (2 * sd_log_a**2)
-    for r in responses:
-        p = min(max(ceiling * expected_correct(params, r.level), 1e-12), 1 - 1e-12)
-        total += math.log(p if r.correct else 1 - p)
-    return total
-
-
-def refit_ceiling(
-    responses: Sequence[Response],
-    start: Parameters,
-    ceiling: float,
-    sd_b: float,
-    sd_log_a: float,
-    iterations: int = 60,
-) -> Parameters:
-    """Максимум апостериорной плотности (a, b) при P = d · p(a, b) — скоринг Фишера по (b, ln a),
-    как у переоценки; при d = 1 совпадает с ней."""
-    b0, log_a0 = start.difficulty, math.log(start.discrimination)
-    b, log_a = b0, log_a0
-    for _ in range(iterations):
-        a = math.exp(log_a)
-        grad_b = -(b - b0) / sd_b**2
-        grad_l = -(log_a - log_a0) / sd_log_a**2
-        h_bb, h_bl, h_ll = 1 / sd_b**2, 0.0, 1 / sd_log_a**2
-        for r in responses:
-            c = 1 / math.sqrt(1 + math.pi * a**2 * r.level.sd**2 / 8)
-            gap = r.level.mean - b
-            s = sigmoid(a * c * gap)
-            p = ceiling * s
-            d_b, d_l = -a * c, a * c**3 * gap
-            slope = ceiling * s * (1 - s)
-            weight = slope / (p * (1 - p)) if 0 < p < 1 else 0.0
-            residual = (float(r.correct) - p) * weight
-            grad_b += residual * d_b
-            grad_l += residual * d_l
-            info = slope * weight
-            h_bb += info * d_b * d_b
-            h_bl += info * d_b * d_l
-            h_ll += info * d_l * d_l
-        det = h_bb * h_ll - h_bl**2
-        step_b = max(-1.0, min(1.0, (h_ll * grad_b - h_bl * grad_l) / det))
-        step_l = max(-0.5, min(0.5, (h_bb * grad_l - h_bl * grad_b) / det))
-        b, log_a = b + step_b, log_a + step_l
-        if abs(step_b) < 1e-7 and abs(step_l) < 1e-7:
-            break
-    return Parameters(math.exp(log_a), b)
 
 
 # --- Гипотезы и правило выбора -------------------------------------------------------------------

@@ -124,6 +124,10 @@ class Mechanics(BaseModel):
     calibration_link_window_attempts: int
     item_fit_groups: int = Field(gt=0)
     item_fit_rmsd_max: float = Field(ge=0)
+    item_fit_discrimination_min: float = Field(ge=0)
+    item_fit_ceiling_gain_max: float = Field(ge=0)
+    item_fit_ceiling_min: float = Field(gt=0, le=1)
+    item_fit_ceiling_step: float = Field(gt=0, le=1)
 
     # Защита теста
     drift_shift: float

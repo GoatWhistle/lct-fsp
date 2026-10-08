@@ -17,6 +17,8 @@ from app.domain.calibration import (
     Link,
     Parameters,
     Response,
+    ceiling_gain,
+    ceilings,
     elo_update,
     expert_gap,
     fit_link,
@@ -29,7 +31,7 @@ from app.usecase.interface import CalibrationRepository
 log = logging.getLogger(__name__)
 # Поля записи журнала о семействе с плохим согласием — задачи банку на ручную проверку.
 ITEM_FIT_FAMILY = "item_fit_family"
-ITEM_FIT_RMSD = "item_fit_rmsd"
+ITEM_FIT_REASON = "item_fit_reason"
 
 
 class EloCalibration:
@@ -49,6 +51,10 @@ class EloCalibration:
         calibration_link_window_attempts: int,
         item_fit_groups: int,
         item_fit_rmsd_max: float,
+        item_fit_discrimination_min: float,
+        item_fit_ceiling_gain_max: float,
+        item_fit_ceiling_min: float,
+        item_fit_ceiling_step: float,
     ) -> None:
         self._repository = repository
         self.expert_discrimination = expert_discrimination
@@ -65,6 +71,10 @@ class EloCalibration:
         self.calibration_link_window_attempts = calibration_link_window_attempts
         self.item_fit_groups = item_fit_groups
         self.item_fit_rmsd_max = item_fit_rmsd_max
+        self.item_fit_discrimination_min = item_fit_discrimination_min
+        self.item_fit_ceiling_gain_max = item_fit_ceiling_gain_max
+        self.item_fit_ceiling_min = item_fit_ceiling_min
+        self.item_fit_ceiling_step = item_fit_ceiling_step
 
     def expert(self, grade: str) -> Parameters:
         """Стартовые параметры семейства по грейду эксперта: середина полосы и общая a₀ (§2)."""
@@ -181,7 +191,7 @@ class EloCalibration:
             row.refitted_at = now
             gap = expert_gap(fitted, start, gap=self.calibration_expert_gap_review)
             # Дрейф и согласие проверяются независимо: вывод — по любой из проверок.
-            if self._misfits(code, responses, fitted):
+            if self._misfits(code, responses, start, fitted):
                 row.in_rotation = False
             if gap == ExpertGap.EASIER:
                 row.in_rotation = False
@@ -251,29 +261,53 @@ class EloCalibration:
                 worst = (code, rmsd)
         return worst
 
-    def _misfits(self, code: str, responses: Sequence[Response], params: Parameters) -> bool:
-        """Согласие семейства с 2PL хуже `item_fit_rmsd_max`."""
-        rmsd = item_fit_rmsd(responses, params, groups=self.item_fit_groups)
-        if rmsd <= self.item_fit_rmsd_max:
+    def _misfits(
+        self,
+        code: str,
+        responses: Sequence[Response],
+        start: Parameters,
+        fitted: Parameters,
+    ) -> bool:
+        """Согласие семейства с 2PL после переоценки: переоценённая разделяющая сила ниже
+        `item_fit_discrimination_min` или модель с потолком объясняет ответы лучше 2PL больше чем
+        на `item_fit_ceiling_gain_max` нат (§7)."""
+        if fitted.discrimination < self.item_fit_discrimination_min:
+            self._report_misfit(
+                code,
+                f"â = {fitted.discrimination:.2f} при допустимой не ниже "
+                f"{self.item_fit_discrimination_min:.2f}",
+            )
+            return True
+        gain = ceiling_gain(
+            responses,
+            start,
+            fitted,
+            ceilings=ceilings(self.item_fit_ceiling_min, self.item_fit_ceiling_step),
+            difficulty_prior_sd=self.calibration_refit_difficulty_prior_sd,
+            log_discrimination_prior_sd=self.calibration_refit_log_discrimination_prior_sd,
+        )
+        if gain <= self.item_fit_ceiling_gain_max:
             return False
-        self._report_misfit(code, rmsd)
+        self._report_misfit(
+            code,
+            f"модель с потолком лучше 2PL на {gain:.2f} нат при допустимых "
+            f"{self.item_fit_ceiling_gain_max:.2f}",
+        )
         return True
 
     def _retire_misfit(self, code: str, rmsd: float) -> None:
         row = self._locked(bank.get_family(code))
         row.in_rotation = False
         self._repository.save(row)
-        self._report_misfit(code, rmsd)
+        self._report_misfit(code, f"RMSD = {rmsd:.3f} при допустимом {self.item_fit_rmsd_max:.3f}")
 
-    def _report_misfit(self, code: str, rmsd: float) -> None:
-        """Задача банку на ручную проверку — запись в журнал с кодом семейства и RMSD."""
+    def _report_misfit(self, code: str, reason: str) -> None:
+        """Задача банку на ручную проверку — запись в журнал с кодом семейства и причиной."""
         log.warning(
-            "Семейство %s не согласуется с моделью: RMSD = %.3f при допустимом %.3f — "
-            "выведено из выдачи до ручной проверки",
+            "Семейство %s не согласуется с моделью: %s — выведено из выдачи до ручной проверки",
             code,
-            rmsd,
-            self.item_fit_rmsd_max,
-            extra={ITEM_FIT_FAMILY: code, ITEM_FIT_RMSD: rmsd},
+            reason,
+            extra={ITEM_FIT_FAMILY: code, ITEM_FIT_REASON: reason},
         )
 
     def _locked(self, family: bank.Family) -> CalibratedFamily:

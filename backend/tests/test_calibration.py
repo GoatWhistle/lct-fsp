@@ -17,6 +17,8 @@ from app.domain.calibration import (
     Link,
     Parameters,
     Response,
+    ceiling_gain,
+    ceilings,
     elo_step,
     elo_update,
     expected_correct,
@@ -33,6 +35,7 @@ from app.usecase.skill_profile import specialization_prior
 from composition import elo_calibration
 from settings import Mechanics, Settings
 from validation.market import calibration_quality, expert, market, mean_responses
+from validation.truth import Corruption
 
 MECHANICS = Mechanics.from_yaml(Settings().mechanics_file)
 # Порог M12 плана валидации на 200 ответах в среднем на семейство.
@@ -291,6 +294,114 @@ def test_refit_takes_misfitting_family_out_and_keeps_fitting_one() -> None:
 
     assert set(calibration.current([misfit, fair])) == {fair.code}
     assert ExpertGap.EASIER not in calibration.expert_gaps([misfit, fair]).values()
+
+
+def m21_responses(
+    truth: Parameters, n: int, rng: random.Random, *, kind: Corruption | None, center: float
+) -> list[Response]:
+    """Ответы кандидатов с уровнями около `center`, как их подбирает адаптивный тест, по 2PL
+    истины `truth` или с порчей M21: ответ не зависит от уровня — P = 0,5; ошибка эталона у
+    половины экземпляров — P = ½ · p(θ)."""
+    responses = []
+    for _ in range(n):
+        level = Normal(rng.gauss(center, 0.8), 0.45)
+        theta = rng.gauss(level.mean, level.sd)
+        p = sigmoid(truth.discrimination * (theta - truth.difficulty))
+        if kind == Corruption.flat:
+            p = 0.5
+        elif kind == Corruption.key:
+            p *= rng.random() < 0.5
+        responses.append(Response(level, rng.random() < p))
+    return responses
+
+
+def retired_after_refit(
+    discrimination: float, kind: Corruption | None, *, center_shift: float = 0.0
+) -> tuple[int, int]:
+    """Сколько из двадцати семейств грейда middle выводит переоценка на
+    `calibration_refit_min_responses` ответах — тем же сценарием, что в сервисе."""
+    families = [f for f in bank.BANK if f.grade == "middle" and not f.anchor][:20]
+    start = expert("middle", MECHANICS)
+    truth = Parameters(discrimination, start.difficulty)
+    rng = random.Random(21)
+    answers = {
+        f.code: m21_responses(
+            truth,
+            MECHANICS.calibration_refit_min_responses,
+            rng,
+            kind=kind,
+            center=start.difficulty + center_shift,
+        )
+        for f in families
+    }
+    calibration = elo_calibration(AnsweredCalibrationRepository({}, answers=answers), MECHANICS)
+
+    calibration.refit_due(answers, "backend", datetime.now(UTC))
+
+    return len(families) - len(calibration.current(families)), len(families)
+
+
+def test_ceiling_gain_is_small_for_2pl_and_large_for_level_independent_answers() -> None:
+    """У 2PL потолок не нужен — перевес около нуля и не меньше нуля: единица среди потолков. Ответ,
+    не зависящий от уровня, модель с потолком объясняет без штрафа на a — перевес большой."""
+    start = expert("middle", MECHANICS)
+    rng = random.Random(22)
+    ceilings_grid = ceilings(MECHANICS.item_fit_ceiling_min, MECHANICS.item_fit_ceiling_step)
+
+    def gain(responses: list[Response]) -> float:
+        fitted = refit_with_priors(responses, start)
+        return ceiling_gain(
+            responses,
+            start,
+            fitted,
+            ceilings=ceilings_grid,
+            difficulty_prior_sd=MECHANICS.calibration_refit_difficulty_prior_sd,
+            log_discrimination_prior_sd=MECHANICS.calibration_refit_log_discrimination_prior_sd,
+        )
+
+    fair = gain(m21_responses(start, 500, rng, kind=None, center=start.difficulty))
+    flat = gain(m21_responses(start, 500, rng, kind=Corruption.flat, center=start.difficulty))
+
+    assert ceilings_grid[0] == MECHANICS.item_fit_ceiling_min
+    assert ceilings_grid[-1] == 1.0
+    assert 0 <= fair < MECHANICS.item_fit_ceiling_gain_max
+    assert flat > 3 * MECHANICS.item_fit_ceiling_gain_max
+
+
+def test_refit_takes_out_level_independent_family() -> None:
+    """Ответ не зависит от уровня — переоценка уводит a к нулю, сколько позволяет штраф, и RMSD
+    против переоценённых (a, b) мал; проверка согласия всё равно выводит семейство."""
+    retired, total = retired_after_refit(MECHANICS.expert_discrimination, Corruption.flat)
+
+    assert retired / total >= 0.8
+
+
+def test_refit_takes_out_family_with_wrong_key_in_half_of_instances() -> None:
+    """Ошибка эталона у половины экземпляров: доля верных не выше ½ при любом уровне. Эло к
+    переоценке уже сдвинул сложность вверх, и адаптивный тест подбирает семейству кандидатов
+    сильнее истинной b* — у них потолок ½ и виден."""
+    retired, total = retired_after_refit(
+        MECHANICS.expert_discrimination, Corruption.key, center_shift=1.0
+    )
+
+    assert retired / total >= 0.8
+
+
+def test_refit_keeps_2pl_family_at_upper_edge_of_d1_spread() -> None:
+    """ln a* = ln a₀ + 2 · 0,3 — край разброса истинных параметров D1: крутая кривая не похожа ни
+    на плоскую, ни на кривую с потолком."""
+    retired, _ = retired_after_refit(MECHANICS.expert_discrimination * math.exp(0.6), None)
+
+    assert retired == 0
+
+
+def test_refit_keeps_most_2pl_families_at_lower_edge_of_d1_spread() -> None:
+    """ln a* = ln a₀ − 2 · 0,3: пологую кривую модель с потолком отчасти имитирует, и на 200
+    ответах около трети таких семейств выводится (mechanics.md, §7). Край разброса редок — на D3
+    ложных срабатываний 0,03 в целом."""
+    retired, total = retired_after_refit(MECHANICS.expert_discrimination * math.exp(-0.6), None)
+
+    assert retired / total <= 0.4
 
 
 class AnchoredCalibrationRepository(MemoryCalibrationRepository):

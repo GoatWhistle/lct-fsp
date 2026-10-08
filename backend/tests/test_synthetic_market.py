@@ -46,8 +46,8 @@ from validation.truth import (
     CandidateTruth,
     Corruption,
     Persona,
-    ResponseModel,
     Response,
+    ResponseModel,
     corrupt,
     relevance,
 )

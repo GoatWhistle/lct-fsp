@@ -15,10 +15,14 @@ from settings import BACKEND_DIR, CATALOG_FILE, Mechanics, Settings
 
 PARAMETERS_DOC = BACKEND_DIR.parent / "docs" / "parameters.md"
 ROW = re.compile(r"^\| `(?P<name>[a-z0-9_]+)` \| `(?P<value>[^`]+)` \|", re.MULTILINE)
+# Раздел генератора стенда валидации — числа синтетики, а не конфига механик: он не сверяется,
+# остальные разделы до и после него — сверяются.
+STAND_SECTION = re.compile(r"^## Синтетический рынок стенда валидации\n.*?(?=^## )", re.M | re.S)
 
 
 def documented_parameters() -> dict[str, object]:
-    text = PARAMETERS_DOC.read_text(encoding="utf-8")
+    text, removed = STAND_SECTION.subn("", PARAMETERS_DOC.read_text(encoding="utf-8"))
+    assert removed == 1, "раздел генератора стенда в docs/parameters.md не найден"
     return {row["name"]: yaml.safe_load(row["value"]) for row in ROW.finditer(text)}
 
 

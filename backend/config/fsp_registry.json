@@ -225,5 +225,325 @@
       "fsp_result": "finalist",
       "team_role": null
     }
+  ],
+  "c84c1884-c88f-43d6-a2a6-0b44ef5fd31c": [
+    {
+      "event": "Чемпионат России по продуктовому программированию",
+      "date": "2024-09-26",
+      "discipline": "product",
+      "place": 16,
+      "fsp_result": "finalist",
+      "team_role": null
+    },
+    {
+      "event": "Кубок ФСП по алгоритмическому программированию",
+      "date": "2025-09-14",
+      "discipline": "algorithmic",
+      "place": null,
+      "fsp_result": "participant",
+      "team_role": null
+    }
+  ],
+  "63ac4f14-1b2b-480e-b575-85ce039e257a": [
+    {
+      "event": "Кубок ФСП по алгоритмическому программированию",
+      "date": "2023-01-27",
+      "discipline": "algorithmic",
+      "place": 24,
+      "fsp_result": "finalist",
+      "team_role": null
+    }
+  ],
+  "f1f02f49-c500-49ab-af3e-41445a789b32": [
+    {
+      "event": "Всероссийский хакатон ФСП «Цифровой регион»",
+      "date": "2023-01-17",
+      "discipline": "product",
+      "place": 3,
+      "fsp_result": "prize",
+      "team_role": "backend"
+    },
+    {
+      "event": "Чемпионат России по алгоритмическому программированию",
+      "date": "2025-08-11",
+      "discipline": "algorithmic",
+      "place": 19,
+      "fsp_result": "finalist",
+      "team_role": null
+    }
+  ],
+  "9e5cf6e9-9255-4248-b771-f894f2e36355": [
+    {
+      "event": "Всероссийские соревнования «Осенний алгоритм»",
+      "date": "2024-03-19",
+      "discipline": "algorithmic",
+      "place": 1,
+      "fsp_result": "winner",
+      "team_role": null
+    },
+    {
+      "event": "Кубок ФСП по продуктовому программированию",
+      "date": "2026-06-15",
+      "discipline": "product",
+      "place": 2,
+      "fsp_result": "prize",
+      "team_role": "backend"
+    }
+  ],
+  "8c1f6387-11cb-4ea7-b5fc-684aadb21095": [
+    {
+      "event": "Кубок ФСП по продуктовому программированию",
+      "date": "2024-01-21",
+      "discipline": "product",
+      "place": 30,
+      "fsp_result": "finalist",
+      "team_role": null
+    },
+    {
+      "event": "Всероссийские соревнования «Осенний алгоритм»",
+      "date": "2026-01-07",
+      "discipline": "algorithmic",
+      "place": null,
+      "fsp_result": "participant",
+      "team_role": null
+    }
+  ],
+  "c134a79b-de3b-4dd3-b3aa-881e0c56037f": [
+    {
+      "event": "Всероссийские соревнования «Осенний алгоритм»",
+      "date": "2024-08-23",
+      "discipline": "algorithmic",
+      "place": 4,
+      "fsp_result": "finalist",
+      "team_role": null
+    }
+  ],
+  "37fe43eb-87a9-4c13-a549-7863210f4de3": [
+    {
+      "event": "Чемпионат России по продуктовому программированию",
+      "date": "2024-03-22",
+      "discipline": "product",
+      "place": 3,
+      "fsp_result": "prize",
+      "team_role": "frontend"
+    },
+    {
+      "event": "Кубок ФСП по алгоритмическому программированию",
+      "date": "2025-07-18",
+      "discipline": "algorithmic",
+      "place": 6,
+      "fsp_result": "finalist",
+      "team_role": null
+    }
+  ],
+  "5814b53f-2fec-4275-8e0e-889662186f4b": [
+    {
+      "event": "Кубок ФСП по алгоритмическому программированию",
+      "date": "2024-05-15",
+      "discipline": "algorithmic",
+      "place": 1,
+      "fsp_result": "winner",
+      "team_role": null
+    },
+    {
+      "event": "Всероссийский хакатон ФСП «Цифровой регион»",
+      "date": "2025-08-06",
+      "discipline": "product",
+      "place": 3,
+      "fsp_result": "prize",
+      "team_role": "frontend"
+    }
+  ],
+  "cbee23b0-86f9-4a21-9ebf-3deb71d02f51": [
+    {
+      "event": "Всероссийский хакатон ФСП «Цифровой регион»",
+      "date": "2024-01-03",
+      "discipline": "product",
+      "place": 24,
+      "fsp_result": "finalist",
+      "team_role": null
+    },
+    {
+      "event": "Чемпионат России по алгоритмическому программированию",
+      "date": "2025-02-28",
+      "discipline": "algorithmic",
+      "place": null,
+      "fsp_result": "participant",
+      "team_role": null
+    }
+  ],
+  "c887417c-8b89-4fec-a872-d96b5497db67": [
+    {
+      "event": "Чемпионат России по алгоритмическому программированию",
+      "date": "2024-01-12",
+      "discipline": "algorithmic",
+      "place": 15,
+      "fsp_result": "finalist",
+      "team_role": null
+    }
+  ],
+  "cab39a07-9284-4dae-afe9-87c18fdf6614": [
+    {
+      "event": "Кубок ФСП по продуктовому программированию",
+      "date": "2024-02-20",
+      "discipline": "product",
+      "place": 3,
+      "fsp_result": "prize",
+      "team_role": "data-ml"
+    },
+    {
+      "event": "Кубок ФСП по алгоритмическому программированию",
+      "date": "2024-05-19",
+      "discipline": "algorithmic",
+      "place": 25,
+      "fsp_result": "finalist",
+      "team_role": null
+    }
+  ],
+  "c8130637-19f9-40d3-a1f3-43908e449800": [
+    {
+      "event": "Чемпионат России по продуктовому программированию",
+      "date": "2023-06-24",
+      "discipline": "product",
+      "place": 2,
+      "fsp_result": "prize",
+      "team_role": "data-ml"
+    },
+    {
+      "event": "Чемпионат России по алгоритмическому программированию",
+      "date": "2025-02-14",
+      "discipline": "algorithmic",
+      "place": 1,
+      "fsp_result": "winner",
+      "team_role": null
+    }
+  ],
+  "968e485e-46db-43ab-9044-df5c81b2499e": [
+    {
+      "event": "Чемпионат России по продуктовому программированию",
+      "date": "2023-05-11",
+      "discipline": "product",
+      "place": null,
+      "fsp_result": "participant",
+      "team_role": null
+    },
+    {
+      "event": "Чемпионат России по продуктовому программированию",
+      "date": "2025-05-03",
+      "discipline": "product",
+      "place": 17,
+      "fsp_result": "finalist",
+      "team_role": null
+    }
+  ],
+  "c6db0211-e7a8-4c20-a5e6-df0cddd284e8": [
+    {
+      "event": "Чемпионат России по продуктовому программированию",
+      "date": "2025-07-01",
+      "discipline": "product",
+      "place": 7,
+      "fsp_result": "finalist",
+      "team_role": null
+    }
+  ],
+  "1f7e4273-4f56-448f-85e1-ddfb3c37bb01": [
+    {
+      "event": "Всероссийский хакатон ФСП «Цифровой регион»",
+      "date": "2023-09-19",
+      "discipline": "product",
+      "place": 3,
+      "fsp_result": "prize",
+      "team_role": "qa"
+    },
+    {
+      "event": "Всероссийский хакатон ФСП «Цифровой регион»",
+      "date": "2026-01-13",
+      "discipline": "product",
+      "place": 23,
+      "fsp_result": "finalist",
+      "team_role": null
+    }
+  ],
+  "6d1675c1-7671-47fd-9814-26123733ef91": [
+    {
+      "event": "Кубок ФСП по продуктовому программированию",
+      "date": "2023-06-28",
+      "discipline": "product",
+      "place": 1,
+      "fsp_result": "winner",
+      "team_role": null
+    },
+    {
+      "event": "Всероссийский хакатон ФСП «Цифровой регион»",
+      "date": "2026-05-27",
+      "discipline": "product",
+      "place": 2,
+      "fsp_result": "prize",
+      "team_role": "qa"
+    }
+  ],
+  "e0dff709-6fce-4808-b715-8e9cbc42513d": [
+    {
+      "event": "Всероссийский хакатон ФСП «Цифровой регион»",
+      "date": "2023-05-23",
+      "discipline": "product",
+      "place": null,
+      "fsp_result": "participant",
+      "team_role": null
+    },
+    {
+      "event": "Всероссийский хакатон ФСП «Цифровой регион»",
+      "date": "2025-02-10",
+      "discipline": "product",
+      "place": 14,
+      "fsp_result": "finalist",
+      "team_role": null
+    }
+  ],
+  "8acaca45-0530-4bb7-a728-6b1b95ea47a7": [
+    {
+      "event": "Чемпионат России по продуктовому программированию",
+      "date": "2025-04-18",
+      "discipline": "product",
+      "place": 27,
+      "fsp_result": "finalist",
+      "team_role": null
+    }
+  ],
+  "9e74d650-2980-47bd-9cd3-3258ff44577c": [
+    {
+      "event": "Чемпионат России по продуктовому программированию",
+      "date": "2023-02-02",
+      "discipline": "product",
+      "place": 3,
+      "fsp_result": "prize",
+      "team_role": "devops"
+    },
+    {
+      "event": "Кубок ФСП по продуктовому программированию",
+      "date": "2025-01-14",
+      "discipline": "product",
+      "place": 8,
+      "fsp_result": "finalist",
+      "team_role": null
+    }
+  ],
+  "608f02b1-6254-43f0-aa50-f9fc5b20f1e6": [
+    {
+      "event": "Чемпионат России по продуктовому программированию",
+      "date": "2024-07-22",
+      "discipline": "product",
+      "place": 1,
+      "fsp_result": "winner",
+      "team_role": null
+    },
+    {
+      "event": "Кубок ФСП по продуктовому программированию",
+      "date": "2024-09-01",
+      "discipline": "product",
+      "place": 3,
+      "fsp_result": "prize",
+      "team_role": "devops"
+    }
   ]
 }

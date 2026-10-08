@@ -5,12 +5,13 @@
 
 import random
 
-from app.domain.bank.family import Instance, rounded
+from app.domain.bank.family import Instance, Kind, kind, rounded
 from app.domain.bank.runner import CodeRunner
 
 PX_PROMPT = "Ответ — числа в пикселях через пробел, без «px»."
 
 
+@kind(Kind.TRACE)
 def box_width(rng: random.Random, runner: CodeRunner) -> Instance:
     boxes = []
     widths = []
@@ -31,6 +32,7 @@ def box_width(rng: random.Random, runner: CodeRunner) -> Instance:
     return Instance(prompt, " ".join(map(str, widths)), {"boxes": boxes}, code="\n".join(boxes))
 
 
+@kind(Kind.TRACE)
 def rem_em(rng: random.Random, runner: CodeRunner) -> Instance:
     root = rng.choice([10, 12, 14, 16, 18, 20])
     outer = rng.choice([1.25, 1.5, 2, 0.75])
@@ -83,6 +85,7 @@ def _selector(rng: random.Random) -> tuple[str, tuple[int, int, int]]:
     return rng.choice([" ", " > "]).join(parts), (ids, classes, tags)
 
 
+@kind(Kind.COMPUTE)
 def specificity(rng: random.Random, runner: CodeRunner) -> Instance:
     selectors = [_selector(rng) for _ in range(3)]
     lines = [f"{i}. {s}" for i, (s, _) in enumerate(selectors, 1)]
@@ -95,6 +98,7 @@ def specificity(rng: random.Random, runner: CodeRunner) -> Instance:
     return Instance(prompt, answer, {"selectors": [s for s, _ in selectors]}, code="\n".join(lines))
 
 
+@kind(Kind.TRACE)
 def flex_grow(rng: random.Random, runner: CodeRunner) -> Instance:
     items = [(rng.randrange(40, 160, 10), rng.randint(0, 3)) for _ in range(3)]
     gap = rng.choice([0, 10, 20])
@@ -118,6 +122,7 @@ def flex_grow(rng: random.Random, runner: CodeRunner) -> Instance:
     )
 
 
+@kind(Kind.COMPUTE)
 def nth_child(rng: random.Random, runner: CodeRunner) -> Instance:
     count = rng.randint(8, 12)
     a, b = rng.choice(
@@ -163,6 +168,7 @@ def nth_child(rng: random.Random, runner: CodeRunner) -> Instance:
     return Instance(prompt, " ".join(map(str, matched)), params)
 
 
+@kind(Kind.TRACE)
 def margin_collapse(rng: random.Random, runner: CodeRunner) -> Instance:
     pairs = []
     gaps = []
@@ -184,6 +190,7 @@ def margin_collapse(rng: random.Random, runner: CodeRunner) -> Instance:
     return Instance(prompt, " ".join(map(str, gaps)), {"pairs": pairs}, code=code)
 
 
+@kind(Kind.TRACE)
 def flex_shrink(rng: random.Random, runner: CodeRunner) -> Instance:
     container = rng.randrange(300, 600, 20)
     items = [(rng.randrange(150, 350, 10), rng.randint(1, 3)) for _ in range(3)]
@@ -204,6 +211,7 @@ def flex_shrink(rng: random.Random, runner: CodeRunner) -> Instance:
     return Instance(prompt, answer, {"container": container, "items": items}, code=code)
 
 
+@kind(Kind.TRACE)
 def grid_fr(rng: random.Random, runner: CodeRunner) -> Instance:
     width = rng.randrange(600, 1400, 20)
     fixed = rng.randrange(80, 240, 20)
@@ -225,6 +233,7 @@ def grid_fr(rng: random.Random, runner: CodeRunner) -> Instance:
     )
 
 
+@kind(Kind.TRACE)
 def media_queries(rng: random.Random, runner: CodeRunner) -> Instance:
     base = rng.randint(12, 16)
     rules = [("", base)]
@@ -257,6 +266,7 @@ def media_queries(rng: random.Random, runner: CodeRunner) -> Instance:
     )
 
 
+@kind(Kind.TRACE)
 def sibling_selectors(rng: random.Random, runner: CodeRunner) -> Instance:
     matched: list[int] = []
     while not matched:
@@ -281,6 +291,7 @@ def sibling_selectors(rng: random.Random, runner: CodeRunner) -> Instance:
     return Instance(prompt, " ".join(map(str, matched)), params, code=html)
 
 
+@kind(Kind.TRACE)
 def absolute_position(rng: random.Random, runner: CodeRunner) -> Instance:
     outer = (rng.randrange(0, 200, 10), rng.randrange(0, 200, 10))
     middle = (rng.randrange(10, 100, 10), rng.randrange(10, 100, 10))
@@ -307,6 +318,7 @@ def absolute_position(rng: random.Random, runner: CodeRunner) -> Instance:
     return Instance(prompt, f"{top} {left}", params, code=code)
 
 
+@kind(Kind.TRACE)
 def percent_padding(rng: random.Random, runner: CodeRunner) -> Instance:
     width = rng.randrange(300, 1200, 20)
     height = rng.randrange(100, 600, 20)

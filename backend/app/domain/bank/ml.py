@@ -4,7 +4,7 @@
 import math
 import random
 
-from app.domain.bank.family import Instance, rounded
+from app.domain.bank.family import Instance, Kind, kind, rounded
 from app.domain.bank.runner import CodeRunner
 
 
@@ -12,6 +12,7 @@ def _confusion(rng: random.Random) -> tuple[int, int, int, int]:
     return rng.randint(5, 90), rng.randint(1, 40), rng.randint(1, 40), rng.randint(20, 300)
 
 
+@kind(Kind.COMPUTE)
 def precision_recall(rng: random.Random, runner: CodeRunner) -> Instance:
     tp, fp, fn, tn = _confusion(rng)
     code = (
@@ -27,6 +28,7 @@ def precision_recall(rng: random.Random, runner: CodeRunner) -> Instance:
     return Instance(prompt, answer, {"tp": tp, "fp": fp, "fn": fn, "tn": tn}, code=code)
 
 
+@kind(Kind.COMPUTE)
 def majority_baseline(rng: random.Random, runner: CodeRunner) -> Instance:
     positives = rng.randint(5, 200)
     negatives = rng.randint(300, 2000)
@@ -43,6 +45,7 @@ def majority_baseline(rng: random.Random, runner: CodeRunner) -> Instance:
     )
 
 
+@kind(Kind.COMPUTE)
 def f1_score(rng: random.Random, runner: CodeRunner) -> Instance:
     tp, fp, fn, _ = _confusion(rng)
     beta = rng.choice([1, 2])
@@ -55,6 +58,7 @@ def f1_score(rng: random.Random, runner: CodeRunner) -> Instance:
     return Instance(prompt, rounded(score, 3), {"tp": tp, "fp": fp, "fn": fn, "beta": beta})
 
 
+@kind(Kind.COMPUTE)
 def knn_predict(rng: random.Random, runner: CodeRunner) -> Instance:
     while True:
         points: list[tuple[int, int, str]] = []
@@ -91,6 +95,7 @@ def knn_predict(rng: random.Random, runner: CodeRunner) -> Instance:
     )
 
 
+@kind(Kind.COMPUTE)
 def kfold_sizes(rng: random.Random, runner: CodeRunner) -> Instance:
     n = rng.randint(50, 999)
     k = rng.randint(3, 10)
@@ -106,6 +111,7 @@ def kfold_sizes(rng: random.Random, runner: CodeRunner) -> Instance:
     return Instance(prompt, f"{largest} {small} {n - small}", {"n": n, "k": k})
 
 
+@kind(Kind.COMPUTE)
 def one_hot_columns(rng: random.Random, runner: CodeRunner) -> Instance:
     features = {
         "город": rng.randint(2, 30),
@@ -126,6 +132,7 @@ def one_hot_columns(rng: random.Random, runner: CodeRunner) -> Instance:
     )
 
 
+@kind(Kind.COMPUTE)
 def gini_split(rng: random.Random, runner: CodeRunner) -> Instance:
     left = (rng.randint(0, 30), rng.randint(0, 30))
     right = (rng.randint(0, 30), rng.randint(0, 30))
@@ -151,6 +158,7 @@ def gini_split(rng: random.Random, runner: CodeRunner) -> Instance:
     )
 
 
+@kind(Kind.COMPUTE)
 def kmeans_step(rng: random.Random, runner: CodeRunner) -> Instance:
     points = [(rng.randint(0, 20), rng.randint(0, 20)) for _ in range(6)]
     centroids = [(rng.randint(0, 20), rng.randint(0, 20)) for _ in range(2)]
@@ -181,6 +189,7 @@ def kmeans_step(rng: random.Random, runner: CodeRunner) -> Instance:
     return Instance(prompt, answer, {"points": points, "centroids": centroids})
 
 
+@kind(Kind.COMPUTE)
 def linear_fit(rng: random.Random, runner: CodeRunner) -> Instance:
     xs = sorted(rng.sample(range(0, 12), 4))
     slope, intercept = rng.choice([-3, -2, -1, 1, 2, 3, 4]), rng.randint(-5, 10)
@@ -201,6 +210,7 @@ def linear_fit(rng: random.Random, runner: CodeRunner) -> Instance:
     )
 
 
+@kind(Kind.COMPUTE)
 def roc_auc(rng: random.Random, runner: CodeRunner) -> Instance:
     scores = rng.sample(range(1, 100), 10)
     labels = [rng.choice([0, 1]) for _ in scores]
@@ -219,6 +229,7 @@ def roc_auc(rng: random.Random, runner: CodeRunner) -> Instance:
     )
 
 
+@kind(Kind.COMPUTE)
 def log_loss(rng: random.Random, runner: CodeRunner) -> Instance:
     probs = [rng.randint(5, 95) / 100 for _ in range(4)]
     labels = [rng.choice([0, 1]) for _ in probs]
@@ -235,6 +246,7 @@ def log_loss(rng: random.Random, runner: CodeRunner) -> Instance:
     )
 
 
+@kind(Kind.COMPUTE)
 def ndcg_at_k(rng: random.Random, runner: CodeRunner) -> Instance:
     rels = [rng.choice([0, 0, 1, 2, 3]) for _ in range(6)]
     if not any(rels):

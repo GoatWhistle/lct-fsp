@@ -2,7 +2,7 @@
 
 import random
 
-from app.domain.bank.family import Instance
+from app.domain.bank.family import Instance, Kind, kind
 from app.domain.bank.runner import CodeRunner
 
 ENTITIES = ["заказ", "счёт", "отчёт", "профиль", "товар", "платёж"]
@@ -23,6 +23,7 @@ STATUS_CASES = [
 ]
 
 
+@kind(Kind.COMPUTE)
 def status_code(rng: random.Random, runner: CodeRunner) -> Instance:
     case, code = rng.choice(STATUS_CASES)
     situation = case.format(entity=rng.choice(ENTITIES), id=rng.randint(10, 9999))
@@ -33,6 +34,7 @@ def status_code(rng: random.Random, runner: CodeRunner) -> Instance:
     return Instance(prompt, str(code), {"situation": situation})
 
 
+@kind(Kind.COMPUTE)
 def idempotency(rng: random.Random, runner: CodeRunner) -> Instance:
     existing, repeats = rng.randint(3, 40), rng.randint(2, 5)
     order_id = rng.randint(100, 999)
@@ -53,6 +55,7 @@ def idempotency(rng: random.Random, runner: CodeRunner) -> Instance:
     return Instance(prompt, str(total), params)
 
 
+@kind(Kind.COMPUTE)
 def pagination(rng: random.Random, runner: CodeRunner) -> Instance:
     total, per_page = rng.randint(30, 200), rng.choice([10, 20, 25, 50])
     pages = -(-total // per_page)
@@ -67,6 +70,7 @@ def pagination(rng: random.Random, runner: CodeRunner) -> Instance:
     return Instance(prompt, str(last), {"total": total, "per_page": per_page, "page": page})
 
 
+@kind(Kind.COMPUTE)
 def cache_max_age(rng: random.Random, runner: CodeRunner) -> Instance:
     max_age = rng.choice([30, 60, 90, 120])
     moments = sorted(rng.sample(range(5, 7 * max_age), rng.randint(6, 10)))
@@ -85,6 +89,7 @@ def cache_max_age(rng: random.Random, runner: CodeRunner) -> Instance:
     return Instance(prompt, str(to_server), {"max_age": max_age, "moments": moments})
 
 
+@kind(Kind.COMPUTE)
 def offset_drift(rng: random.Random, runner: CodeRunner) -> Instance:
     total, limit = rng.randint(25, 60), rng.choice([5, 10])
     deleted_at_page = rng.randint(1, 2)
@@ -110,6 +115,7 @@ def offset_drift(rng: random.Random, runner: CodeRunner) -> Instance:
     return Instance(prompt, str(missed), params)
 
 
+@kind(Kind.COMPUTE)
 def status_codes(rng: random.Random, runner: CodeRunner) -> Instance:
     cases = rng.sample(STATUS_CASES, 4)
     lines = [
@@ -138,6 +144,7 @@ METHOD_CASES = [
 ENTITY_PATHS = ["order", "invoice", "report", "user", "item", "payment"]
 
 
+@kind(Kind.COMPUTE)
 def safe_methods(rng: random.Random, runner: CodeRunner) -> Instance:
     cases = [rng.choice(METHOD_CASES) for _ in range(6)]
     lines = [
@@ -153,6 +160,7 @@ def safe_methods(rng: random.Random, runner: CodeRunner) -> Instance:
     return Instance(prompt, " ".join(letters), {"requests": lines}, code="\n".join(lines))
 
 
+@kind(Kind.COMPUTE)
 def page_bounds(rng: random.Random, runner: CodeRunner) -> Instance:
     total, per_page = rng.randint(30, 400), rng.choice([10, 20, 25, 50])
     pages = -(-total // per_page)
@@ -171,6 +179,7 @@ def page_bounds(rng: random.Random, runner: CodeRunner) -> Instance:
 SIMPLE_TYPES = ["text/plain", "application/x-www-form-urlencoded", "multipart/form-data"]
 
 
+@kind(Kind.COMPUTE)
 def cors_preflight(rng: random.Random, runner: CodeRunner) -> Instance:
     requests, answers = [], []
     for i in range(1, 7):
@@ -198,6 +207,7 @@ def cors_preflight(rng: random.Random, runner: CodeRunner) -> Instance:
     return Instance(prompt, " ".join(answers), {"requests": requests}, code="\n".join(requests))
 
 
+@kind(Kind.COMPUTE)
 def retry_backoff(rng: random.Random, runner: CodeRunner) -> Instance:
     base, factor = rng.choice([0.5, 1, 2]), rng.choice([2, 3])
     cap, attempt = rng.choice([10, 20, 30, 60]), rng.randint(4, 7)
@@ -216,6 +226,7 @@ def retry_backoff(rng: random.Random, runner: CodeRunner) -> Instance:
     return Instance(prompt, f"{moment:g}", params)
 
 
+@kind(Kind.COMPUTE)
 def etag_conditional(rng: random.Random, runner: CodeRunner) -> Instance:
     version, cached, events, codes = 1, None, [], []
     for i in range(1, 8):
@@ -238,6 +249,7 @@ def etag_conditional(rng: random.Random, runner: CodeRunner) -> Instance:
     return Instance(prompt, " ".join(map(str, codes)), {"events": events}, code="\n".join(events))
 
 
+@kind(Kind.COMPUTE)
 def cache_revalidation(rng: random.Random, runner: CodeRunner) -> Instance:
     max_age = rng.choice([30, 60, 90, 120])
     moments = sorted(rng.sample(range(5, 7 * max_age), rng.randint(6, 9)))
@@ -258,6 +270,7 @@ def cache_revalidation(rng: random.Random, runner: CodeRunner) -> Instance:
     return Instance(prompt, answer, {"max_age": max_age, "moments": moments})
 
 
+@kind(Kind.COMPUTE)
 def fixed_window(rng: random.Random, runner: CodeRunner) -> Instance:
     limit, window = rng.randint(2, 4), rng.choice([10, 30, 60])
     moments = sorted(rng.sample(range(0, 3 * window), rng.randint(8, 10)))
@@ -278,6 +291,7 @@ def fixed_window(rng: random.Random, runner: CodeRunner) -> Instance:
     )
 
 
+@kind(Kind.COMPUTE)
 def optimistic_locking(rng: random.Random, runner: CodeRunner) -> Instance:
     version = 1
     lines, codes = [], []
@@ -307,6 +321,7 @@ def optimistic_locking(rng: random.Random, runner: CodeRunner) -> Instance:
     )
 
 
+@kind(Kind.COMPUTE)
 def offset_drift_missed(rng: random.Random, runner: CodeRunner) -> Instance:
     limit = rng.choice([5, 10, 20])
     pages_before = rng.randint(1, 3)
@@ -336,6 +351,7 @@ def offset_drift_missed(rng: random.Random, runner: CodeRunner) -> Instance:
     return Instance(prompt, " ".join(map(str, missed)) or "0", params)
 
 
+@kind(Kind.COMPUTE)
 def timeout_budget(rng: random.Random, runner: CodeRunner) -> Instance:
     gateway = rng.randint(4, 24) / 2
     service_timeout, retries = rng.choice([1, 2, 3]), rng.randint(1, 3)

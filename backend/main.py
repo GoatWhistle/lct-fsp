@@ -34,6 +34,7 @@ from app.controller.catalog import router as catalog_router
 from app.controller.company import router as company_router
 from app.controller.deps import SessionCookie
 from app.controller.errors import install_error_handlers
+from app.controller.feedback import router as feedback_router
 from app.controller.fsp import candidate_router as fsp_router
 from app.controller.fsp import router as fsp_auth_router
 from app.controller.invitation import candidate_router as inbox_router
@@ -210,6 +211,8 @@ def create_app(
             fsp=lambda uow: SqlFspRepository(uow.session),
             candidates=candidate_repository,
             invitations=invitation_repository,
+            selections=lambda uow: SqlSelections(uow.session),
+            calibration=lambda uow: SqlCalibrationRepository(uow.session),
         ),
         mechanics=mechanics,
         passwords=passwords or Argon2Passwords(),
@@ -236,6 +239,7 @@ def create_app(
     app.state.fsp_accounts = platform.fsp_accounts
     app.state.frontend_url = settings.frontend_url
     app.state.invitations = platform.invitations
+    app.state.feedback = platform.feedback
 
     install_error_handlers(app)
     app.include_router(auth_router)
@@ -253,6 +257,7 @@ def create_app(
     app.include_router(candidate_tasks_router)
     app.include_router(invitations_router)
     app.include_router(inbox_router)
+    app.include_router(feedback_router)
     app.include_router(catalog_router)
 
     @app.get("/api/health", tags=["service"], summary="Проверка, что бэкенд жив")

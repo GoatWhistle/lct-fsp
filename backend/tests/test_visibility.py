@@ -87,6 +87,7 @@ ENDPOINTS = {
     for e in [
         Endpoint("профиль", "GET", lambda w: "/api/candidate/profile"),
         Endpoint("PDF", "GET", lambda w: "/api/candidate/profile/pdf", pdf=True),
+        Endpoint("обратная связь", "GET", lambda w: "/api/candidate/feedback"),
         Endpoint("карточка", "GET", lambda w: f"/api/employer/candidates/{w.candidate_id}"),
         Endpoint(
             "подборка: построение", "POST", lambda w: f"/api/employer/needs/{w.need_id}/selections"
@@ -124,6 +125,10 @@ TABLE: list[tuple[str, str, int, frozenset[str]]] = [
     ("PDF", Viewer.other, 404, NONE),
     ("PDF", Viewer.employer, 403, NONE),
     ("PDF", Viewer.anonymous, 401, NONE),
+    ("обратная связь", Viewer.me, 200, NONE),
+    ("обратная связь", Viewer.other, 200, NONE),
+    ("обратная связь", Viewer.employer, 403, NONE),
+    ("обратная связь", Viewer.anonymous, 401, NONE),
 ]
 for endpoint in EMPLOYER_ENDPOINTS:
     TABLE += [

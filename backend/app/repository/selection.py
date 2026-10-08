@@ -16,6 +16,7 @@ from sqlalchemy.orm import Session, aliased
 from app.domain.candidate import GradeStatus, GradeStatusKind
 from app.domain.catalog import CatalogRef, Grade
 from app.domain.errors import SelectionNotFound
+from app.domain.feedback import CandidateSelection
 from app.domain.importance import TopicImportance
 from app.domain.match import Verdict
 from app.domain.selection import (
@@ -276,6 +277,50 @@ class SqlSelections:
             query.order_by(SelectionRow.created_at.desc(), SelectionRow.id).limit(limit)
         )
         return self._summaries(list(rows))
+
+    def with_candidate(self, candidate_id: uuid.UUID, since: datetime) -> list[CandidateSelection]:
+        own = aliased(EntryRow)
+        rows = self._session.execute(
+            select(SelectionRow, own.position, own.block)
+            .join(own, own.selection_id == SelectionRow.id)
+            .where(own.candidate_id == candidate_id, SelectionRow.created_at >= since)
+            .order_by(SelectionRow.created_at, SelectionRow.id)
+        ).all()
+        neighbors: dict[uuid.UUID, list[float]] = {row.id: [] for row, _, _ in rows}
+        if neighbors:
+            mine = aliased(EntryRow)
+            for selection_id, score in self._session.execute(
+                select(EntryRow.selection_id, EntryRow.match_score)
+                .join(
+                    mine,
+                    and_(
+                        mine.selection_id == EntryRow.selection_id,
+                        mine.block == EntryRow.block,
+                        mine.candidate_id == candidate_id,
+                    ),
+                )
+                .where(
+                    EntryRow.selection_id.in_(neighbors),
+                    EntryRow.candidate_id != candidate_id,
+                )
+            ):
+                # Нижний блок скора не имеет.
+                if score is not None:
+                    neighbors[selection_id].append(score)
+        return [
+            CandidateSelection(
+                selection_id=row.id,
+                owner=row.user_id,
+                need_id=row.need_id,
+                need=snapshot_of(row.need_snapshot),
+                stack_cap=row.stack_cap,
+                created_at=row.created_at,
+                position=position,
+                block=block,
+                neighbors=tuple(neighbors[row.id]),
+            )
+            for row, position, block in rows
+        ]
 
     def _summaries(self, rows: Sequence[SelectionRow]) -> list[Summary]:
         totals = {row.id: dict.fromkeys(SelectionBlock, 0) for row in rows}

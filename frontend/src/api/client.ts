@@ -27,6 +27,10 @@ export type SelectionSummary = components['schemas']['SelectionSummaryOut']
 export type SelectionEntry = components['schemas']['SelectionEntryOut']
 export type Verdict = components['schemas']['Verdict']
 export type CandidateCard = components['schemas']['CandidateCardOut']
+export type Invitation = components['schemas']['InvitationOut']
+export type InvitationStatus = components['schemas']['InvitationStatus']
+export type InvitationBudget = components['schemas']['InvitationBudgetOut']
+export type SentInvitations = components['schemas']['SentInvitationsOut']
 
 export const api = createClient<paths>({ credentials: 'same-origin' })
 

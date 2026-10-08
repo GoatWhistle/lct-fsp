@@ -143,8 +143,10 @@ class Mechanics(BaseModel):
     salary_hint_rounding_rub: int
 
     # Обратная связь
-    feedback_min_selections: int
+    feedback_min_companies: int
     feedback_period_days: int
+    feedback_hints_max: int
+    feedback_min_gain: float
 
     @field_validator("need_importance_weights")
     @classmethod

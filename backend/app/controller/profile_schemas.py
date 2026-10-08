@@ -18,7 +18,7 @@ from pydantic import (
 
 from app.controller.path_schemas import CategoryOut, SkillProfileOut
 from app.controller.salary import SALARY_UNIT, Salary, SalaryBasisOut
-from app.controller.schemas import CatalogRef
+from app.controller.schemas import CatalogRef, GradeStatusOut
 from app.domain.work import WorkFormat
 
 DISCLOSED = "Раскрывается работодателю только после принятия приглашения или отклика"
@@ -166,7 +166,10 @@ class CandidateCardOut(BaseModel):
     зарплаты; фото, возраст и вуз платформа не собирает. Ожидаемой зарплаты нет и после."""
 
     id: uuid.UUID
-    category: CategoryOut = Field(description="Категория по тесту")
+    category: CategoryOut | None = Field(
+        description="Категория по тесту; `null` — тест не пройден, грейд только заявлен"
+    )
+    grade_status: GradeStatusOut
     skill_profile: SkillProfileOut | None = Field(description="Профиль навыков специализации")
     self_reported: SelfReportedOut | None = Field(
         description="Самоописание; `null` — кандидат ещё не заполнил профиль"

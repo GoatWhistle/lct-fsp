@@ -9,6 +9,7 @@
 его в ней нет по типу.
 """
 
+import enum
 import uuid
 from collections.abc import Mapping
 from dataclasses import dataclass
@@ -16,7 +17,7 @@ from datetime import datetime
 from functools import cached_property
 from typing import Self
 
-from app.domain.catalog import CatalogRef
+from app.domain.catalog import CatalogRef, Grade
 from app.domain.errors import CityRequired
 from app.domain.skill import LevelBand, Normal, level_band
 from app.domain.work import WorkFormat
@@ -70,6 +71,42 @@ class Category:
     assigned_at: datetime
 
 
+class GradeStatusKind(enum.StrEnum):
+    # Категория — заявленного грейда.
+    confirmed = "confirmed"
+    # Каскад дал категорию ниже заявленного грейда.
+    below_claimed = "below_claimed"
+    # Грейд заявлен, категории нет: тест не пройден или не закончен.
+    unconfirmed = "unconfirmed"
+
+
+@dataclass(frozen=True)
+class GradeStatus:
+    """Что тест сказал о заявленном грейде (§12). Заявленный грейд — грейд первой попытки
+    цепочки определения категории: дотест каскада его не меняет."""
+
+    kind: GradeStatusKind
+    claimed: CatalogRef
+    # Грейд категории; у `unconfirmed` — нет.
+    confirmed: CatalogRef | None
+
+
+def grade_status(category: Grade | None, claimed: Grade | None) -> GradeStatus | None:
+    """Статус из грейда категории и заявленного грейда; без того и другого статуса нет.
+    Категория без известной заявки — подтверждена: присвоить её мог только тест."""
+    if category is None:
+        if claimed is None:
+            return None
+        return GradeStatus(GradeStatusKind.unconfirmed, _ref(claimed), None)
+    if claimed is not None and claimed.rank > category.rank:
+        return GradeStatus(GradeStatusKind.below_claimed, _ref(claimed), _ref(category))
+    return GradeStatus(GradeStatusKind.confirmed, _ref(category), _ref(category))
+
+
+def _ref(grade: Grade) -> CatalogRef:
+    return CatalogRef(grade.code, grade.name)
+
+
 @dataclass(frozen=True)
 class SelfReported:
     """Структурная часть самоописания — видна и в обезличенной карточке."""
@@ -119,6 +156,8 @@ class Candidate:
     expected_salary: int | None
     category: Category | None
     skill_profile: SkillProfile | None
+    # Нет ни категории, ни заявленного грейда — статуса нет.
+    grade_status: GradeStatus | None = None
 
 
 @dataclass(frozen=True)
@@ -167,6 +206,7 @@ class AnonymizedCard:
     self_reported: SelfReported | None
     category: Category | None
     skill_profile: SkillProfile | None
+    grade_status: GradeStatus | None
 
 
 @dataclass(frozen=True)
@@ -179,6 +219,7 @@ class DisclosedCard:
     expected_salary: int | None
     category: Category | None
     skill_profile: SkillProfile | None
+    grade_status: GradeStatus | None
 
     @property
     def self_reported(self) -> SelfReported | None:
@@ -204,6 +245,7 @@ def disclosure(
         self_reported=candidate.profile.self_reported if candidate.profile else None,
         category=candidate.category,
         skill_profile=candidate.skill_profile,
+        grade_status=candidate.grade_status,
     )
 
 
@@ -214,6 +256,7 @@ def _disclosed(candidate: Candidate, expected_salary: int | None) -> DisclosedCa
         expected_salary=expected_salary,
         category=candidate.category,
         skill_profile=candidate.skill_profile,
+        grade_status=candidate.grade_status,
     )
 
 

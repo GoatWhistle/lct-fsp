@@ -8,6 +8,10 @@
 пока приглашение компании кандидату открыто, второе той же компании не создаётся
 (`check_can_send`). Отклонённые и истёкшие бюджет не возвращают. Компания — учётка
 работодателя: одна учётка — одна компания.
+
+Отзыв доступа — отметка на принятом приглашении, а не статус: приглашение остаётся принятым,
+переписка в нём продолжается, а карточку кандидата оно больше не раскрывает. Вернуть доступ
+нельзя — только новым приглашением той же компании.
 """
 
 import enum
@@ -19,6 +23,7 @@ from app.domain.errors import (
     InvitationAlreadyOpen,
     InvitationBudgetExhausted,
     InvitationExpired,
+    InvitationNotAccepted,
     InvitationTransitionNotAllowed,
 )
 from app.domain.work import SalaryRange
@@ -72,7 +77,7 @@ class InvitationTerms:
 class Invitation:
     """Приглашение; `status` — записанный статус, текущий — после `at`. `company_name` — название
     компании на момент отправки: кандидат видит, кто его пригласил, даже если профиль потом
-    поправили."""
+    поправили. `revoked_at` — когда кандидат отозвал доступ по принятому приглашению."""
 
     id: uuid.UUID
     employer_id: uuid.UUID
@@ -83,6 +88,7 @@ class Invitation:
     sent_at: datetime
     viewed_at: datetime | None
     answered_at: datetime | None
+    revoked_at: datetime | None = None
 
     def expires_at(self, ttl: timedelta) -> datetime:
         return self.sent_at + ttl
@@ -97,6 +103,10 @@ class Invitation:
     def is_open(self) -> bool:
         """Ждёт ответа. Верно только для приглашения после `at`."""
         return self.status in OPEN
+
+    @property
+    def is_revoked(self) -> bool:
+        return self.revoked_at is not None
 
 
 def viewed(invitation: Invitation, now: datetime) -> Invitation:
@@ -115,6 +125,16 @@ def answered(invitation: Invitation, *, accept: bool, now: datetime) -> Invitati
         raise InvitationExpired()
     target = InvitationStatus.accepted if accept else InvitationStatus.declined
     return replace(invitation, status=transition(invitation.status, target), answered_at=now)
+
+
+def revoked(invitation: Invitation, now: datetime) -> Invitation:
+    """Кандидат отозвал доступ по принятому приглашению; повторный отзыв ничего не меняет, на
+    неприятое — `InvitationNotAccepted`."""
+    if invitation.status is not InvitationStatus.accepted:
+        raise InvitationNotAccepted()
+    if invitation.is_revoked:
+        return invitation
+    return replace(invitation, revoked_at=now)
 
 
 def budget_week(now: datetime) -> tuple[datetime, datetime]:

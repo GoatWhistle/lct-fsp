@@ -95,7 +95,8 @@ def employer_card(
     freshness: ProfileFreshness,
 ) -> AnonymizedCard | DisclosedCard:
     """Карточка кандидата для работодателя; без категории и заявленного грейда —
-    `CandidateNotFound`. Раскрывает её принятое приглашение компании; откликов пока нет."""
+    `CandidateNotFound`. Раскрывает её принятое и не отозванное приглашение компании; откликов
+    пока нет."""
     with uow:
         candidate = candidates.get(candidate_id)
         if candidate.grade_status is None:

@@ -136,3 +136,14 @@ def test_retired_family_is_restored_by_code_but_not_offered() -> None:
 )
 def test_same_answer(response: str, answer: str, same: bool) -> None:
     assert same_answer(response, answer) is same
+
+
+def test_terraform_expressions_with_all_sizes_one() -> None:
+    """Все размеры сервисов 1 — порог 2, под него не попадает ни один сервис. Раньше такой seed
+    ронял генератор: случайный порог брался из пустого диапазона."""
+    family = get_family("devops.iac.tf-expressions")
+
+    instance = family.instance(2085, RUNNER)
+
+    assert set(instance.params["sizes"].values()) == {1}
+    assert instance.answer.split()[:2] == ["0", "0"]

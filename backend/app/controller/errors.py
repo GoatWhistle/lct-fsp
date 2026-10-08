@@ -52,6 +52,7 @@ STATUS: dict[type[e.DomainError], int] = {
     e.TopicNotInSpecialization: 422,
     e.InvalidSalaryRange: 422,
     e.SelectionNotFound: 404,
+    e.NotInSelection: 404,
     e.CompanyRequired: 409,
     e.TaskNotFound: 404,
     e.TaskTopicsCount: 422,

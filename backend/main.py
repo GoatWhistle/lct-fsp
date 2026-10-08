@@ -1,4 +1,6 @@
-"""Сборка приложения — вручную, без DI-контейнера (docs/adr/0001-layers-and-ports.md).
+"""Сборка прода — вручную, без DI-контейнера (docs/adr/0001-layers-and-ports.md): здесь только
+выбор реализаций портов, сценарии из них собирает общая проводка `composition`. Стенд валидации
+собирается отдельно — `validation/main.py`.
 
 На уровне модуля только определения функций: объект приложения строит
 `uvicorn --factory main:create_app`, поэтому импорт `main` не читает конфиг и не открывает базу.
@@ -12,8 +14,6 @@ from fastapi import FastAPI
 from sqlalchemy.orm import sessionmaker
 
 from app.adapter.acceptance import NoAcceptanceModel
-from app.adapter.adaptive import MaxInformationSelector
-from app.adapter.calibration import EloCalibration
 from app.adapter.clock import SystemClock
 from app.adapter.code_runner import InProcessCodeRunner
 from app.adapter.mail import SmtpMailer
@@ -37,8 +37,6 @@ from app.repository.candidate import SqlCandidateRepository
 from app.repository.selection import SqlCandidatePool, SqlNeeds, SqlSelections
 from app.repository.unit_of_work import SqlUnitOfWork
 from app.skills import irt
-from app.usecase.attempt import CandidatePath
-from app.usecase.calibration import AnswerCalibration
 from app.usecase.interface import (
     AcceptanceModel,
     CandidateRepository,
@@ -48,7 +46,7 @@ from app.usecase.interface import (
     SeedSource,
     SkillModel,
 )
-from app.usecase.selection import Selections
+from composition import Repositories, build_usecases, item_selector
 
 
 def description() -> str:
@@ -113,69 +111,31 @@ def create_app(
     app.state.clock = clock or SystemClock()
     app.state.seeds = seeds or SecureSeeds()
     app.state.skill_model = skill_model or irt
-    acceptance_model = acceptance or NoAcceptanceModel()
     # Алгоритмы механики получают параметры конфига через конструктор —
     # tests/test_mechanics_config.py сверяет их с config/mechanics.yaml.
-    item_selector = MaxInformationSelector(
-        top_k=mechanics.exposure_top_k, max_rate=mechanics.exposure_max_rate
-    )
-    app.state.item_selector = item_selector
-    code_runner = InProcessCodeRunner()
-
-    def calibration(uow: SqlUnitOfWork) -> EloCalibration:
-        return EloCalibration(
-            SqlCalibrationRepository(uow.session),
-            expert_discrimination=mechanics.expert_discrimination,
-            expert_difficulty_by_grade=mechanics.expert_difficulty_by_grade,
-            elo_k_initial=mechanics.elo_k_initial,
-            elo_k_half_responses=mechanics.elo_k_half_responses,
-            elo_k_min=mechanics.elo_k_min,
-            calibration_refit_min_responses=mechanics.calibration_refit_min_responses,
-            calibration_expert_gap_review=mechanics.calibration_expert_gap_review,
-            calibration_refit_difficulty_prior_sd=mechanics.calibration_refit_difficulty_prior_sd,
-            calibration_refit_log_discrimination_prior_sd=(
-                mechanics.calibration_refit_log_discrimination_prior_sd
-            ),
-            calibration_link_window_attempts=mechanics.calibration_link_window_attempts,
-        )
-
-    app.state.calibration = calibration
-
-    def candidate_path(uow: SqlUnitOfWork) -> CandidatePath:
-        return CandidatePath(
-            uow,
-            SqlAttemptRepository(
+    app.state.item_selector = item_selector(mechanics)
+    usecases = build_usecases(
+        Repositories[SqlUnitOfWork](
+            attempts=lambda uow: SqlAttemptRepository(
                 uow.session, mechanics.grade_thresholds, mechanics.grade_confidence
             ),
-            calibration(uow),
-            item_selector,
-            app.state.skill_model,
-            app.state.clock,
-            app.state.seeds,
-            code_runner,
-            mechanics,
-        )
-
-    app.state.candidate_path = candidate_path
-
-    def answer_calibration(uow: SqlUnitOfWork) -> AnswerCalibration:
-        return AnswerCalibration(uow, calibration(uow))
-
-    app.state.answer_calibration = answer_calibration
-
-    def selections(uow: SqlUnitOfWork) -> Selections:
-        return Selections(
-            uow,
-            SqlNeeds(uow.session),
-            SqlCandidatePool(uow.session),
-            SqlSelections(uow.session),
-            acceptance_model,
-            app.state.clock,
-            app.state.seeds,
-            mechanics,
-        )
-
-    app.state.selections = selections
+            calibration=lambda uow: SqlCalibrationRepository(uow.session),
+            needs=lambda uow: SqlNeeds(uow.session),
+            pool=lambda uow: SqlCandidatePool(uow.session),
+            selections=lambda uow: SqlSelections(uow.session),
+        ),
+        mechanics=mechanics,
+        selector=app.state.item_selector,
+        skill_model=app.state.skill_model,
+        clock=app.state.clock,
+        seeds=app.state.seeds,
+        code_runner=InProcessCodeRunner(),
+        acceptance=acceptance or NoAcceptanceModel(),
+    )
+    app.state.calibration = usecases.calibration
+    app.state.candidate_path = usecases.candidate_path
+    app.state.answer_calibration = usecases.answer_calibration
+    app.state.selections = usecases.selections
 
     install_error_handlers(app)
     app.include_router(auth_router)

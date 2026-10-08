@@ -9,7 +9,9 @@
 - `report_parsing` — M21, точность разбора потребности из текста по полям на размеченном наборе:
   правилами или моделью из записи её ответов (`validation.recorded`);
 - `write_market` — синтетический рынок D1 или D2 файлами: истина, наблюдаемое, потребности и
-  эталон пар (`validation.population`).
+  эталон пар (`validation.population`);
+- `train_acceptance` — обучение модели принятия на своём сиде: файл модели в репо и базовые линии
+  M7 рядом (`validation.acceptance`).
 
 Прогоны специализаций идут в пуле процессов; каждый процесс собирает свой стенд из seed прогона.
 """
@@ -18,6 +20,7 @@ import argparse
 import logging
 import os
 import statistics
+import uuid
 from concurrent.futures import ProcessPoolExecutor
 from dataclasses import dataclass, replace
 from pathlib import Path
@@ -29,6 +32,16 @@ from app.adapter.text_rules import load_synonyms
 from app.domain.determination import grades_by_threshold
 from composition import model_understanding, named_completion
 from settings import CATALOG_FILE, MECHANICS_FILE, SYNONYMS_FILE, Mechanics, Settings
+from validation.acceptance import (
+    TRAIN_PAIRS,
+    TRAIN_SEED,
+    make_offers,
+    offer_needs,
+    quality,
+    rows,
+    save_baselines,
+    train_on,
+)
 from validation.main import build_stand, catalog
 from validation.market import (
     SEED,
@@ -41,10 +54,10 @@ from validation.market import (
 )
 from validation.metrics import cohen_kappa, median, pearson
 from validation.parsing import LabeledText, load_labeled, parsing_table, run_parsing
-from validation.population import DATASETS, Generator, write
+from validation.population import D1, DATASETS, Generator, write
 from validation.recorded import Recording, Replay, record
 from validation.report import REPORT, collect, write_report
-from validation.simulate import Scale
+from validation.simulate import Job, Scale, Scored, run_offers
 
 # Набор D5 — тексты вакансий с разметкой; формат — validation/data/need_texts.md.
 DATA_DIR = Path(__file__).resolve().parent / "data"
@@ -316,10 +329,56 @@ def write_market(
     )
 
 
+def train_acceptance(mechanics: Mechanics, model_file: Path) -> None:
+    """Модель принятия одной командой: набор с сидом `TRAIN_SEED` и параметрами D1, прогон
+    определений и подборок по специализациям в пуле процессов, пары с решениями кандидатов,
+    CatBoost и базовые линии. Тот же сид — те же пары, та же модель и те же метрики."""
+    known = catalog()
+    params = replace(D1, name="acceptance", seed=TRAIN_SEED)
+    generator = Generator(params, mechanics, known)
+    dataset = generator.generate()
+    codes = list(known.specializations)
+    needs = offer_needs(generator, dataset, TRAIN_PAIRS)
+    stacks = {o.id: frozenset(o.stack) for o in dataset.observed}
+    jobs = [
+        Job(
+            params,
+            code,
+            mechanics,
+            Scale(),
+            tuple(t for t in dataset.truths if t.specialization == code),
+            (),
+            stacks,
+            full=False,
+            offer_needs=tuple(n for n in needs if n.form.specialization == code),
+        )
+        for code in codes
+    ]
+    scored: dict[uuid.UUID, tuple[Scored, ...]] = {}
+    with _pool() as pool:
+        for found in pool.map(run_offers, jobs):
+            scored |= found
+    offers = make_offers(dataset, needs, scored, mechanics, TRAIN_PAIRS)
+    if len(offers) < TRAIN_PAIRS:
+        raise SystemExit(f"пар {len(offers)} из {TRAIN_PAIRS}: мало потребностей пар")
+    model, baselines = train_on(offers, mechanics)
+    model.save(model_file)
+    save_baselines(baselines)
+    labels = [o.accepted for o in offers]
+    fitted = quality(model.predict_rows(rows(offers)), labels)
+    print(
+        f"Модель принятия: сид {TRAIN_SEED}, пар {len(offers)}, доля принятий "
+        f"{baselines.constant:.3f}; на обучающих парах ROC-AUC {fitted.roc_auc:.4f}, "
+        f"ECE {fitted.ece:.4f} → {model_file}"
+    )
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(prog="python -m validation")
     parser.add_argument(
-        "command", nargs="?", choices=("report", "honesty", "tune", "parsing", "market")
+        "command",
+        nargs="?",
+        choices=("report", "honesty", "tune", "parsing", "market", "acceptance"),
     )
     parser.add_argument(
         "--seed", type=int, default=None, help="сид для honesty и market, по умолчанию плановый"
@@ -391,6 +450,8 @@ def main() -> None:
             )
         case "market":
             write_market(mechanics, args.set, args.seed, args.candidates, args.out)
+        case "acceptance":
+            train_acceptance(mechanics, Settings().acceptance_model_file)
         case _:
             scale = Scale(
                 **{

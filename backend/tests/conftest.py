@@ -20,6 +20,7 @@ import uuid
 from collections.abc import Callable, Iterator
 from contextlib import closing, contextmanager
 from datetime import UTC, datetime
+from pathlib import Path
 
 import pytest
 from alembic import command
@@ -153,6 +154,9 @@ def settings(database_url: str) -> Settings:
         database_url=database_url,
         secret_key="test-secret-key-at-least-32-bytes-long",
         frontend_url="http://front.test",
+        # Модели принятия нет — множитель 1: HTTP-тесты подборки — по одному соответствию.
+        # Модель из файла — test_acceptance_model.py.
+        acceptance_model_file=Path("no-acceptance-model.cbm"),
     )
 
 

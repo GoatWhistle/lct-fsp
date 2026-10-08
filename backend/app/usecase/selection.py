@@ -24,8 +24,11 @@ from app.domain.search import (
     search_order,
 )
 from app.domain.selection import (
+    AcceptanceFeatures,
     NeedContent,
+    NeedSnapshot,
     Page,
+    Scored,
     Selection,
     SelectionDraft,
     SelectionEntry,
@@ -158,7 +161,7 @@ class Selections:
             ),
         )
         acceptance = self._acceptance.predict(
-            [acceptance_features(snapshot, item) for item in scored]
+            self._acceptance_features(user_id, snapshot, scored, now)
         )
         entries = arrange(
             scored,
@@ -173,6 +176,29 @@ class Selections:
         return page_of(
             Summary(selection, block_totals(entries)), entries, None, offset=0, limit=limit
         )
+
+    def _acceptance_features(
+        self, user_id: uuid.UUID, need: NeedSnapshot, scored: Sequence[Scored], now: datetime
+    ) -> list[AcceptanceFeatures]:
+        """Признаки модели принятия: к потребности и кандидату — загрузка кандидата на «сейчас» и
+        сфера компании работодателя."""
+        if not scored:
+            return []
+        ttl = timedelta(days=self._mechanics.invitation_ttl_days)
+        load = self._pool.open_invitations(
+            [item.candidate.candidate_id for item in scored], now - ttl
+        )
+        industry = self._needs.company_industry(user_id)
+        return [
+            acceptance_features(
+                need,
+                item,
+                market_salary=self._mechanics.market_salary_median,
+                open_invitations=load.get(item.candidate.candidate_id, 0),
+                company_industry=industry,
+            )
+            for item in scored
+        ]
 
     def open(self, user_id: uuid.UUID, selection_id: uuid.UUID, *, offset: int, limit: int) -> Page:
         """Сохранённая выдача — та же при каждом открытии — через последние применённые фильтры;

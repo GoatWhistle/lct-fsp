@@ -520,12 +520,14 @@ class CandidateRepository(Protocol):
 class AcceptanceModel(Protocol):
     """Модель принятия (mechanics.md, §13): P(кандидат примет приглашение) по признакам.
 
-    Отдаёт только P — скор соответствия, вклады и порядок считает домен. Сейчас модели нет:
-    заглушка `app.adapter.acceptance` отдаёт `None` — множитель 1, в выдаче `null`.
+    Отдаёт только P — скор соответствия, вклады и порядок считает домен. Сейчас — CatBoost из
+    файла модели (`app.adapter.acceptance_catboost`); файла нет — заглушка
+    `app.adapter.acceptance` отдаёт `None`: множитель 1, в выдаче `null`.
     """
 
     def predict(self, features: Sequence[AcceptanceFeatures]) -> list[float | None]:
-        """P(принятия) в [0, 1] по порядку `features`; `None` — модель не знает."""
+        """P(принятия) в [0, 1] по порядку `features`; `None` — модель не знает, в том числе у
+        потребности без вилки."""
         ...
 
 
@@ -536,6 +538,11 @@ class NeedReader(Protocol):
     def get(self, user_id: uuid.UUID, need_id: uuid.UUID) -> Need:
         """Потребность работодателя `user_id`; чужая или несуществующая — `NeedNotFound`: чужая
         для работодателя не существует, чтобы не раскрывать, что такая есть."""
+        ...
+
+    def company_industry(self, user_id: uuid.UUID) -> str | None:
+        """Сфера компании работодателя `user_id` — признак модели принятия; профиля компании нет —
+        None."""
         ...
 
 
@@ -587,6 +594,14 @@ class CandidatePool(Protocol):
     ) -> list[UnconfirmedCandidate]:
         """Без категории: последний опрос — `specialization`, заявлен ровно грейд `grade`. Стек —
         только из `technologies`. Порядок не важен."""
+        ...
+
+    def open_invitations(
+        self, candidate_ids: Collection[uuid.UUID], since: datetime
+    ) -> dict[uuid.UUID, int]:
+        """Загрузка кандидатов из `candidate_ids` — открытые приглашения: отправленные и
+        просмотренные, отправленные позже `since`, то есть не истёкшие (`Invitation.at`). Без
+        открытых в ответе нет."""
         ...
 
     def facts(self, candidate_ids: Collection[uuid.UUID]) -> list[CandidateFacts]:

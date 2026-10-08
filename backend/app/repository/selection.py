@@ -19,6 +19,7 @@ from app.domain.catalog import CatalogRef, Grade
 from app.domain.errors import SelectionNotFound
 from app.domain.feedback import CandidateSelection
 from app.domain.importance import TopicImportance
+from app.domain.invitation import OPEN
 from app.domain.match import Verdict
 from app.domain.search import NO_FILTERS, CandidateFacts, CandidateFilters, CategoryFilter
 from app.domain.selection import (
@@ -41,8 +42,13 @@ from app.domain.work import SalaryBasis, SalaryRange, WorkFormat
 from app.repository.candidate import claimed_grades
 from app.repository.fsp import histories
 from app.repository.orm.attempt import CandidateCategory, Survey, TestAttempt
-from app.repository.orm.candidate import CandidateProfile, candidate_technologies
+from app.repository.orm.candidate import (
+    CandidateProfile,
+    candidate_industries,
+    candidate_technologies,
+)
 from app.repository.orm.catalog import Grade as GradeRow
+from app.repository.orm.invitation import Invitation as InvitationRow
 from app.repository.orm.need import Selection as SelectionRow
 from app.repository.orm.need import SelectionEntry as EntryRow
 from app.repository.orm.need import selection_shortlist
@@ -177,6 +183,22 @@ class SqlCandidatePool:
             for user_id, claim in claimed.items()
         ]
 
+    def open_invitations(
+        self, candidate_ids: Collection[uuid.UUID], since: datetime
+    ) -> dict[uuid.UUID, int]:
+        if not candidate_ids:
+            return {}
+        rows = self._session.execute(
+            select(InvitationRow.candidate_id, func.count())
+            .where(
+                InvitationRow.candidate_id.in_(candidate_ids),
+                InvitationRow.status.in_(OPEN),
+                InvitationRow.sent_at > since,
+            )
+            .group_by(InvitationRow.candidate_id)
+        )
+        return {candidate_id: count for candidate_id, count in rows}
+
     def facts(self, candidate_ids: Collection[uuid.UUID]) -> list[CandidateFacts]:
         return self._facts(list(candidate_ids)) if candidate_ids else []
 
@@ -303,9 +325,21 @@ class SqlCandidatePool:
             .join(GradeRow, GradeRow.code == CandidateCategory.grade_code)
             .where(*reach)
         ).all()
+        industries: dict[uuid.UUID, set[str]] = {}
+        for user_id, industry in self._session.execute(
+            select(candidate_industries.c.user_id, candidate_industries.c.industry_code)
+            .join(CandidateCategory, CandidateCategory.user_id == candidate_industries.c.user_id)
+            .join(GradeRow, GradeRow.code == CandidateCategory.grade_code)
+            .where(*reach)
+        ):
+            industries.setdefault(user_id, set()).add(industry)
         return {
             user_id: Expectations(
-                salary_from, tuple(WorkFormat(f) for f in formats), city, relocation
+                salary_from,
+                tuple(WorkFormat(f) for f in formats),
+                city,
+                relocation,
+                frozenset(industries.get(user_id, ())),
             )
             for user_id, salary_from, formats, city, relocation in rows
         }

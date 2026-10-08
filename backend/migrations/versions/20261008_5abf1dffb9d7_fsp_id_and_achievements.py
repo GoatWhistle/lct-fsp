@@ -6,7 +6,7 @@
 `fsp_confirmed`: до ФСП подтверждённых им тем не было.
 
 Revision ID: 5abf1dffb9d7
-Revises: 7c604420b704
+Revises: 3e1f0c9a7b42
 Create Date: 2026-10-08 09:47:42.288262
 
 """
@@ -18,7 +18,7 @@ from alembic import op
 from sqlalchemy.dialects import postgresql
 
 revision: str = "5abf1dffb9d7"
-down_revision: str | Sequence[str] | None = "7c604420b704"
+down_revision: str | Sequence[str] | None = "3e1f0c9a7b42"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 

@@ -9,6 +9,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from app.controller.schemas import CatalogRef
 from app.domain import candidate
 from app.domain.attempt import Stage
+from app.domain.bank import AnswerFormat
 from app.domain.candidate import Level
 from app.domain.skill import SignalSource
 
@@ -140,6 +141,11 @@ class PathOut(BaseModel):
     profile: SkillProfileOut | None
 
 
+class OptionOut(BaseModel):
+    letter: str = Field(description="Буква варианта — её кандидат и отвечает")
+    text: str
+
+
 class ItemOut(BaseModel):
     id: uuid.UUID
     number: int = Field(description="Номер задания в попытке, с 1")
@@ -149,4 +155,10 @@ class ItemOut(BaseModel):
     topic: CatalogRef
     prompt: str
     code: str | None = Field(description="Листинг, таблица или граф к условию — моноширинно")
-    options: list[str] = Field(description="Варианты; пусто — ответ вводится текстом")
+    answer_format: AnswerFormat = Field(
+        description="`value` — ответ вводится текстом; `choice` — буква одного варианта; "
+        "`ordering` — буквы всех вариантов в верном порядке строкой, например «KBXF»"
+    )
+    options: list[OptionOut] = Field(
+        description="Варианты по алфавиту букв; буквы и порядок текстов свои у каждого экземпляра"
+    )

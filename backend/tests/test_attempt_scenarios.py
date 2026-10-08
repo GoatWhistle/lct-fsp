@@ -20,7 +20,7 @@ from app.adapter.seed import DerivedSeeds
 from app.domain import bank
 from app.domain.attempt import PathView, Stage
 from app.domain.bank import Family, get_family
-from app.domain.calibration import Parameters
+from app.domain.calibration import ExpertGap, Parameters
 from app.domain.catalog import Grade, Specialization, Topic
 from app.domain.errors import StepUnavailable
 from app.domain.skill import Normal
@@ -93,6 +93,10 @@ class SpyCalibration:
     def refit_due(self, codes: Iterable[str], specialization: str, now: datetime) -> None:
         self.calls.append("refit_due")
         self.inner.refit_due(codes, specialization, now)
+
+    def expert_gaps(self, families: Sequence[bank.Family]) -> dict[str, ExpertGap]:
+        self.calls.append("expert_gaps")
+        return self.inner.expert_gaps(families)
 
 
 @pytest.fixture

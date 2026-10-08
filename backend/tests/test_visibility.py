@@ -15,9 +15,15 @@ from fastapi.testclient import TestClient
 from pypdf import PdfReader
 from sqlalchemy import Engine, insert, select
 
-from app.assessment.models import CandidateCategory, Survey, TestAttempt, Topic
-from app.identity.models import Role
-from app.skills.models import SkillProfile, SkillProfileTopic
+from app.domain.account import Role
+from app.repository.orm import (
+    CandidateCategory,
+    SkillProfile,
+    SkillProfileTopic,
+    Survey,
+    TestAttempt,
+    Topic,
+)
 from tests.conftest import transaction
 
 Json = dict[str, Any]

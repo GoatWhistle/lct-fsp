@@ -4,7 +4,7 @@ from datetime import timedelta
 
 from sqlalchemy import create_engine, text  # noqa: TID251 — пояс самой базы, без фабрики
 
-from app.db import create_db_engine
+from app.repository.database import create_db_engine
 from tests.conftest import DATABASE_TIMEZONE
 
 

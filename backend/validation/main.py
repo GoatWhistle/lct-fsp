@@ -9,23 +9,23 @@ seed прогона. Сценарии из них собирает та же п�
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 
+from app.adapter import irt
 from app.adapter.acceptance import NoAcceptanceModel
+from app.adapter.catalog_file import load_catalog
 from app.adapter.clock import SimulatedClock
 from app.adapter.code_runner import InProcessCodeRunner
 from app.adapter.seed import DerivedSeeds
-from app.assessment.catalog import load_catalog
-from app.config import Mechanics
-from app.domain.catalog import Grade, Specialization, Technology, Topic
+from app.domain.catalog import Grade, Specialization, Technology
 from app.repository.memory.attempt import MemoryAttemptRepository
 from app.repository.memory.calibration import MemoryCalibrationRepository
 from app.repository.memory.selection import MemoryCandidatePool, MemoryNeeds, MemorySelections
 from app.repository.memory.unit_of_work import MemoryStore, MemoryUnitOfWork
-from app.skills import irt
 from app.usecase.attempt import CandidatePath
 from app.usecase.calibration import AnswerCalibration
 from app.usecase.interface import AcceptanceModel, ItemSelector, SeedSource, SkillModel
 from app.usecase.selection import Selections
 from composition import Repositories, Usecases, build_usecases, item_selector
+from settings import CATALOG_FILE, Mechanics
 
 # Начало времени стенда: попытки идут от него шагами часов.
 START = datetime(2026, 1, 1, tzinfo=UTC)
@@ -41,15 +41,10 @@ class Catalog:
 
 
 def catalog() -> Catalog:
-    loaded = load_catalog()
+    loaded = load_catalog(CATALOG_FILE)
     return Catalog(
-        specializations={
-            s.code: Specialization(
-                s.code, s.name, tuple(Topic(t.code, t.name, s.code) for t in s.topics)
-            )
-            for s in loaded.specializations
-        },
-        grades={g.code: Grade(g.code, g.name, g.rank) for g in loaded.grades},
+        specializations={s.code: s for s in loaded.specializations},
+        grades={g.code: g for g in loaded.grades},
         technologies={
             t.code: Technology(t.code, t.name, tuple(sorted(t.topics))) for t in loaded.technologies
         },

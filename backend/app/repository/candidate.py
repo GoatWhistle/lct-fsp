@@ -1,8 +1,4 @@
-"""Кандидаты в Postgres — реализация порта `CandidateRepository`.
-
-ORM анкеты, категории и профиля навыков пока живёт в модулях `profile`, `assessment` и `skills`;
-сюда он переедет вместе с остальными репозиториями.
-"""
+"""Кандидаты в Postgres — реализация порта `CandidateRepository`."""
 
 import uuid
 from collections import defaultdict
@@ -14,20 +10,23 @@ from sqlalchemy import Row, Select, and_, select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.orm import Session
 
-from app.assessment.models import (
-    CandidateCategory,
-    Grade,
-    Industry,
-    Specialization,
-    Technology,
-    Topic,
-)
 from app.domain import candidate
 from app.domain.catalog import CatalogRef
 from app.domain.errors import UnknownIndustry, UnknownTechnology
 from app.domain.work import WorkFormat
-from app.profile.models import CandidateProfile, candidate_industries, candidate_technologies
-from app.skills.models import SkillProfile, SkillProfileTopic
+from app.repository.orm import (
+    CandidateCategory,
+    CandidateProfile,
+    Grade,
+    Industry,
+    SkillProfile,
+    SkillProfileTopic,
+    Specialization,
+    Technology,
+    Topic,
+    candidate_industries,
+    candidate_technologies,
+)
 
 
 class SqlCandidateRepository:

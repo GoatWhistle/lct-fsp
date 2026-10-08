@@ -8,9 +8,9 @@ import uuid
 from concurrent.futures import ProcessPoolExecutor
 from pathlib import Path
 
-from app.config import BACKEND_DIR, Mechanics, Settings
 from app.domain.selection import Need
 from app.domain.work import SalaryRange, WorkFormat
+from settings import BACKEND_DIR, Mechanics, Settings
 from tests.test_layers import Rule, imported_modules, violations
 from validation.commands import Honesty, Stability, honesty, stability
 from validation.market import market

@@ -15,24 +15,25 @@ import pytest
 from sqlalchemy import Engine
 from sqlalchemy.orm import Session
 
-from app.assessment.catalog import load_catalog
-from app.config import Mechanics, Settings
+from app.adapter.catalog_file import load_catalog
+from app.domain.account import Role
 from app.domain.attempt import Attempt, AttemptOutcome
 from app.domain.bank import families_for_topics
 from app.domain.catalog import Grade, Specialization, Topic
 from app.domain.skill import Normal
-from app.identity.models import Role, User
 from app.repository.attempt import SqlAttemptRepository
 from app.repository.calibration import SqlCalibrationRepository
 from app.repository.memory.attempt import MemoryAttemptRepository
 from app.repository.memory.calibration import MemoryCalibrationRepository
 from app.repository.memory.unit_of_work import MemoryStore, MemoryUnitOfWork
+from app.repository.orm import User
 from app.repository.unit_of_work import SqlUnitOfWork
 from app.usecase.interface import AttemptRepository, CalibrationRepository, UnitOfWork
+from settings import CATALOG_FILE, Mechanics, Settings
 
 T0 = datetime(2026, 10, 7, 12, 0, tzinfo=UTC)
 MECHANICS = Mechanics.from_yaml(Settings().mechanics_file)
-CATALOG = load_catalog()
+CATALOG = load_catalog(CATALOG_FILE)
 GRADES = {g.code: Grade(g.code, g.name, g.rank) for g in CATALOG.grades}
 SPECIALIZATIONS = {
     s.code: Specialization(s.code, s.name, tuple(Topic(t.code, t.name, s.code) for t in s.topics))

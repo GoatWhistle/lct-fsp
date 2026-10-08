@@ -1,13 +1,15 @@
 from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
 
-import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import Engine, insert, text
 
 from app.adapter.clock import FrozenClock
-from app.identity import security
-from app.identity.models import Role, User
+from app.adapter.password import Argon2Passwords
+from app.domain.account import Role
+from app.repository.orm import User
+from main import create_app
+from settings import Mechanics, Settings
 from tests.conftest import PASSWORD, Outbox
 
 
@@ -95,31 +97,41 @@ def test_email_is_registered_once_regardless_of_case(client: TestClient) -> None
     assert response.json()["code"] == "email_taken"
 
 
+class RacingClock(FrozenClock):
+    """Между проверкой адреса и вставкой учётки — при первом чтении часов — тот же адрес
+    регистрирует параллельный запрос."""
+
+    def __init__(self, engine: Engine) -> None:
+        super().__init__(datetime.now(UTC))
+        self._engine = engine
+        self._raced = False
+
+    def now(self) -> datetime:
+        if not self._raced:
+            self._raced = True
+            with self._engine.begin() as conn:
+                conn.execute(
+                    insert(User).values(
+                        email="eva@example.com",
+                        password_hash="x",
+                        role=Role.employer,
+                        created_at=datetime.now(UTC),
+                    )
+                )
+        return super().now()
+
+
 def test_concurrent_registration_of_same_email_is_rejected(
-    client: TestClient, db_engine: Engine, outbox: Outbox, monkeypatch: pytest.MonkeyPatch
+    db_engine: Engine, settings: Settings, mechanics: Mechanics, outbox: Outbox
 ) -> None:
     """Адрес заняли параллельным запросом между проверкой и вставкой: ответ тот же, что при
     обычном повторе, письма нет."""
-    hash_password = security.hash_password
-
-    def racing_hash(password: str) -> str:
-        with db_engine.begin() as conn:
-            conn.execute(
-                insert(User).values(
-                    email="eva@example.com",
-                    password_hash="x",
-                    role=Role.employer,
-                    created_at=datetime.now(UTC),
-                )
-            )
-        return hash_password(password)
-
-    monkeypatch.setattr(security, "hash_password", racing_hash)
-
-    response = client.post(
-        "/api/auth/register",
-        json={"email": "eva@example.com", "password": PASSWORD, "role": "candidate"},
-    )
+    app = create_app(settings, mechanics, outbox, clock=RacingClock(db_engine))
+    with TestClient(app) as client:
+        response = client.post(
+            "/api/auth/register",
+            json={"email": "eva@example.com", "password": PASSWORD, "role": "candidate"},
+        )
 
     assert response.status_code == 409
     assert response.json()["code"] == "email_taken"
@@ -245,3 +257,13 @@ def test_password_is_stored_as_argon2_hash(client: TestClient, db_engine: Engine
 
     assert stored.startswith("$argon2")
     assert PASSWORD not in stored
+
+
+def test_unknown_address_is_checked_against_a_decoy_hash() -> None:
+    """Вход на неизвестный адрес тоже проверяет пароль по argon2 — и всегда неудачно, даже если
+    пароль совпал с фиктивным."""
+    passwords = Argon2Passwords()
+
+    assert passwords.verify(None, PASSWORD) is False
+    assert passwords.verify(passwords.hash(PASSWORD), PASSWORD) is True
+    assert passwords.verify(passwords.hash(PASSWORD), "wrong-password") is False

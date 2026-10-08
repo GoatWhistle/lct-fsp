@@ -9,9 +9,9 @@ import pytest
 import yaml
 from pydantic import ValidationError
 
-from app.assessment.catalog import load_catalog
-from app.config import BACKEND_DIR, Mechanics, Settings
+from app.adapter.catalog_file import load_catalog
 from main import create_app
+from settings import BACKEND_DIR, CATALOG_FILE, Mechanics, Settings
 
 PARAMETERS_DOC = BACKEND_DIR.parent / "docs" / "parameters.md"
 ROW = re.compile(r"^\| `(?P<name>[a-z0-9_]+)` \| `(?P<value>[^`]+)` \|", re.MULTILINE)
@@ -35,7 +35,7 @@ def test_config_has_exactly_documented_parameters_and_values() -> None:
 
 def test_grade_parameters_cover_catalog_grades() -> None:
     mechanics = Mechanics.from_yaml(Settings().mechanics_file)
-    grades = {g.code for g in load_catalog().grades}
+    grades = {g.code for g in load_catalog(CATALOG_FILE).grades}
 
     assert set(mechanics.grade_thresholds) == grades
     assert set(mechanics.expert_difficulty_by_grade) == grades

@@ -4,49 +4,68 @@
 
 На уровне модуля только определения функций: объект приложения строит
 `uvicorn --factory main:create_app`, поэтому импорт `main` не читает конфиг и не открывает базу.
-Новый роутер подключается в `create_app`.
+Новый роутер подключается в `create_app`. Синхронизация справочника — `sync_catalog`: её вызывают
+и старт контейнера, и командная строка (`python -c 'import main; main.sync_catalog()'`).
 """
 
 from collections.abc import AsyncIterator
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, closing
+from datetime import timedelta
 
 from fastapi import FastAPI
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import Session, sessionmaker
 
+from app.adapter import irt
 from app.adapter.acceptance import NoAcceptanceModel
+from app.adapter.catalog_file import YamlCatalog
 from app.adapter.clock import SystemClock
 from app.adapter.code_runner import InProcessCodeRunner
 from app.adapter.mail import SmtpMailer
+from app.adapter.password import Argon2Passwords
 from app.adapter.profile_pdf import FpdfProfileRenderer
 from app.adapter.seed import SecureSeeds
-from app.assessment.path_router import router as path_router
-from app.assessment.router import router as catalog_router
-from app.cabinets import candidate_router, employer_router
-from app.company.router import router as company_router
-from app.config import Mechanics, Settings
+from app.adapter.session import JwtSessions
+from app.controller.auth import router as auth_router
+from app.controller.cabinets import candidate_router, employer_router
+from app.controller.catalog import router as catalog_router
+from app.controller.company import router as company_router
+from app.controller.deps import SessionCookie
 from app.controller.errors import install_error_handlers
+from app.controller.need import router as needs_router
+from app.controller.need import selections_router
+from app.controller.path import router as path_router
 from app.controller.profile import employer_router as candidates_router
 from app.controller.profile import router as profile_router
-from app.db import create_db_engine
-from app.identity.router import router as auth_router
-from app.matching.router import router as needs_router
-from app.matching.router import selections_router
+from app.repository.account import SqlAccounts, SqlEmailVerifications
 from app.repository.attempt import SqlAttemptRepository
 from app.repository.calibration import SqlCalibrationRepository
 from app.repository.candidate import SqlCandidateRepository
-from app.repository.selection import SqlCandidatePool, SqlNeeds, SqlSelections
+from app.repository.catalog import SqlCatalog
+from app.repository.company import SqlCompanies
+from app.repository.database import create_db_engine
+from app.repository.need import SqlNeeds
+from app.repository.selection import SqlCandidatePool, SqlSelections
 from app.repository.unit_of_work import SqlUnitOfWork
-from app.skills import irt
+from app.usecase.account import VerificationLinks
 from app.usecase.interface import (
     AcceptanceModel,
     CandidateRepository,
     Clock,
     Mailer,
+    PasswordHasher,
     ProfilePdfRenderer,
     SeedSource,
     SkillModel,
 )
-from composition import Repositories, build_usecases, item_selector
+from composition import (
+    PlatformRepositories,
+    Repositories,
+    build_platform_usecases,
+    build_usecases,
+    catalog_sync,
+    item_selector,
+)
+from settings import Mechanics, Settings
 
 
 def description() -> str:
@@ -70,6 +89,7 @@ def create_app(
     seeds: SeedSource | None = None,
     skill_model: SkillModel | None = None,
     acceptance: AcceptanceModel | None = None,
+    passwords: PasswordHasher | None = None,
 ) -> FastAPI:
     settings = settings or Settings()
     mechanics = mechanics or Mechanics.from_yaml(settings.mechanics_file)
@@ -90,9 +110,12 @@ def create_app(
         lifespan=lifespan,
     )
     app.state.engine = engine
-    app.state.settings = settings
     app.state.mechanics = mechanics
-    session_factory = sessionmaker(engine, expire_on_commit=False)
+    session_factory = sessionmaker(engine)
+    session_ttl = timedelta(hours=settings.session_ttl_hours)
+    app.state.session_cookie = SessionCookie(
+        max_age=int(session_ttl.total_seconds()), secure=settings.cookie_secure
+    )
 
     def unit_of_work() -> SqlUnitOfWork:
         return SqlUnitOfWork(session_factory())
@@ -104,16 +127,13 @@ def create_app(
 
     app.state.unit_of_work = unit_of_work
     app.state.candidate_repository = candidate_repository
-    app.state.mailer = mailer or SmtpMailer(
-        settings.smtp_host, settings.smtp_port, settings.mail_from
-    )
     app.state.profile_pdf_renderer = profile_pdf_renderer or FpdfProfileRenderer()
-    app.state.clock = clock or SystemClock()
-    app.state.seeds = seeds or SecureSeeds()
-    app.state.skill_model = skill_model or irt
+    app.state.clock = clock = clock or SystemClock()
+    seeds = seeds or SecureSeeds()
+    skill_model = skill_model or irt
     # Алгоритмы механики получают параметры конфига через конструктор —
     # tests/test_mechanics_config.py сверяет их с config/mechanics.yaml.
-    app.state.item_selector = item_selector(mechanics)
+    app.state.item_selector = selector = item_selector(mechanics)
     usecases = build_usecases(
         Repositories[SqlUnitOfWork](
             attempts=lambda uow: SqlAttemptRepository(
@@ -125,10 +145,10 @@ def create_app(
             selections=lambda uow: SqlSelections(uow.session),
         ),
         mechanics=mechanics,
-        selector=app.state.item_selector,
-        skill_model=app.state.skill_model,
-        clock=app.state.clock,
-        seeds=app.state.seeds,
+        selector=selector,
+        skill_model=skill_model,
+        clock=clock,
+        seeds=seeds,
         code_runner=InProcessCodeRunner(),
         acceptance=acceptance or NoAcceptanceModel(),
     )
@@ -136,6 +156,25 @@ def create_app(
     app.state.candidate_path = usecases.candidate_path
     app.state.answer_calibration = usecases.answer_calibration
     app.state.selections = usecases.selections
+    platform = build_platform_usecases(
+        PlatformRepositories[SqlUnitOfWork](
+            accounts=lambda uow: SqlAccounts(uow.session),
+            verifications=lambda uow: SqlEmailVerifications(uow.session),
+            companies=lambda uow: SqlCompanies(uow.session),
+            needs=lambda uow: SqlNeeds(uow.session),
+            catalog=lambda uow: SqlCatalog(uow.session),
+        ),
+        mechanics=mechanics,
+        passwords=passwords or Argon2Passwords(),
+        sessions=JwtSessions(settings.secret_key, session_ttl),
+        mailer=mailer or SmtpMailer(settings.smtp_host, settings.smtp_port, settings.mail_from),
+        clock=clock,
+        links=VerificationLinks(settings.frontend_url, settings.email_token_ttl_hours),
+    )
+    app.state.accounts = platform.accounts
+    app.state.companies = platform.companies
+    app.state.needs = platform.needs
+    app.state.catalog = platform.catalog
 
     install_error_handlers(app)
     app.include_router(auth_router)
@@ -154,3 +193,21 @@ def create_app(
         return {"status": "ok"}
 
     return app
+
+
+def sync_catalog(settings: Settings | None = None) -> None:
+    """Справочники из `config/catalog.yaml` в базу. Идемпотентна: повторный запуск справочник
+    не дублирует."""
+    settings = settings or Settings()
+    engine = create_db_engine(settings.database_url)
+
+    def catalog(uow: SqlUnitOfWork) -> SqlCatalog:
+        return SqlCatalog(uow.session)
+
+    try:
+        sync = catalog_sync(catalog, YamlCatalog(settings.catalog_file))
+        with closing(SqlUnitOfWork(Session(engine))) as uow:
+            sync(uow).run()
+    finally:
+        engine.dispose()
+    print("Справочники синхронизированы")

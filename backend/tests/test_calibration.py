@@ -6,7 +6,8 @@ import random
 
 import pytest
 
-from app.config import Mechanics, Settings
+from app.adapter import irt
+from app.adapter.irt import estimate, sigmoid
 from app.domain.calibration import (
     Link,
     Parameters,
@@ -18,10 +19,9 @@ from app.domain.calibration import (
     refit,
 )
 from app.domain.skill import Normal, Observation
-from app.skills import irt
-from app.skills.irt import estimate, sigmoid
 from app.usecase.attempt import rest_levels
 from app.usecase.skill_profile import specialization_prior
+from settings import Mechanics, Settings
 from validation.market import calibration_quality, expert, market, mean_responses
 
 MECHANICS = Mechanics.from_yaml(Settings().mechanics_file)

@@ -13,11 +13,20 @@ from fastapi.testclient import TestClient
 from sqlalchemy import Engine, delete, insert, select, update
 
 from app.adapter.clock import FrozenClock
-from app.assessment.models import CandidateCategory, Grade, Survey, TestAttempt, Topic
-from app.config import Mechanics
-from app.identity.models import Role, User
-from app.profile.models import CandidateProfile, candidate_technologies
-from app.skills.models import SkillProfile, SkillProfileTopic
+from app.domain.account import Role
+from app.repository.orm import (
+    CandidateCategory,
+    CandidateProfile,
+    Grade,
+    SkillProfile,
+    SkillProfileTopic,
+    Survey,
+    TestAttempt,
+    Topic,
+    User,
+    candidate_technologies,
+)
+from settings import Mechanics
 from tests.candidate_path import answer_items, nothing, pass_test, start, take_survey
 from tests.conftest import Seeds, transaction
 

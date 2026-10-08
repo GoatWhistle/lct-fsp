@@ -1,4 +1,4 @@
-"""Потребности, пул кандидатов и подборки в Postgres — реализации портов подборки.
+"""Пул кандидатов и подборки в Postgres — реализации портов подборки.
 
 Снимок потребности и объяснение лежат в JSONB. Формат задают кодеки этого модуля, а не схемы
 API: правка схемы подборки хранимое не меняет, сохранённые подборки открываются без миграции
@@ -13,17 +13,13 @@ from typing import Any
 from sqlalchemy import ColumnElement, and_, func, insert, select
 from sqlalchemy.orm import Session
 
-from app.assessment.models import CandidateCategory
-from app.assessment.models import Grade as GradeRow
-from app.assessment.models import Technology as TechnologyRow
-from app.domain.catalog import CatalogRef, Grade, Technology
-from app.domain.errors import NeedNotFound, SelectionNotFound
+from app.domain.catalog import CatalogRef, Grade
+from app.domain.errors import SelectionNotFound
 from app.domain.importance import TopicImportance
 from app.domain.match import Verdict
 from app.domain.selection import (
     Expectations,
     Explanation,
-    Need,
     NeedRequirement,
     NeedSnapshot,
     Page,
@@ -38,40 +34,14 @@ from app.domain.selection import (
 )
 from app.domain.skill import Normal
 from app.domain.work import SalaryBasis, SalaryRange, WorkFormat
-from app.matching.models import Need as NeedRow
-from app.matching.models import Selection as SelectionRow
-from app.matching.models import SelectionEntry as EntryRow
-from app.profile.models import CandidateProfile, candidate_technologies
-from app.repository.catalog import specialization_of
-from app.skills.models import SkillProfile, SkillProfileTopic
+from app.repository.orm.attempt import CandidateCategory
+from app.repository.orm.candidate import CandidateProfile, candidate_technologies
+from app.repository.orm.catalog import Grade as GradeRow
+from app.repository.orm.need import Selection as SelectionRow
+from app.repository.orm.need import SelectionEntry as EntryRow
+from app.repository.orm.skill_profile import SkillProfile, SkillProfileTopic
 
 Json = dict[str, Any]
-
-
-class SqlNeeds:
-    def __init__(self, session: Session) -> None:
-        self._session = session
-
-    def get(self, user_id: uuid.UUID, need_id: uuid.UUID) -> Need:
-        row = self._session.get(NeedRow, need_id)
-        if row is None or row.user_id != user_id:
-            raise NeedNotFound()
-        return Need(
-            id=row.id,
-            title=row.title,
-            specialization=specialization_of(row.specialization),
-            grade=Grade(row.grade.code, row.grade.name, row.grade.rank),
-            stack=tuple(_technology(t) for t in row.stack),
-            edited_importance={e.topic_code: e.importance for e in row.edited_importance},
-            work_format=row.work_format,
-            city=row.city,
-            salary=SalaryRange.optional(row.salary_from, row.salary_to),
-            updated_at=row.updated_at,
-        )
-
-
-def _technology(row: TechnologyRow) -> Technology:
-    return Technology(row.code, row.name, tuple(t.code for t in row.topics))
 
 
 class SqlCandidatePool:

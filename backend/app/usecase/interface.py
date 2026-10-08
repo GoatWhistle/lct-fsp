@@ -12,6 +12,7 @@ from types import TracebackType
 from typing import Protocol, Self
 
 from app.domain import bank
+from app.domain.account import Account, Credentials, EmailVerification, Role
 from app.domain.adaptive import Blueprint, Choice, Option
 from app.domain.attempt import (
     AnsweredPresentation,
@@ -23,8 +24,19 @@ from app.domain.attempt import (
 from app.domain.calibration import AnchorAnswer, CalibratedFamily, Link, Parameters, Response
 from app.domain.candidate import Candidate, ProfileForm, ProfileSheet
 from app.domain.candidate import SkillProfile as SkillProfileView
-from app.domain.catalog import Topic
+from app.domain.catalog import (
+    Catalog,
+    CatalogPart,
+    CatalogPlan,
+    Grade,
+    Industry,
+    Specialization,
+    Technology,
+    Topic,
+)
+from app.domain.company import Company, CompanyForm
 from app.domain.mail import Mail
+from app.domain.need import NeedRecord, NeedTerms
 from app.domain.selection import (
     AcceptanceFeatures,
     Need,
@@ -41,7 +53,7 @@ from app.domain.skill import Normal, Observation, Prior, SkillEstimate, SkillPro
 class SkillModel(Protocol):
     """Модель навыка (mechanics.md, §3): уровень по темам из априорного и наблюдений.
 
-    Сейчас — IRT 2PL с иерархическим априорным, модуль `app.skills.irt`. Оценка детерминирована:
+    Сейчас — IRT 2PL с иерархическим априорным, модуль `app.adapter.irt`. Оценка детерминирована:
     те же априорное и наблюдения в том же порядке дают ту же оценку.
     """
 
@@ -331,6 +343,15 @@ class UnitOfWork(Protocol):
         ...
 
 
+class RequestUnitOfWork(UnitOfWork, Protocol):
+    """Единица работы одного HTTP-запроса: живёт от начала до конца запроса, блоки сценариев
+    идут в ней по очереди. Сейчас — Postgres (`app.repository.unit_of_work`)."""
+
+    def close(self) -> None:
+        """Конец запроса: соединение возвращается в пул."""
+        ...
+
+
 class CandidateRepository(Protocol):
     """Кандидаты — анкета, ожидаемая зарплата, категория и профиль навыков её специализации.
 
@@ -361,11 +382,44 @@ class AcceptanceModel(Protocol):
         ...
 
 
-class NeedRepository(Protocol):
-    """Потребности работодателя — для подборки."""
+class NeedReader(Protocol):
+    """Потребности работодателя — для подборки. Сейчас — Postgres (`app.repository.need`) и
+    in-memory (`app.repository.memory.selection`)."""
 
     def get(self, user_id: uuid.UUID, need_id: uuid.UUID) -> Need:
-        """Потребность работодателя `user_id`; чужая или несуществующая — `NeedNotFound`."""
+        """Потребность работодателя `user_id`; чужая или несуществующая — `NeedNotFound`: чужая
+        для работодателя не существует, чтобы не раскрывать, что такая есть."""
+        ...
+
+
+class NeedRepository(NeedReader, Protocol):
+    """Потребности в кабинете работодателя: список, заведение, правка, удаление. Пишет только
+    внутри единицы работы и сам не фиксирует. Сейчас — Postgres (`app.repository.need`)."""
+
+    def records(self, user_id: uuid.UUID) -> list[NeedRecord]:
+        """Потребности работодателя, новые сверху."""
+        ...
+
+    def record(self, user_id: uuid.UUID, need_id: uuid.UUID) -> NeedRecord:
+        """Потребность работодателя; чужая или несуществующая — `NeedNotFound`."""
+        ...
+
+    def ensure(self, user_id: uuid.UUID, need_id: uuid.UUID) -> None:
+        """Потребность есть и принадлежит работодателю, иначе `NeedNotFound`."""
+        ...
+
+    def add(self, user_id: uuid.UUID, terms: NeedTerms, now: datetime) -> uuid.UUID:
+        """Новая потребность; `now` — время заведения и правки."""
+        ...
+
+    def replace(
+        self, user_id: uuid.UUID, need_id: uuid.UUID, terms: NeedTerms, now: datetime
+    ) -> None:
+        """Заменяет потребность целиком, включая правки важности; `now` — время правки."""
+        ...
+
+    def delete(self, user_id: uuid.UUID, need_id: uuid.UUID) -> None:
+        """Удаляет потребность; подборки по ней остаются со снимком."""
         ...
 
 
@@ -398,3 +452,115 @@ class SelectionRepository(Protocol):
     ) -> list[Summary]:
         """Подборки работодателя, новые сверху; `need_id` — только по этой потребности."""
         ...
+
+
+class AccountRepository(Protocol):
+    """Учётки. Адрес приходит уже в нижнем регистре. Пишет только внутри единицы работы и сам не
+    фиксирует. Сейчас — Postgres (`app.repository.account`)."""
+
+    def get(self, user_id: uuid.UUID) -> Account | None: ...
+
+    def by_email(self, email: str) -> Account | None: ...
+
+    def credentials(self, email: str) -> Credentials | None:
+        """Учётка с хэшем пароля — для проверки входа."""
+        ...
+
+    def add(self, email: str, password_hash: str, role: Role, now: datetime) -> Account:
+        """Новая учётка; адрес занят, в том числе параллельным запросом, — `EmailTaken`."""
+        ...
+
+    def mark_verified(self, user_id: uuid.UUID, now: datetime) -> Account:
+        """Адрес учётки подтверждён в момент `now`."""
+        ...
+
+
+class EmailVerificationRepository(Protocol):
+    """Выданные ссылки подтверждения адреса — хэшами токенов. Сейчас — Postgres
+    (`app.repository.account`)."""
+
+    def add(self, verification: EmailVerification) -> None: ...
+
+    def by_hash(self, token_hash: str) -> EmailVerification | None: ...
+
+    def revoke(self, user_id: uuid.UUID) -> None:
+        """Гасит все ссылки учётки."""
+        ...
+
+
+class PasswordHasher(Protocol):
+    """Хэширование паролей — библиотека. Сейчас — argon2 (`app.adapter.password`)."""
+
+    def hash(self, password: str) -> str: ...
+
+    def verify(self, password_hash: str | None, password: str) -> bool:
+        """Пароль подходит к хэшу; испорченный хэш — `False`. `None` — учётки нет: ответ
+        `False`, но проверка идёт столько же, сколько с хэшем, — время входа не выдаёт, кто
+        зарегистрирован."""
+        ...
+
+
+class SessionTokens(Protocol):
+    """Токен входа: выпуск и проверка. Сейчас — подписанный JWT (`app.adapter.session`); срок
+    реализация получает через конструктор."""
+
+    def issue(self, user_id: uuid.UUID, now: datetime) -> str:
+        """Токен со сроком от момента `now`."""
+        ...
+
+    def read(self, token: str, now: datetime) -> uuid.UUID | None:
+        """Учётка по токену; подделанный, испорченный или истёкший к `now` — `None`."""
+        ...
+
+
+class CompanyRepository(Protocol):
+    """Профили компаний. Сейчас — Postgres (`app.repository.company`)."""
+
+    def get(self, user_id: uuid.UUID) -> Company | None: ...
+
+    def save(self, user_id: uuid.UUID, form: CompanyForm, now: datetime) -> None:
+        """Профиль работодателя — новый или поверх прежнего; сфера уже проверена."""
+        ...
+
+
+class CatalogRepository(Protocol):
+    """Справочники в хранилище: чтение для форм и проверок и синхронизация. Сейчас — Postgres
+    (`app.repository.catalog`)."""
+
+    def grades(self) -> list[Grade]:
+        """От младшего к старшему."""
+        ...
+
+    def grade(self, code: str) -> Grade | None: ...
+
+    def industries(self) -> list[Industry]:
+        """В порядке справочника."""
+        ...
+
+    def industry(self, code: str) -> Industry | None: ...
+
+    def specializations(self) -> list[Specialization]:
+        """В порядке справочника, темы — тоже."""
+        ...
+
+    def specialization(self, code: str) -> Specialization | None: ...
+
+    def technologies(self, codes: Collection[str] | None = None) -> list[Technology]:
+        """По названию; `codes` — только эти, неизвестные пропускаются. Темы технологии — по
+        коду."""
+        ...
+
+    def codes(self) -> dict[CatalogPart, set[str]]:
+        """Коды, которые сейчас в хранилище."""
+        ...
+
+    def apply(self, plan: CatalogPlan) -> None:
+        """Применяет синхронизацию; снять код, на который ссылаются данные, хранилище откажет."""
+        ...
+
+
+class CatalogSource(Protocol):
+    """Откуда берутся справочники. Сейчас — файл `config/catalog.yaml`
+    (`app.adapter.catalog_file`)."""
+
+    def load(self) -> Catalog: ...

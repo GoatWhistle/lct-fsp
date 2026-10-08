@@ -87,6 +87,8 @@ class Mechanics(BaseModel):
     calibration_refit_difficulty_prior_sd: float
     calibration_refit_log_discrimination_prior_sd: float
     calibration_link_window_attempts: int
+    item_fit_groups: int
+    item_fit_rmsd_max: float
 
     # Защита теста
     drift_shift: float
@@ -95,6 +97,7 @@ class Mechanics(BaseModel):
     rt_hard_item_p: float
     rt_fast_z: float
     rt_flags_for_verification: int
+    person_fit_lz: float
     focus_events_for_verification: int
     verification_items: int
     verification_time_limit_minutes: int

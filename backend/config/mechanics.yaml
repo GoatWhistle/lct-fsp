@@ -43,6 +43,8 @@ calibration_expert_gap_review: 1.0
 calibration_refit_difficulty_prior_sd: 1.0
 calibration_refit_log_discrimination_prior_sd: 0.3
 calibration_link_window_attempts: 500
+item_fit_groups: 10
+item_fit_rmsd_max: 0.12
 
 # Защита теста
 drift_shift: 1.0
@@ -51,6 +53,7 @@ rt_min_responses: 30
 rt_hard_item_p: 0.5
 rt_fast_z: 2.33
 rt_flags_for_verification: 3
+person_fit_lz: 2.0
 focus_events_for_verification: 3
 verification_items: 10
 verification_time_limit_minutes: 20

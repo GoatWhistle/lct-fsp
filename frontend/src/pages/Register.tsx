@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { Link, useSearchParams } from 'react-router'
 import { api, errorMessage, type Role } from '../api/client'
+import { PersonalDataConsent } from '../components/PersonalDataConsent'
 import { ResendVerification } from '../components/ResendVerification'
 
 const roles: { value: Role; title: string; hint: string }[] = [
@@ -13,6 +14,8 @@ export function Register() {
   const [role, setRole] = useState<Role>(params.get('role') === 'employer' ? 'employer' : 'candidate')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  // Согласие на обработку ПДн — только в интерфейсе: бэкенд его не хранит.
+  const [consent, setConsent] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [sentTo, setSentTo] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
@@ -77,8 +80,9 @@ export function Register() {
           />
           <span className="hint">Не короче 8 символов</span>
         </label>
+        <PersonalDataConsent role={role} checked={consent} onChange={setConsent} />
         {error && <p className="error">{error}</p>}
-        <button type="submit" className="button" disabled={submitting}>
+        <button type="submit" className="button" disabled={submitting || !consent}>
           Зарегистрироваться
         </button>
       </form>

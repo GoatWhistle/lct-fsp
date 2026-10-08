@@ -351,6 +351,7 @@ def test_employer_card_hides_contacts_free_text_and_expected_salary(
             {"code": "fintech", "name": "Финтех и банки"},
             {"code": "it-products", "name": "ИТ-продукты и аутсорс"},
         ],
+        "hidden": [],
     }
     for hidden in (
         "Ёлкина",

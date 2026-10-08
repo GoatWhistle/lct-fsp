@@ -6,8 +6,9 @@
 и controller показывают карточку как есть. Выдача подборки (`app.domain.selection`) данных
 кандидата не несёт: в записи выдачи только скоры и объяснение. Обезличенная карточка — те же
 категория, профиль навыков и структурное самоописание, что в раскрытой, только без раскрываемого:
-его в ней нет по типу. Достижения ФСП в обезличенной карточке — тип результата, дисциплина и год;
-мероприятие, место и команда — только в раскрытой.
+его в ней нет по типу; поля самоописания, скрытые кандидатом, в ней пусты и перечислены.
+Достижения ФСП в обезличенной карточке — тип результата, дисциплина и год; мероприятие, место и
+команда — только в раскрытой.
 """
 
 import enum
@@ -113,7 +114,8 @@ def _ref(grade: Grade) -> CatalogRef:
 
 @dataclass(frozen=True)
 class SelfReported:
-    """Структурная часть самоописания — видна и в обезличенной карточке."""
+    """Структурная часть самоописания — видна и в обезличенной карточке, кроме скрытого
+    кандидатом."""
 
     stack: tuple[CatalogRef, ...]
     experience_years: int
@@ -121,6 +123,47 @@ class SelfReported:
     city: str | None
     relocation: bool
     industries: tuple[CatalogRef, ...]
+
+
+class HideableField(enum.StrEnum):
+    """Поля самоописания, которые кандидат может скрыть из обезличенной карточки (§14). Форматы
+    работы, категория и профиль навыков видны всегда."""
+
+    stack = "stack"
+    experience_years = "experience_years"
+    city = "city"
+    relocation = "relocation"
+    industries = "industries"
+
+
+@dataclass(frozen=True)
+class VisibleSelfReported:
+    """Самоописание в обезличенной карточке: скрытое кандидатом поле — `None` и имя в `hidden`.
+    Так «скрыто» не путается с «не заполнено»: незаполненный город — `None` без имени в
+    `hidden`."""
+
+    stack: tuple[CatalogRef, ...] | None
+    experience_years: int | None
+    work_formats: tuple[WorkFormat, ...]
+    city: str | None
+    relocation: bool | None
+    industries: tuple[CatalogRef, ...] | None
+    hidden: frozenset[HideableField]
+
+    @classmethod
+    def of(cls, self_reported: SelfReported, hidden: frozenset[HideableField]) -> Self:
+        def shown[T](field: HideableField, value: T) -> T | None:
+            return None if field in hidden else value
+
+        return cls(
+            stack=shown(HideableField.stack, self_reported.stack),
+            experience_years=shown(HideableField.experience_years, self_reported.experience_years),
+            work_formats=self_reported.work_formats,
+            city=shown(HideableField.city, self_reported.city),
+            relocation=shown(HideableField.relocation, self_reported.relocation),
+            industries=shown(HideableField.industries, self_reported.industries),
+            hidden=hidden,
+        )
 
 
 @dataclass(frozen=True)
@@ -139,11 +182,15 @@ class Disclosed:
 @dataclass(frozen=True)
 class CandidateProfile:
     """Профиль кандидата — анкета по форме. Ожидаемая зарплата — отдельно, в `Candidate`: она
-    не входит ни в одну проекцию для работодателя, даже раскрытую (§14)."""
+    не входит ни в одну проекцию для работодателя, даже раскрытую (§14).
+
+    `hidden` — поля самоописания, скрытые кандидатом из обезличенной карточки; по умолчанию
+    видно всё. Подбор и скор их не замечают: настройка меняет только проекцию."""
 
     disclosed: Disclosed
     self_reported: SelfReported
     updated_at: datetime
+    hidden: frozenset[HideableField] = frozenset()
 
 
 @dataclass(frozen=True)
@@ -189,19 +236,16 @@ class Access:
     """Входы доступа работодателя к кандидату (§14).
 
     Раскрывают принятое приглашение компании и отклик кандидата на её вакансию; отзыв доступа
-    побеждает и то и другое. Согласие на публикацию и скрытые кандидатом поля правило принимает
-    уже сейчас, но решения они не меняют, пока их смысл не задан вместе с согласиями: без
-    согласия кандидат уходит из выдачи — это отбор, а не проекция.
+    побеждает и то и другое. Настройки видимости — свойство кандидата, а не доступа: они в его
+    профиле.
 
-    Работодателю сценарии собирают доступ из приглашений компании; откликов, согласий и настроек
-    видимости пока нет. `NO_ACCESS` — доступа нет.
+    Работодателю сценарии собирают доступ из приглашений компании; откликов пока нет.
+    `NO_ACCESS` — доступа нет.
     """
 
     invitation_accepted: bool = False
     applied: bool = False
     revoked: bool = False
-    publication_consent: bool = False
-    hidden_fields: frozenset[str] = frozenset()
 
 
 NO_ACCESS = Access()
@@ -210,10 +254,11 @@ NO_ACCESS = Access()
 @dataclass(frozen=True)
 class AnonymizedCard:
     """Обезличенная карточка: решение — по навыкам. ФИО, контактов, свободного текста и
-    ожидаемой зарплаты в ней нет по типу; фото, возраст и вуз платформа не собирает (§17)."""
+    ожидаемой зарплаты в ней нет по типу; фото, возраст и вуз платформа не собирает (§17).
+    Скрытые кандидатом поля самоописания пусты."""
 
     candidate_id: uuid.UUID
-    self_reported: SelfReported | None
+    self_reported: VisibleSelfReported | None
     category: Category | None
     skill_profile: SkillProfile | None
     grade_status: GradeStatus | None
@@ -244,7 +289,8 @@ def disclosure(
 ) -> DisclosedCard | AnonymizedCard:
     """Правило раскрытия: свой профиль кандидат видит раскрытым целиком; работодатель — после
     принятого приглашения или отклика, если доступ не отозван, и без ожидаемой зарплаты; все
-    остальные — обезличенную карточку."""
+    остальные — обезличенную карточку без скрытых кандидатом полей самоописания. Раскрытая
+    карточка — всегда полная: настройки видимости действуют только до раскрытия."""
     if isinstance(viewer, CandidateViewer) and viewer.user_id == candidate.id:
         return _disclosed(candidate, candidate.expected_salary)
     if (
@@ -253,9 +299,12 @@ def disclosure(
         and not access.revoked
     ):
         return _disclosed(candidate, None)
+    profile = candidate.profile
     return AnonymizedCard(
         candidate_id=candidate.id,
-        self_reported=candidate.profile.self_reported if candidate.profile else None,
+        self_reported=(
+            VisibleSelfReported.of(profile.self_reported, profile.hidden) if profile else None
+        ),
         category=candidate.category,
         skill_profile=candidate.skill_profile,
         grade_status=candidate.grade_status,
@@ -310,6 +359,7 @@ class ProfileSheet:
 class ProfileForm:
     """Анкета, как её прислал кандидат: стек и интересные сферы — кодами справочника, ожидаемая
     зарплата — в рублях в месяц до вычета НДФЛ. Город обязателен, если подходит офис или гибрид.
+    `hidden` — поля самоописания, скрытые из обезличенной карточки.
     """
 
     full_name: str
@@ -326,6 +376,7 @@ class ProfileForm:
     relocation: bool
     industries: tuple[str, ...]
     expected_salary: int
+    hidden: frozenset[HideableField] = frozenset()
 
     def __post_init__(self) -> None:
         if self.city is None and set(self.work_formats) != {WorkFormat.remote}:

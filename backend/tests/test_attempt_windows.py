@@ -171,6 +171,7 @@ def test_link_window_takes_only_finished_attempts(storage: Storage) -> None:
         answers = storage.calibration.anchor_answers("qa", [ANCHOR.code], 1)
 
     assert len(answers) == 1
+    assert answers[0].family_code == ANCHOR.code
     assert answers[0].rest is not None
 
 

@@ -342,6 +342,12 @@ def main() -> None:
     parser.add_argument(
         "--compare", type=int, default=None, help="report: кандидатов сравнения M13 (300)"
     )
+    parser.add_argument(
+        "--fit",
+        type=int,
+        default=None,
+        help="report: честных кандидатов M21 на специализацию (200)",
+    )
     parser.add_argument("--report", type=Path, default=REPORT, help="report: куда писать отчёт")
     parser.add_argument(
         "--model",
@@ -399,6 +405,7 @@ def main() -> None:
                         ("pairs", args.pairs),
                         ("warm", args.warm),
                         ("compare", args.compare),
+                        ("fit", args.fit),
                         ("candidates", args.candidates),
                     )
                     if v is not None

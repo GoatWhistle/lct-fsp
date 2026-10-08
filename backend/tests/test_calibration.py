@@ -3,6 +3,7 @@
 
 import math
 import random
+from collections.abc import Collection
 from datetime import UTC, datetime
 
 import pytest
@@ -11,14 +12,17 @@ from app.adapter import irt
 from app.adapter.irt import estimate, sigmoid
 from app.domain import bank
 from app.domain.calibration import (
+    AnchorAnswer,
     ExpertGap,
     Link,
     Parameters,
     Response,
     elo_step,
     elo_update,
+    expected_correct,
     expert_gap,
     fit_link,
+    item_fit_rmsd,
     refit,
 )
 from app.domain.skill import Normal, Observation
@@ -148,12 +152,14 @@ def test_refit_recovers_parameters_from_calibrated_levels() -> None:
 class AnsweredCalibrationRepository(MemoryCalibrationRepository):
     """Калибровка в памяти с готовыми ответами на семейства: истинная сложность — по коду."""
 
-    def __init__(self, truth: dict[str, float]) -> None:
+    def __init__(
+        self, truth: dict[str, float], *, answers: dict[str, list[Response]] | None = None
+    ) -> None:
         super().__init__(MemoryStore())
         rng = random.Random(7)
         self.answers = {
             code: calibrated_responses(Parameters(1.2, b), 3000, rng) for code, b in truth.items()
-        }
+        } | (answers or {})
 
     def rest_answers(self, code: str) -> list[Response]:
         return self.answers.get(code, [])
@@ -182,6 +188,182 @@ def test_refit_takes_easier_family_out_and_only_flags_harder_one() -> None:
         easy.code: ExpertGap.EASIER,
         hard.code: ExpertGap.HARDER,
     }
+
+
+def item_fit(responses: list[Response], params: Parameters) -> float:
+    return item_fit_rmsd(responses, params, groups=MECHANICS.item_fit_groups)
+
+
+def flat_responses(center: float, n: int, rng: random.Random, *, sd: float = 0.5) -> list[Response]:
+    """Ответ не зависит от уровня: P(верно) = 0,5 при широком разбросе уровней вокруг `center`."""
+    return [Response(Normal(rng.gauss(center, 1.5), sd), rng.random() < 0.5) for _ in range(n)]
+
+
+def test_item_fit_is_small_for_family_answered_by_its_own_2pl() -> None:
+    rng = random.Random(11)
+    params = Parameters(1.2, 1.0)
+
+    rmsd = item_fit(calibrated_responses(params, 2000, rng), params)
+
+    assert rmsd < MECHANICS.item_fit_rmsd_max / 2
+
+
+def test_item_fit_exceeds_threshold_when_answer_does_not_depend_on_level() -> None:
+    rng = random.Random(12)
+    params = Parameters(1.2, 1.0)
+
+    assert item_fit(flat_responses(params.difficulty, 2000, rng), params) > (
+        MECHANICS.item_fit_rmsd_max
+    )
+
+
+def test_item_fit_expects_share_closer_to_half_for_uncertain_levels() -> None:
+    """Половина верных у кандидатов на два логита выше сложности: при точной оценке уровня модель
+    ждёт почти всех верных, при неточной — ближе к половине, и расхождение меньше."""
+    params = Parameters(1.2, 0.0)
+
+    def rmsd(sd: float) -> float:
+        responses = [Response(Normal(2.0, sd), i % 2 == 0) for i in range(100)]
+        return item_fit_rmsd(responses, params, groups=1)
+
+    assert rmsd(3.0) < rmsd(0.2)
+
+
+def test_item_fit_weights_groups_by_size_and_discounts_sampling_noise() -> None:
+    """Пять ответов на две группы по уровню: остаток — в первую, 3 и 2 ответа. RMSD — корень из
+    взвешенного числом ответов среднего квадрата расхождения за вычетом дисперсии доли верных,
+    которую даёт сама модель: Σ p(1 − p) / nₖ по группе."""
+    params = Parameters(1.2, 0.0)
+    levels = [Normal(m, 0.4) for m in (2.0, 1.0, 3.0, 1.5, 2.5)]
+    responses = [Response(level, False) for level in levels]
+    groups = [[levels[1], levels[3], levels[0]], [levels[4], levels[2]]]
+    squares = noise = 0.0
+    for group in groups:
+        expected = [expected_correct(params, x) for x in group]
+        squares += len(group) * (sum(expected) / len(group)) ** 2
+        noise += sum(p * (1 - p) for p in expected) / len(group)
+
+    rmsd = item_fit_rmsd(responses, params, groups=2)
+
+    assert squares > noise
+    assert rmsd == pytest.approx(math.sqrt((squares - noise) / 5))
+
+
+def test_item_fit_does_not_take_sampling_noise_for_misfit() -> None:
+    """Семейство по 2PL на `calibration_refit_min_responses` ответах кандидатов около его
+    сложности, как их подбирает адаптивный тест: в группе по 20 ответов доля верных сама гуляет
+    на ±0,1, и без поправки на шум RMSD упирается в порог."""
+    rng = random.Random(13)
+    params = Parameters(1.2, 1.0)
+    above = 0
+    for _ in range(100):
+        responses = []
+        for _ in range(MECHANICS.calibration_refit_min_responses):
+            level = Normal(rng.gauss(params.difficulty, 0.8), 0.45)
+            theta = rng.gauss(level.mean, level.sd)
+            correct = rng.random() < sigmoid(params.discrimination * (theta - params.difficulty))
+            responses.append(Response(level, correct))
+        above += item_fit(responses, params) > MECHANICS.item_fit_rmsd_max
+
+    assert above <= 5
+
+
+def reversed_responses(params: Parameters, n: int, rng: random.Random) -> list[Response]:
+    """Эталон — дистрактор, который выбирают слабые: доля верных падает с уровнем. Такой кривой
+    нет у 2PL ни при каких (a, b), a > 0."""
+    return [Response(r.level, not r.correct) for r in calibrated_responses(params, n, rng)]
+
+
+def test_refit_takes_misfitting_family_out_and_keeps_fitting_one() -> None:
+    """Кривая ответа не той формы — после переоценки семейство уходит из выдачи, хотя опорная
+    сложность не легче экспертной. Семейство по 2PL без дрейфа остаётся."""
+    misfit, fair = [f for f in bank.BANK if f.grade == "middle" and not f.anchor][:2]
+    expert_b = MECHANICS.expert_difficulty_by_grade["middle"]
+    misfit_answers = reversed_responses(
+        Parameters(1.2, expert_b), MECHANICS.calibration_refit_min_responses, random.Random(8)
+    )
+    calibration = elo_calibration(
+        AnsweredCalibrationRepository({fair.code: expert_b}, answers={misfit.code: misfit_answers}),
+        MECHANICS,
+    )
+
+    calibration.refit_due([misfit.code, fair.code], "backend", datetime.now(UTC))
+
+    assert set(calibration.current([misfit, fair])) == {fair.code}
+    assert ExpertGap.EASIER not in calibration.expert_gaps([misfit, fair]).values()
+
+
+class AnchoredCalibrationRepository(MemoryCalibrationRepository):
+    """Калибровка в памяти с готовыми ответами на якоря; запоминает, по каким якорям спрашивали."""
+
+    def __init__(self, answers: list[AnchorAnswer]) -> None:
+        super().__init__(MemoryStore())
+        self.answers = answers
+        self.asked: list[set[str]] = []
+
+    def anchor_answers(
+        self, specialization: str, anchors: Collection[str], window_attempts: int
+    ) -> list[AnchorAnswer]:
+        self.asked.append(set(anchors))
+        return [a for a in self.answers if a.family_code in anchors]
+
+
+def anchor_answers_of(
+    family: bank.Family, link: Link, n: int, rng: random.Random, *, flat: bool = False
+) -> list[AnchorAnswer]:
+    """Ответы на якорь при оценках, пережатых связкой; `flat` — ответ не зависит от уровня."""
+    params = expert(family.grade, MECHANICS)
+    answers = []
+    for _ in range(n):
+        level = Normal(rng.gauss(params.difficulty, 1.0), rng.uniform(0.4, 0.8))
+        true = link.apply(level)
+        theta = rng.gauss(true.mean, true.sd)
+        p = 0.5 if flat else sigmoid(params.discrimination * (theta - params.difficulty))
+        response = Response(level, rng.random() < p)
+        answers.append(AnchorAnswer(family.code, params, response, response))
+    return answers
+
+
+def test_relink_takes_misfitting_anchor_out_of_rotation_and_link() -> None:
+    """Якорь, на который отвечают независимо от уровня, выводится из выдачи, а связка строится
+    без его ответов — и в этом пересчёте, и в следующих."""
+    anchors = [f for f in bank.families_for_topics(["qa.api", "qa.theory"]) if f.anchor]
+    *good, bad = anchors
+    rng = random.Random(9)
+    truth = Link(-0.2, 1.25)
+    fitting = [a for f in good for a in anchor_answers_of(f, truth, 800, rng)]
+    repository = AnchoredCalibrationRepository(
+        fitting + anchor_answers_of(bad, truth, 800, rng, flat=True)
+    )
+    calibration = elo_calibration(repository, MECHANICS)
+    minimum = MECHANICS.calibration_refit_min_responses
+    expected = (
+        fit_link([(a.params, a.before) for a in fitting], min_responses=minimum),
+        fit_link([(a.params, a.rest) for a in fitting if a.rest], min_responses=minimum),
+    )
+
+    calibration.relink("qa", datetime.now(UTC))
+
+    assert set(calibration.current(anchors)) == {f.code for f in good}
+    assert repository.links("qa") == expected
+
+    calibration.relink("qa", datetime.now(UTC))
+
+    assert bad.code not in repository.asked[-1]
+    assert repository.links("qa") == expected
+
+
+def test_relink_keeps_anchor_with_too_few_answers_to_judge() -> None:
+    anchor = next(f for f in bank.families_for_topics(["qa.api"]) if f.anchor)
+    few = MECHANICS.calibration_refit_min_responses - 1
+    repository = AnchoredCalibrationRepository(
+        anchor_answers_of(anchor, Link(), few, random.Random(10), flat=True)
+    )
+    calibration = elo_calibration(repository, MECHANICS)
+
+    calibration.relink("qa", datetime.now(UTC))
+
+    assert set(calibration.current([anchor])) == {anchor.code}
 
 
 def test_refit_without_responses_keeps_expert_parameters() -> None:
@@ -280,3 +462,16 @@ def test_calibration_converges_on_simulated_candidates() -> None:
     assert refitted
     bias = sum(math.log(f.discrimination / m.truth[f.family_code].discrimination) for f in refitted)
     assert bias / len(refitted) < 0.15
+
+
+def test_lock_takes_anchors_of_attempt_specialization_too() -> None:
+    """Пересчёт связки может вывести якорь из выдачи: его строку остановка берёт заранее, в общем
+    порядке кодов, а якоря чужих специализаций не трогает."""
+    repository = MemoryCalibrationRepository(MemoryStore())
+    calibration = elo_calibration(repository, MECHANICS)
+    regular = next(f for f in bank.families_for_topics(["qa.api"]) if not f.anchor)
+    qa_anchors = {f.code for f in bank.BANK if f.anchor and f.code.startswith("qa.")}
+
+    calibration.lock([regular.code])
+
+    assert set(repository.parameters([f.code for f in bank.BANK])) == {regular.code} | qa_anchors

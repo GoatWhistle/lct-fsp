@@ -96,5 +96,7 @@ acceptance_target_probability: 0.6
 salary_hint_rounding_rub: 10000
 
 # Обратная связь
-feedback_min_selections: 5
+feedback_min_companies: 5
 feedback_period_days: 30
+feedback_hints_max: 3
+feedback_min_gain: 0.01

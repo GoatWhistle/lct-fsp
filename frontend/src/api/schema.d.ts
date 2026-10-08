@@ -437,11 +437,129 @@ export interface paths {
         };
         /**
          * Карточка кандидата
-         * @description Обезличенная: категория, профиль навыков и структурная часть самоописания. Без ФИО, контактов, свободного текста и ожидаемой зарплаты. Есть только у кандидата с категорией.
+         * @description Категория, профиль навыков и структурная часть самоописания. ФИО, контакты и свободный текст — только после принятия приглашения вашей компании; ожидаемой зарплаты нет никогда. Есть только у кандидата с категорией.
          */
         get: operations["get_candidate_card_api_employer_candidates__candidate_id__get"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/employer/invitations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Отправленные приглашения и бюджет недели
+         * @description Только приглашения своей компании, новые сверху.
+         */
+        get: operations["list_sent_api_employer_invitations_get"];
+        put?: never;
+        /**
+         * Пригласить кандидата
+         * @description Вилка обязательна. Тратит одно приглашение из бюджета недели — отклонённые и истёкшие его не возвращают. Пока прошлое приглашение компании кандидату открыто, новое не создаётся.
+         */
+        post: operations["send_invitation_api_employer_invitations_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/employer/invitations/{invitation_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Отправленное приглашение */
+        get: operations["get_sent_api_employer_invitations__invitation_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/candidate/invitations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Входящие приглашения
+         * @description Новые сверху.
+         */
+        get: operations["list_inbox_api_candidate_invitations_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/candidate/invitations/{invitation_id}/view": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Открыть приглашение
+         * @description Отправленное становится просмотренным; повторное открытие ничего не меняет.
+         */
+        post: operations["view_invitation_api_candidate_invitations__invitation_id__view_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/candidate/invitations/{invitation_id}/accept": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Принять приглашение
+         * @description Компания увидит контакты и полный профиль, кроме ожидаемой зарплаты.
+         */
+        post: operations["accept_invitation_api_candidate_invitations__invitation_id__accept_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/candidate/invitations/{invitation_id}/decline": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Отклонить приглашение */
+        post: operations["decline_invitation_api_candidate_invitations__invitation_id__decline_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -585,9 +703,9 @@ export interface components {
         };
         /**
          * CandidateCardOut
-         * @description Обезличенная карточка: решение — по навыкам. Без ФИО, контактов, свободного текста
-         *     («о себе», роли, софт-скиллы) и ожидаемой зарплаты; фото, возраст и вуз платформа не
-         *     собирает.
+         * @description Карточка кандидата для работодателя. До принятия приглашения — обезличенная: решение по
+         *     навыкам, без ФИО, контактов, свободного текста («о себе», роли, софт-скиллы) и ожидаемой
+         *     зарплаты; фото, возраст и вуз платформа не собирает. Ожидаемой зарплаты нет и после.
          */
         CandidateCardOut: {
             /**
@@ -601,6 +719,8 @@ export interface components {
             skill_profile: components["schemas"]["SkillProfileOut"] | null;
             /** @description Самоописание; `null` — кандидат ещё не заполнил профиль */
             self_reported: components["schemas"]["SelfReportedOut"] | null;
+            /** @description ФИО, контакты и свободный текст — только после принятия приглашения вашей компании; `null` — карточка обезличена или профиль не заполнен */
+            disclosed: components["schemas"]["DisclosedOut"] | null;
         };
         /** CatalogRef */
         CatalogRef: {
@@ -665,6 +785,29 @@ export interface components {
              */
             updated_at: string;
         };
+        /**
+         * DisclosedOut
+         * @description Раскрытая часть анкеты: ФИО, контакты и свободный текст. Ожидаемой зарплаты нет и здесь.
+         */
+        DisclosedOut: {
+            /** Full Name */
+            full_name: string;
+            /** Contact Email */
+            contact_email: string;
+            /** Contact Phone */
+            contact_phone: string | null;
+            /**
+             * Telegram
+             * @description Имя пользователя без «@»
+             */
+            telegram: string | null;
+            /** About */
+            about: string;
+            /** Job Roles */
+            job_roles: string[];
+            /** Soft Skills */
+            soft_skills: string[];
+        };
         /** ErrorOut */
         ErrorOut: {
             /**
@@ -714,6 +857,111 @@ export interface components {
             /** Name */
             name: string;
         };
+        /** InvitationBudgetOut */
+        InvitationBudgetOut: {
+            /**
+             * Limit
+             * @description Приглашений на компанию за календарную неделю
+             */
+            limit: number;
+            /**
+             * Used
+             * @description Отправлено за текущую неделю в любом статусе
+             */
+            used: number;
+            /** Remaining */
+            remaining: number;
+            /**
+             * Resets At
+             * Format: date-time
+             * @description Понедельник 00:00 по Москве
+             */
+            resets_at: string;
+        };
+        /** InvitationIn */
+        InvitationIn: {
+            /**
+             * Candidate Id
+             * Format: uuid
+             */
+            candidate_id: string;
+            /**
+             * Description
+             * @description Что предлагаете: роль, команда, задачи
+             */
+            description: string;
+            /**
+             * Salary From
+             * @description Вилка «от», обязательна. Рубли в месяц до вычета НДФЛ (гросс)
+             */
+            salary_from: number;
+            /**
+             * Salary To
+             * @description Вилка «до», обязательна. Рубли в месяц до вычета НДФЛ (гросс)
+             */
+            salary_to: number;
+            /**
+             * Contact
+             * @description Как кандидату связаться с компанией, если примет приглашение
+             */
+            contact: string;
+        };
+        /** InvitationOut */
+        InvitationOut: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Candidate Id
+             * Format: uuid
+             */
+            candidate_id: string;
+            /**
+             * Company Name
+             * @description Компания на момент отправки
+             */
+            company_name: string;
+            /** Description */
+            description: string;
+            /**
+             * Salary From
+             * @description Рубли в месяц до вычета НДФЛ (гросс)
+             */
+            salary_from: number;
+            /**
+             * Salary To
+             * @description Рубли в месяц до вычета НДФЛ (гросс)
+             */
+            salary_to: number;
+            /** Contact */
+            contact: string;
+            /** @description `sent` → `viewed` → `accepted`, `declined` или `expired`; «истекло» — без ответа дольше срока с отправки */
+            status: components["schemas"]["InvitationStatus"];
+            /**
+             * Sent At
+             * Format: date-time
+             */
+            sent_at: string;
+            /** Viewed At */
+            viewed_at: string | null;
+            /** Answered At */
+            answered_at: string | null;
+            /**
+             * Expires At
+             * Format: date-time
+             * @description До какого момента можно ответить
+             */
+            expires_at: string;
+            /** @description Все суммы платформы — до вычета НДФЛ (`gross`) */
+            readonly salary_basis: components["schemas"]["SalaryBasis"];
+        };
+        /**
+         * InvitationStatus
+         * @enum {string}
+         */
+        InvitationStatus: "sent" | "viewed" | "accepted" | "declined" | "expired";
         /** ItemOut */
         ItemOut: {
             /**
@@ -1327,6 +1575,15 @@ export interface components {
              * @description Интересные сферы бизнеса в порядке справочника; пусто — не указаны
              */
             industries: components["schemas"]["CatalogRef"][];
+        };
+        /** SentInvitationsOut */
+        SentInvitationsOut: {
+            budget: components["schemas"]["InvitationBudgetOut"];
+            /**
+             * Invitations
+             * @description Новые сверху
+             */
+            invitations: components["schemas"]["InvitationOut"][];
         };
         /**
          * SkillProfileOut
@@ -2953,6 +3210,415 @@ export interface operations {
             };
             /** @description `candidate_not_found` — Кандидат не найден */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_sent_api_employer_invitations_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SentInvitationsOut"];
+                };
+            };
+            /** @description `not_authenticated` — Войдите, чтобы продолжить */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description `wrong_role` — Раздел доступен другой роли */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    send_invitation_api_employer_invitations_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["InvitationIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InvitationOut"];
+                };
+            };
+            /** @description `not_authenticated` — Войдите, чтобы продолжить */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description `wrong_role` — Раздел доступен другой роли */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description `candidate_not_found` — Кандидат не найден */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /**
+             * @description `company_profile_required` — Сначала заполните профиль компании — кандидат увидит его в приглашении
+             *
+             *     `invitation_already_open` — Кандидат ещё не ответил на прошлое приглашение компании — дождитесь ответа
+             *
+             *     `invitation_budget_exhausted` — Бюджет приглашений на эту неделю исчерпан — он обновится в понедельник
+             */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description `invalid_salary_range` — Вилка — обе границы больше нуля, «от» не больше «до» */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    get_sent_api_employer_invitations__invitation_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                invitation_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InvitationOut"];
+                };
+            };
+            /** @description `not_authenticated` — Войдите, чтобы продолжить */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description `wrong_role` — Раздел доступен другой роли */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description `invitation_not_found` — Приглашение не найдено */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_inbox_api_candidate_invitations_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InvitationOut"][];
+                };
+            };
+            /** @description `not_authenticated` — Войдите, чтобы продолжить */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description `wrong_role` — Раздел доступен другой роли */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    view_invitation_api_candidate_invitations__invitation_id__view_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                invitation_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InvitationOut"];
+                };
+            };
+            /** @description `not_authenticated` — Войдите, чтобы продолжить */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description `wrong_role` — Раздел доступен другой роли */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description `invitation_not_found` — Приглашение не найдено */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    accept_invitation_api_candidate_invitations__invitation_id__accept_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                invitation_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InvitationOut"];
+                };
+            };
+            /** @description `not_authenticated` — Войдите, чтобы продолжить */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description `wrong_role` — Раздел доступен другой роли */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description `invitation_not_found` — Приглашение не найдено */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /**
+             * @description `invitation_transition_not_allowed` — На это приглашение уже ответили — обновите страницу
+             *
+             *     `invitation_expired` — Срок ответа на приглашение истёк
+             */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    decline_invitation_api_candidate_invitations__invitation_id__decline_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                invitation_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InvitationOut"];
+                };
+            };
+            /** @description `not_authenticated` — Войдите, чтобы продолжить */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description `wrong_role` — Раздел доступен другой роли */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description `invitation_not_found` — Приглашение не найдено */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /**
+             * @description `invitation_transition_not_allowed` — На это приглашение уже ответили — обновите страницу
+             *
+             *     `invitation_expired` — Срок ответа на приглашение истёк
+             */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };

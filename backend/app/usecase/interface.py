@@ -42,6 +42,7 @@ from app.domain.catalog import (
     Topic,
 )
 from app.domain.company import Company, CompanyForm
+from app.domain.invitation import Invitation, InvitationTerms
 from app.domain.mail import Mail
 from app.domain.need import NeedRecord, NeedTerms
 from app.domain.selection import (
@@ -533,6 +534,56 @@ class CompanyRepository(Protocol):
 
     def save(self, user_id: uuid.UUID, form: CompanyForm, now: datetime) -> None:
         """Профиль работодателя — новый или поверх прежнего; сфера уже проверена."""
+        ...
+
+
+class InvitationReader(Protocol):
+    """Чтение приглашений для правила раскрытия. Сейчас — Postgres (`app.repository.invitation`)."""
+
+    def accepted(self, employer_id: uuid.UUID, candidate_id: uuid.UUID) -> bool:
+        """Есть ли у компании принятое приглашение этому кандидату."""
+        ...
+
+
+class InvitationRepository(InvitationReader, Protocol):
+    """Приглашения с записанным статусом: «истекло» не хранится, его выводит домен по моменту
+    чтения (`Invitation.at`). Списки — новые сверху. Пишет только внутри единицы работы и сам не
+    фиксирует. Сейчас — Postgres (`app.repository.invitation`)."""
+
+    def lock_company(self, employer_id: uuid.UUID) -> None:
+        """Отправки одной компании идут по очереди: двойной клик не создаст два приглашения и не
+        пройдёт мимо бюджета."""
+        ...
+
+    def add(
+        self,
+        employer_id: uuid.UUID,
+        candidate_id: uuid.UUID,
+        company_name: str,
+        terms: InvitationTerms,
+        now: datetime,
+    ) -> Invitation:
+        """Новое отправленное приглашение; `now` — время отправки."""
+        ...
+
+    def get(self, invitation_id: uuid.UUID, *, for_update: bool = False) -> Invitation | None:
+        """Приглашение по id; `for_update` — с блокировкой до конца единицы работы."""
+        ...
+
+    def save(self, invitation: Invitation) -> None:
+        """Записывает статус, время просмотра и ответа; истёкшее не записывается."""
+        ...
+
+    def by_candidate(self, candidate_id: uuid.UUID) -> list[Invitation]: ...
+
+    def by_employer(self, employer_id: uuid.UUID) -> list[Invitation]: ...
+
+    def latest(self, employer_id: uuid.UUID, candidate_id: uuid.UUID) -> Invitation | None:
+        """Последнее приглашение компании кандидату: открытым может быть только оно."""
+        ...
+
+    def sent_since(self, employer_id: uuid.UUID, since: datetime) -> int:
+        """Сколько приглашений компания отправила с момента `since`, в любом статусе."""
         ...
 
 

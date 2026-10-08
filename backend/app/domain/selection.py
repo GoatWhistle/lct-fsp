@@ -57,10 +57,10 @@ def block_of(need_rank: int, candidate_rank: int, distance: int) -> SelectionBlo
 
 
 @dataclass(frozen=True)
-class Need:
-    """Потребность, как её ввёл работодатель: стек с темами технологий и правки важности."""
+class NeedContent:
+    """Потребность, как её ввёл работодатель, — стек с темами технологий и правки важности, — без
+    ссылки на хранилище: сохранённая или черновик, по которому строят подборку до сохранения."""
 
-    id: uuid.UUID
     title: str
     specialization: Specialization
     grade: Grade
@@ -72,6 +72,13 @@ class Need:
     city: str | None
     salary: SalaryRange | None
     updated_at: datetime
+
+
+@dataclass(frozen=True)
+class Need(NeedContent):
+    """Сохранённая потребность."""
+
+    id: uuid.UUID
 
 
 @dataclass(frozen=True)
@@ -104,7 +111,7 @@ class NeedSnapshot:
 
 
 def need_snapshot(
-    need: Need,
+    need: NeedContent,
     *,
     requirement: float,
     importance_weights: Mapping[str, float],

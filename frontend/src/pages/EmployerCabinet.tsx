@@ -40,9 +40,14 @@ export function EmployerCabinet() {
       <section className="stack">
         <div className="section-head">
           <h2>Потребности</h2>
-          <Link to="/employer/needs/new" className="button button-small">
-            Новая потребность
-          </Link>
+          <div className="actions">
+            <Link to="/employer/needs/text" className="button button-small button-secondary">
+              Описать словами
+            </Link>
+            <Link to="/employer/needs/new" className="button button-small">
+              Новая потребность
+            </Link>
+          </div>
         </div>
         {needs.length === 0 ? (
           <div className="card">

@@ -1,0 +1,62 @@
+# Фикстура формата validation/data/need_texts.md: несколько размеченных текстов для проверки
+# команды M21. Тексты написаны для теста, не из D5.
+texts:
+  - id: fixture-backend
+    source: синтетический пример
+    date: 2026-10-08
+    checked_by: команда
+    text: |
+      Senior Python-разработчик в команду платежей
+      FastAPI, PostgreSQL, Kafka. Офис в Москве. От 350 до 450 тыс.
+    specialization: backend
+    grade: senior
+    stack: [python, fastapi, postgresql, kafka]
+    work_format: office
+    city: Москва
+    salary_from: 350000
+    salary_to: 450000
+
+  - id: fixture-qa
+    source: синтетический пример
+    date: 2026-10-08
+    checked_by: команда
+    text: |
+      Middle QA-инженер
+      Автотесты на pytest, API — Postman. Удалённо.
+    specialization: qa
+    grade: middle
+    stack: [pytest, postman]
+    work_format: remote
+
+  - id: fixture-frontend
+    source: синтетический пример
+    date: 2026-10-08
+    checked_by: команда
+    text: |
+      Фронтенд-разработчик (React, TypeScript)
+      Гибрид, Санкт-Петербург, до 300 000 рублей.
+    specialization: frontend
+    stack: [react, typescript]
+    work_format: hybrid
+    city: Санкт-Петербург
+    salary_to: 300000
+
+  - id: fixture-devops
+    source: синтетический пример
+    date: 2026-10-08
+    checked_by: команда
+    text: |
+      Ищем инженера в команду платформы
+      Kubernetes, Terraform, мониторинг на Prometheus. Junior, обучим.
+    specialization: devops
+    grade: junior
+    stack: [kubernetes, terraform, prometheus]
+
+  - id: fixture-1c
+    source: синтетический пример
+    date: 2026-10-08
+    checked_by: команда
+    text: |
+      Программист 1С
+      Доработка типовых конфигураций, обмены.
+    out_of_catalog: true

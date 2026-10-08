@@ -28,6 +28,7 @@ from app.usecase.interface import (
     RequestUnitOfWork,
 )
 from app.usecase.need import Needs
+from app.usecase.need_draft import NeedDrafts
 from app.usecase.selection import Selections
 from settings import Mechanics
 
@@ -107,6 +108,11 @@ def get_selections(request: Request, uow: UnitOfWorkDep) -> Selections:
     return selections
 
 
+def get_need_drafts(request: Request, uow: UnitOfWorkDep) -> NeedDrafts:
+    drafts: NeedDrafts = request.app.state.need_drafts(uow)
+    return drafts
+
+
 def get_candidate_path(request: Request, uow: UnitOfWorkDep) -> CandidatePath:
     paths: CandidatePath = request.app.state.candidate_path(uow)
     return paths
@@ -129,6 +135,7 @@ CatalogQueriesDep = Annotated[CatalogQueries, Depends(get_catalog)]
 CompaniesDep = Annotated[Companies, Depends(get_companies)]
 NeedsDep = Annotated[Needs, Depends(get_needs)]
 SelectionsDep = Annotated[Selections, Depends(get_selections)]
+NeedDraftsDep = Annotated[NeedDrafts, Depends(get_need_drafts)]
 CandidatePathDep = Annotated[CandidatePath, Depends(get_candidate_path)]
 AnswerCalibrationDep = Annotated[AnswerCalibration, Depends(get_answer_calibration)]
 CandidatesDep = Annotated[CandidateRepository, Depends(get_candidates)]

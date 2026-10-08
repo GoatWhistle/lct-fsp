@@ -16,11 +16,14 @@ class User(Base):
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     # Храним в нижнем регистре: один адрес — одна учётка.
     email: Mapped[str] = mapped_column(String(320), unique=True)
-    password_hash: Mapped[str] = mapped_column(String(255))
+    # Нет у учётки, созданной входом через ФСП ID: она входит только через него.
+    password_hash: Mapped[str | None] = mapped_column(String(255))
     role: Mapped[Role] = mapped_column(
         Enum(Role, native_enum=False, create_constraint=True, length=16, name="role")
     )
     email_verified_at: Mapped[datetime | None]
+    # ФСП ID — `sub` из ФСП ID; один ID — одна учётка.
+    fsp_id: Mapped[str | None] = mapped_column(String(255), unique=True)
     created_at: Mapped[datetime]
 
 

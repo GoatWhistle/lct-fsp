@@ -283,3 +283,47 @@ def test_advance_without_signals_or_decay_keeps_profile() -> None:
 def test_decaying_estimate_needs_moments_of_observations() -> None:
     with pytest.raises(ValueError, match="момент"):
         estimate(decaying(), [at(item("sql", True), T0), item("api", True)])
+
+
+def strong(topic: str, correct: bool, difficulty: float) -> Observation:
+    """Наблюдение с большой разделяющей силой — как достижение ФСП."""
+    return Observation(topic=topic, correct=correct, discrimination=2.0, difficulty=difficulty)
+
+
+@pytest.mark.parametrize(("correct", "difficulty"), [(True, 1.0), (False, -0.5), (True, -2.0)])
+def test_to_mode_lands_on_the_posterior_mode(correct: bool, difficulty: float) -> None:
+    """В моде градиент лог-апостериорного — ноль: μ' − μ = w a (u − p(hᵀμ')) Σh (§3)."""
+    obs = strong("sql", correct, difficulty)
+    start = irt.initial(prior())
+
+    result = irt.update(start, obs, to_mode=True)
+
+    sigma_h = [row[0] + row[1] for row in start.cov]
+    p = irt.sigmoid(obs.discrimination * (result.mean[0] + result.mean[1] - obs.difficulty))
+    gradient = obs.discrimination * (float(obs.correct) - p)
+    for m, m0, s in zip(result.mean, start.mean, sigma_h, strict=True):
+        assert m - m0 == pytest.approx(gradient * s, abs=1e-9)
+
+
+def test_one_step_falls_short_of_the_mode_on_a_strong_observation() -> None:
+    """Один шаг из априорного недолетает до моды: поэтому профиль навыков итерирует (§3)."""
+    obs = strong("sql", True, 1.0)
+
+    one_step = estimate(prior(), [obs]).topic("sql").mean
+    mode = estimate(prior(), [obs], to_mode=True).topic("sql").mean
+
+    assert one_step != pytest.approx(mode, abs=1e-3)
+    assert estimate(prior(), [obs], to_mode=True).topic("sql").sd < prior_sd("sql")
+
+
+def prior_sd(topic: str) -> float:
+    return irt.initial(prior()).topic(topic).sd
+
+
+def test_strong_result_below_the_level_barely_moves_it() -> None:
+    """Одностороннее свидетельство (§11): решённое задание ниже уровня почти не сдвигает его."""
+    high = prior(mean=2.0)
+
+    moved = estimate(high, [strong("sql", True, 0.0)], to_mode=True).topic("sql").mean
+
+    assert 2.0 <= moved < 2.05

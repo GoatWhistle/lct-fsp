@@ -2,25 +2,31 @@
 взаимный скор и признаки модели принятия."""
 
 import dataclasses
+import random
 import uuid
 from datetime import UTC, datetime, timedelta
 
 import pytest
 
+from app.domain.candidate import GradeStatusKind
 from app.domain.catalog import CatalogRef, Grade
 from app.domain.match import Match, StackFit
 from app.domain.selection import (
     BLOCK_ORDER,
     AcceptanceFeatures,
+    NeedSnapshot,
     PoolCandidate,
     Scored,
     SelectionBlock,
     SelectionRules,
+    UnconfirmedCandidate,
     arrange,
     block_of,
     mutual_score,
+    showcase,
 )
 from app.domain.skill import Normal
+from app.domain.work import WorkFormat
 
 T0 = datetime(2026, 10, 7, 12, 0, tzinfo=UTC)
 RULES = SelectionRules(
@@ -128,3 +134,118 @@ def test_arrange_wants_one_probability_per_candidate() -> None:
 
     with pytest.raises(ValueError):
         arrange([item, item], [None], salt=1, now=T0, rules=RULES)
+
+
+MIDDLE = Grade("middle", "Middle", 3)
+JUNIOR = Grade("junior", "Junior", 2)
+MAIN_BLOCKS = (SelectionBlock.exact, SelectionBlock.nearby)
+
+
+def unconfirmed(stack: frozenset[str], claimed: Grade = MIDDLE) -> UnconfirmedCandidate:
+    return UnconfirmedCandidate(uuid.uuid4(), "qa", claimed, stack)
+
+
+def need_of(stack: tuple[str, ...]) -> NeedSnapshot:
+    return NeedSnapshot(
+        title="QA",
+        specialization=CatalogRef("qa", "QA"),
+        grade=CatalogRef(MIDDLE.code, MIDDLE.name),
+        stack=tuple(CatalogRef(code, code) for code in stack),
+        work_format=WorkFormat.remote,
+        city=None,
+        salary=None,
+        topics=(),
+        updated_at=T0,
+    )
+
+
+def test_unconfirmed_block_is_last() -> None:
+    assert BLOCK_ORDER[-1] is SelectionBlock.unconfirmed
+
+
+def test_showcase_takes_only_the_claimed_grade_of_the_need_specialization() -> None:
+    fits = unconfirmed(frozenset({"pytest"}))
+    other_grade = unconfirmed(frozenset({"pytest"}), JUNIOR)
+    other_specialization = dataclasses.replace(fits, candidate_id=uuid.uuid4(), specialization="be")
+
+    shown = showcase(need_of(("pytest",)), [fits, other_grade, other_specialization])
+
+    assert [s.candidate for s in shown] == [fits]
+    assert shown[0].stack.matched == ("pytest",)
+    assert shown[0].stack.overlap == 1.0
+
+
+def test_unconfirmed_entries_order_by_self_reported_stack_without_score() -> None:
+    half = unconfirmed(frozenset({"pytest"}))
+    full = unconfirmed(frozenset({"playwright", "pytest"}))
+    none = unconfirmed(frozenset())
+    shown = showcase(need_of(("playwright", "pytest")), [half, none, full])
+
+    entries = arrange([], [], showcased=shown, salt=1, now=T0, rules=RULES)
+
+    assert [e.candidate_id for e in entries] == [
+        full.candidate_id,
+        half.candidate_id,
+        none.candidate_id,
+    ]
+    assert {e.block for e in entries} == {SelectionBlock.unconfirmed}
+    assert [(e.rank, e.position) for e in entries] == [(1, 1), (2, 2), (3, 3)]
+    for entry in entries:
+        assert entry.match_score is None
+        assert entry.mutual_score is None
+        assert entry.acceptance_probability is None
+        assert entry.explanation.topics == ()
+        assert entry.explanation.stack.contribution is None
+        assert entry.status.kind is GradeStatusKind.unconfirmed
+        assert entry.grade == CatalogRef("middle", "Middle")
+
+
+def test_no_unconfirmed_entry_is_ever_above_a_confirmed_one() -> None:
+    """Свойство на случайных выдачах: какие бы скоры ни были у подтверждённых и какой бы стек ни
+    был у неподтверждённых, нижний блок идёт после всех записей с категорией."""
+    rng = random.Random(36)
+    technologies = ("a", "b", "c", "d")
+    need = need_of(technologies)
+    for _ in range(200):
+        items = [
+            scored(rng.random(), rng.choice((MIDDLE, JUNIOR)), rng.choice(MAIN_BLOCKS))
+            for _ in range(rng.randrange(0, 6))
+        ]
+        acceptance = [rng.choice((None, rng.random())) for _ in items]
+        pool = [
+            unconfirmed(frozenset(rng.sample(technologies, rng.randrange(0, 5))))
+            for _ in range(rng.randrange(0, 6))
+        ]
+
+        entries = arrange(
+            items,
+            acceptance,
+            showcased=showcase(need, pool),
+            salt=rng.randrange(1 << 30),
+            now=T0,
+            rules=RULES,
+        )
+
+        blocks = [e.block for e in entries]
+        assert len(entries) == len(items) + len(pool)
+        assert [e.position for e in entries] == list(range(1, len(entries) + 1))
+        bottom = blocks.index(SelectionBlock.unconfirmed) if pool else len(blocks)
+        assert SelectionBlock.unconfirmed not in blocks[:bottom]
+        assert all(b is SelectionBlock.unconfirmed for b in blocks[bottom:])
+
+
+def test_confirmed_entries_carry_grade_status() -> None:
+    cascaded = scored(0.5, JUNIOR, SelectionBlock.nearby)
+    cascaded = dataclasses.replace(
+        cascaded, candidate=dataclasses.replace(cascaded.candidate, claimed=MIDDLE)
+    )
+    exact = scored(0.5, MIDDLE, SelectionBlock.exact)
+
+    entries = arrange([cascaded, exact], [None, None], salt=1, now=T0, rules=RULES)
+
+    assert [e.status.kind for e in entries] == [
+        GradeStatusKind.confirmed,
+        GradeStatusKind.below_claimed,
+    ]
+    assert entries[1].status.claimed == CatalogRef("middle", "Middle")
+    assert entries[1].grade == CatalogRef("junior", "Junior")

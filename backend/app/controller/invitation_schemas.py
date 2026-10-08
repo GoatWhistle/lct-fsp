@@ -1,0 +1,52 @@
+"""Схемы API приглашений: отправка, ответ кандидата и бюджет компании."""
+
+import uuid
+from datetime import datetime
+from typing import Annotated
+
+from pydantic import BaseModel, Field, StringConstraints
+
+from app.controller.salary import SALARY_UNIT, Salary, SalaryBasisOut
+from app.domain.invitation import InvitationStatus
+
+
+class InvitationIn(BaseModel):
+    candidate_id: uuid.UUID
+    description: Annotated[
+        str, StringConstraints(strip_whitespace=True, min_length=1, max_length=3000)
+    ] = Field(description="Что предлагаете: роль, команда, задачи")
+    salary_from: Salary = Field(description=f"Вилка «от», обязательна. {SALARY_UNIT}")
+    salary_to: Salary = Field(description=f"Вилка «до», обязательна. {SALARY_UNIT}")
+    contact: Annotated[
+        str, StringConstraints(strip_whitespace=True, min_length=1, max_length=300)
+    ] = Field(description="Как кандидату связаться с компанией, если примет приглашение")
+
+
+class InvitationOut(SalaryBasisOut):
+    id: uuid.UUID
+    candidate_id: uuid.UUID
+    company_name: str = Field(description="Компания на момент отправки")
+    description: str
+    salary_from: int = Field(description=SALARY_UNIT)
+    salary_to: int = Field(description=SALARY_UNIT)
+    contact: str
+    status: InvitationStatus = Field(
+        description="`sent` → `viewed` → `accepted`, `declined` или `expired`; «истекло» — "
+        "без ответа дольше срока с отправки"
+    )
+    sent_at: datetime
+    viewed_at: datetime | None
+    answered_at: datetime | None
+    expires_at: datetime = Field(description="До какого момента можно ответить")
+
+
+class InvitationBudgetOut(BaseModel):
+    limit: int = Field(description="Приглашений на компанию за календарную неделю")
+    used: int = Field(description="Отправлено за текущую неделю в любом статусе")
+    remaining: int
+    resets_at: datetime = Field(description="Понедельник 00:00 по Москве")
+
+
+class SentInvitationsOut(BaseModel):
+    budget: InvitationBudgetOut
+    invitations: list[InvitationOut] = Field(description="Новые сверху")

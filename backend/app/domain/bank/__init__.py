@@ -39,15 +39,29 @@ from app.domain.bank import (
     statistics,
     testing,
 )
-from app.domain.bank.family import Family, Generator, Instance, same_answer
+from app.domain.bank.family import (
+    SCENARIO_KINDS,
+    AnswerFormat,
+    Family,
+    Generator,
+    Instance,
+    Kind,
+    Option,
+    kind_of,
+    same_answer,
+)
 from app.domain.bank.runner import CodeRunner
 
 __all__ = [
     "BANK",
     "RETIRED",
+    "SCENARIO_KINDS",
+    "AnswerFormat",
     "CodeRunner",
     "Family",
     "Instance",
+    "Kind",
+    "Option",
     "covers",
     "families_for_topics",
     "get_family",
@@ -81,7 +95,11 @@ def _topic(
         ("senior", senior),
     ):
         for slug, generate in map(_slug, entries):
-            families.append(Family(f"{topic}.{slug}", topic, grade, generate, slug in anchors))
+            families.append(
+                Family(
+                    f"{topic}.{slug}", topic, grade, kind_of(generate), generate, slug in anchors
+                )
+            )
     if {f.code for f in families if f.anchor} != {f"{topic}.{a}" for a in anchors}:
         raise ValueError(f"якоря темы {topic} — не семейства темы: {anchors}")
     return families
@@ -108,19 +126,32 @@ def _algorithms(topic: str) -> list[Family]:
     )
 
 
-def _sql(topic: str, *extra_junior: Entry) -> list[Family]:
-    """SQL у бэкенда, QA и данных — одни генераторы, свои семейства."""
+def _sql(
+    topic: str,
+    *,
+    junior: Sequence[Entry] = (),
+    middle: Sequence[Entry] = (),
+    senior: Sequence[Entry] = (),
+) -> list[Family]:
+    """SQL у бэкенда, QA и данных — одни генераторы, свои семейства; у темы — свои добавки."""
     return _topic(
         topic,
         anchors=("group-having-sum", "left-join-groups"),
         intern=[sql.sum_where, sql.order_limit, sql.like_between, sql.distinct_count],
-        junior=[sql.case_when_sum, sql.group_having_sum, sql.null_aggregates, *extra_junior],
-        middle=[sql.left_join_groups, sql.union_sums, sql.correlated_subquery, sql.exists_subquery],
+        junior=[sql.case_when_sum, sql.group_having_sum, sql.null_aggregates, *junior],
+        middle=[
+            sql.left_join_groups,
+            sql.union_sums,
+            sql.correlated_subquery,
+            sql.exists_subquery,
+            *middle,
+        ],
         senior=[
             ("window-rank", sql.window_rank),
             sql.running_window,
             sql.lag_changes,
             sql.self_join,
+            *senior,
         ],
     )
 
@@ -188,7 +219,7 @@ BANK: tuple[Family, ...] = tuple(
             ],
         ),
         *_algorithms("backend.algorithms"),
-        *_sql("backend.databases"),
+        *_sql("backend.databases", middle=[sql.isolation_choice], senior=[sql.column_rename]),
         *_http_api("backend.api"),
         *_topic(
             "backend.concurrency",
@@ -464,7 +495,7 @@ BANK: tuple[Family, ...] = tuple(
             ],
             senior=[automation.parametrized_setups, automation.xdist_duration],
         ),
-        *_sql("qa.databases", security.injection_rows),
+        *_sql("qa.databases", junior=[security.injection_rows]),
         *_topic(
             "qa.performance",
             anchors=("littles-law", "percentile"),
@@ -589,7 +620,7 @@ BANK: tuple[Family, ...] = tuple(
 # Выведены из выдачи: верные ответы двух экземпляров совпадают чаще, чем допускает
 # `family_answer_collision_max`. Замена — семейства с ответом из нескольких значений.
 RETIRED: tuple[Family, ...] = tuple(
-    Family(code, code.rsplit(".", 1)[0], grade, generate)
+    Family(code, code.rsplit(".", 1)[0], grade, kind_of(generate), generate)
     for code, grade, generate in [
         ("backend.algorithms.binary-search-steps", "junior", algorithms.binary_search_steps),
         ("backend.algorithms.shortest-path", "senior", algorithms.shortest_path),

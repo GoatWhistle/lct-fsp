@@ -2,7 +2,7 @@
 
 import random
 
-from app.domain.bank.family import Instance, rounded
+from app.domain.bank.family import Instance, Kind, kind, rounded
 from app.domain.bank.runner import CodeRunner
 from app.domain.bank.sql import CUSTOMERS, render, run_sql
 
@@ -14,6 +14,7 @@ ALPHABETS = [
 ]
 
 
+@kind(Kind.COMPUTE)
 def password_space(rng: random.Random, runner: CodeRunner) -> Instance:
     alphabet, size = rng.choice(ALPHABETS)
     length = rng.randint(4, 10)
@@ -31,6 +32,7 @@ def password_space(rng: random.Random, runner: CodeRunner) -> Instance:
     return Instance(prompt, str(size ** (length - known)), params)
 
 
+@kind(Kind.TRACE)
 def sql_injection(rng: random.Random, runner: CodeRunner) -> Instance:
     names = rng.sample(CUSTOMERS, rng.randint(4, 6))
     rows = [
@@ -61,6 +63,7 @@ def sql_injection(rng: random.Random, runner: CodeRunner) -> Instance:
     return Instance(prompt, count, {"users": rows, "payload": payload}, code=code)
 
 
+@kind(Kind.COMPUTE)
 def token_bucket(rng: random.Random, runner: CodeRunner) -> Instance:
     capacity, refill = rng.randint(2, 5), rng.randint(1, 2)
     moments = sorted(rng.choices(range(0, 6), k=rng.randint(9, 13)))
@@ -83,6 +86,7 @@ def token_bucket(rng: random.Random, runner: CodeRunner) -> Instance:
     return Instance(prompt, str(rejected), params)
 
 
+@kind(Kind.COMPUTE)
 def jwt_validity(rng: random.Random, runner: CodeRunner) -> Instance:
     now, leeway = rng.randint(1000, 9000), rng.choice([0, 30, 60])
     # (alg, подпись верна, nbf, exp)
@@ -112,6 +116,7 @@ def jwt_validity(rng: random.Random, runner: CodeRunner) -> Instance:
     return Instance(prompt, str(accepted), params, code=code)
 
 
+@kind(Kind.TRACE)
 def html_escape(rng: random.Random, runner: CodeRunner) -> Instance:
     import html
 
@@ -128,6 +133,7 @@ def html_escape(rng: random.Random, runner: CodeRunner) -> Instance:
     return Instance(prompt, html.escape(text), {"text": text}, code=code)
 
 
+@kind(Kind.TRACE)
 def injection_rows(rng: random.Random, runner: CodeRunner) -> Instance:
     names = rng.sample(CUSTOMERS, rng.randint(6, 8))
     # id вразброс: иначе совпадающие наборы строк дают одинаковые ответы у разных экземпляров.
@@ -166,6 +172,7 @@ def injection_rows(rng: random.Random, runner: CodeRunner) -> Instance:
     return Instance(prompt, " ".join(found) or "0", {"users": rows, "payload": payload}, code=code)
 
 
+@kind(Kind.COMPUTE)
 def cookie_sending(rng: random.Random, runner: CodeRunner) -> Instance:
     path = rng.choice(["/", "/app", "/api"])
     secure = rng.random() < 0.5
@@ -206,6 +213,7 @@ def cookie_sending(rng: random.Random, runner: CodeRunner) -> Instance:
     return Instance(prompt, " ".join(answers), params, code="\n".join(requests))
 
 
+@kind(Kind.COMPUTE)
 def hash_cost(rng: random.Random, runner: CodeRunner) -> Instance:
     base_cost, base_ms = rng.randint(8, 10), rng.choice([20, 40, 60, 80, 100])
     cost = base_cost + rng.randint(1, 4)
@@ -223,6 +231,7 @@ def hash_cost(rng: random.Random, runner: CodeRunner) -> Instance:
     return Instance(prompt, f"{ms} {rounded(hours, 1)}", params)
 
 
+@kind(Kind.COMPUTE)
 def password_policy(rng: random.Random, runner: CodeRunner) -> Instance:
     min_len = rng.randint(8, 12)
     candidates = []
@@ -257,6 +266,7 @@ def password_policy(rng: random.Random, runner: CodeRunner) -> Instance:
     )
 
 
+@kind(Kind.COMPUTE)
 def bucket_statuses(rng: random.Random, runner: CodeRunner) -> Instance:
     capacity, refill = rng.randint(2, 4), rng.randint(1, 2)
     moments = sorted(rng.choices(range(0, 6), k=rng.randint(9, 11)))
@@ -288,6 +298,7 @@ ROLE_PERMISSIONS = {
 }
 
 
+@kind(Kind.COMPUTE)
 def rbac_decisions(rng: random.Random, runner: CodeRunner) -> Instance:
     # admin разрешает всё — даём его редко, иначе ответ почти всегда «да».
     pool = ["viewer", "editor", "auditor"] * 3 + ["admin"]
@@ -317,6 +328,7 @@ def rbac_decisions(rng: random.Random, runner: CodeRunner) -> Instance:
     return Instance(prompt, " ".join(answers), params, code="\n".join(requests))
 
 
+@kind(Kind.COMPUTE)
 def replay_window(rng: random.Random, runner: CodeRunner) -> Instance:
     window = rng.choice([30, 60, 120])
     now0 = rng.randint(1000, 9000)
@@ -346,6 +358,7 @@ def replay_window(rng: random.Random, runner: CodeRunner) -> Instance:
     )
 
 
+@kind(Kind.TRACE)
 def path_traversal(rng: random.Random, runner: CodeRunner) -> Instance:
     import posixpath
 
@@ -378,6 +391,7 @@ def path_traversal(rng: random.Random, runner: CodeRunner) -> Instance:
     return Instance(prompt, " ".join(map(str, escaped)) or "0", {"inputs": inputs}, code=code)
 
 
+@kind(Kind.COMPUTE)
 def jwt_checks(rng: random.Random, runner: CodeRunner) -> Instance:
     now, leeway = rng.randint(1000, 9000), rng.choice([0, 30, 60])
     tokens = [
@@ -407,6 +421,7 @@ def jwt_checks(rng: random.Random, runner: CodeRunner) -> Instance:
     return Instance(prompt, " ".join(map(str, accepted)) or "0", params, code=code)
 
 
+@kind(Kind.TRACE)
 def timing_compare(rng: random.Random, runner: CodeRunner) -> Instance:
     secret = "".join(rng.choice("0123456789abcdef") for _ in range(6))
     guesses = []

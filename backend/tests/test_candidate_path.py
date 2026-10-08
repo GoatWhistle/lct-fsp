@@ -120,7 +120,16 @@ def test_item_carries_no_answer(candidate: TestClient, seeds: Seeds) -> None:
 
     item = candidate.get(ITEM).json()
 
-    assert set(item) == {"id", "number", "max_items", "topic", "prompt", "code", "options"}
+    assert set(item) == {
+        "id",
+        "number",
+        "max_items",
+        "topic",
+        "prompt",
+        "code",
+        "answer_format",
+        "options",
+    }
     assert item["number"] == 1 and item["max_items"] == 30
     family, seed = presented(seeds, item)
     instance = family.instance(seed, RUNNER)
@@ -676,3 +685,62 @@ def test_failed_calibration_keeps_the_answer(
     assert category_rows(db_engine) == [("qa", "middle")]
     assert calibration(db_engine) == before
     assert "Калибровка после ответа" in caplog.text
+
+
+def test_grade_change_through_api(
+    seeds: Seeds, candidate: TestClient, db_engine: Engine, clock: FrozenClock, mechanics: Mechanics
+) -> None:
+    """Смена грейда в кабинете (§4): прошедший заявленный грейд сразу видит попытку вверх;
+    переход вниз — сразу, без заданий; после него попытка вверх отклоняется с датой, когда можно,
+    а история показывает попытку и переход."""
+    take_survey(candidate)
+    start(candidate, "middle")
+    path = answer_items(candidate, seeds, everything)
+    assert path["grade_up"] == {"grade": "senior", "available_at": None}
+    assert path["grade_down"] == "junior"
+
+    answered = answered_count(db_engine)
+    down = candidate.post(f"{PATH}/step-down")
+    assert down.status_code == 200, down.text
+    path = down.json()
+    assert path["category"]["grade"]["code"] == "junior"
+    assert category_rows(db_engine) == [("qa", "junior")]
+    assert answered_count(db_engine) == answered
+    assert [(h["event"], h["grade"]) for h in path["history"]] == [
+        ("attempt", "middle"),
+        ("step_down", "junior"),
+    ]
+    attempt = path["history"][0]
+    assert attempt["purpose"] == "determination" and attempt["outcome"] == "assigned"
+    assert attempt["overall"]["theta_sd"] > 0
+
+    allowed = clock.now() + timedelta(days=mechanics.grade_change_interval_days)
+    assert datetime.fromisoformat(path["grade_up"]["available_at"]) == allowed
+    early = candidate.post(f"{PATH}/attempts", json={"grade": "middle"})
+    assert early.status_code == 409
+    assert early.json()["code"] == "grade_change_too_early"
+    assert datetime.fromisoformat(early.json()["available_at"]) == allowed
+
+    # Сессия за срок ожидания истекает — вход заново.
+    email = candidate.get("/api/auth/me").json()["email"]
+    clock.set(allowed)
+    login = {"email": email, "password": PASSWORD}
+    candidate.post("/api/auth/login", json=login).raise_for_status()
+    up = start(candidate, "middle")
+    assert up["stage"] == "test" and up["category"]["grade"]["code"] == "junior"
+    path = answer_items(candidate, seeds, everything)
+    assert path["category"]["grade"]["code"] == "middle"
+    assert path["history"][-1]["purpose"] == "grade_up"
+    with db_engine.connect() as conn:
+        kinds = conn.execute(text("SELECT kind FROM category_changes ORDER BY number")).scalars()
+        assert list(kinds) == ["determined", "down", "up"]
+
+
+def test_step_down_needs_a_category(candidate: TestClient) -> None:
+    take_survey(candidate)
+    response = candidate.post(f"{PATH}/step-down")
+    assert response.status_code == 409
+    assert response.json() == {
+        "code": "path_step_unavailable",
+        "message": "Этот шаг сейчас недоступен — обновите страницу",
+    }

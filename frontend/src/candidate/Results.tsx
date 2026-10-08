@@ -39,13 +39,16 @@ export function SkillProfileView({ profile }: { profile: SkillProfile }) {
     <div className="card">
       <h2>Профиль навыков</h2>
       <p className="muted">
-        Собран из всех ваших тестов. Работодатель видит его в обезличенной карточке.
+        Собран из ваших тестов и результатов ФСП. Работодатель видит его в обезличенной карточке.
       </p>
       <table className="table">
         <tbody>
           {profile.topics.map((t) => (
             <tr key={t.topic.code}>
-              <th scope="row">{t.topic.name}</th>
+              <th scope="row">
+                {t.topic.name}
+                {t.sources.includes('fsp') && <span className="hint importance-source">подтверждено ФСП</span>}
+              </th>
               <td>{levelWords(t.level.band)}</td>
               <td className="num muted">{thetaWithError(t.level)}</td>
             </tr>

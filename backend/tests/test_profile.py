@@ -3,16 +3,26 @@
 import io
 import uuid
 from collections.abc import Callable
+from datetime import UTC, datetime
 from typing import Any, cast
 
 import pytest
 from fastapi.testclient import TestClient
 from pypdf import PdfReader
 from pypdf.generic import DictionaryObject
+from sqlalchemy import Engine
 
 from app.domain.account import Role
-from tests.candidate_path import answer_items, nothing, pass_test, start, take_survey
-from tests.conftest import Seeds
+from app.repository.orm import Survey
+from tests.candidate_path import (
+    answer_items,
+    everything,
+    nothing,
+    pass_test,
+    start,
+    take_survey,
+)
+from tests.conftest import Seeds, transaction
 
 PROFILE = "/api/candidate/profile"
 PDF = f"{PROFILE}/pdf"
@@ -370,10 +380,88 @@ def test_card_without_filled_profile(
     assert card["self_reported"] is None
 
 
-def test_card_exists_only_for_candidates_with_category(
+MIDDLE = {"code": "middle", "name": "Middle"}
+
+
+def test_card_of_a_confirmed_grade(
+    candidate: TestClient, employer: TestClient, seeds: Seeds
+) -> None:
+    pass_test(candidate, seeds)
+
+    card = employer.get(CARD.format(candidate_id(candidate))).json()
+
+    assert card["grade_status"] == {"kind": "confirmed", "claimed": MIDDLE, "confirmed": MIDDLE}
+
+
+def test_card_of_a_category_below_the_claim(
+    candidate: TestClient, employer: TestClient, seeds: Seeds
+) -> None:
+    take_survey(candidate)
+    start(candidate, "middle")
+    assert answer_items(candidate, seeds, nothing)["offer_grade"] == "junior"
+    start(candidate, "junior")
+    # Каскад мог спуститься и ниже junior: важно, что категория ниже заявки.
+    confirmed = answer_items(candidate, seeds, everything)["category"]["grade"]
+    assert confirmed != MIDDLE
+
+    card = employer.get(CARD.format(candidate_id(candidate))).json()
+
+    assert card["grade_status"] == {
+        "kind": "below_claimed",
+        "claimed": MIDDLE,
+        "confirmed": confirmed,
+    }
+
+
+def test_card_of_an_unconfirmed_claim_is_anonymized(
+    candidate: TestClient, employer: TestClient, seeds: Seeds
+) -> None:
+    take_survey(candidate)
+    start(candidate, "middle")
+    assert answer_items(candidate, seeds, nothing)["stage"] == "offer"
+    candidate.put(PROFILE, json=profile_body()).raise_for_status()
+
+    response = employer.get(CARD.format(candidate_id(candidate)))
+
+    assert response.status_code == 200, response.text
+    card = response.json()
+    assert card["grade_status"] == {"kind": "unconfirmed", "claimed": MIDDLE, "confirmed": None}
+    assert (card["category"], card["skill_profile"]) == (None, None)
+    assert card["self_reported"]["experience_years"] == 4
+    for hidden in ("Ёлкина", "yulia.yolkina", "123-45-67", "yolkina_qa", "287500", "contact"):
+        assert hidden not in response.text, hidden
+
+
+def test_card_keeps_the_claim_after_a_new_survey(
+    candidate: TestClient, employer: TestClient, seeds: Seeds, db_engine: Engine
+) -> None:
+    """Сохранённая подборка могла показать кандидата нижним блоком: смена направления карточку
+    не отнимает, статус — по последней попытке."""
+    take_survey(candidate)
+    start(candidate, "middle")
+    assert answer_items(candidate, seeds, nothing)["stage"] == "offer"
+    with transaction(db_engine) as session:
+        session.add(
+            Survey(
+                user_id=uuid.UUID(candidate_id(candidate)),
+                number=2,
+                specialization_code="backend",
+                created_at=datetime.now(UTC),
+            )
+        )
+
+    response = employer.get(CARD.format(candidate_id(candidate)))
+
+    assert response.status_code == 200, response.text
+    assert response.json()["grade_status"]["claimed"] == MIDDLE
+
+
+def test_card_exists_only_for_candidates_with_category_or_claim(
     candidate: TestClient, employer: TestClient
 ) -> None:
     candidate.put(PROFILE, json=profile_body()).raise_for_status()
+    # Опрос без выбранного грейда — заявки нет.
+    take_survey(candidate)
 
     for unknown in (candidate_id(candidate), candidate_id(employer), str(uuid.uuid4())):
         response = employer.get(CARD.format(unknown))

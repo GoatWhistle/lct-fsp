@@ -21,7 +21,16 @@ from datetime import datetime
 from typing import Any
 
 from app.domain import candidate
-from app.domain.attempt import AnsweredPresentation, Attempt, PathState, Presentation, Survey
+from app.domain.attempt import (
+    AnsweredPresentation,
+    Attempt,
+    AttemptPurpose,
+    CategoryChange,
+    ChangeKind,
+    PathState,
+    Presentation,
+    Survey,
+)
 from app.domain.catalog import CatalogRef, Grade, Specialization, Topic
 from app.domain.skill import Normal, SkillProfileLevels
 from app.repository.memory.unit_of_work import MemoryStore
@@ -119,6 +128,7 @@ class MemoryAttemptRepository:
         grade_code: str,
         continues: Attempt | None,
         now: datetime,
+        purpose: AttemptPurpose = AttemptPurpose.determination,
     ) -> Attempt:
         mine = self._store.collection("user_attempts").setdefault(user_id, [])
         attempt = Attempt(
@@ -130,12 +140,16 @@ class MemoryAttemptRepository:
             grade_code=grade_code,
             continues_attempt_id=continues.id if continues else None,
             started_at=now,
+            purpose=purpose,
         )
         self._attempts()[attempt.id] = attempt
         mine.append(attempt)
         _insort(self._store.collection(STARTED), survey.specialization_code, attempt, now)
         self._exposure_changed(attempt)
         return attempt
+
+    def attempts(self, user_id: uuid.UUID) -> list[Attempt]:
+        return list(self._of_user(user_id))
 
     def add_presentation(
         self,
@@ -193,12 +207,30 @@ class MemoryAttemptRepository:
 
     def add_category(self, attempt: Attempt, now: datetime) -> None:
         assert attempt.outcome_grade_code is not None
-        grade = self._grades[attempt.outcome_grade_code]
-        self._store.collection("categories")[attempt.user_id] = candidate.Category(
-            specialization=self._ref(attempt.specialization_code),
-            grade=CatalogRef(grade.code, grade.name),
-            assigned_at=now,
+        self._set_category(
+            attempt.user_id,
+            attempt.specialization_code,
+            attempt.outcome_grade_code,
+            ChangeKind.determined,
+            now,
         )
+
+    def raise_category(self, attempt: Attempt, now: datetime) -> None:
+        assert attempt.outcome_grade_code is not None
+        self._set_category(
+            attempt.user_id,
+            attempt.specialization_code,
+            attempt.outcome_grade_code,
+            ChangeKind.up,
+            now,
+        )
+
+    def lower_category(self, user_id: uuid.UUID, grade_code: str, now: datetime) -> None:
+        current: candidate.Category = self._store.collection("categories")[user_id]
+        self._set_category(user_id, current.specialization.code, grade_code, ChangeKind.down, now)
+
+    def category_changes(self, user_id: uuid.UUID) -> list[CategoryChange]:
+        return list(self._store.collection("category_changes").get(user_id, []))
 
     def chain(self, attempt: Attempt) -> list[Attempt]:
         attempts = self._attempts()
@@ -266,7 +298,11 @@ class MemoryAttemptRepository:
         return candidate.SkillProfile(
             overall=self._level(levels.overall),
             topics=tuple(
-                candidate.TopicLevel(CatalogRef(t.code, t.name), self._level(levels.topics[t.code]))
+                candidate.TopicLevel(
+                    CatalogRef(t.code, t.name),
+                    self._level(levels.topics[t.code]),
+                    levels.sources.get(t.code, frozenset()),
+                )
                 for t in topics
                 if t.code in levels.topics
             ),
@@ -282,6 +318,27 @@ class MemoryAttemptRepository:
         now: datetime,
     ) -> None:
         self._store.collection("profiles")[(user_id, specialization_code)] = (levels, now)
+
+    def _set_category(
+        self,
+        user_id: uuid.UUID,
+        specialization_code: str,
+        grade_code: str,
+        kind: ChangeKind,
+        now: datetime,
+    ) -> None:
+        grade = self._grades[grade_code]
+        self._store.collection("categories")[user_id] = candidate.Category(
+            specialization=self._ref(specialization_code),
+            grade=CatalogRef(grade.code, grade.name),
+            assigned_at=now,
+        )
+        changes = self._store.collection("category_changes")
+        changes.setdefault(user_id, []).append(CategoryChange(grade_code, kind, now))
+
+    def profiled_specializations(self, user_id: uuid.UUID) -> list[str]:
+        profiles: dict[tuple[uuid.UUID, str], object] = self._store.collection("profiles")  # type: ignore[assignment]
+        return sorted(specialization for owner, specialization in profiles if owner == user_id)
 
     def _attempts(self) -> dict[uuid.UUID, Attempt]:
         attempts: dict[uuid.UUID, Attempt] = self._store.collection("attempts")  # type: ignore[assignment]

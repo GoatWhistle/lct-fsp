@@ -4,6 +4,7 @@ HTTP-статуса здесь нет — его назначает таблиц
 своя строка в таблице, `tests/test_errors.py` это проверяет.
 """
 
+from datetime import datetime
 from typing import ClassVar
 
 
@@ -51,6 +52,61 @@ class InvalidCredentials(DomainError):
 class EmailNotVerified(DomainError):
     code = "email_not_verified"
     message = "Адрес не подтверждён. Откройте ссылку из письма или запросите новое"
+
+
+# ФСП ID и достижения ФСП.
+
+
+class FspIdUnavailable(DomainError):
+    code = "fsp_id_unavailable"
+    message = "ФСП ID сейчас недоступен — попробуйте позже или войдите по email"
+
+
+class FspIdRejected(DomainError):
+    code = "fsp_id_rejected"
+    message = "Вход через ФСП ID не завершён — попробуйте ещё раз"
+
+
+class FspAuthorizationInvalid(DomainError):
+    code = "fsp_authorization_invalid"
+    message = "Сеанс входа через ФСП ID устарел — начните заново"
+
+
+class FspEmailUnverified(DomainError):
+    code = "fsp_email_unverified"
+    message = "В ФСП ID нет подтверждённого email — подтвердите его в ФСП ID или войдите по email"
+
+
+class FspEmailTaken(DomainError):
+    code = "fsp_email_taken"
+    message = (
+        "Учётка с этим email уже есть — войдите по email и привяжите ФСП ID в профиле кандидата"
+    )
+
+
+class FspIdTaken(DomainError):
+    code = "fsp_id_taken"
+    message = "Этот ФСП ID уже привязан к другой учётке"
+
+
+class FspAlreadyLinked(DomainError):
+    code = "fsp_already_linked"
+    message = "К учётке уже привязан другой ФСП ID — сначала отвяжите его"
+
+
+class FspNotLinked(DomainError):
+    code = "fsp_not_linked"
+    message = "ФСП ID не привязан"
+
+
+class FspUnlinkForbidden(DomainError):
+    code = "fsp_unlink_forbidden"
+    message = "Учётка создана через ФСП ID и входит только через него — отвязать ID нельзя"
+
+
+class FspRegistryUnavailable(DomainError):
+    code = "fsp_registry_unavailable"
+    message = "Реестр ФСП сейчас недоступен — показаны последние полученные достижения"
 
 
 # Справочники.
@@ -107,6 +163,28 @@ class NoTestInProgress(DomainError):
 class ItemNotCurrent(DomainError):
     code = "item_not_current"
     message = "Это задание уже не текущее — обновите страницу"
+
+
+class GradeNotNext(DomainError):
+    code = "grade_not_next"
+    message = "Попытка вверх — только на следующий грейд после вашего"
+
+
+class GradeChangeTooEarly(DomainError):
+    """Правило ожидания смены грейда (mechanics.md, §4): дата, с которой можно, — в
+    `available_at`."""
+
+    code = "grade_change_too_early"
+    message = "Попытка на этот грейд пока недоступна — грейд меняется не чаще установленного срока"
+
+    def __init__(self, available_at: datetime) -> None:
+        super().__init__()
+        self.available_at = available_at
+
+
+class NoLowerGrade(DomainError):
+    code = "no_lower_grade"
+    message = "Ниже вашего грейда грейдов нет"
 
 
 # Профиль кандидата.
@@ -209,3 +287,36 @@ class TaskNotGradable(DomainError):
 class AnswerAlreadyGraded(DomainError):
     code = "answer_already_graded"
     message = "Ответ уже оценён"
+
+
+# Приглашения.
+
+
+class InvitationNotFound(DomainError):
+    code = "invitation_not_found"
+    message = "Приглашение не найдено"
+
+
+class CompanyProfileRequired(DomainError):
+    code = "company_profile_required"
+    message = "Сначала заполните профиль компании — кандидат увидит его в приглашении"
+
+
+class InvitationTransitionNotAllowed(DomainError):
+    code = "invitation_transition_not_allowed"
+    message = "На это приглашение уже ответили — обновите страницу"
+
+
+class InvitationExpired(InvitationTransitionNotAllowed):
+    code = "invitation_expired"
+    message = "Срок ответа на приглашение истёк"
+
+
+class InvitationAlreadyOpen(DomainError):
+    code = "invitation_already_open"
+    message = "Кандидат ещё не ответил на прошлое приглашение компании — дождитесь ответа"
+
+
+class InvitationBudgetExhausted(DomainError):
+    code = "invitation_budget_exhausted"
+    message = "Бюджет приглашений на эту неделю исчерпан — он обновится в понедельник"

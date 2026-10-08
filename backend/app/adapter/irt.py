@@ -2,9 +2,9 @@
 
 Уровень по теме — общая часть плюс отклонение темы: θ_t = θ_s + δ_t. Совместное апостериорное
 (θ_s, δ_1, …, δ_T) приближается нормальным N(μ, Σ); наблюдения учитываются по порядку, каждое —
-шагом Ньютона к моде. Погрешность уровня — σ модели с поправкой κ. Между наблюдениями к Σ
-добавляется шум свежести по общей части уровня (§11). Всё здесь — чистые функции: без БД и
-состояния, детерминированы.
+шагом Ньютона к моде; в профиле навыков шаг повторяется до сходимости моды (§3, §11). Погрешность
+уровня — σ модели с поправкой κ. Между наблюдениями к Σ добавляется шум свежести по общей части
+уровня (§11). Всё здесь — чистые функции: без БД и состояния, детерминированы.
 
 Модуль целиком — реализация порта `app.usecase.interface.SkillModel` (`initial`, `estimate`,
 `advance`).
@@ -19,6 +19,11 @@ from datetime import datetime, timedelta
 from app.domain.skill import Normal, Observation, Prior, SkillProfileLevels, sigmoid
 
 __all__ = ["Estimate", "advance", "diffuse", "estimate", "initial", "sigmoid", "update"]
+
+# Сходимость моды по наблюдению: шаг по проекции на hᵀ меньше допуска, θ. Итераций — с запасом:
+# одномерный Ньютон по выпуклой функции сходится за 3–6 шагов.
+_MODE_TOLERANCE = 1e-10
+_MODE_MAX_ITERATIONS = 50
 
 
 @dataclass(frozen=True)
@@ -61,21 +66,40 @@ def initial(prior: Prior) -> Estimate:
     return Estimate(prior.topics, prior.weights, mean, cov, prior.sd_inflation)
 
 
-def update(est: Estimate, obs: Observation) -> Estimate:
-    """Шаг по наблюдению (§3): Σ' = Σ − wI Σhhᵀ Σ / (1 + wI hᵀΣh), μ' = μ + w a (u − p) Σ'h."""
+def update(est: Estimate, obs: Observation, *, to_mode: bool = False) -> Estimate:
+    """Шаг по наблюдению (§3): Σ' = Σ − wI Σhhᵀ Σ / (1 + wI hᵀΣh), μ' = μ + τ Σh.
+
+    Мода апостериорного лежит на прямой μ + τ Σh, поэтому шаг Ньютона — одномерный по τ: мода —
+    корень g(τ) = τ − w a (u − p(τ)), g'(τ) = 1 + wI(τ) hᵀΣh. Один шаг из τ = 0 — оценка теста;
+    `to_mode` — шаги до сходимости моды, I — в ней.
+    """
     j = est._index(obs.topic)
     a, w = obs.discrimination, obs.weight
     sigma_h = [row[0] + row[j] for row in est.cov]
     h_sigma_h = sigma_h[0] + sigma_h[j]
-    p = sigmoid(a * (est.mean[0] + est.mean[j] - obs.difficulty))
-    wi = w * a * a * p * (1 - p)
+    projection = est.mean[0] + est.mean[j]
+
+    def information(tau: float) -> tuple[float, float]:
+        p = sigmoid(a * (projection + tau * h_sigma_h - obs.difficulty))
+        return p, w * a * a * p * (1 - p)
+
+    tau = 0.0
+    p, wi = information(tau)
+    for _ in range(_MODE_MAX_ITERATIONS if to_mode else 1):
+        step = (w * a * (float(obs.correct) - p) - tau) / (1 + wi * h_sigma_h)
+        tau += step
+        p, wi = information(tau)
+        if abs(step) * h_sigma_h < _MODE_TOLERANCE:
+            break
+    if not to_mode:
+        # Один шаг: Σ' — по информации в исходной оценке, как в оценке теста.
+        _, wi = information(0.0)
     k = wi / (1 + wi * h_sigma_h)
     cov = tuple(
         tuple(cik - k * si * sk for cik, sk in zip(row, sigma_h, strict=True))
         for row, si in zip(est.cov, sigma_h, strict=True)
     )
-    step = w * a * (float(obs.correct) - p) / (1 + wi * h_sigma_h)
-    mean = tuple(m + step * s for m, s in zip(est.mean, sigma_h, strict=True))
+    mean = tuple(m + tau * s for m, s in zip(est.mean, sigma_h, strict=True))
     return Estimate(est.topics, est.weights, mean, cov, est.sd_inflation)
 
 
@@ -105,9 +129,12 @@ def diffuse(est: Estimate, prior: Prior, elapsed: timedelta) -> Estimate:
     return dataclasses.replace(est, cov=tuple(tuple(row) for row in cov))
 
 
-def estimate(prior: Prior, observations: Iterable[Observation]) -> Estimate:
-    """(априорное, упорядоченные наблюдения) → (μ, Σ) на момент последнего наблюдения. С
-    затуханием в априорном каждому наблюдению нужен момент `at`."""
+def estimate(
+    prior: Prior, observations: Iterable[Observation], *, to_mode: bool = False
+) -> Estimate:
+    """(априорное, упорядоченные наблюдения) → (μ, Σ) на момент последнего наблюдения; `to_mode` —
+    каждое наблюдение до сходимости моды, как в профиле навыков. С затуханием в априорном каждому
+    наблюдению нужен момент `at`."""
     est = initial(prior)
     last: datetime | None = None
     for obs in observations:
@@ -117,7 +144,7 @@ def estimate(prior: Prior, observations: Iterable[Observation]) -> Estimate:
             if last is not None:
                 est = diffuse(est, prior, obs.at - last)
             last = obs.at
-        est = update(est, obs)
+        est = update(est, obs, to_mode=to_mode)
     return est
 
 

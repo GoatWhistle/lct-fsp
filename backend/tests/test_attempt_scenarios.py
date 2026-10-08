@@ -18,18 +18,27 @@ from app.adapter.clock import FrozenClock
 from app.adapter.code_runner import InProcessCodeRunner
 from app.adapter.seed import DerivedSeeds
 from app.domain import bank
-from app.domain.attempt import PathView, Stage
+from app.domain.attempt import (
+    AttemptOutcome,
+    AttemptPurpose,
+    GradeUp,
+    HistoryEvent,
+    PathView,
+    Stage,
+)
 from app.domain.bank import Family, get_family
-from app.domain.calibration import Parameters
+from app.domain.calibration import ExpertGap, Parameters
 from app.domain.catalog import Grade, Specialization, Topic
-from app.domain.errors import StepUnavailable
+from app.domain.errors import GradeChangeTooEarly, GradeNotNext, NoLowerGrade, StepUnavailable
 from app.domain.skill import Normal
 from app.repository.memory.attempt import MemoryAttemptRepository
 from app.repository.memory.calibration import MemoryCalibrationRepository
+from app.repository.memory.fsp import MemoryFspEvidence
 from app.repository.memory.regular_task import MemoryRegularTasks
 from app.repository.memory.unit_of_work import MemoryStore, MemoryUnitOfWork
 from app.usecase.attempt import CandidatePath
 from app.usecase.calibration import AnswerCalibration
+from app.usecase.skill_profile import specialization_prior
 from settings import CATALOG_FILE, Mechanics, Settings
 
 T0 = datetime(2026, 10, 7, 12, 0, tzinfo=UTC)
@@ -94,6 +103,10 @@ class SpyCalibration:
         self.calls.append("refit_due")
         self.inner.refit_due(codes, specialization, now)
 
+    def expert_gaps(self, families: Sequence[bank.Family]) -> dict[str, ExpertGap]:
+        self.calls.append("expert_gaps")
+        return self.inner.expert_gaps(families)
+
 
 @pytest.fixture
 def calibration(store: MemoryStore) -> SpyCalibration:
@@ -127,6 +140,7 @@ def paths(
         MemoryUnitOfWork(store),
         attempts,
         MemoryRegularTasks(store),
+        MemoryFspEvidence(store, load_catalog(CATALOG_FILE).fsp_disciplines),
         calibration,
         MaxInformationSelector(
             top_k=MECHANICS.exposure_top_k, max_rate=MECHANICS.exposure_max_rate
@@ -290,3 +304,170 @@ def test_calibration_steps_after_each_answer_and_relinks_after_stop(
     assert last.stopped
     assert set(last.families) == {a.family_code for a, _ in answered}
     assert stop_calls == ["lock", "learn", "relink", "refit_due"]
+
+
+def _category(paths: CandidatePath, user: uuid.UUID) -> str:
+    view = paths.path(user)
+    assert view.stage == Stage.category and view.category is not None, view
+    return view.category.grade.code
+
+
+def _determine(
+    paths: CandidatePath, answer_items: AnswerItems, claimed: str = "middle"
+) -> uuid.UUID:
+    """Кандидат сразу проходит заявленный грейд — все ответы верны."""
+    user = uuid.uuid4()
+    paths.submit_survey(user, specialization="qa")
+    paths.start_attempt(user, grade=claimed)
+    answer_items(user, lambda family: True)
+    assert _category(paths, user) == claimed
+    return user
+
+
+def test_grade_up_right_after_passing_claimed_grade(
+    paths: CandidatePath, answer_items: AnswerItems
+) -> None:
+    """Первое определение часы не сдвигает: прошедший заявленный грейд сразу пробует выше, и
+    прошедшая попытка меняет категорию (§4)."""
+    user = _determine(paths, answer_items)
+    assert paths.path(user).grade_up == GradeUp("senior", None)
+
+    started = paths.start_attempt(user, grade="senior")
+    assert started.stage == Stage.test and started.category is not None
+    view = answer_items(user, lambda family: True)
+
+    assert _category(paths, user) == "senior"
+    assert view.grade_up is None
+    assert view.history[-1].purpose == AttemptPurpose.grade_up
+    assert view.history[-1].outcome == AttemptOutcome.assigned
+
+
+def test_failed_grade_up_keeps_category_and_holds_short_interval(
+    paths: CandidatePath, clock: FrozenClock, answer_items: AnswerItems
+) -> None:
+    """Провал попытки вверх категорию не меняет и часы смены не сдвигает: повтор на тот же
+    грейд — через `grade_retry_interval_days`, не через `grade_change_interval_days`."""
+    user = _determine(paths, answer_items)
+    paths.start_attempt(user, grade="senior")
+    view = answer_items(user, lambda family: False)
+
+    assert _category(paths, user) == "middle"
+    failed_at = clock.now()
+    retry = failed_at + timedelta(days=MECHANICS.grade_retry_interval_days)
+    assert view.grade_up == GradeUp("senior", retry)
+    assert view.history[-1].outcome == AttemptOutcome.not_passed
+    with pytest.raises(GradeChangeTooEarly) as early:
+        paths.start_attempt(user, grade="senior")
+    assert early.value.available_at == retry
+
+    clock.shift(timedelta(days=MECHANICS.grade_retry_interval_days))
+    assert paths.start_attempt(user, grade="senior").stage == Stage.test
+
+
+def test_grade_up_starts_from_clean_prior(
+    paths: CandidatePath, attempts: MemoryAttemptRepository, answer_items: AnswerItems
+) -> None:
+    """Попытка вверх — измерение с чистого листа: оценка до первого ответа — априорное, а не
+    оценка прошлых попыток. Профиль навыков копит все попытки."""
+    user = _determine(paths, answer_items)
+    before = len(attempts.answered(user, "qa"))
+    paths.start_attempt(user, grade="senior")
+    item = paths.current_item(user)
+
+    attempt = attempts.state(user).attempt
+    assert attempt is not None and attempt.purpose == AttemptPurpose.grade_up
+    assert attempt.continues_attempt_id is None
+    prior = specialization_prior([t.code for t in SPECIALIZATIONS["qa"].topics], MECHANICS)
+    first = attempt.presentations[0]
+    assert first.topic_code == item.topic.code
+    expected = irt.initial(prior).topic(first.topic_code)
+    assert (first.topic_theta_before, first.topic_theta_sd_before) == (expected.mean, expected.sd)
+
+    answer_items(user, lambda family: True)
+    assert len(attempts.answered(user, "qa")) > before
+
+
+def test_step_down_is_immediate_and_moves_the_clock(
+    paths: CandidatePath,
+    attempts: MemoryAttemptRepository,
+    clock: FrozenClock,
+    answer_items: AnswerItems,
+) -> None:
+    """Переход вниз — без теста и без ожидания: заданий не показано, грейд сменился сразу. Это
+    смена: обратно вверх — через `grade_change_interval_days`."""
+    user = _determine(paths, answer_items)
+    shown = len(attempts.answered(user, "qa"))
+    assert paths.path(user).grade_down == "junior"
+
+    view = paths.step_down(user)
+
+    assert view.stage == Stage.category
+    assert _category(paths, user) == "junior"
+    assert len(attempts.answered(user, "qa")) == shown
+    state = attempts.state(user)
+    assert state.attempt is not None and state.attempt.finished_at is not None
+    back = clock.now() + timedelta(days=MECHANICS.grade_change_interval_days)
+    assert view.grade_up == GradeUp("middle", back)
+    assert view.history[-1].event == HistoryEvent.step_down
+    # Подсказка «попробуйте senior» после перехода вниз устарела.
+    assert view.result is not None and view.result.grade_up_hint is None
+
+    # Вниз ждать не нужно — ещё раз сразу.
+    assert _category_after(paths.step_down(user)) == "intern"
+    with pytest.raises(NoLowerGrade):
+        paths.step_down(user)
+
+    with pytest.raises(GradeChangeTooEarly):
+        paths.start_attempt(user, grade="junior")
+    clock.shift(timedelta(days=MECHANICS.grade_change_interval_days))
+    assert paths.start_attempt(user, grade="junior").stage == Stage.test
+
+
+def _category_after(view: PathView) -> str:
+    assert view.category is not None
+    return view.category.grade.code
+
+
+def test_grade_up_after_change_waits_for_change_interval(
+    paths: CandidatePath, clock: FrozenClock, answer_items: AnswerItems
+) -> None:
+    """Попытка вверх раньше `grade_change_interval_days` после смены вверх отклоняется с датой,
+    когда можно."""
+    user = _determine(paths, answer_items, claimed="junior")
+    paths.start_attempt(user, grade="middle")
+    answer_items(user, lambda family: True)
+    assert _category(paths, user) == "middle"
+    allowed = clock.now() + timedelta(days=MECHANICS.grade_change_interval_days)
+
+    clock.shift(timedelta(days=MECHANICS.grade_change_interval_days - 1))
+    with pytest.raises(GradeChangeTooEarly) as early:
+        paths.start_attempt(user, grade="senior")
+    assert early.value.available_at == allowed
+
+    clock.shift(timedelta(days=1))
+    assert paths.start_attempt(user, grade="senior").stage == Stage.test
+
+
+def test_claimed_grade_lost_in_cascade_holds_short_interval(
+    paths: CandidatePath, clock: FrozenClock, answer_items: AnswerItems
+) -> None:
+    """Каскад увёл ниже заявленного: заявленный грейд держит короткий интервал, как
+    проваленный."""
+    user = uuid.uuid4()
+    paths.submit_survey(user, specialization="qa")
+    paths.start_attempt(user, grade="middle")
+    view = answer_items(user, lambda family: family.grade in ("intern", "junior"))
+    assert _category_after(view) == "junior"
+
+    retry = clock.now() + timedelta(days=MECHANICS.grade_retry_interval_days)
+    assert view.grade_up == GradeUp("middle", retry)
+    with pytest.raises(GradeChangeTooEarly):
+        paths.start_attempt(user, grade="middle")
+
+
+def test_grade_up_only_to_next_grade(paths: CandidatePath, answer_items: AnswerItems) -> None:
+    user = _determine(paths, answer_items, claimed="junior")
+    with pytest.raises(GradeNotNext):
+        paths.start_attempt(user, grade="senior")
+    with pytest.raises(GradeNotNext):
+        paths.start_attempt(user, grade="junior")

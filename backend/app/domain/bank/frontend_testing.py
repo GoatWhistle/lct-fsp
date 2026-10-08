@@ -3,10 +3,11 @@
 
 import random
 
-from app.domain.bank.family import Instance, rounded
+from app.domain.bank.family import Instance, Kind, kind, rounded
 from app.domain.bank.runner import CodeRunner
 
 
+@kind(Kind.TRACE)
 def jest_matchers(rng: random.Random, runner: CodeRunner) -> Instance:
     rows = []
     for _ in range(6):
@@ -35,6 +36,7 @@ def jest_matchers(rng: random.Random, runner: CodeRunner) -> Instance:
     )
 
 
+@kind(Kind.TRACE)
 def jest_focus(rng: random.Random, runner: CodeRunner) -> Instance:
     tests = []
     for i in range(1, rng.randint(7, 10)):
@@ -57,6 +59,7 @@ def jest_focus(rng: random.Random, runner: CodeRunner) -> Instance:
     return Instance(prompt, f"{ran} {skipped} {todo}", {"tests": tests}, code=code)
 
 
+@kind(Kind.TRACE)
 def mock_returns(rng: random.Random, runner: CodeRunner) -> Instance:
     once = [rng.randint(1, 99) for _ in range(rng.randint(1, 3))]
     default = rng.choice([None, rng.randint(1, 99)])
@@ -85,6 +88,7 @@ def mock_returns(rng: random.Random, runner: CodeRunner) -> Instance:
     return Instance(prompt, answer, {"once": once, "default": default, "calls": calls}, code=code)
 
 
+@kind(Kind.TRACE)
 def fake_timers(rng: random.Random, runner: CodeRunner) -> Instance:
     timeout = rng.randrange(100, 2000, 100)
     interval = rng.randrange(100, 1000, 50)
@@ -114,6 +118,7 @@ def fake_timers(rng: random.Random, runner: CodeRunner) -> Instance:
     )
 
 
+@kind(Kind.TRACE)
 def rtl_queries(rng: random.Random, runner: CodeRunner) -> Instance:
     rows = []
     for _ in range(5):
@@ -139,6 +144,7 @@ def rtl_queries(rng: random.Random, runner: CodeRunner) -> Instance:
     return Instance(prompt, " ".join(o for _, _, o in rows), {"rows": rows}, code="\n".join(lines))
 
 
+@kind(Kind.TRACE)
 def async_pitfalls(rng: random.Random, runner: CodeRunner) -> Instance:
     cases = []
     for i in range(1, 7):
@@ -178,6 +184,7 @@ def async_pitfalls(rng: random.Random, runner: CodeRunner) -> Instance:
     )
 
 
+@kind(Kind.COMPUTE)
 def visual_diff(rng: random.Random, runner: CodeRunner) -> Instance:
     width, height = rng.choice([(1280, 720), (800, 600), (375, 812)])
     threshold = rng.choice([0.1, 0.2, 0.5, 1.0])
@@ -201,6 +208,7 @@ def visual_diff(rng: random.Random, runner: CodeRunner) -> Instance:
     return Instance(prompt, answer, params, code="\n".join(lines))
 
 
+@kind(Kind.COMPUTE)
 def test_shards(rng: random.Random, runner: CodeRunner) -> Instance:
     shards = rng.randint(2, 4)
     durations = [rng.randint(5, 90) for _ in range(rng.randint(7, 10))]
@@ -221,6 +229,7 @@ def test_shards(rng: random.Random, runner: CodeRunner) -> Instance:
     return Instance(prompt, " ".join(map(str, totals)), {"shards": shards, "durations": durations})
 
 
+@kind(Kind.COMPUTE)
 def coverage_thresholds(rng: random.Random, runner: CodeRunner) -> Instance:
     files = rng.sample(["Cart.tsx", "api.ts", "useAuth.ts", "format.ts", "Checkout.tsx"], 3)
     rows = []
@@ -259,6 +268,7 @@ def coverage_thresholds(rng: random.Random, runner: CodeRunner) -> Instance:
     )
 
 
+@kind(Kind.COMPUTE)
 def playwright_retries(rng: random.Random, runner: CodeRunner) -> Instance:
     retries = rng.randint(1, 3)
     tests = []

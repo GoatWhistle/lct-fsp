@@ -7,7 +7,7 @@ from typing import Annotated
 from pydantic import BaseModel, Field, StringConstraints
 
 from app.controller.salary import SALARY_UNIT, Salary, SalaryBasisOut
-from app.controller.schemas import CatalogRef
+from app.controller.schemas import CatalogRef, GradeStatusOut
 from app.domain.importance import TopicImportance
 from app.domain.match import Verdict
 from app.domain.selection import SelectionBlock
@@ -113,6 +113,9 @@ class TopicFitOut(BaseModel):
     regular_task: bool = Field(
         description="Источник уверенности: уровень по теме подтверждён регулярным заданием"
     )
+    fsp_confirmed: bool = Field(
+        description="Уровень подтверждён результатом ФСП — к формулировке «подтверждено ФСП»"
+    )
 
 
 class StackFitOut(BaseModel):
@@ -121,26 +124,44 @@ class StackFitOut(BaseModel):
     )
     total: int = Field(description="Технологий в стеке потребности")
     overlap: float = Field(description="Доля технологий потребности в самоописании, o")
-    contribution: float = Field(description="Вклад самоописания: λ · o, не больше λ")
+    contribution: float | None = Field(
+        description="Вклад самоописания: λ · o, не больше λ; `null` — нижний блок, скора нет"
+    )
 
 
 class SelectionEntryOut(BaseModel):
-    """Кандидат в подборке — обезличенно: место, категория, соответствие и его объяснение.
+    """Кандидат в подборке — обезличенно: место, статус грейда, соответствие и его объяснение.
     Карточка — `GET /api/employer/candidates/{candidate_id}`."""
 
     candidate_id: uuid.UUID
-    position: int = Field(description="Место в общей выдаче с 1: сначала точные, затем близкие")
+    position: int = Field(
+        description="Место в общей выдаче с 1: сначала точные, затем близкие, затем "
+        "неподтверждённые"
+    )
     block: SelectionBlock = Field(
-        description="`exact` — категория совпадает с потребностью, `nearby` — соседний грейд"
+        description="`exact` — категория совпадает с потребностью, `nearby` — соседний грейд, "
+        "`unconfirmed` — категории нет, заявлен грейд потребности"
     )
     rank: int = Field(description="Место внутри блока с 1")
-    grade: CatalogRef = Field(description="Грейд категории кандидата")
-    match_score: float = Field(description="Соответствие — сумма вкладов тем и стека")
-    acceptance_probability: float | None = Field(
-        description="P(принятия); `null` — модели принятия ещё нет, множитель 1"
+    grade: CatalogRef = Field(
+        description="Грейд категории кандидата; в блоке `unconfirmed` — заявленный"
     )
-    mutual_score: float = Field(description="Соответствие × P(принятия) — по нему порядок")
-    topics: list[TopicFitOut] = Field(description="Вклады тем в порядке тем специализации")
+    grade_status: GradeStatusOut
+    match_score: float | None = Field(
+        description="Соответствие — сумма вкладов тем и стека; `null` — блок `unconfirmed`: "
+        "скора по темам нет"
+    )
+    acceptance_probability: float | None = Field(
+        description="P(принятия); `null` — модели принятия ещё нет, множитель 1, или блок "
+        "`unconfirmed`"
+    )
+    mutual_score: float | None = Field(
+        description="Соответствие × P(принятия) — по нему порядок; `null` — блок `unconfirmed`: "
+        "порядок по доле стека потребности в самоописании"
+    )
+    topics: list[TopicFitOut] = Field(
+        description="Вклады тем в порядке тем специализации; в блоке `unconfirmed` — пусто"
+    )
     stack: StackFitOut
     stale: bool = Field(description="Давно не подтверждал уровень: сигналов не было дольше срока")
 
@@ -153,6 +174,9 @@ class SelectionSummaryOut(BaseModel):
     grade: CatalogRef
     exact_total: int = Field(description="Кандидатов с категорией потребности")
     nearby_total: int = Field(description="Близких — соседнего грейда")
+    unconfirmed_total: int = Field(
+        description="Без категории, заявивших грейд потребности, — нижний блок"
+    )
     created_at: datetime
 
 

@@ -115,6 +115,90 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/auth/fsp/authorize": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Начать вход или привязку через ФСП ID
+         * @description Ставит httpOnly-cookie `fsp_authorization` с начатым входом на 10 минут и отдаёт адрес страницы ФСП ID. После входа ФСП ID возвращает браузер на `GET /api/auth/fsp/callback`.
+         */
+        post: operations["authorize_api_auth_fsp_authorize_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/auth/fsp/callback": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Возврат из ФСП ID
+         * @description Сюда ФСП ID возвращает браузер. Вход — ставит cookie входа и ведёт в кабинет; привязка — ведёт в профиль кандидата `/candidate/profile`. Ошибка — на страницу входа или в профиль с кодом в `fsp_error`.
+         */
+        get: operations["callback_api_auth_fsp_callback_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/candidate/fsp": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * ФСП ID кандидата
+         * @description Привязка, подтверждённые достижения с датой снимка и расхождения ФСП и теста.
+         */
+        get: operations["get_status_api_candidate_fsp_get"];
+        put?: never;
+        post?: never;
+        /**
+         * Отвязать ФСП ID
+         * @description Достижения и их вклад в профиль навыков уходят, ФСП ID освобождается. Учётке, созданной через ФСП ID, отвязать нельзя: она входит только через него.
+         */
+        delete: operations["unlink_api_candidate_fsp_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/candidate/fsp/refresh": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Обновить достижения из реестра ФСП
+         * @description Новый снимок достижений и пересчёт профиля навыков. Реестр недоступен — остаётся прошлый снимок.
+         */
+        post: operations["refresh_api_candidate_fsp_refresh_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/candidate/cabinet": {
         parameters: {
             query?: never;
@@ -180,9 +264,29 @@ export interface paths {
         put?: never;
         /**
          * Начать тест на грейд
-         * @description На шаге `grade` — тест на заявленный грейд. На шаге `offer` — дотест на предложенный грейд: он продолжает оценку прошлых ответов.
+         * @description На шаге `grade` — тест на заявленный грейд. На шаге `offer` — дотест на предложенный грейд: он продолжает оценку прошлых ответов. На шаге `category` — попытка на следующий грейд с чистого листа: категория меняется, только если грейд подтверждён. Раньше срока по правилу ожидания попытка не начинается — ошибка несёт `available_at`.
          */
         post: operations["start_attempt_api_candidate_path_attempts_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/candidate/path/step-down": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Перейти на грейд ниже
+         * @description Без теста и без ожидания: уверенность для младшего грейда уже набрана той же оценкой. Это смена категории — обратно вверх только тестом, после срока ожидания.
+         */
+        post: operations["step_down_api_candidate_path_step_down_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -437,7 +541,7 @@ export interface paths {
         };
         /**
          * Карточка кандидата
-         * @description Обезличенная: категория, профиль навыков и структурная часть самоописания. Без ФИО, контактов, свободного текста и ожидаемой зарплаты. Есть только у кандидата с категорией.
+         * @description Статус грейда, категория, профиль навыков и структурная часть самоописания. ФИО, контакты и свободный текст — только после принятия приглашения вашей компании; ожидаемой зарплаты нет никогда. Есть у кандидата с категорией или с заявленным грейдом.
          */
         get: operations["get_candidate_card_api_employer_candidates__candidate_id__get"];
         put?: never;
@@ -606,6 +710,124 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/employer/invitations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Отправленные приглашения и бюджет недели
+         * @description Только приглашения своей компании, новые сверху.
+         */
+        get: operations["list_sent_api_employer_invitations_get"];
+        put?: never;
+        /**
+         * Пригласить кандидата
+         * @description Вилка обязательна. Тратит одно приглашение из бюджета недели — отклонённые и истёкшие его не возвращают. Пока прошлое приглашение компании кандидату открыто, новое не создаётся.
+         */
+        post: operations["send_invitation_api_employer_invitations_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/employer/invitations/{invitation_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Отправленное приглашение */
+        get: operations["get_sent_api_employer_invitations__invitation_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/candidate/invitations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Входящие приглашения
+         * @description Новые сверху.
+         */
+        get: operations["list_inbox_api_candidate_invitations_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/candidate/invitations/{invitation_id}/view": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Открыть приглашение
+         * @description Отправленное становится просмотренным; повторное открытие ничего не меняет.
+         */
+        post: operations["view_invitation_api_candidate_invitations__invitation_id__view_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/candidate/invitations/{invitation_id}/accept": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Принять приглашение
+         * @description Компания увидит контакты и полный профиль, кроме ожидаемой зарплаты.
+         */
+        post: operations["accept_invitation_api_candidate_invitations__invitation_id__accept_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/candidate/invitations/{invitation_id}/decline": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Отклонить приглашение */
+        post: operations["decline_invitation_api_candidate_invitations__invitation_id__decline_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/catalog/grades": {
         parameters: {
             query?: never;
@@ -701,6 +923,11 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /**
+         * AnswerFormat
+         * @enum {string}
+         */
+        AnswerFormat: "value" | "choice" | "ordering";
         /** AnswerIn */
         AnswerIn: {
             /**
@@ -721,10 +948,16 @@ export interface components {
         AttemptIn: {
             /**
              * Grade
-             * @description Код грейда: заявленный или предложенный для дотеста
+             * @description Код грейда: заявленный, предложенный для дотеста или, при категории, следующий выше
              */
             grade: string;
         };
+        /**
+         * AttemptOutcome
+         * @description Чем закончилась попытка (mechanics.md, §4).
+         * @enum {string}
+         */
+        AttemptOutcome: "assigned" | "offered" | "no_category" | "not_passed";
         /** AttemptProgressOut */
         AttemptProgressOut: {
             /** Grade */
@@ -737,6 +970,12 @@ export interface components {
              */
             max_items: number;
         };
+        /**
+         * AttemptPurpose
+         * @description Зачем попытка (mechanics.md, §4).
+         * @enum {string}
+         */
+        AttemptPurpose: "determination" | "grade_up";
         /**
          * AuthorAnswerOut
          * @description Ответ на задание для его автора — обезличенно: без ФИО, контактов и профиля.
@@ -781,9 +1020,9 @@ export interface components {
         };
         /**
          * CandidateCardOut
-         * @description Обезличенная карточка: решение — по навыкам. Без ФИО, контактов, свободного текста
-         *     («о себе», роли, софт-скиллы) и ожидаемой зарплаты; фото, возраст и вуз платформа не
-         *     собирает.
+         * @description Карточка кандидата для работодателя. До принятия приглашения — обезличенная: решение по
+         *     навыкам, без ФИО, контактов, свободного текста («о себе», роли, софт-скиллы) и ожидаемой
+         *     зарплаты; фото, возраст и вуз платформа не собирает. Ожидаемой зарплаты нет и после.
          */
         CandidateCardOut: {
             /**
@@ -791,12 +1030,25 @@ export interface components {
              * Format: uuid
              */
             id: string;
-            /** @description Категория по тесту */
-            category: components["schemas"]["CategoryOut"];
+            /** @description Категория по тесту; `null` — тест не пройден, грейд только заявлен */
+            category: components["schemas"]["CategoryOut"] | null;
+            grade_status: components["schemas"]["GradeStatusOut"];
             /** @description Профиль навыков специализации */
             skill_profile: components["schemas"]["SkillProfileOut"] | null;
             /** @description Самоописание; `null` — кандидат ещё не заполнил профиль */
             self_reported: components["schemas"]["SelfReportedOut"] | null;
+            /**
+             * Fsp Achievements
+             * @description Достижения ФСП — подтверждены, отдельно от самоописания: тип результата, дисциплина и год. Пусто — нет истории ФСП, это не штраф
+             */
+            fsp_achievements: components["schemas"]["FspAnonymizedAchievementOut"][];
+            /** @description ФИО, контакты и свободный текст — только после принятия приглашения вашей компании; `null` — карточка обезличена или профиль не заполнен */
+            disclosed: components["schemas"]["DisclosedOut"] | null;
+            /**
+             * Fsp Details
+             * @description Достижения ФСП полностью — с мероприятием, местом и ролью в команде: только после принятия приглашения вашей компании; `null` — карточка обезличена
+             */
+            fsp_details: components["schemas"]["FspAchievementOut"][] | null;
         };
         /** CatalogRef */
         CatalogRef: {
@@ -894,6 +1146,29 @@ export interface components {
              */
             updated_at: string;
         };
+        /**
+         * DisclosedOut
+         * @description Раскрытая часть анкеты: ФИО, контакты и свободный текст. Ожидаемой зарплаты нет и здесь.
+         */
+        DisclosedOut: {
+            /** Full Name */
+            full_name: string;
+            /** Contact Email */
+            contact_email: string;
+            /** Contact Phone */
+            contact_phone: string | null;
+            /**
+             * Telegram
+             * @description Имя пользователя без «@»
+             */
+            telegram: string | null;
+            /** About */
+            about: string;
+            /** Job Roles */
+            job_roles: string[];
+            /** Soft Skills */
+            soft_skills: string[];
+        };
         /** ErrorOut */
         ErrorOut: {
             /**
@@ -908,6 +1183,126 @@ export interface components {
              * @example Неверный email или пароль
              */
             message: string;
+            /**
+             * Available At
+             * @description Когда действие станет доступно — у ошибок правила ожидания
+             */
+            available_at?: string | null;
+        };
+        /**
+         * FspAchievementOut
+         * @description Подтверждённое достижение ФСП — полностью: самому кандидату, в PDF и работодателю после
+         *     раскрытия.
+         */
+        FspAchievementOut: {
+            /**
+             * Event
+             * @description Мероприятие
+             */
+            event: string;
+            /**
+             * Date
+             * Format: date
+             */
+            date: string;
+            discipline: components["schemas"]["CatalogRef"];
+            /**
+             * Place
+             * @description Место; `null` — реестр его не знает
+             */
+            place: number | null;
+            /** @description `winner` — победитель, `prize` — призёр, `finalist` — финалист, `participant` — участник отбора: факт в профиле, не свидетельство уровня */
+            result: components["schemas"]["FspResult"];
+            /** @description Роль в команде — специализация; `null` — личный зачёт или роль не указана */
+            team_role: components["schemas"]["CatalogRef"] | null;
+        };
+        /**
+         * FspAnonymizedAchievementOut
+         * @description Достижение в обезличенной карточке: только тип результата, дисциплина и год.
+         */
+        FspAnonymizedAchievementOut: {
+            /** @description `winner` — победитель, `prize` — призёр, `finalist` — финалист, `participant` — участник отбора: факт в профиле, не свидетельство уровня */
+            result: components["schemas"]["FspResult"];
+            discipline: components["schemas"]["CatalogRef"];
+            /** Year */
+            year: number;
+        };
+        /** FspAuthorizeIn */
+        FspAuthorizeIn: {
+            /** @description `login` — войти или зарегистрироваться кандидатом, `link` — привязать ФСП ID к своей учётке кандидата (нужен вход) */
+            intent: components["schemas"]["FspIntent"];
+        };
+        /** FspAuthorizeOut */
+        FspAuthorizeOut: {
+            /**
+             * Authorization Url
+             * @description Куда отправить браузер — страница входа ФСП ID
+             */
+            authorization_url: string;
+        };
+        /**
+         * FspDivergenceOut
+         * @description Тест по теме ниже уровня результата ФСП больше чем на `fsp_divergence_theta`. Видит только
+         *     кандидат; на профиль и подбор не влияет.
+         */
+        FspDivergenceOut: {
+            topic: components["schemas"]["CatalogRef"];
+            discipline: components["schemas"]["CatalogRef"];
+            /** Event */
+            event: string;
+            result: components["schemas"]["FspResult"];
+            /**
+             * Result Level
+             * @description Уровень, который подтверждает результат, θ
+             */
+            result_level: number;
+            /**
+             * Test Level
+             * @description Уровень по теме по оценке теста, θ
+             */
+            test_level: number;
+        };
+        /**
+         * FspIntent
+         * @description Зачем кандидат ушёл в ФСП ID: войти или привязать ID к своей учётке.
+         * @enum {string}
+         */
+        FspIntent: "login" | "link";
+        /**
+         * FspResult
+         * @description Тип результата — поле реестра `fsp_result`.
+         * @enum {string}
+         */
+        FspResult: "winner" | "prize" | "finalist" | "participant";
+        /** FspStatusOut */
+        FspStatusOut: {
+            /**
+             * Linked
+             * @description ФСП ID привязан
+             */
+            linked: boolean;
+            /** Fsp Id */
+            fsp_id: string | null;
+            /**
+             * Can Unlink
+             * @description Отвязать можно: у учётки есть пароль. Учётка, созданная через ФСП ID, входит только через него
+             */
+            can_unlink: boolean;
+            /**
+             * Fetched At
+             * @description Когда достижения получены из реестра; `null` — реестр ещё не ответил
+             */
+            fetched_at: string | null;
+            /**
+             * Achievements
+             * @description Подтверждённые достижения; пусто — нет истории ФСП
+             */
+            achievements: components["schemas"]["FspAchievementOut"][];
+            /**
+             * Divergences
+             * @description Расхождения ФСП и теста — рекомендация пройти проверочный блок, без штрафа
+             */
+            divergences: components["schemas"]["FspDivergenceOut"][];
         };
         /** GradeIn */
         GradeIn: {
@@ -939,11 +1334,75 @@ export interface components {
              */
             probability: number;
         };
+        /**
+         * GradeStatusKind
+         * @enum {string}
+         */
+        GradeStatusKind: "confirmed" | "below_claimed" | "unconfirmed";
+        /**
+         * GradeStatusOut
+         * @description Что тест сказал о заявленном грейде. Заявленный — грейд первой попытки определения
+         *     категории: дотест каскада его не меняет.
+         */
+        GradeStatusOut: {
+            /** @description `confirmed` — подтверждён тестом; `below_claimed` — заявлен `claimed`, подтверждён `confirmed` ниже; `unconfirmed` — заявлен, тест не пройден */
+            kind: components["schemas"]["GradeStatusKind"];
+            /** @description Заявленный грейд */
+            claimed: components["schemas"]["CatalogRef"];
+            /** @description Грейд категории; `null` — категории нет */
+            confirmed: components["schemas"]["CatalogRef"] | null;
+        };
+        /** GradeUpOut */
+        GradeUpOut: {
+            /**
+             * Grade
+             * @description Грейд попытки вверх — следующий после грейда категории
+             */
+            grade: string;
+            /**
+             * Available At
+             * @description С какого момента можно начать попытку; `null` — можно сейчас
+             */
+            available_at: string | null;
+        };
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
         };
+        /**
+         * HistoryEntryOut
+         * @description Строка истории: остановленная попытка (`attempt`) или переход вниз (`step_down`).
+         */
+        HistoryEntryOut: {
+            /**
+             * At
+             * Format: date-time
+             */
+            at: string;
+            event: components["schemas"]["HistoryEvent"];
+            /**
+             * Grade
+             * @description У попытки — её грейд, у перехода — грейд после него
+             */
+            grade: string;
+            /** @description `determination` — первичное определение с каскадом, `grade_up` — попытка вверх; у перехода — `null` */
+            purpose: components["schemas"]["AttemptPurpose"] | null;
+            /** @description Уровень по оценке попытки */
+            overall: components["schemas"]["LevelOut"] | null;
+            /** @description `assigned` — грейд присвоен; `offered` — предложен дотест; `no_category` — категории нет; `not_passed` — попытка вверх не прошла, категория прежняя */
+            outcome: components["schemas"]["AttemptOutcome"] | null;
+            /**
+             * Outcome Grade
+             * @description Присвоенный или предложенный грейд
+             */
+            outcome_grade: string | null;
+        };
+        /**
+         * HistoryEvent
+         * @enum {string}
+         */
+        HistoryEvent: "attempt" | "step_down";
         /** IndustryOut */
         IndustryOut: {
             /** Code */
@@ -951,6 +1410,111 @@ export interface components {
             /** Name */
             name: string;
         };
+        /** InvitationBudgetOut */
+        InvitationBudgetOut: {
+            /**
+             * Limit
+             * @description Приглашений на компанию за календарную неделю
+             */
+            limit: number;
+            /**
+             * Used
+             * @description Отправлено за текущую неделю в любом статусе
+             */
+            used: number;
+            /** Remaining */
+            remaining: number;
+            /**
+             * Resets At
+             * Format: date-time
+             * @description Понедельник 00:00 по Москве
+             */
+            resets_at: string;
+        };
+        /** InvitationIn */
+        InvitationIn: {
+            /**
+             * Candidate Id
+             * Format: uuid
+             */
+            candidate_id: string;
+            /**
+             * Description
+             * @description Что предлагаете: роль, команда, задачи
+             */
+            description: string;
+            /**
+             * Salary From
+             * @description Вилка «от», обязательна. Рубли в месяц до вычета НДФЛ (гросс)
+             */
+            salary_from: number;
+            /**
+             * Salary To
+             * @description Вилка «до», обязательна. Рубли в месяц до вычета НДФЛ (гросс)
+             */
+            salary_to: number;
+            /**
+             * Contact
+             * @description Как кандидату связаться с компанией, если примет приглашение
+             */
+            contact: string;
+        };
+        /** InvitationOut */
+        InvitationOut: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Candidate Id
+             * Format: uuid
+             */
+            candidate_id: string;
+            /**
+             * Company Name
+             * @description Компания на момент отправки
+             */
+            company_name: string;
+            /** Description */
+            description: string;
+            /**
+             * Salary From
+             * @description Рубли в месяц до вычета НДФЛ (гросс)
+             */
+            salary_from: number;
+            /**
+             * Salary To
+             * @description Рубли в месяц до вычета НДФЛ (гросс)
+             */
+            salary_to: number;
+            /** Contact */
+            contact: string;
+            /** @description `sent` → `viewed` → `accepted`, `declined` или `expired`; «истекло» — без ответа дольше срока с отправки */
+            status: components["schemas"]["InvitationStatus"];
+            /**
+             * Sent At
+             * Format: date-time
+             */
+            sent_at: string;
+            /** Viewed At */
+            viewed_at: string | null;
+            /** Answered At */
+            answered_at: string | null;
+            /**
+             * Expires At
+             * Format: date-time
+             * @description До какого момента можно ответить
+             */
+            expires_at: string;
+            /** @description Все суммы платформы — до вычета НДФЛ (`gross`) */
+            readonly salary_basis: components["schemas"]["SalaryBasis"];
+        };
+        /**
+         * InvitationStatus
+         * @enum {string}
+         */
+        InvitationStatus: "sent" | "viewed" | "accepted" | "declined" | "expired";
         /** ItemOut */
         ItemOut: {
             /**
@@ -976,11 +1540,13 @@ export interface components {
              * @description Листинг, таблица или граф к условию — моноширинно
              */
             code: string | null;
+            /** @description `value` — ответ вводится текстом; `choice` — буква одного варианта; `ordering` — буквы всех вариантов в верном порядке строкой, например «KBXF» */
+            answer_format: components["schemas"]["AnswerFormat"];
             /**
              * Options
-             * @description Варианты; пусто — ответ вводится текстом
+             * @description Варианты по алфавиту букв; буквы и порядок текстов свои у каждого экземпляра
              */
-            options: string[];
+            options: components["schemas"]["OptionOut"][];
         };
         /**
          * LevelBandOut
@@ -1158,6 +1724,16 @@ export interface components {
             /** @description Все суммы платформы — до вычета НДФЛ (`gross`) */
             readonly salary_basis: components["schemas"]["SalaryBasis"];
         };
+        /** OptionOut */
+        OptionOut: {
+            /**
+             * Letter
+             * @description Буква варианта — её кандидат и отвечает
+             */
+            letter: string;
+            /** Text */
+            text: string;
+        };
         /**
          * OwnAnswerOut
          * @description Свой ответ кандидата. Вердикта и оценки нет: они уходят в профиль навыков.
@@ -1189,6 +1765,18 @@ export interface components {
             /** @description На шагах `offer`, `category`, `no_category` */
             result: components["schemas"]["TestResultOut"] | null;
             profile: components["schemas"]["SkillProfileOut"] | null;
+            /** @description Попытка на грейд выше — на шаге `category`, если грейд не старший */
+            grade_up: components["schemas"]["GradeUpOut"] | null;
+            /**
+             * Grade Down
+             * @description Грейд для перехода вниз без теста — на шаге `category`, если грейд не младший
+             */
+            grade_down: string | null;
+            /**
+             * History
+             * @description Попытки и переходы по времени — на шаге `category`
+             */
+            history: components["schemas"]["HistoryEntryOut"][];
         };
         /** ProfileIn */
         ProfileIn: {
@@ -1396,10 +1984,10 @@ export interface components {
          * SelectionBlock
          * @enum {string}
          */
-        SelectionBlock: "exact" | "nearby";
+        SelectionBlock: "exact" | "nearby" | "unconfirmed";
         /**
          * SelectionEntryOut
-         * @description Кандидат в подборке — обезличенно: место, категория, соответствие и его объяснение.
+         * @description Кандидат в подборке — обезличенно: место, статус грейда, соответствие и его объяснение.
          *     Карточка — `GET /api/employer/candidates/{candidate_id}`.
          */
         SelectionEntryOut: {
@@ -1410,36 +1998,37 @@ export interface components {
             candidate_id: string;
             /**
              * Position
-             * @description Место в общей выдаче с 1: сначала точные, затем близкие
+             * @description Место в общей выдаче с 1: сначала точные, затем близкие, затем неподтверждённые
              */
             position: number;
-            /** @description `exact` — категория совпадает с потребностью, `nearby` — соседний грейд */
+            /** @description `exact` — категория совпадает с потребностью, `nearby` — соседний грейд, `unconfirmed` — категории нет, заявлен грейд потребности */
             block: components["schemas"]["SelectionBlock"];
             /**
              * Rank
              * @description Место внутри блока с 1
              */
             rank: number;
-            /** @description Грейд категории кандидата */
+            /** @description Грейд категории кандидата; в блоке `unconfirmed` — заявленный */
             grade: components["schemas"]["CatalogRef"];
+            grade_status: components["schemas"]["GradeStatusOut"];
             /**
              * Match Score
-             * @description Соответствие — сумма вкладов тем и стека
+             * @description Соответствие — сумма вкладов тем и стека; `null` — блок `unconfirmed`: скора по темам нет
              */
-            match_score: number;
+            match_score: number | null;
             /**
              * Acceptance Probability
-             * @description P(принятия); `null` — модели принятия ещё нет, множитель 1
+             * @description P(принятия); `null` — модели принятия ещё нет, множитель 1, или блок `unconfirmed`
              */
             acceptance_probability: number | null;
             /**
              * Mutual Score
-             * @description Соответствие × P(принятия) — по нему порядок
+             * @description Соответствие × P(принятия) — по нему порядок; `null` — блок `unconfirmed`: порядок по доле стека потребности в самоописании
              */
-            mutual_score: number;
+            mutual_score: number | null;
             /**
              * Topics
-             * @description Вклады тем в порядке тем специализации
+             * @description Вклады тем в порядке тем специализации; в блоке `unconfirmed` — пусто
              */
             topics: components["schemas"]["TopicFitOut"][];
             stack: components["schemas"]["StackFitOut"];
@@ -1478,6 +2067,11 @@ export interface components {
              * @description Близких — соседнего грейда
              */
             nearby_total: number;
+            /**
+             * Unconfirmed Total
+             * @description Без категории, заявивших грейд потребности, — нижний блок
+             */
+            unconfirmed_total: number;
             /**
              * Created At
              * Format: date-time
@@ -1527,6 +2121,11 @@ export interface components {
              */
             nearby_total: number;
             /**
+             * Unconfirmed Total
+             * @description Без категории, заявивших грейд потребности, — нижний блок
+             */
+            unconfirmed_total: number;
+            /**
              * Created At
              * Format: date-time
              */
@@ -1569,6 +2168,21 @@ export interface components {
              */
             industries: components["schemas"]["CatalogRef"][];
         };
+        /** SentInvitationsOut */
+        SentInvitationsOut: {
+            budget: components["schemas"]["InvitationBudgetOut"];
+            /**
+             * Invitations
+             * @description Новые сверху
+             */
+            invitations: components["schemas"]["InvitationOut"][];
+        };
+        /**
+         * SignalSource
+         * @description Уровень доверия, из которого пришло наблюдение (§11). Проверочный блок встанет рядом.
+         * @enum {string}
+         */
+        SignalSource: "fsp" | "test" | "regular_task";
         /**
          * SkillProfileOut
          * @description Профиль навыков: уровень и погрешность по темам из всех сигналов — так его видит подбор.
@@ -1619,9 +2233,9 @@ export interface components {
             overlap: number;
             /**
              * Contribution
-             * @description Вклад самоописания: λ · o, не больше λ
+             * @description Вклад самоописания: λ · o, не больше λ; `null` — нижний блок, скора нет
              */
-            contribution: number;
+            contribution: number | null;
         };
         /**
          * Stage
@@ -1815,6 +2429,11 @@ export interface components {
              * @description Источник уверенности: уровень по теме подтверждён регулярным заданием
              */
             regular_task: boolean;
+            /**
+             * Fsp Confirmed
+             * @description Уровень подтверждён результатом ФСП — к формулировке «подтверждено ФСП»
+             */
+            fsp_confirmed: boolean;
         };
         /**
          * TopicImportance
@@ -1861,6 +2480,11 @@ export interface components {
         TopicLevelOut: {
             topic: components["schemas"]["CatalogRef"];
             level: components["schemas"]["LevelOut"];
+            /**
+             * Sources
+             * @description Из каких сигналов сложился уровень: `fsp` — результаты ФСП, `test` — адаптивный тест; пусто — данных по теме нет
+             */
+            sources: components["schemas"]["SignalSource"][];
         };
         /** TopicOut */
         TopicOut: {
@@ -2142,6 +2766,243 @@ export interface operations {
             };
         };
     };
+    authorize_api_auth_fsp_authorize_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FspAuthorizeIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FspAuthorizeOut"];
+                };
+            };
+            /** @description `not_authenticated` — Войдите, чтобы продолжить */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description `wrong_role` — Раздел доступен другой роли */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description `fsp_id_unavailable` — ФСП ID сейчас недоступен — попробуйте позже или войдите по email */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    callback_api_auth_fsp_callback_get: {
+        parameters: {
+            query?: {
+                state?: string | null;
+                code?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: {
+                fsp_authorization?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            303: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_status_api_candidate_fsp_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FspStatusOut"];
+                };
+            };
+            /** @description `not_authenticated` — Войдите, чтобы продолжить */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description `wrong_role` — Раздел доступен другой роли */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    unlink_api_candidate_fsp_delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FspStatusOut"];
+                };
+            };
+            /** @description `not_authenticated` — Войдите, чтобы продолжить */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description `wrong_role` — Раздел доступен другой роли */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /**
+             * @description `fsp_not_linked` — ФСП ID не привязан
+             *
+             *     `fsp_unlink_forbidden` — Учётка создана через ФСП ID и входит только через него — отвязать ID нельзя
+             */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    refresh_api_candidate_fsp_refresh_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FspStatusOut"];
+                };
+            };
+            /** @description `not_authenticated` — Войдите, чтобы продолжить */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description `wrong_role` — Раздел доступен другой роли */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description `fsp_not_linked` — ФСП ID не привязан */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description `fsp_registry_unavailable` — Реестр ФСП сейчас недоступен — показаны последние полученные достижения */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
     candidate_cabinet_api_candidate_cabinet_get: {
         parameters: {
             query?: never;
@@ -2326,6 +3187,10 @@ export interface operations {
              * @description `path_step_unavailable` — Этот шаг сейчас недоступен — обновите страницу
              *
              *     `grade_not_offered` — Продолжить можно только на предложенном грейде
+             *
+             *     `grade_not_next` — Попытка вверх — только на следующий грейд после вашего
+             *
+             *     `grade_change_too_early` — Попытка на этот грейд пока недоступна — грейд меняется не чаще установленного срока
              */
             409: {
                 headers: {
@@ -2337,6 +3202,57 @@ export interface operations {
             };
             /** @description `unknown_grade` — Такого грейда нет в справочнике */
             422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    step_down_api_candidate_path_step_down_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PathOut"];
+                };
+            };
+            /** @description `not_authenticated` — Войдите, чтобы продолжить */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description `wrong_role` — Раздел доступен другой роли */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /**
+             * @description `path_step_unavailable` — Этот шаг сейчас недоступен — обновите страницу
+             *
+             *     `no_lower_grade` — Ниже вашего грейда грейдов нет
+             */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -3861,6 +4777,415 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    list_sent_api_employer_invitations_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SentInvitationsOut"];
+                };
+            };
+            /** @description `not_authenticated` — Войдите, чтобы продолжить */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description `wrong_role` — Раздел доступен другой роли */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    send_invitation_api_employer_invitations_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["InvitationIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InvitationOut"];
+                };
+            };
+            /** @description `not_authenticated` — Войдите, чтобы продолжить */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description `wrong_role` — Раздел доступен другой роли */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description `candidate_not_found` — Кандидат не найден */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /**
+             * @description `company_profile_required` — Сначала заполните профиль компании — кандидат увидит его в приглашении
+             *
+             *     `invitation_already_open` — Кандидат ещё не ответил на прошлое приглашение компании — дождитесь ответа
+             *
+             *     `invitation_budget_exhausted` — Бюджет приглашений на эту неделю исчерпан — он обновится в понедельник
+             */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description `invalid_salary_range` — Вилка — обе границы больше нуля, «от» не больше «до» */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    get_sent_api_employer_invitations__invitation_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                invitation_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InvitationOut"];
+                };
+            };
+            /** @description `not_authenticated` — Войдите, чтобы продолжить */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description `wrong_role` — Раздел доступен другой роли */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description `invitation_not_found` — Приглашение не найдено */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_inbox_api_candidate_invitations_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InvitationOut"][];
+                };
+            };
+            /** @description `not_authenticated` — Войдите, чтобы продолжить */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description `wrong_role` — Раздел доступен другой роли */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    view_invitation_api_candidate_invitations__invitation_id__view_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                invitation_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InvitationOut"];
+                };
+            };
+            /** @description `not_authenticated` — Войдите, чтобы продолжить */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description `wrong_role` — Раздел доступен другой роли */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description `invitation_not_found` — Приглашение не найдено */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    accept_invitation_api_candidate_invitations__invitation_id__accept_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                invitation_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InvitationOut"];
+                };
+            };
+            /** @description `not_authenticated` — Войдите, чтобы продолжить */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description `wrong_role` — Раздел доступен другой роли */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description `invitation_not_found` — Приглашение не найдено */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /**
+             * @description `invitation_transition_not_allowed` — На это приглашение уже ответили — обновите страницу
+             *
+             *     `invitation_expired` — Срок ответа на приглашение истёк
+             */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    decline_invitation_api_candidate_invitations__invitation_id__decline_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                invitation_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InvitationOut"];
+                };
+            };
+            /** @description `not_authenticated` — Войдите, чтобы продолжить */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description `wrong_role` — Раздел доступен другой роли */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description `invitation_not_found` — Приглашение не найдено */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /**
+             * @description `invitation_transition_not_allowed` — На это приглашение уже ответили — обновите страницу
+             *
+             *     `invitation_expired` — Срок ответа на приглашение истёк
+             */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

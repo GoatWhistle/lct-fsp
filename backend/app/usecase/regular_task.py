@@ -33,11 +33,12 @@ from app.usecase.interface import (
     CatalogRepository,
     Clock,
     CompanyRepository,
+    FspEvidenceReader,
     RegularTaskRepository,
     SkillModel,
     UnitOfWork,
 )
-from app.usecase.skill_profile import refresh_skill_profile
+from app.usecase.skill_profile import fsp_evidence, refresh_skill_profile
 from settings import Mechanics
 
 
@@ -57,6 +58,7 @@ class RegularTasks:
         attempts: AttemptRepository,
         catalog: CatalogRepository,
         companies: CompanyRepository,
+        fsp: FspEvidenceReader,
         skill_model: SkillModel,
         clock: Clock,
         mechanics: Mechanics,
@@ -66,6 +68,7 @@ class RegularTasks:
         self._attempts = attempts
         self._catalog = catalog
         self._companies = companies
+        self._fsp = fsp
         self._skill_model = skill_model
         self._clock = clock
         self._mechanics = mechanics
@@ -192,5 +195,6 @@ class RegularTasks:
             candidate_id,
             specialization,
             [t.code for t in topics],
+            fsp_evidence(self._attempts, self._fsp, candidate_id),
         )
         self._attempts.save_profile(candidate_id, specialization, levels, self._clock.now())

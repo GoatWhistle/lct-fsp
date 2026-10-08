@@ -23,9 +23,10 @@ def operations(spec: dict[str, Any]) -> list[tuple[str, str, dict[str, Any]]]:
 
 
 def test_every_operation_has_summary_and_success_response(spec: dict[str, Any]) -> None:
+    """Успех — 2xx, у возврата браузера из ФСП ID — перенаправление на фронт."""
     for method, path, op in operations(spec):
         assert op.get("summary"), f"{method} {path}: нет summary"
-        assert any(code.startswith("2") for code in op["responses"]), f"{method} {path}"
+        assert any(code.startswith(("2", "3")) for code in op["responses"]), f"{method} {path}"
 
 
 def test_role_apis_document_401_and_403(spec: dict[str, Any]) -> None:
@@ -76,6 +77,27 @@ def test_role_apis_document_401_and_403(spec: dict[str, Any]) -> None:
         ("PUT", "/api/employer/needs/{need_id}", {"need_not_found", "invalid_salary_range"}),
         ("DELETE", "/api/employer/needs/{need_id}", {"need_not_found"}),
         ("GET", "/api/employer/candidates/{candidate_id}", {"candidate_not_found"}),
+        (
+            "POST",
+            "/api/employer/invitations",
+            {
+                "invalid_salary_range",
+                "candidate_not_found",
+                "company_profile_required",
+                "invitation_already_open",
+                "invitation_budget_exhausted",
+            },
+        ),
+        ("GET", "/api/employer/invitations/{invitation_id}", {"invitation_not_found"}),
+        ("POST", "/api/candidate/invitations/{invitation_id}/view", {"invitation_not_found"}),
+        *[
+            (
+                "POST",
+                f"/api/candidate/invitations/{{invitation_id}}/{action}",
+                {"invitation_not_found", "invitation_transition_not_allowed", "invitation_expired"},
+            )
+            for action in ("accept", "decline")
+        ],
     ],
 )
 def test_error_codes_are_documented(

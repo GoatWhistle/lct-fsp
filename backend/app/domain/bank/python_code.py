@@ -2,7 +2,7 @@
 
 import random
 
-from app.domain.bank.family import Instance
+from app.domain.bank.family import Instance, Kind, kind
 from app.domain.bank.runner import CodeRunner
 
 PROMPT = "Что выведет программа на Python? Ответ — то, что появится в консоли."
@@ -13,12 +13,14 @@ def run_python(runner: CodeRunner, code: str) -> str:
     return runner.python(code).strip()
 
 
+@kind(Kind.TRACE)
 def arithmetic(rng: random.Random, runner: CodeRunner) -> Instance:
     x, y, z = rng.randint(40, 199), rng.randint(3, 9), rng.randint(2, 7)
     code = f"x = {x}\ny = {y}\nx = x // y\ny = x % {z} + y\nprint(x + y)\n"
     return Instance(PROMPT, run_python(runner, code), {"x": x, "y": y, "z": z}, code=code)
 
 
+@kind(Kind.TRACE)
 def slicing(rng: random.Random, runner: CodeRunner) -> Instance:
     nums = [rng.randint(1, 60) for _ in range(9)]
     start, stop = rng.randint(0, 3), rng.randint(5, 9)
@@ -32,6 +34,7 @@ def slicing(rng: random.Random, runner: CodeRunner) -> Instance:
     return Instance(PROMPT, run_python(runner, code), params, code=code)
 
 
+@kind(Kind.TRACE)
 def mutable_default(rng: random.Random, runner: CodeRunner) -> Instance:
     values = rng.sample(range(2, 40), 5)
     fresh = rng.sample(range(4), rng.randint(1, 2))
@@ -44,6 +47,7 @@ def mutable_default(rng: random.Random, runner: CodeRunner) -> Instance:
     return Instance(PROMPT, run_python(runner, code), {"values": values, "fresh": fresh}, code=code)
 
 
+@kind(Kind.TRACE)
 def late_binding(rng: random.Random, runner: CodeRunner) -> Instance:
     n, k, x = rng.randint(3, 6), rng.randint(1, 9), rng.randint(2, 9)
     if rng.random() < 0.5:
@@ -82,6 +86,7 @@ WORDS = [
 ]
 
 
+@kind(Kind.TRACE)
 def string_methods(rng: random.Random, runner: CodeRunner) -> Instance:
     word = rng.choice(WORDS)
     pad, start = rng.randint(1, 3), rng.randint(0, 3)
@@ -95,6 +100,7 @@ def string_methods(rng: random.Random, runner: CodeRunner) -> Instance:
     return Instance(PROMPT, run_python(runner, code), params, code=code)
 
 
+@kind(Kind.TRACE)
 def dict_counting(rng: random.Random, runner: CodeRunner) -> Instance:
     letters = "".join(rng.choice("abcde") for _ in range(rng.randint(11, 15)))
     code = (
@@ -108,6 +114,7 @@ def dict_counting(rng: random.Random, runner: CodeRunner) -> Instance:
     return Instance(PROMPT, run_python(runner, code), {"text": letters}, code=code)
 
 
+@kind(Kind.TRACE)
 def collatz_steps(rng: random.Random, runner: CodeRunner) -> Instance:
     n = rng.randint(12, 260)
     code = (
@@ -121,6 +128,7 @@ def collatz_steps(rng: random.Random, runner: CodeRunner) -> Instance:
     return Instance(PROMPT, run_python(runner, code), {"n": n}, code=code)
 
 
+@kind(Kind.TRACE)
 def comprehension_filter(rng: random.Random, runner: CodeRunner) -> Instance:
     nums = [rng.randint(-9, 25) for _ in range(8)]
     k, r = rng.randint(2, 4), 0
@@ -133,6 +141,7 @@ def comprehension_filter(rng: random.Random, runner: CodeRunner) -> Instance:
     return Instance(PROMPT, run_python(runner, code), {"nums": nums, "k": k, "r": r}, code=code)
 
 
+@kind(Kind.TRACE)
 def closure_counter(rng: random.Random, runner: CodeRunner) -> Instance:
     start, a1, b1, a2, b2 = (rng.randint(1, 30) for _ in range(5))
     code = (
@@ -153,6 +162,7 @@ def closure_counter(rng: random.Random, runner: CodeRunner) -> Instance:
     return Instance(PROMPT, run_python(runner, code), params, code=code)
 
 
+@kind(Kind.TRACE)
 def generator_exhaustion(rng: random.Random, runner: CodeRunner) -> Instance:
     n, k, skip = rng.randint(6, 14), rng.randint(2, 9), rng.randint(1, 3)
     code = (
@@ -164,6 +174,7 @@ def generator_exhaustion(rng: random.Random, runner: CodeRunner) -> Instance:
     return Instance(PROMPT, run_python(runner, code), {"n": n, "k": k, "skip": skip}, code=code)
 
 
+@kind(Kind.TRACE)
 def exception_finally(rng: random.Random, runner: CodeRunner) -> Instance:
     limit, a, b, c, d = rng.randint(3, 9), *(rng.randint(2, 20) for _ in range(4))
     xs = [rng.randint(0, 12) for _ in range(3)]
@@ -189,6 +200,7 @@ def exception_finally(rng: random.Random, runner: CodeRunner) -> Instance:
     return Instance(PROMPT, run_python(runner, code), params, code=code)
 
 
+@kind(Kind.TRACE)
 def mro_super(rng: random.Random, runner: CodeRunner) -> Instance:
     names = rng.sample("KLMNPRST", 4)
     base, left, right, child = names

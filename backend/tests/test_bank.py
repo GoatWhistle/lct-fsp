@@ -10,7 +10,16 @@ import pytest
 
 from app.adapter.catalog_file import load_catalog
 from app.adapter.code_runner import InProcessCodeRunner
-from app.domain.bank import BANK, RETIRED, Family, covers, families_for_topics, get_family
+from app.domain.bank import (
+    BANK,
+    RETIRED,
+    AnswerFormat,
+    Family,
+    Kind,
+    covers,
+    families_for_topics,
+    get_family,
+)
 from app.domain.bank.family import same_answer, values
 from settings import CATALOG_FILE, Mechanics, Settings
 
@@ -83,6 +92,44 @@ def test_family_codes_are_unique_and_namespaced_by_topic() -> None:
         assert family.code.startswith(f"{family.topic}.")
 
 
+def test_every_family_has_kind() -> None:
+    for family in (*BANK, *RETIRED):
+        assert isinstance(family.kind, Kind), family.code
+
+
+def test_bank_has_choice_and_ordering_samples() -> None:
+    formats = {f.instance(0, RUNNER).answer_format: f.kind for f in BANK}
+
+    assert formats[AnswerFormat.CHOICE] == Kind.SCENARIO_CHOICE
+    assert formats[AnswerFormat.ORDERING] == Kind.ORDERING
+
+
+@pytest.mark.parametrize(
+    "family",
+    [f for f in BANK if f.instance(0, RUNNER).answer_format != AnswerFormat.VALUE],
+    ids=lambda f: f.code,
+)
+def test_letter_answer_names_options(family: Family) -> None:
+    """Выбор — буква одного варианта, перестановка — буквы всех вариантов по разу. Буквы
+    вариантов разные и идут по алфавиту, тексты перемешаны."""
+    first_positions = set()
+    for seed in SEEDS:
+        instance = family.instance(seed, RUNNER)
+        letters = [o.letter for o in instance.options]
+
+        assert letters == sorted(set(letters))
+        assert len({o.text for o in instance.options}) == len(letters) >= 3
+        if instance.answer_format == AnswerFormat.CHOICE:
+            assert instance.answer in letters
+        else:
+            assert sorted(instance.answer) == letters
+        first_positions.add(letters.index(instance.answer[0]))
+        assert family.check(instance, " - ".join(instance.answer.lower()))
+
+    # Верный вариант стоит на разных местах.
+    assert len(first_positions) > 1
+
+
 def test_family_grades_are_catalog_grades() -> None:
     assert {f.grade for f in BANK} == {g.code for g in load_catalog(CATALOG_FILE).grades}
 
@@ -136,6 +183,26 @@ def test_retired_family_is_restored_by_code_but_not_offered() -> None:
 )
 def test_same_answer(response: str, answer: str, same: bool) -> None:
     assert same_answer(response, answer) is same
+
+
+@pytest.mark.parametrize(
+    ("response", "answer", "same"),
+    [
+        ("k", "K", True),
+        ("bdac", "BDAC", True),
+        (" B, D; A-C ", "BDAC", True),
+        ("B > D > A > C", "BDAC", True),
+        ("В Д А С", "BDAC", False),
+        # Кириллические двойники латинских букв читаются латиницей.
+        ("ВАС", "BAC", True),
+        ("BDCA", "BDAC", False),
+        ("BDA", "BDAC", False),
+        ("K1", "K", False),
+        ("", "K", False),
+    ],
+)
+def test_same_answer_in_letters(response: str, answer: str, same: bool) -> None:
+    assert same_answer(response, answer, letters=True) is same
 
 
 def test_terraform_expressions_with_all_sizes_one() -> None:

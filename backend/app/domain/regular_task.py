@@ -26,7 +26,7 @@ from app.domain.errors import (
     UnknownGrade,
     UnknownSpecialization,
 )
-from app.domain.skill import Observation
+from app.domain.skill import Observation, SignalSource
 
 MIN_TOPICS, MAX_TOPICS = 1, 3
 # Длины текстов: условие, эталон — короткая строка или число, ответ.
@@ -234,6 +234,7 @@ def task_observations(answer: AnsweredTask, rules: TaskRules) -> list[Observatio
             discrimination=rules.discrimination,
             difficulty=difficulty,
             weight=rules.weight,
+            source=SignalSource.regular_task,
             at=answer.answered_at,
         )
         for correct, difficulty in steps

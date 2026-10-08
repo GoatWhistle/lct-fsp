@@ -3,7 +3,7 @@
 import random
 from collections import OrderedDict
 
-from app.domain.bank.family import Instance
+from app.domain.bank.family import Instance, Kind, kind
 from app.domain.bank.runner import CodeRunner
 
 KEYS = "abcdefgh"
@@ -13,6 +13,7 @@ def _requests(rng: random.Random, alphabet: str, n: int) -> list[str]:
     return [rng.choice(alphabet) for _ in range(n)]
 
 
+@kind(Kind.COMPUTE)
 def cache_hits(rng: random.Random, runner: CodeRunner) -> Instance:
     requests = _requests(rng, KEYS[: rng.randint(4, 7)], rng.randint(9, 14))
     hits = len(requests) - len(set(requests))
@@ -23,6 +24,7 @@ def cache_hits(rng: random.Random, runner: CodeRunner) -> Instance:
     return Instance(prompt, str(hits), {"requests": requests})
 
 
+@kind(Kind.COMPUTE)
 def lru_hits(rng: random.Random, runner: CodeRunner) -> Instance:
     capacity = rng.randint(2, 3)
     requests = _requests(rng, KEYS[: capacity + 2], rng.randint(10, 13))
@@ -43,6 +45,7 @@ def lru_hits(rng: random.Random, runner: CodeRunner) -> Instance:
     return Instance(prompt, str(hits), {"capacity": capacity, "requests": requests})
 
 
+@kind(Kind.COMPUTE)
 def rehash_moves(rng: random.Random, runner: CodeRunner) -> Instance:
     shards = rng.randint(3, 6)
     keys = sorted(rng.sample(range(10, 200), 10))
@@ -54,6 +57,7 @@ def rehash_moves(rng: random.Random, runner: CodeRunner) -> Instance:
     return Instance(prompt, str(moved), {"shards": shards, "keys": keys})
 
 
+@kind(Kind.COMPUTE)
 def quorum(rng: random.Random, runner: CodeRunner) -> Instance:
     replicas = rng.choice([3, 5, 7, 9])
     write = rng.randint(1, replicas)
@@ -86,6 +90,7 @@ def _pattern(hits: list[bool]) -> str:
 PATTERN_RULE = "Ответ — по букве на запрос подряд: П — попадание, М — промах, например ММПМ."
 
 
+@kind(Kind.COMPUTE)
 def fifo_pattern(rng: random.Random, runner: CodeRunner) -> Instance:
     capacity = rng.randint(2, 3)
     requests = _requests(rng, KEYS[: capacity + 2], rng.randint(9, 11))
@@ -105,6 +110,7 @@ def fifo_pattern(rng: random.Random, runner: CodeRunner) -> Instance:
     return Instance(prompt, _pattern(hits), {"capacity": capacity, "requests": requests})
 
 
+@kind(Kind.COMPUTE)
 def ttl_pattern(rng: random.Random, runner: CodeRunner) -> Instance:
     ttl = rng.choice([10, 30, 60])
     keys = KEYS[: rng.randint(2, 3)]
@@ -128,6 +134,7 @@ def ttl_pattern(rng: random.Random, runner: CodeRunner) -> Instance:
     )
 
 
+@kind(Kind.COMPUTE)
 def lru_pattern(rng: random.Random, runner: CodeRunner) -> Instance:
     capacity = rng.randint(2, 3)
     requests = _requests(rng, KEYS[: capacity + 2], rng.randint(9, 11))
@@ -148,6 +155,7 @@ def lru_pattern(rng: random.Random, runner: CodeRunner) -> Instance:
     return Instance(prompt, _pattern(hits), {"capacity": capacity, "requests": requests})
 
 
+@kind(Kind.COMPUTE)
 def partition_counts(rng: random.Random, runner: CodeRunner) -> Instance:
     partitions = rng.randint(3, 5)
     messages = [
@@ -168,6 +176,7 @@ def partition_counts(rng: random.Random, runner: CodeRunner) -> Instance:
     return Instance(prompt, " ".join(map(str, counts)), params, code="\n".join(lines))
 
 
+@kind(Kind.COMPUTE)
 def consumer_assignment(rng: random.Random, runner: CodeRunner) -> Instance:
     partitions = rng.randint(5, 12)
     consumers = sorted(rng.sample(["c1", "c2", "c3", "c4"], rng.randint(2, 4)))
@@ -200,6 +209,7 @@ def consumer_assignment(rng: random.Random, runner: CodeRunner) -> Instance:
     return Instance(prompt, " ".join(map(str, assigned)), params)
 
 
+@kind(Kind.COMPUTE)
 def redelivery(rng: random.Random, runner: CodeRunner) -> Instance:
     first = rng.randint(1, 500)
     total = rng.randint(10, 16)
@@ -219,6 +229,7 @@ def redelivery(rng: random.Random, runner: CodeRunner) -> Instance:
     return Instance(prompt, " ".join(map(str, again)) or "0", params)
 
 
+@kind(Kind.COMPUTE)
 def moved_keys(rng: random.Random, runner: CodeRunner) -> Instance:
     shards = rng.randint(3, 6)
     keys = sorted(rng.sample(range(10, 200), 8))
@@ -231,6 +242,7 @@ def moved_keys(rng: random.Random, runner: CodeRunner) -> Instance:
     return Instance(prompt, " ".join(map(str, moved)) or "0", {"shards": shards, "keys": keys})
 
 
+@kind(Kind.COMPUTE)
 def hash_ring(rng: random.Random, runner: CodeRunner) -> Instance:
     nodes = dict(zip(rng.sample("ABCDE", 4), sorted(rng.sample(range(0, 360), 4)), strict=True))
     keys = {f"k{i}": rng.randint(0, 359) for i in range(1, 6)}
@@ -249,6 +261,7 @@ def hash_ring(rng: random.Random, runner: CodeRunner) -> Instance:
     return Instance(prompt, answer, {"nodes": nodes, "keys": keys}, code="\n".join(lines))
 
 
+@kind(Kind.COMPUTE)
 def vector_clock(rng: random.Random, runner: CodeRunner) -> Instance:
     procs = ["P1", "P2", "P3"]
     clocks = {p: [0, 0, 0] for p in procs}
@@ -285,6 +298,7 @@ def vector_clock(rng: random.Random, runner: CodeRunner) -> Instance:
     return Instance(prompt, " ".join(map(str, clocks[target])), params, code="\n".join(events))
 
 
+@kind(Kind.COMPUTE)
 def circuit_breaker(rng: random.Random, runner: CodeRunner) -> Instance:
     threshold, cooldown = rng.randint(2, 3), rng.choice([10, 20, 30])
     moments = sorted(rng.sample(range(0, 80), rng.randint(9, 11)))
@@ -323,6 +337,7 @@ def circuit_breaker(rng: random.Random, runner: CodeRunner) -> Instance:
     return Instance(prompt, "".join(results), params, code="\n".join(lines))
 
 
+@kind(Kind.COMPUTE)
 def quorum_checks(rng: random.Random, runner: CodeRunner) -> Instance:
     configs = [(n, rng.randint(1, n), rng.randint(1, n)) for n in rng.choices([3, 5, 7], k=4)]
     lines = [f"{i}. N = {n}, W = {w}, R = {r}" for i, (n, w, r) in enumerate(configs, 1)]
@@ -338,6 +353,7 @@ def quorum_checks(rng: random.Random, runner: CodeRunner) -> Instance:
     return Instance(prompt, " ".join(answers), {"configs": configs}, code="\n".join(lines))
 
 
+@kind(Kind.COMPUTE)
 def replica_reads(rng: random.Random, runner: CodeRunner) -> Instance:
     lag = rng.choice([3, 4, 5, 6, 8])
     values = rng.sample(range(10, 100), 3)

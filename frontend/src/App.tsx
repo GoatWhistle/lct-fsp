@@ -2,6 +2,7 @@ import { Navigate, Outlet, Route, Routes } from 'react-router'
 import { Layout } from './components/Layout'
 import { RequireRole } from './components/RequireRole'
 import { CandidateCabinet } from './pages/CandidateCabinet'
+import { CandidateCardPage } from './pages/CandidateCardPage'
 import { CandidateProfile } from './pages/CandidateProfile'
 import { CompanyProfile } from './pages/CompanyProfile'
 import { EmployerCabinet } from './pages/EmployerCabinet'
@@ -48,6 +49,7 @@ export default function App() {
           <Route path="needs/:id" element={<NeedForm />} />
           <Route path="selections/:id" element={<Selection />} />
           <Route path="tasks" element={<EmployerTasks />} />
+          <Route path="candidates/:id" element={<CandidateCardPage />} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>

@@ -5,9 +5,10 @@
 `app.usecase.interface.SkillModel`, сейчас IRT 2PL в `app/adapter/irt.py`.
 """
 
+import enum
 import math
 from collections.abc import Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from typing import Protocol, Self
 
@@ -15,10 +16,19 @@ from typing import Protocol, Self
 YEAR = timedelta(days=365.25)
 
 
+class SignalSource(enum.StrEnum):
+    """Уровень доверия, из которого пришло наблюдение (§11). Проверочный блок встанет рядом."""
+
+    fsp = "fsp"
+    test = "test"
+    regular_task = "regular_task"
+
+
 @dataclass(frozen=True)
 class Observation:
-    """Ответ на задание (или иное наблюдение) по теме; `weight` — вес уровня доверия, `at` —
-    момент наблюдения. Без момента — только там, где уровень не затухает: в оценке теста."""
+    """Ответ на задание (или иное наблюдение) по теме; `weight` — вес уровня доверия, `source` —
+    сам уровень, `at` — момент наблюдения. Без момента — только там, где уровень не затухает: в
+    оценке теста."""
 
     topic: str
     correct: bool
@@ -26,6 +36,7 @@ class Observation:
     difficulty: float
     weight: float = 1.0
     at: datetime | None = None
+    source: SignalSource = SignalSource.test
 
 
 @dataclass(frozen=True)
@@ -101,7 +112,8 @@ class SkillEstimate(Protocol):
 class SkillProfileLevels:
     """Профиль навыков по специализации (§11): общий уровень, уровни тем, число наблюдений и
     момент последнего сигнала — `None`, пока сигналов нет. Уровни — на момент последнего
-    сигнала; к «сейчас» их доводит модель навыка (`SkillModel.advance`).
+    сигнала; к «сейчас» их доводит модель навыка (`SkillModel.advance`). `sources` — из каких
+    уровней доверия есть наблюдения по теме; темы без наблюдений в нём нет.
 
     `regular_task_topics` — темы, по которым в профиль вошли ответы на регулярные задания: в
     объяснении подборки это источник уверенности «подтверждено регулярным заданием».
@@ -112,6 +124,7 @@ class SkillProfileLevels:
     observations: int
     last_signal_at: datetime | None
     regular_task_topics: frozenset[str] = frozenset()
+    sources: Mapping[str, frozenset[SignalSource]] = field(default_factory=dict)
 
 
 def normal_cdf(z: float) -> float:

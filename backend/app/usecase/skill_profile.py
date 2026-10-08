@@ -1,22 +1,34 @@
 """Профиль навыков из наблюдений всех сигналов с весами уровней доверия (mechanics.md, §11).
 
-Сигналы — тест (ответы всех попыток кандидата по специализации с весом `trust_weight_test`) и
-регулярные задания (`trust_weight_regular_task`). Профиль пересчитывается целиком той же
-моделью навыка, что и оценка теста, но с затуханием: между наблюдениями растёт погрешность.
-Сохраняется на момент последнего сигнала; при чтении его доводит до «сейчас» `ProfileFreshness`.
+Сигналы — тест (ответы всех попыток кандидата по специализации с весом `trust_weight_test`),
+регулярные задания (`trust_weight_regular_task`) и ФСП (достижения из снимка реестра с весом
+`trust_weight_fsp`). Наблюдения идут в модель по времени сигнала; профиль пересчитывается целиком
+той же моделью навыка, что и оценка теста, но каждое наблюдение — до сходимости моды (§3) и с
+затуханием: между наблюдениями растёт погрешность. Сохраняется на момент последнего сигнала; при
+чтении его доводит до «сейчас» `ProfileFreshness`. Оценка теста и категория от профиля не
+зависят.
 """
 
 import dataclasses
 import heapq
 import uuid
+from collections import defaultdict
 from collections.abc import Sequence
 from datetime import datetime
 
 from app.domain import candidate
+from app.domain.catalog import Topic
+from app.domain.fsp import Divergence, FspEvidence, divergences, fsp_observations
 from app.domain.regular_task import TaskRules, task_observations
 from app.domain.selection import PoolCandidate
-from app.domain.skill import Normal, Observation, Prior, SkillProfileLevels
-from app.usecase.interface import AttemptReader, RegularTaskReader, SkillModel
+from app.domain.skill import Normal, Observation, Prior, SignalSource, SkillProfileLevels
+from app.usecase.interface import (
+    AttemptReader,
+    AttemptRepository,
+    FspEvidenceReader,
+    RegularTaskReader,
+    SkillModel,
+)
 from settings import Mechanics
 
 
@@ -48,6 +60,25 @@ def task_rules(mechanics: Mechanics) -> TaskRules:
     )
 
 
+def fsp_evidence(
+    attempts: AttemptRepository, fsp: FspEvidenceReader, user_id: uuid.UUID
+) -> FspEvidence | None:
+    """Снимок достижений кандидата со справочником дисциплин и темами ролей; `None` — снимка
+    нет: профиль — ровно то, что дают остальные сигналы."""
+    snapshot = fsp.snapshot(user_id)
+    if snapshot is None:
+        return None
+    roles = {a.team_role for a in snapshot.achievements if a.team_role}
+    return FspEvidence(
+        achievements=snapshot.achievements,
+        disciplines=fsp.disciplines(),
+        role_topics={
+            role: tuple(t.code for t in attempts.specialization_topics(role) or ())
+            for role in roles
+        },
+    )
+
+
 def refresh_skill_profile(
     attempts: AttemptReader,
     tasks: RegularTaskReader,
@@ -56,8 +87,9 @@ def refresh_skill_profile(
     user_id: uuid.UUID,
     specialization_code: str,
     topics: Sequence[str],
+    fsp: FspEvidence | None = None,
 ) -> SkillProfileLevels:
-    """Профиль по всем ответам кандидата на специализацию — тест и регулярные задания по
+    """Профиль по всем сигналам кандидата на специализацию — тест, регулярные задания и ФСП по
     времени; сохраняет его вызывающий."""
     tests = [
         p.observation(mechanics.trust_weight_test)
@@ -66,8 +98,29 @@ def refresh_skill_profile(
     rules = task_rules(mechanics)
     answered = [a for a in tasks.answered(user_id, specialization_code) if a.counted]
     by_task = [[o for o in task_observations(a, rules) if o.topic in topics] for a in answered]
-    observations = list(heapq.merge(tests, *by_task, key=lambda o: _moment(o)))
-    result = model.estimate(profile_prior(topics, mechanics), observations)
+    achievements = (
+        sorted(
+            (
+                dataclasses.replace(t.observation, at=t.at)
+                for t in fsp_observations(
+                    fsp,
+                    topics,
+                    difficulty=mechanics.fsp_result_difficulty,
+                    discrimination=mechanics.fsp_result_discrimination,
+                    weight=mechanics.trust_weight_fsp,
+                )
+            ),
+            key=_moment,
+        )
+        if fsp is not None
+        else []
+    )
+    # Слияние устойчиво: ответы теста одного момента сохраняют порядок попытки.
+    observations = list(heapq.merge(achievements, tests, *by_task, key=_moment))
+    result = model.estimate(profile_prior(topics, mechanics), observations, to_mode=True)
+    sources: defaultdict[str, set[SignalSource]] = defaultdict(set)
+    for o in observations:
+        sources[o.topic].add(o.source)
     return SkillProfileLevels(
         overall=result.overall(),
         topics={topic: result.topic(topic) for topic in topics},
@@ -76,6 +129,7 @@ def refresh_skill_profile(
         regular_task_topics=frozenset(
             o.topic for a, group in zip(answered, by_task, strict=True) if a.confirms for o in group
         ),
+        sources={topic: frozenset(found) for topic, found in sources.items()},
     )
 
 
@@ -137,3 +191,52 @@ def _level(level: candidate.Level, now: Normal) -> candidate.Level:
     if level.theta_sd == now.sd:
         return level
     return dataclasses.replace(level, theta_sd=now.sd)
+
+
+def rebuild_skill_profiles(
+    attempts: AttemptRepository,
+    tasks: RegularTaskReader,
+    fsp: FspEvidenceReader,
+    model: SkillModel,
+    mechanics: Mechanics,
+    user_id: uuid.UUID,
+    now: datetime,
+) -> None:
+    """Пересчёт всех профилей кандидата после сигнала вне теста: привязки, отвязки или нового
+    снимка ФСП. Профиля нет — пересчитывать нечего: он появится с первым тестом."""
+    evidence = fsp_evidence(attempts, fsp, user_id)
+    for specialization in attempts.profiled_specializations(user_id):
+        topics = [t.code for t in attempts.specialization_topics(specialization) or ()]
+        levels = refresh_skill_profile(
+            attempts, tasks, model, mechanics, user_id, specialization, topics, evidence
+        )
+        attempts.save_profile(user_id, specialization, levels, now)
+
+
+def fsp_divergences(
+    attempts: AttemptRepository,
+    model: SkillModel,
+    mechanics: Mechanics,
+    user_id: uuid.UUID,
+    evidence: FspEvidence,
+) -> list[Divergence]:
+    """Расхождения ФСП и теста по всем специализациям с ответами кандидата. Уровень теста по
+    теме — оценка теста: все ответы с весом 1, без ФСП."""
+    found = []
+    for specialization in attempts.profiled_specializations(user_id):
+        topics: Sequence[Topic] = attempts.specialization_topics(specialization) or ()
+        answered = attempts.answered(user_id, specialization)
+        if not answered:
+            continue
+        codes = [t.code for t in topics]
+        estimate = model.estimate(
+            specialization_prior(codes, mechanics), [p.observation() for p in answered]
+        )
+        found += divergences(
+            evidence,
+            topics,
+            {code: estimate.topic(code).mean for code in codes},
+            difficulty=mechanics.fsp_result_difficulty,
+            threshold=mechanics.fsp_divergence_theta,
+        )
+    return found

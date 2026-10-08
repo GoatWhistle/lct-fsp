@@ -8,8 +8,10 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from app.controller.schemas import CatalogRef
 from app.domain import candidate
-from app.domain.attempt import Stage
+from app.domain.attempt import AttemptOutcome, AttemptPurpose, HistoryEvent, Stage
+from app.domain.bank import AnswerFormat
 from app.domain.candidate import Level
+from app.domain.skill import SignalSource
 
 
 class _Out(BaseModel):
@@ -23,7 +25,10 @@ class SurveyIn(BaseModel):
 
 
 class AttemptIn(BaseModel):
-    grade: str = Field(description="Код грейда: заявленный или предложенный для дотеста")
+    grade: str = Field(
+        description="Код грейда: заявленный, предложенный для дотеста или, при категории, "
+        "следующий выше"
+    )
 
 
 class AnswerIn(BaseModel):
@@ -70,6 +75,10 @@ class TestResultOut(BaseModel):
 class TopicLevelOut(BaseModel):
     topic: CatalogRef
     level: LevelOut
+    sources: list[SignalSource] = Field(
+        description="Из каких сигналов сложился уровень: `fsp` — результаты ФСП, `test` — "
+        "адаптивный тест; пусто — данных по теме нет"
+    )
 
 
 class SkillProfileOut(BaseModel):
@@ -94,7 +103,11 @@ def skill_profile_view(profile: candidate.SkillProfile) -> SkillProfileOut:
     return SkillProfileOut(
         overall=level_view(profile.overall),
         topics=[
-            TopicLevelOut(topic=CatalogRef.model_validate(t.topic), level=level_view(t.level))
+            TopicLevelOut(
+                topic=CatalogRef.model_validate(t.topic),
+                level=level_view(t.level),
+                sources=sorted(t.sources),
+            )
             for t in profile.topics
         ],
         updated_at=profile.updated_at,
@@ -116,6 +129,31 @@ class CategoryOut(_Out):
     assigned_at: datetime
 
 
+class GradeUpOut(BaseModel):
+    grade: str = Field(description="Грейд попытки вверх — следующий после грейда категории")
+    available_at: datetime | None = Field(
+        description="С какого момента можно начать попытку; `null` — можно сейчас"
+    )
+
+
+class HistoryEntryOut(BaseModel):
+    """Строка истории: остановленная попытка (`attempt`) или переход вниз (`step_down`)."""
+
+    at: datetime
+    event: HistoryEvent
+    grade: str = Field(description="У попытки — её грейд, у перехода — грейд после него")
+    purpose: AttemptPurpose | None = Field(
+        description="`determination` — первичное определение с каскадом, `grade_up` — попытка "
+        "вверх; у перехода — `null`"
+    )
+    overall: LevelOut | None = Field(description="Уровень по оценке попытки")
+    outcome: AttemptOutcome | None = Field(
+        description="`assigned` — грейд присвоен; `offered` — предложен дотест; `no_category` — "
+        "категории нет; `not_passed` — попытка вверх не прошла, категория прежняя"
+    )
+    outcome_grade: str | None = Field(description="Присвоенный или предложенный грейд")
+
+
 class PathOut(BaseModel):
     stage: Stage = Field(
         description="`survey` — опрос; `grade` — выбор грейда; `test` — идёт тест; `offer` — "
@@ -129,6 +167,20 @@ class PathOut(BaseModel):
     category: CategoryOut | None
     result: TestResultOut | None = Field(description="На шагах `offer`, `category`, `no_category`")
     profile: SkillProfileOut | None
+    grade_up: GradeUpOut | None = Field(
+        description="Попытка на грейд выше — на шаге `category`, если грейд не старший"
+    )
+    grade_down: str | None = Field(
+        description="Грейд для перехода вниз без теста — на шаге `category`, если грейд не младший"
+    )
+    history: list[HistoryEntryOut] = Field(
+        description="Попытки и переходы по времени — на шаге `category`"
+    )
+
+
+class OptionOut(BaseModel):
+    letter: str = Field(description="Буква варианта — её кандидат и отвечает")
+    text: str
 
 
 class ItemOut(BaseModel):
@@ -140,4 +192,10 @@ class ItemOut(BaseModel):
     topic: CatalogRef
     prompt: str
     code: str | None = Field(description="Листинг, таблица или граф к условию — моноширинно")
-    options: list[str] = Field(description="Варианты; пусто — ответ вводится текстом")
+    answer_format: AnswerFormat = Field(
+        description="`value` — ответ вводится текстом; `choice` — буква одного варианта; "
+        "`ordering` — буквы всех вариантов в верном порядке строкой, например «KBXF»"
+    )
+    options: list[OptionOut] = Field(
+        description="Варианты по алфавиту букв; буквы и порядок текстов свои у каждого экземпляра"
+    )

@@ -5,7 +5,7 @@
 сохранённых подборок у тем появляется тот же признак — `false`: регулярных заданий тогда не было.
 
 Revision ID: a8f8302329cf
-Revises: 7c604420b704
+Revises: 5d1e0b7a2c94
 Create Date: 2026-10-08 10:21:55.022372
 
 """
@@ -16,7 +16,7 @@ import sqlalchemy as sa
 from alembic import op
 
 revision: str = "a8f8302329cf"
-down_revision: str | Sequence[str] | None = "7c604420b704"
+down_revision: str | Sequence[str] | None = "5d1e0b7a2c94"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 

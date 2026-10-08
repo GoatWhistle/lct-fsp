@@ -1,4 +1,5 @@
-"""Справочники: грейд, сфера бизнеса, специализация, тема, технология и их синхронизация.
+"""Справочники: грейд, сфера бизнеса, специализация, тема, технология, дисциплина ФСП и их
+синхронизация.
 
 Ключ каждой записи — стабильный `code`: на него ссылаются тест, профиль и подбор. Содержимое
 справочников — `config/catalog.yaml`, в хранилище его кладёт синхронизация по кодам: записи из
@@ -67,15 +68,26 @@ class Industry:
 
 
 @dataclass(frozen=True)
+class FspDiscipline:
+    """Дисциплина ФСП: `topics` — коды тем любых специализаций, о которых говорит результат в
+    ней (mechanics.md, §11). Дисциплина без тем — результат в ней только факт в профиле."""
+
+    code: str
+    name: str
+    topics: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True)
 class Catalog:
     """Справочники целиком; порядок в каждом списке — порядок показа. Ссылки согласованы: коды
-    уникальны, код темы начинается с кода специализации и точки, технологии указывают на
-    известные темы."""
+    уникальны, код темы начинается с кода специализации и точки, технологии и дисциплины ФСП
+    указывают на известные темы."""
 
     grades: tuple[Grade, ...]
     industries: tuple[Industry, ...]
     specializations: tuple[Specialization, ...]
     technologies: tuple[Technology, ...]
+    fsp_disciplines: tuple[FspDiscipline, ...] = ()
 
     def __post_init__(self) -> None:
         for specialization in self.specializations:
@@ -90,6 +102,7 @@ class Catalog:
             ("специализация", [s.code for s in self.specializations]),
             ("тема", [t.code for t in self.topics()]),
             ("технология", [t.code for t in self.technologies]),
+            ("дисциплина ФСП", [d.code for d in self.fsp_disciplines]),
             ("ранг грейда", [str(g.rank) for g in self.grades]),
         ]:
             if dupes := {c for c in codes if codes.count(c) > 1}:
@@ -98,6 +111,11 @@ class Catalog:
         for tech in self.technologies:
             if unknown := set(tech.topics) - known:
                 raise ValueError(f"технология {tech.code} ссылается на неизвестные темы {unknown}")
+        for discipline in self.fsp_disciplines:
+            if unknown := set(discipline.topics) - known:
+                raise ValueError(
+                    f"дисциплина ФСП {discipline.code} ссылается на неизвестные темы {unknown}"
+                )
 
     def topics(self) -> Iterable[Topic]:
         return (t for s in self.specializations for t in s.topics)
@@ -111,6 +129,7 @@ class CatalogPart(enum.StrEnum):
     specializations = "specializations"
     topics = "topics"
     technologies = "technologies"
+    fsp_disciplines = "fsp_disciplines"
 
 
 def catalog_codes(catalog: Catalog) -> dict[CatalogPart, set[str]]:
@@ -120,13 +139,14 @@ def catalog_codes(catalog: Catalog) -> dict[CatalogPart, set[str]]:
         CatalogPart.specializations: {s.code for s in catalog.specializations},
         CatalogPart.topics: {t.code for t in catalog.topics()},
         CatalogPart.technologies: {t.code for t in catalog.technologies},
+        CatalogPart.fsp_disciplines: {d.code for d in catalog.fsp_disciplines},
     }
 
 
 @dataclass(frozen=True)
 class CatalogPlan:
     """Что синхронизация меняет в хранилище: записи `catalog` добавляются или обновляются по
-    коду, коды из `removed` снимаются, связи технологий с темами заменяются целиком."""
+    коду, коды из `removed` снимаются, связи технологий и дисциплин с темами заменяются целиком."""
 
     catalog: Catalog
     removed: Mapping[CatalogPart, frozenset[str]]

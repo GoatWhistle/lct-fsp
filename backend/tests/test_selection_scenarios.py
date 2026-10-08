@@ -22,7 +22,8 @@ from app.adapter.catalog_file import load_catalog
 from app.adapter.clock import FrozenClock
 from app.adapter.seed import DerivedSeeds
 from app.domain.account import Role
-from app.domain.catalog import Grade, Specialization, Technology, Topic
+from app.domain.candidate import GradeStatus, GradeStatusKind
+from app.domain.catalog import CatalogRef, Grade, Specialization, Technology, Topic
 from app.domain.errors import NeedNotFound, SelectionNotFound
 from app.domain.selection import (
     AcceptanceFeatures,
@@ -30,6 +31,7 @@ from app.domain.selection import (
     Need,
     PoolCandidate,
     SelectionBlock,
+    UnconfirmedCandidate,
 )
 from app.domain.skill import Normal
 from app.domain.work import SalaryRange, WorkFormat
@@ -100,10 +102,35 @@ class CandidateSeed:
     last_signal_at: datetime = T0
     # Темы, по которым в профиль вошли ответы на регулярные задания.
     regular_task_topics: frozenset[str] = frozenset()
+    # Заявленный грейд, если каскад дал категорию ниже: попытка на него и дотест на `grade`.
+    claimed: str | None = None
 
 
 # Общий уровень профиля в обвязке — один на всех кандидатов.
 OVERALL = Normal(0.5, 0.4)
+
+
+@dataclass
+class UnconfirmedSeed:
+    """Кандидат без категории: опрос, попытки цепочки и, если есть ожидания, профиль со стеком."""
+
+    # Грейды цепочки попыток: первый — заявленный, дальше дотесты каскада; пусто — грейд не
+    # выбран.
+    chain: tuple[str, ...] = ("middle",)
+    # None — опроса нет.
+    specialization: str | None = "qa"
+    # Специализация попыток; None — как у опроса.
+    attempt_specialization: str | None = None
+    stack: tuple[str, ...] = ()
+    expectations: Expectations | None = None
+
+    @property
+    def claim(self) -> tuple[str, str] | None:
+        """Специализация и заявленный грейд, с которыми кандидат попадает в нижний блок."""
+        tested = self.attempt_specialization or self.specialization
+        if self.specialization is None or not self.chain or tested != self.specialization:
+            return None
+        return self.specialization, self.chain[0]
 
 
 @dataclass
@@ -131,6 +158,9 @@ class Harness:
 
     def candidates(self, seeds: Sequence[CandidateSeed]) -> list[uuid.UUID]:
         return [self.candidate(s) for s in seeds]
+
+    def unconfirmed(self, seed: UnconfirmedSeed) -> uuid.UUID:
+        raise NotImplementedError
 
     def user(self) -> uuid.UUID:
         return uuid.uuid4()
@@ -188,9 +218,21 @@ class MemoryHarness(Harness):
             last_signal_at=seed.last_signal_at,
             expectations=seed.expectations,
             regular_task_topics=seed.regular_task_topics,
+            claimed=GRADES[seed.claimed] if seed.claimed else None,
         )
         self.pool.add(candidate)
         return candidate.candidate_id
+
+    def unconfirmed(self, seed: UnconfirmedSeed) -> uuid.UUID:
+        candidate_id = uuid.uuid4()
+        if seed.claim is not None:
+            specialization, claimed = seed.claim
+            self.pool.add_unconfirmed(
+                UnconfirmedCandidate(
+                    candidate_id, specialization, GRADES[claimed], frozenset(seed.stack)
+                )
+            )
+        return candidate_id
 
 
 class PostgresHarness(Harness):
@@ -275,7 +317,7 @@ class PostgresHarness(Harness):
         rows: dict[Any, list[dict[str, Any]]] = {table: [] for table in tables}
         ids = []
         for seed in seeds:
-            uid, survey, attempt, profile = (uuid.uuid4() for _ in range(4))
+            uid, survey, profile = (uuid.uuid4() for _ in range(3))
             ids.append(uid)
             at = seed.last_signal_at
             spec = seed.specialization
@@ -289,17 +331,8 @@ class PostgresHarness(Harness):
                     "created_at": at,
                 }
             )
-            rows[TestAttempt].append(
-                {
-                    "id": attempt,
-                    "user_id": uid,
-                    "number": 1,
-                    "survey_id": survey,
-                    "specialization_code": spec,
-                    "grade_code": seed.grade,
-                    "started_at": at,
-                }
-            )
+            grades = (seed.claimed, seed.grade) if seed.claimed else (seed.grade,)
+            attempt = self._chain(rows[TestAttempt], uid, survey, spec, grades, at)
             rows[CandidateCategory].append(
                 {
                     "user_id": uid,
@@ -364,6 +397,91 @@ class PostgresHarness(Harness):
         self._write(write)
         return ids
 
+    @staticmethod
+    def _chain(
+        rows: list[dict[str, Any]],
+        user_id: uuid.UUID,
+        survey: uuid.UUID,
+        specialization: str,
+        grades: Sequence[str],
+        at: datetime,
+    ) -> uuid.UUID:
+        """Попытки цепочки: первая — на заявленный грейд, каждая следующая продолжает
+        предыдущую; отдаёт id последней."""
+        previous = None
+        for number, grade in enumerate(grades, start=1):
+            attempt = uuid.uuid4()
+            rows.append(
+                {
+                    "id": attempt,
+                    "user_id": user_id,
+                    "number": number,
+                    "survey_id": survey,
+                    "specialization_code": specialization,
+                    "grade_code": grade,
+                    "continues_attempt_id": previous,
+                    "started_at": at,
+                }
+            )
+            previous = attempt
+        assert previous is not None, "в цепочке хоть одна попытка"
+        return previous
+
+    def unconfirmed(self, seed: UnconfirmedSeed) -> uuid.UUID:
+        uid = self.user(Role.candidate)
+        if seed.specialization is None:
+            return uid
+        survey = uuid.uuid4()
+        attempts: list[dict[str, Any]] = []
+        if seed.chain:
+            spec = seed.attempt_specialization or seed.specialization
+            self._chain(attempts, uid, survey, spec, seed.chain, T0)
+        expectations = seed.expectations
+
+        def write(s: Session) -> None:
+            s.execute(
+                insert(Survey),
+                [
+                    {
+                        "id": survey,
+                        "user_id": uid,
+                        "number": 1,
+                        "specialization_code": seed.specialization,
+                        "created_at": T0,
+                    }
+                ],
+            )
+            # Цепочка — по одной: дотест ссылается на уже вставленную попытку.
+            for row in attempts:
+                s.execute(insert(TestAttempt), [row])
+            if expectations is not None:
+                s.execute(insert(CandidateProfile), [_profile_row(uid, expectations)])
+            if seed.stack:
+                s.execute(
+                    insert(candidate_technologies),
+                    [{"user_id": uid, "technology_code": t} for t in seed.stack],
+                )
+
+        self._write(write)
+        return uid
+
+
+def _profile_row(user_id: uuid.UUID, expectations: Expectations) -> dict[str, Any]:
+    return {
+        "user_id": user_id,
+        "full_name": "Сидов Сид",
+        "contact_email": "s@example.com",
+        "about": "",
+        "job_roles": [],
+        "soft_skills": [],
+        "experience_years": 3,
+        "work_formats": [f.value for f in expectations.work_formats],
+        "city": expectations.city,
+        "relocation": expectations.relocation,
+        "salary_from": expectations.salary_from,
+        "updated_at": T0,
+    }
+
 
 @pytest.fixture(params=["memory", "postgres"])
 def make(request: pytest.FixtureRequest, mechanics: Mechanics) -> Iterator[Callable[..., Harness]]:
@@ -404,7 +522,11 @@ def test_build_puts_exact_above_nearby_and_cuts_by_category(make: Callable[..., 
 
     page = h.selections.build(h.employer, h.need(), limit=20)
 
-    assert dict(page.totals) == {SelectionBlock.exact: 1, SelectionBlock.nearby: 1}
+    assert dict(page.totals) == {
+        SelectionBlock.exact: 1,
+        SelectionBlock.nearby: 1,
+        SelectionBlock.unconfirmed: 0,
+    }
     # Сильный «близкий» всё равно ниже точного: блоки не смешиваются.
     assert [(e.candidate_id, e.block, e.rank, e.position) for e in page.entries] == [
         (middle, SelectionBlock.exact, 1, 1),
@@ -451,20 +573,19 @@ def test_test_acceptance_model_orders_by_match_times_acceptance(
 
     assert len(entries) == 6
     for entry in entries:
+        score, stack = entry.match_score, entry.explanation.stack.contribution
         assert entry.acceptance_probability is not None
-        assert entry.mutual_score == pytest.approx(entry.match_score * entry.acceptance_probability)
-        explanation = entry.explanation
-        contributions = [t.contribution for t in explanation.topics]
-        assert sum(contributions) + explanation.stack.contribution == pytest.approx(
-            entry.match_score, abs=1e-12
-        )
+        assert score is not None and stack is not None
+        assert entry.mutual_score == pytest.approx(score * entry.acceptance_probability)
+        contributions = [t.contribution for t in entry.explanation.topics]
+        assert sum(contributions) + stack == pytest.approx(score, abs=1e-12)
     for block in (SelectionBlock.exact, SelectionBlock.nearby):
-        mutual = [e.mutual_score for e in entries if e.block == block]
+        mutual = [e.mutual_score or 0.0 for e in entries if e.block == block]
         assert mutual == sorted(mutual, reverse=True)
     exact = [e for e in entries if e.block == SelectionBlock.exact]
     # Порядок по S × P расходится с порядком по одному S — модель действительно влияет.
     assert [e.candidate_id for e in exact] != [
-        e.candidate_id for e in sorted(exact, key=lambda e: -e.match_score)
+        e.candidate_id for e in sorted(exact, key=lambda e: -(e.match_score or 0.0))
     ]
     assert [e.block for e in entries] == [SelectionBlock.exact] * 4 + [SelectionBlock.nearby] * 2
 
@@ -490,6 +611,7 @@ def test_acceptance_model_gets_features_of_need_and_candidate(
     (entry,) = h.selections.build(h.employer, need, limit=20).entries
 
     assert entry.candidate_id == candidate
+    assert entry.match_score is not None
     (features,) = model.seen
     assert features == AcceptanceFeatures(
         salary=SalaryRange(200_000, 300_000),
@@ -552,9 +674,9 @@ def test_list_is_newest_first_and_filters_by_need(make: Callable[..., Harness]) 
     listed = h.selections.summaries(h.employer, None, limit=50)
     assert [s.selection.id for s in listed] == [c.id, b.id, a.id]
     assert [dict(s.totals) for s in listed] == [
-        {SelectionBlock.exact: 1, SelectionBlock.nearby: 0},
-        {SelectionBlock.exact: 0, SelectionBlock.nearby: 1},
-        {SelectionBlock.exact: 1, SelectionBlock.nearby: 0},
+        {SelectionBlock.exact: 1, SelectionBlock.nearby: 0, SelectionBlock.unconfirmed: 0},
+        {SelectionBlock.exact: 0, SelectionBlock.nearby: 1, SelectionBlock.unconfirmed: 0},
+        {SelectionBlock.exact: 1, SelectionBlock.nearby: 0, SelectionBlock.unconfirmed: 0},
     ]
     by_need = h.selections.summaries(h.employer, first, limit=50)
     assert [s.selection.id for s in by_need] == [c.id, a.id]
@@ -679,3 +801,106 @@ def test_build_on_1000_candidates_within_a_second(make: Callable[..., Harness]) 
 
     elapsed = sorted(timings)[1]
     assert elapsed < 1.0, f"подборка на 1000 кандидатах строилась {elapsed:.2f} с"
+
+
+def test_claimed_grade_without_category_is_shown_in_the_bottom_block(
+    make: Callable[..., Harness],
+) -> None:
+    h = make()
+    exact, nearby = h.candidates([CandidateSeed(), CandidateSeed(grade="junior")])
+    full = h.unconfirmed(
+        UnconfirmedSeed(stack=("playwright", "pytest"), expectations=remote(200_000))
+    )
+    bare = h.unconfirmed(UnconfirmedSeed())
+    need = h.need()
+
+    page = h.selections.build(h.employer, need, limit=20)
+
+    assert [(e.candidate_id, e.block) for e in page.entries] == [
+        (exact, SelectionBlock.exact),
+        (nearby, SelectionBlock.nearby),
+        (full, SelectionBlock.unconfirmed),
+        (bare, SelectionBlock.unconfirmed),
+    ]
+    assert page.totals[SelectionBlock.unconfirmed] == 2
+    bottom = page.entries[2]
+    assert bottom.status == GradeStatus(
+        GradeStatusKind.unconfirmed, CatalogRef("middle", "Middle"), None
+    )
+    assert (bottom.match_score, bottom.mutual_score, bottom.acceptance_probability) == (
+        None,
+        None,
+        None,
+    )
+    assert bottom.explanation.topics == ()
+    assert bottom.explanation.stack.matched == ("playwright", "pytest")
+    assert [e.status.kind for e in page.entries[:2]] == [GradeStatusKind.confirmed] * 2
+
+
+def test_category_below_the_claim_stays_in_the_main_blocks(make: Callable[..., Harness]) -> None:
+    h = make()
+    cascaded = h.candidate(CandidateSeed(grade="junior", claimed="middle"))
+
+    (entry,) = h.selections.build(h.employer, h.need(), limit=20).entries
+
+    assert (entry.candidate_id, entry.block) == (cascaded, SelectionBlock.nearby)
+    assert entry.status == GradeStatus(
+        GradeStatusKind.below_claimed,
+        CatalogRef("middle", "Middle"),
+        CatalogRef("junior", "Junior"),
+    )
+    assert entry.grade == CatalogRef("junior", "Junior")
+
+
+def test_cascade_without_category_keeps_the_first_claim(make: Callable[..., Harness]) -> None:
+    """Дотест на junior после попытки на middle заявку не меняет: кандидат — в нижнем блоке
+    потребности middle и не попадает в нижний блок junior."""
+    h = make()
+    candidate = h.unconfirmed(UnconfirmedSeed(chain=("middle", "junior")))
+
+    middle = h.selections.build(h.employer, h.need(), limit=20).entries
+    junior = h.selections.build(h.employer, h.need(NeedSeed(grade="junior")), limit=20).entries
+
+    assert [(e.candidate_id, e.block) for e in middle] == [(candidate, SelectionBlock.unconfirmed)]
+    assert junior == ()
+
+
+@pytest.mark.parametrize(
+    "seed",
+    [
+        pytest.param(UnconfirmedSeed(specialization=None), id="без опроса"),
+        pytest.param(UnconfirmedSeed(chain=()), id="грейд не заявлен"),
+        pytest.param(UnconfirmedSeed(chain=("junior",)), id="заявлен другой грейд"),
+        pytest.param(UnconfirmedSeed(chain=("senior",)), id="заявлен соседний грейд"),
+        pytest.param(UnconfirmedSeed(specialization="backend"), id="другая специализация"),
+        pytest.param(
+            UnconfirmedSeed(specialization="qa", attempt_specialization="backend"),
+            id="попытка по прошлому опросу",
+        ),
+    ],
+)
+def test_who_is_not_in_the_bottom_block(
+    make: Callable[..., Harness], seed: UnconfirmedSeed
+) -> None:
+    h = make()
+    h.unconfirmed(seed)
+
+    assert h.selections.build(h.employer, h.need(), limit=20).entries == ()
+
+
+def test_open_reproduces_the_bottom_block_and_its_total(make: Callable[..., Harness]) -> None:
+    h = make()
+    h.candidates([CandidateSeed() for _ in range(2)])
+    for stack in (("pytest",), (), ("playwright", "pytest")):
+        h.unconfirmed(UnconfirmedSeed(stack=stack, expectations=remote(200_000)))
+    need = h.need()
+    built = h.selections.build(h.employer, need, limit=20)
+
+    # Страница на стыке блоков: подтверждённый последний, нижний — после него.
+    page = h.selections.open(h.employer, built.selection.id, offset=1, limit=2)
+    (summary,) = h.selections.summaries(h.employer, need, limit=10)
+
+    assert page.entries == built.entries[1:3]
+    assert [e.block for e in page.entries] == [SelectionBlock.exact, SelectionBlock.unconfirmed]
+    assert page.totals == built.totals == summary.totals
+    assert built.totals[SelectionBlock.unconfirmed] == 3

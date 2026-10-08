@@ -17,6 +17,7 @@ from app.domain.selection import (
     arrange,
     need_snapshot,
     score,
+    showcase,
 )
 from app.domain.skill import Normal
 from app.usecase.interface import (
@@ -92,10 +93,24 @@ class Selections:
                 )
             ]
             scored = score(snapshot, need.grade.rank, pool, rules)
+            showcased = showcase(
+                snapshot,
+                self._pool.unconfirmed(
+                    need.specialization.code, need.grade.code, [t.code for t in need.stack]
+                ),
+            )
             acceptance = self._acceptance.predict(
                 [acceptance_features(snapshot, item) for item in scored]
             )
-            entries = arrange(scored, acceptance, salt=self._seeds.seed(), now=now, rules=rules)
+            now = self._clock.now()
+            entries = arrange(
+                scored,
+                acceptance,
+                showcased=showcased,
+                salt=self._seeds.seed(),
+                now=now,
+                rules=rules,
+            )
             draft = SelectionDraft(user_id, need.id, snapshot, rules.stack_cap, now)
             selection = self._selections.add(draft, entries)
             return self._selections.page(user_id, selection.id, offset=0, limit=limit)

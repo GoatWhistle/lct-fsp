@@ -26,6 +26,25 @@ services:
       - "127.0.0.1:${MAILPIT_UI_PORT:-8025}:8025"
       - "127.0.0.1:${MAILPIT_SMTP_PORT:-1025}:1025"
 
+  # Изображает ФСП ID: OIDC-провайдер с realm тестовых участников ФСП. Realm генерирует
+  # backend/fsp_stub.py. Админка — http://localhost:8080/admin (admin / admin).
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.4.0
+    command: ["start-dev", "--import-realm"]
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: admin
+      # Браузер ходит на localhost — этот адрес и `iss` в токенах; бэкенд ходит по имени сервиса.
+      KC_HOSTNAME: http://localhost:${KEYCLOAK_PORT:-8080}
+      KC_HOSTNAME_BACKCHANNEL_DYNAMIC: "true"
+      KC_HEALTH_ENABLED: "true"
+      JAVA_OPTS_KC_HEAP: -Xms64m -Xmx384m -XX:MaxMetaspaceSize=192m
+    volumes:
+      - ./keycloak/realm-fsp-id.json:/opt/keycloak/data/import/realm-fsp-id.json:ro
+    ports:
+      - "127.0.0.1:${KEYCLOAK_PORT:-8080}:8080"
+    mem_limit: 768m
+
   backend:
     build:
       context: ./backend
@@ -37,6 +56,12 @@ services:
       COOKIE_SECURE: ${COOKIE_SECURE:-false}
       SMTP_HOST: mailpit
       SMTP_PORT: 1025
+      FSP_ID_ISSUER: ${FSP_ID_ISSUER:-http://localhost:${KEYCLOAK_PORT:-8080}/realms/fsp-id}
+      FSP_ID_SERVER_URL: ${FSP_ID_SERVER_URL:-http://keycloak:8080/realms/fsp-id}
+      FSP_ID_CLIENT_ID: ${FSP_ID_CLIENT_ID:-lct-platform}
+      FSP_ID_CLIENT_SECRET: ${FSP_ID_CLIENT_SECRET:-dev-only-fsp-id-client-secret}
+      FSP_ID_REDIRECT_URI: ${FSP_ID_REDIRECT_URI:-}
+    # Вход по email не ждёт Keycloak: недоступный ФСП ID — понятная ошибка на кнопке.
     depends_on:
       db:
         condition: service_healthy
@@ -68,6 +93,7 @@ services:
       TEST_DATABASE_URL: postgresql+psycopg://lct:lct@db:5432/postgres
     volumes:
       - ./docs:/docs:ro  # тест сверяет конфиг механик с docs/parameters.md
+      - ./keycloak:/keycloak:ro  # тест сверяет realm export с генератором заглушки ФСП
     depends_on:
       db:
         condition: service_healthy

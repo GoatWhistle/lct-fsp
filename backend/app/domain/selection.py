@@ -172,6 +172,8 @@ class PoolCandidate:
     last_signal_at: datetime | None
     # Без заполненного профиля кандидата ожиданий нет.
     expectations: Expectations | None
+    # Темы профиля, среди источников которых есть ФСП.
+    fsp_topics: frozenset[str] = frozenset()
 
 
 @dataclass(frozen=True)
@@ -273,6 +275,8 @@ class TopicExplanation:
     verdict: Verdict
     # Погрешность выше `topic_low_data_sd`.
     low_data: bool
+    # Среди источников уровня темы — результат ФСП.
+    fsp_confirmed: bool = False
 
 
 @dataclass(frozen=True)
@@ -291,7 +295,10 @@ class Explanation:
     stack: StackExplanation
 
 
-def explain(match: Match, rules: SelectionRules) -> Explanation:
+def explain(
+    match: Match, rules: SelectionRules, fsp_topics: frozenset[str] = frozenset()
+) -> Explanation:
+    """Вклады из скора; `fsp_topics` — темы, уровень которых подтверждён ФСП."""
     return Explanation(
         topics=tuple(
             TopicExplanation(
@@ -302,6 +309,7 @@ def explain(match: Match, rules: SelectionRules) -> Explanation:
                 contribution=fit.contribution,
                 verdict=verdict(fit.probability, rules.verdict_bands),
                 low_data=fit.level.sd > rules.low_data_sd,
+                fsp_confirmed=fit.topic in fsp_topics,
             )
             for fit in match.topics
         ),
@@ -364,7 +372,7 @@ def arrange(
                     match_score=item.match.score,
                     acceptance_probability=probability,
                     mutual_score=mutual[candidate_id],
-                    explanation=explain(item.match, rules),
+                    explanation=explain(item.match, rules, item.candidate.fsp_topics),
                     stale=is_stale(item.candidate.last_signal_at, now, rules.stale_after),
                 )
             )

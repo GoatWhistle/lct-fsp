@@ -1,13 +1,15 @@
 """Рендер PDF-профиля за портом: на вход — доменная проекция, без базы и HTTP."""
 
 import io
-from datetime import UTC, datetime
+from dataclasses import replace
+from datetime import UTC, date, datetime
 
 from pypdf import PdfReader
 
 from app.adapter.profile_pdf import FpdfProfileRenderer
 from app.domain.candidate import Disclosed, ProfileSheet, SelfReported
 from app.domain.catalog import CatalogRef
+from app.domain.fsp import ConfirmedAchievement, FspResult
 from app.domain.work import WorkFormat
 from app.usecase.interface import ProfilePdfRenderer
 
@@ -55,3 +57,31 @@ def test_same_projection_and_time_give_same_bytes() -> None:
     renderer = FpdfProfileRenderer()
 
     assert renderer.render(SHEET, now=NOW) == renderer.render(SHEET, now=NOW)
+
+
+def text_of(sheet: ProfileSheet) -> str:
+    content = FpdfProfileRenderer().render(sheet, now=NOW)
+    return "\n".join(p.extract_text() for p in PdfReader(io.BytesIO(content)).pages)
+
+
+def test_fsp_achievements_are_a_confirmed_block_apart_from_self_description() -> None:
+    achievement = ConfirmedAchievement(
+        event="Чемпионат России по продуктовому программированию",
+        date=date(2025, 4, 12),
+        discipline=CatalogRef("product", "Продуктовое программирование"),
+        place=2,
+        result=FspResult.prize,
+        team_role=CatalogRef("qa", "QA"),
+    )
+
+    text = text_of(replace(SHEET, fsp_achievements=(achievement,)))
+
+    fsp, self_reported = text.index("ПОДТВЕРЖДЕНО ФСП"), text.index("СО СЛОВ КАНДИДАТА")
+    assert fsp < self_reported
+    block = text[fsp:self_reported]
+    for part in ("12.04.2025", "продуктовому", "призёр", "2 место", "QA"):
+        assert part in block
+
+
+def test_candidate_without_fsp_history_gets_neutral_note() -> None:
+    assert "Нет истории ФСП" in text_of(SHEET)

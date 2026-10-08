@@ -1,0 +1,970 @@
+{
+ "model": "claude-sonnet-5-5",
+ "answers": {
+  "01453231ac569815340d9f01c8b9eda068867b370c1e8766c405b3fba120b1c2": {
+   "raw": "{\"out_of_catalog\": false, \"asked\": null, \"nearest\": [], \"title\": \"Эксперт дисциплины «Инфраструктура big data»\", \"specialization\": \"data-ml\", \"grade\": \"middle\", \"stack\": [\"kafka\", \"spark\", \"clickhouse\", \"airflow\", \"docker\"], \"work_format\": \"remote\", \"city\": \"Томск\", \"salary_from\": null, \"salary_to\": null}",
+   "error": null,
+   "ms": 8379.01084299665
+  },
+  "01674401a8985d877653daaf48c5415ebf4a18dee3e60e0a3d131c78dc3d302c": {
+   "raw": "{\"out_of_catalog\": false, \"asked\": null, \"nearest\": [], \"title\": \"PHP-разработчик (1С-Битрикс)\", \"specialization\": \"backend\", \"grade\": \"junior\", \"stack\": [\"mysql\", \"docker\", \"linux\", \"nginx\"], \"work_format\": \"office\", \"city\": \"Краснодар\", \"salary_from\": 90000, \"salary_to\": null}",
+   "error": null,
+   "ms": 7508.4353680722415
+  },
+  "04599de0903813221d8cc323be1350b8483d848f80a527de273f0559c66c0a74": {
+   "raw": "{\"out_of_catalog\": true, \"asked\": \"Flutter-разработка (мобильная разработка)\", \"nearest\": [\"frontend\", \"backend\", \"qa\"], \"title\": null, \"specialization\": null, \"grade\": null, \"stack\": [], \"work_format\": null, \"city\": null, \"salary_from\": null, \"salary_to\": null}",
+   "error": null,
+   "ms": 6406.892871018499
+  },
+  "06142bfd6db4dbeae159547a590da37123d35ad59bc6545ed8930771e9a4f222": {
+   "raw": "{\"out_of_catalog\": false, \"asked\": null, \"nearest\": [], \"title\": \"Senior Frontend Developer (VUE3)\", \"specialization\": \"frontend\", \"grade\": \"senior\", \"stack\": [\"vue\", \"typescript\", \"javascript\", \"html-css\", \"docker\", \"nodejs\"], \"work_format\": \"remote\", \"city\": \"Нижний Новгород\", \"salary_from\": null, \"salary_to\": null}",
+   "error": null,
+   "ms": 7149.29307193961
+  },
+  "09272b27f1037f57c8d6319530b007dd53380aac82d50fc88b1aa6926d082413": {
+   "raw": "{\"out_of_catalog\": false, \"asked\": null, \"nearest\": [], \"title\": \"Стажер Data Science\", \"specialization\": \"data-ml\", \"grade\": \"intern\", \"stack\": [\"python\"], \"work_format\": \"office\", \"city\": \"Новосибирск\", \"salary_from\": null, \"salary_to\": null}",
+   "error": null,
+   "ms": 6831.54933701735
+  },
+  "0a13ef91223a60bcc11baf9428111e045d96b8f6dfe43995419ed2b93a7af649": {
+   "raw": "{\"out_of_catalog\": false, \"asked\": null, \"nearest\": [], \"title\": \"Middle+/Senior Embedded разработчик (Rust/C++)\", \"specialization\": \"backend\", \"grade\": \"middle\", \"stack\": [\"python\", \"fastapi\", \"docker\", \"kubernetes\", \"rabbitmq\", \"clickhouse\"], \"work_format\": \"hybrid\", \"city\": \"Москва\", \"salary_from\": 300000, \"salary_to\": null}",
+   "error": null,
+   "ms": 8324.988215928897
+  },
+  "0c2420905c3ef6f38065729d4d9ac3590040c7db3fbe204592090fc229ece18c": {
+   "raw": "{\"out_of_catalog\": true, \"asked\": \"1С\", \"nearest\": [\"backend\"], \"title\": null, \"specialization\": null, \"grade\": null, \"stack\": [], \"work_format\": null, \"city\": null, \"salary_from\": null, \"salary_to\": null}",
+   "error": null,
+   "ms": 7654.430016991682
+  },
+  "0c6262e707a5980451458a0771dbfc2b142772bbce907f1d684f84ac6704739a": {
+   "raw": "{\"out_of_catalog\": false, \"asked\": null, \"nearest\": [], \"title\": \"Функциональный тестировщик / QA инженер (стажировка)\", \"specialization\": \"qa\", \"grade\": \"intern\", \"stack\": [\"html-css\", \"javascript\"], \"work_format\": \"remote\", \"city\": null, \"salary_from\": null, \"salary_to\": null}",
+   "error": null,
+   "ms": 8017.115900060162
+  },
+  "0dbec1f5b222fbb95997eaff6efd3704ff0719a6d3d3ee7a93960357ccccae6a": {
+   "raw": "{\"out_of_catalog\": false, \"asked\": null, \"nearest\": [], \"title\": \"Senior Data Scientist / ML Engineer (Направление LLM)\", \"specialization\": \"data-ml\", \"grade\": \"senior\", \"stack\": [\"python\", \"docker\", \"kafka\", \"fastapi\", \"kubernetes\", \"airflow\"], \"work_format\": \"remote\", \"city\": \"Москва\", \"salary_from\": null, \"salary_to\": null}",
+   "error": null,
+   "ms": 9334.628134034574
+  },
+  "145974edc3e9c12a1763f73d27c71d5a1a3277428ce72566977d6574c4429b9a": {
+   "raw": "{\"out_of_catalog\": false, \"asked\": null, \"nearest\": [], \"title\": \"Веб-разработчик (Битрикс24)\", \"specialization\": \"backend\", \"grade\": \"middle\", \"stack\": [\"python\", \"postgresql\", \"mysql\", \"react\", \"javascript\", \"nodejs\", \"django\", \"nginx\"], \"work_format\": \"office\", \"city\": \"Краснодар\", \"salary_from\": 150000, \"salary_to\": null}",
+   "error": null,
+   "ms": 9469.862979021855
+  },
+  "16d270d83b1f2a05a3f0af666764a14c4230756bd928cdd1bd490e3b99151d10": {
+   "raw": "{\"out_of_catalog\": true, \"asked\": \"Разработка и администрирование Битрикс24\", \"nearest\": [\"backend\", \"frontend\", \"devops\"], \"title\": null, \"specialization\": null, \"grade\": null, \"stack\": [], \"work_format\": null, \"city\": null, \"salary_from\": null, \"salary_to\": null}",
+   "error": null,
+   "ms": 29069.303388008848
+  },
+  "1a00ede88dfbdbdb1d4e41e8fb33e5e0bc0ba4cba4a82c0265b34d7583386467": {
+   "raw": "{\"out_of_catalog\": true, \"asked\": \"Embedded Linux разработка (встраиваемое ПО)\", \"nearest\": [\"backend\", \"devops\"], \"title\": null, \"specialization\": null, \"grade\": null, \"stack\": [], \"work_format\": null, \"city\": null, \"salary_from\": null, \"salary_to\": null}",
+   "error": null,
+   "ms": 13100.827438989654
+  },
+  "1ca9ce7cf0e2ec9e20b424c54a18cb2feb1c5dd68070a1e49269588c433f0595": {
+   "raw": "{\"out_of_catalog\": true, \"asked\": \"Графическое программирование в геймдеве (Render Developer)\", \"nearest\": [\"backend\"], \"title\": null, \"specialization\": null, \"grade\": null, \"stack\": [], \"work_format\": null, \"city\": null, \"salary_from\": null, \"salary_to\": null}",
+   "error": null,
+   "ms": 6916.837385040708
+  },
+  "1cf560697358424cd73240f7ae5a1e4f0a70638828a2c45b682e3759f4fdf673": {
+   "raw": "{\"out_of_catalog\": true, \"asked\": \"Системный администратор\", \"nearest\": [\"devops\"], \"title\": null, \"specialization\": null, \"grade\": null, \"stack\": [], \"work_format\": null, \"city\": null, \"salary_from\": null, \"salary_to\": null}",
+   "error": null,
+   "ms": 6244.217641069554
+  },
+  "209120f96594b4f93521f42cc266feaf535e0c7f3ffe7002ec455adc02143436": {
+   "raw": "{\"out_of_catalog\": true, \"asked\": \"1С\", \"nearest\": [\"backend\"], \"title\": \"Начинающий специалист 1С\", \"specialization\": null, \"grade\": null, \"stack\": [], \"work_format\": null, \"city\": null, \"salary_from\": null, \"salary_to\": null}",
+   "error": null,
+   "ms": 6775.239816051908
+  },
+  "20bba16d9150bfa8b25e78b76dc1db83833bb0a0c6d68a5cd1d5a1d9f361745e": {
+   "raw": "{\"out_of_catalog\": false, \"asked\": null, \"nearest\": [], \"title\": \"ML Engineer\", \"specialization\": \"data-ml\", \"grade\": \"middle\", \"stack\": [\"python\", \"mlflow\"], \"work_format\": \"remote\", \"city\": \"Санкт-Петербург\", \"salary_from\": null, \"salary_to\": 400000}",
+   "error": null,
+   "ms": 6145.205746055581
+  },
+  "21d80d7c27d6aee84d8c8149ff88b12c4c5a1808dae1d9d85ffa80b2d5a1dce9": {
+   "raw": "{\"out_of_catalog\": true, \"asked\": \"геймдизайн (Game Designer, мобильные игры)\", \"nearest\": [], \"title\": \"Middle Game Designer (Геймдизайнер)\", \"specialization\": null, \"grade\": null, \"stack\": [], \"work_format\": null, \"city\": null, \"salary_from\": null, \"salary_to\": null}",
+   "error": null,
+   "ms": 5769.997342955321
+  },
+  "24899fc7bdca8e620994b3a9241a4f0e380c033ec630c97c0960116f068c7aa7": {
+   "raw": "{\"out_of_catalog\": false, \"asked\": null, \"nearest\": [], \"title\": \"QA Инженер / Middle QA Engineer\", \"specialization\": \"qa\", \"grade\": \"middle\", \"stack\": [], \"work_format\": \"hybrid\", \"city\": \"Санкт-Петербург\", \"salary_from\": 100000, \"salary_to\": 130000}",
+   "error": null,
+   "ms": 6434.891477925703
+  },
+  "283ed40c862829f5cbe0ad3116fcfd4b88c23c3ea03cc8ea0d8cac0a5065598b": {
+   "raw": "{\"out_of_catalog\": false, \"asked\": null, \"nearest\": [], \"title\": \"LLM Разработчик\", \"specialization\": \"data-ml\", \"grade\": \"junior\", \"stack\": [\"python\", \"pytorch\", \"numpy\", \"pandas\", \"scikit-learn\", \"postgresql\"], \"work_format\": \"hybrid\", \"city\": \"Новосибирск\", \"salary_from\": null, \"salary_to\": null}",
+   "error": null,
+   "ms": 8540.005889954045
+  },
+  "2a595bdb4de5e1c38df619b4501b0327b179f902b47bd84db0e61bd6b138e8d0": {
+   "raw": "{\"out_of_catalog\": true, \"asked\": \"Системный аналитик\", \"nearest\": [\"backend\", \"data-ml\", \"qa\"], \"title\": null, \"specialization\": null, \"grade\": null, \"stack\": [], \"work_format\": null, \"city\": null, \"salary_from\": null, \"salary_to\": null}",
+   "error": null,
+   "ms": 6004.692608024925
+  },
+  "2a7d4bf8f2980ddc81af937bbcf30c6bb436a866fb4459c8d26c907918e5fd6d": {
+   "raw": "{\"out_of_catalog\": true, \"asked\": \"Аналитик API интеграций\", \"nearest\": [\"backend\", \"qa\"], \"title\": null, \"specialization\": null, \"grade\": null, \"stack\": [], \"work_format\": null, \"city\": null, \"salary_from\": null, \"salary_to\": null}",
+   "error": null,
+   "ms": 7492.267483961768
+  },
+  "2ca7ba773ac36baea64eb8494a24855551517e3faf60d0258579fb14e0ec753e": {
+   "raw": "{\"out_of_catalog\": false, \"asked\": null, \"nearest\": [], \"title\": \"Разработчик серверной части — VEDAR\", \"specialization\": \"backend\", \"grade\": \"middle\", \"stack\": [\"nodejs\", \"typescript\", \"react\", \"linux\", \"python\", \"pytorch\"], \"work_format\": \"remote\", \"city\": \"Москва\", \"salary_from\": 170000, \"salary_to\": 200000}",
+   "error": null,
+   "ms": 6925.271286047064
+  },
+  "2db5e5b7c7bc7b8a1f1e70b355c66a5c176145fbe25dde07f0e38a086a959c32": {
+   "raw": "{\"out_of_catalog\": false, \"asked\": null, \"nearest\": [], \"title\": \"Инженер данных\", \"specialization\": \"data-ml\", \"grade\": \"middle\", \"stack\": [\"airflow\", \"python\", \"postgresql\", \"clickhouse\", \"docker\", \"linux\", \"pandas\"], \"work_format\": \"office\", \"city\": \"Томск\", \"salary_from\": null, \"salary_to\": null}",
+   "error": null,
+   "ms": 6805.696411989629
+  },
+  "30faf53cf082a70bec89486b224ce30e05e6ad04ed57cd80477cbc16a6c69e68": {
+   "raw": "{\"out_of_catalog\": true, \"asked\": \"системное администрирование\", \"nearest\": [\"devops\"], \"title\": null, \"specialization\": null, \"grade\": null, \"stack\": [], \"work_format\": null, \"city\": null, \"salary_from\": null, \"salary_to\": null}",
+   "error": null,
+   "ms": 6069.694962003268
+  },
+  "328dfbd1d93033d409b5f0274c1f9edef5a268702bbcee48d7011eb4a9e17c19": {
+   "raw": "{\"out_of_catalog\": false, \"asked\": null, \"nearest\": [], \"title\": \"Разработчик\", \"specialization\": \"data-ml\", \"grade\": \"junior\", \"stack\": [\"python\", \"pytorch\", \"docker\", \"linux\", \"postgresql\", \"clickhouse\"], \"work_format\": \"office\", \"city\": \"Казань\", \"salary_from\": 169000, \"salary_to\": 169000}",
+   "error": null,
+   "ms": 7188.508442020975
+  },
+  "32dadb64d5d70ec467778d2e57e77d617ae8b0d28f503cec17be421abaf61678": {
+   "raw": "{\"out_of_catalog\": false, \"asked\": null, \"nearest\": [], \"title\": \"Senior/Lead Frontend разработчик (React)\", \"specialization\": \"frontend\", \"grade\": \"senior\", \"stack\": [\"typescript\", \"javascript\", \"react\", \"nodejs\"], \"work_format\": \"remote\", \"city\": \"Москва\", \"salary_from\": null, \"salary_to\": null}",
+   "error": null,
+   "ms": 7394.625273067504
+  },
+  "33c6860b22ec321f8142c03af0d8dfc9009b989a5138540ff4408897ae72e410": {
+   "raw": "{\"out_of_catalog\": false, \"asked\": null, \"nearest\": [], \"title\": \"Senior Java/Go-разработчик\", \"specialization\": \"backend\", \"grade\": \"senior\", \"stack\": [\"java\", \"go\", \"spring\", \"postgresql\", \"kafka\", \"redis\", \"docker\", \"kubernetes\", \"react\", \"typescript\"], \"work_format\": \"remote\", \"city\": \"Москва\", \"salary_from\": null, \"salary_to\": null}",
+   "error": null,
+   "ms": 6112.9899739753455
+  },
+  "33f791ad1860f399e4e4e4198b69e4d42d71a71bea8165fa7e84bbd4b54f0fe4": {
+   "raw": "{\"out_of_catalog\": true, \"asked\": \"iOS-разработка\", \"nearest\": [\"frontend\", \"backend\"], \"title\": null, \"specialization\": null, \"grade\": null, \"stack\": [], \"work_format\": null, \"city\": null, \"salary_from\": null, \"salary_to\": null}",
+   "error": null,
+   "ms": 5838.473708019592
+  },
+  "345bb84a1018f8657e1752fc7488c0137ebb7ce7bcd177ecf1e6b32007bbdba4": {
+   "raw": "{\"out_of_catalog\": false, \"asked\": null, \"nearest\": [], \"title\": \"Senior Data Scientist (команда рекомендаций)\", \"specialization\": \"data-ml\", \"grade\": \"senior\", \"stack\": [\"python\", \"numpy\", \"pytorch\", \"scikit-learn\", \"java\", \"kafka\"], \"work_format\": \"remote\", \"city\": \"Москва\", \"salary_from\": 450000, \"salary_to\": null}",
+   "error": null,
+   "ms": 10541.97145299986
+  },
+  "36c2738f04a204c8515a2b5dc292fdecbe6ede42d04c435f45a77d2e8bec3cfa": {
+   "raw": "{\"out_of_catalog\": true, \"asked\": \"Системный администратор\", \"nearest\": [\"devops\"], \"title\": null, \"specialization\": null, \"grade\": null, \"stack\": [], \"work_format\": null, \"city\": null, \"salary_from\": null, \"salary_to\": null}",
+   "error": null,
+   "ms": 9367.931996006519
+  },
+  "3700294413457e9863ee440a724febc4d0fb3399a7682cedfb6ae6dfa2d7067b": {
+   "raw": "{\"out_of_catalog\": false, \"asked\": null, \"nearest\": [], \"title\": \".Net/React разработчик\", \"specialization\": \"backend\", \"grade\": \"senior\", \"stack\": [\"csharp\", \"react\", \"postgresql\", \"rabbitmq\", \"redis\"], \"work_format\": \"remote\", \"city\": \"Москва\", \"salary_from\": null, \"salary_to\": 240000}",
+   "error": null,
+   "ms": 6890.119925024919
+  },
+  "37c59c811c12307d649df87907f12f3d1b39aeda1293830a5b9a1c6a6c48d03e": {
+   "raw": "{\"out_of_catalog\": false, \"asked\": null, \"nearest\": [], \"title\": \"ML-инженер (Java)\", \"specialization\": \"data-ml\", \"grade\": \"middle\", \"stack\": [\"java\", \"postgresql\", \"clickhouse\", \"prometheus\", \"grafana\", \"terraform\"], \"work_format\": \"remote\", \"city\": \"Москва\", \"salary_from\": 260000, \"salary_to\": 330000}",
+   "error": null,
+   "ms": 7400.8981180377305
+  },
+  "3801e52d34d1e54db27406ddc8692204b6b08999ab5e54104e94d3a665de76c7": {
+   "raw": "{\"out_of_catalog\": true, \"asked\": \"SAP-разработка (ABAP)\", \"nearest\": [\"backend\", \"devops\"], \"title\": null, \"specialization\": null, \"grade\": null, \"stack\": [], \"work_format\": null, \"city\": null, \"salary_from\": null, \"salary_to\": null}",
+   "error": null,
+   "ms": 5742.520470987074
+  },
+  "38c20ee07b048bc134fa95ff7e1cd70e45be6e5498a9ef77ba72fafe821eab12": {
+   "raw": "{\"out_of_catalog\": false, \"asked\": null, \"nearest\": [], \"title\": \"SRE инженер\", \"specialization\": \"devops\", \"grade\": \"middle\", \"stack\": [\"prometheus\", \"grafana\", \"gitlab-ci\", \"linux\", \"bash\", \"python\"], \"work_format\": \"hybrid\", \"city\": \"Москва\", \"salary_from\": 200000, \"salary_to\": null}",
+   "error": null,
+   "ms": 6633.555323933251
+  },
+  "3a5bed127cc343e48026551815c32c3ae84e1d3643b6cf0c138909ea784abc89": {
+   "raw": "{\"out_of_catalog\": true, \"asked\": \"3D-визуализация, VR/AR и ПО для компьютерных тренажёров (C++/C#)\", \"nearest\": [\"backend\"], \"title\": null, \"specialization\": null, \"grade\": null, \"stack\": [], \"work_format\": null, \"city\": null, \"salary_from\": null, \"salary_to\": null}",
+   "error": null,
+   "ms": 6923.930053017102
+  },
+  "3a85de02d1fd72c8342c78277b44520071cc024eb3b3c11fa44db0e5093ea141": {
+   "raw": "{\"out_of_catalog\": true, \"asked\": \"Android-разработка\", \"nearest\": [\"frontend\", \"backend\"], \"title\": null, \"specialization\": null, \"grade\": null, \"stack\": [], \"work_format\": null, \"city\": null, \"salary_from\": null, \"salary_to\": null}",
+   "error": null,
+   "ms": 7503.461266984232
+  },
+  "3bc6aff767306d62406a777017c6501029ced9a8c45dd70cfb6d19a782efc429": {
+   "raw": "{\"out_of_catalog\": false, \"asked\": null, \"nearest\": [], \"title\": \"Middle QA Fullstack\", \"specialization\": \"qa\", \"grade\": \"middle\", \"stack\": [\"java\", \"selenium\", \"rabbitmq\", \"kubernetes\", \"kafka\"], \"work_format\": \"remote\", \"city\": \"Москва\", \"salary_from\": null, \"salary_to\": null}",
+   "error": null,
+   "ms": 7745.518826064654
+  },
+  "3c50a183d03f7544b9092be560a5e1b8e5b860d82daf02a2e3e135fcad03e529": {
+   "raw": "{\"out_of_catalog\": true, \"asked\": \"1С\", \"nearest\": [\"backend\"], \"title\": \"Программист 1С\", \"specialization\": null, \"grade\": null, \"stack\": [], \"work_format\": null, \"city\": null, \"salary_from\": null, \"salary_to\": null}",
+   "error": null,
+   "ms": 6415.4038609704
+  },
+  "3ce603541bb282b888194fc1166721fc8c36e421778233cc394ce223f1868839": {
+   "raw": "{\"out_of_catalog\": true, \"asked\": \"Разработка игр на Unity (Gamedev)\", \"nearest\": [\"backend\", \"frontend\", \"qa\"], \"title\": \"Unity разработчик (Gamedev)\", \"specialization\": null, \"grade\": null, \"stack\": [], \"work_format\": null, \"city\": null, \"salary_from\": null, \"salary_to\": null}",
+   "error": null,
+   "ms": 6073.930104030296
+  },
+  "4040257c03dc7f38ee2dd0ba87d6f8a59bc5c647bdb6030d48a6b96dfcd30298": {
+   "raw": "{\"out_of_catalog\": false, \"asked\": null, \"nearest\": [], \"title\": \"Trainee/Intern/Junior Python backend developer\", \"specialization\": \"backend\", \"grade\": \"intern\", \"stack\": [\"python\", \"django\", \"rabbitmq\", \"nginx\", \"kubernetes\", \"docker\", \"postgresql\", \"redis\"], \"work_format\": \"hybrid\", \"city\": \"Санкт-Петербург\", \"salary_from\": 20000, \"salary_to\": 40000}",
+   "error": null,
+   "ms": 8020.9180660312995
+  },
+  "420866778141d4fa615572eefa3c8252a37fe2c9e374b1e27b21c70bfb8cd13e": {
+   "raw": "{\"out_of_catalog\": false, \"asked\": null, \"nearest\": [], \"title\": \"Аналитик данных (BI&DWH) кроссканального антифрода\", \"specialization\": \"data-ml\", \"grade\": \"senior\", \"stack\": [\"airflow\", \"spark\", \"postgresql\", \"clickhouse\", \"kafka\"], \"work_format\": \"hybrid\", \"city\": \"Москва\", \"salary_from\": 200000, \"salary_to\": 350000}",
+   "error": null,
+   "ms": 7129.551711957902
+  },
+  "4384b4176eede11821929a92ff1b18934e5d21a83911378d060eab4277d9453a": {
+   "raw": "{\"out_of_catalog\": false, \"asked\": null, \"nearest\": [], \"title\": \"Тестировщик - QA Engineer\", \"specialization\": \"qa\", \"grade\": \"junior\", \"stack\": [\"postman\"], \"work_format\": \"office\", \"city\": \"Казань\", \"salary_from\": null, \"salary_to\": null}",
+   "error": null,
+   "ms": 8791.153691941872
+  },
+  "43cc4306a2dc185b2612ea1599c48e15d4ae81dee4bc8f6bf1fae893a3ad5196": {
+   "raw": "{\"out_of_catalog\": false, \"asked\": null, \"nearest\": [], \"title\": \"DevOps-инженер\", \"specialization\": \"devops\", \"grade\": \"middle\", \"stack\": [\"linux\", \"python\", \"bash\", \"gitlab-ci\", \"ansible\", \"docker\"], \"work_format\": \"office\", \"city\": \"Санкт-Петербург\", \"salary_from\": 300000, \"salary_to\": null}",
+   "error": null,
+   "ms": 10509.523747954518
+  },
+  "43e6c4e14538938c720beb8014749fcd5ee0d7889bc087dedf0cff44d0e49de2": {
+   "raw": "{\"out_of_catalog\": true, \"asked\": \"Разработка на Flutter (Dart)\", \"nearest\": [\"frontend\", \"backend\"], \"title\": null, \"specialization\": null, \"grade\": null, \"stack\": [], \"work_format\": null, \"city\": null, \"salary_from\": null, \"salary_to\": null}",
+   "error": null,
+   "ms": 6461.93108195439
+  },
+  "466679680e4b3fa0e661e7ab7cc05da34f8fee79725005340f88be0ae716d31c": {
+   "raw": "{\"out_of_catalog\": false, \"asked\": null, \"nearest\": [], \"title\": \"Fullstack программист-разработчик WEB-приложений\", \"specialization\": \"backend\", \"grade\": \"junior\", \"stack\": [\"nodejs\", \"react\", \"postgresql\", \"vue\", \"angular\", \"vite\", \"redis\", \"rabbitmq\", \"kafka\", \"nginx\", \"linux\", \"bash\", \"docker\", \"gitlab-ci\", \"jest\", \"jmeter\"], \"work_format\": \"hybrid\", \"city\": \"Москва\", \"salary_from\": 70000, \"salary_to\": 120000}",
+   "error": null,
+   "ms": 7864.189217914827
+  },
+  "4960b1ce1904f5c99c282df6f33b8baab6d151069ce53c570f11f8bfb7199e90": {
+   "raw": "{\"out_of_catalog\": true, \"asked\": \"SAP (консультант MM, SD)\", \"nearest\": [\"backend\", \"qa\", \"data-ml\"], \"title\": null, \"specialization\": null, \"grade\": null, \"stack\": [], \"work_format\": null, \"city\": null, \"salary_from\": null, \"salary_to\": null}",
+   "error": null,
+   "ms": 6395.485891029239
+  },
+  "4a58814d18992f83de654dbed4c2b670c1877f606a7371931bacb1ea9bfe2555": {
+   "raw": "{\"out_of_catalog\": false, \"asked\": null, \"nearest\": [], \"title\": \"Automation QA Engineer\", \"specialization\": \"qa\", \"grade\": \"middle\", \"stack\": [\"airflow\", \"clickhouse\", \"python\", \"pytest\", \"gitlab-ci\", \"kafka\", \"spark\", \"docker\", \"kubernetes\"], \"work_format\": \"hybrid\", \"city\": \"Санкт-Петербург\", \"salary_from\": null, \"salary_to\": null}",
+   "error": null,
+   "ms": 7635.882106027566
+  },
+  "4cdea026870b7d8e9622d4f7f4b0e01f8065c16d54d15a3cbad823c38fe576f4": {
+   "raw": "{\"out_of_catalog\": false, \"asked\": null, \"nearest\": [], \"title\": \"Senior Frontend Developer (Angular)\", \"specialization\": \"frontend\", \"grade\": \"senior\", \"stack\": [\"angular\", \"typescript\", \"jest\", \"gitlab-ci\", \"docker\", \"nginx\", \"kubernetes\"], \"work_format\": \"remote\", \"city\": \"Москва\", \"salary_from\": null, \"salary_to\": null}",
+   "error": null,
+   "ms": 20532.252583070658
+  },
+  "4d23fa4119af5ec660d3a663a35ff3213a887930af29aa2fdaeb0f513bff6ba0": {
+   "raw": "{\"out_of_catalog\": true, \"asked\": \"Программист 1С\", \"nearest\": [\"backend\"], \"title\": null, \"specialization\": null, \"grade\": null, \"stack\": [], \"work_format\": null, \"city\": null, \"salary_from\": null, \"salary_to\": null}",
+   "error": null,
+   "ms": 5962.916862918064
+  },
+  "4d420bdbb7e26308339f11eff8ada5933f48dc2f8777f072b09b53b596a5a08a": {
+   "raw": "{\"out_of_catalog\": false, \"asked\": null, \"nearest\": [], \"title\": \"Стажёр Frontend-разработчик\", \"specialization\": \"frontend\", \"grade\": \"intern\", \"stack\": [\"react\", \"javascript\", \"typescript\"], \"work_format\": \"office\", \"city\": \"Москва\", \"salary_from\": null, \"salary_to\": null}",
+   "error": null,
+   "ms": 6335.9934779582545
+  },
+  "4e71e25cc67ca058dbaea0f485f3d8a7f87ddd725043885ea75b6887761522b9": {
+   "raw": "{\"out_of_catalog\": false, \"asked\": null, \"nearest\": [], \"title\": \"Стажёр DevOps\", \"specialization\": \"devops\", \"grade\": \"intern\", \"stack\": [\"linux\", \"docker\", \"kubernetes\", \"bash\"], \"work_format\": \"office\", \"city\": \"Пермь\", \"salary_from\": null, \"salary_to\": null}",
+   "error": null,
+   "ms": 6895.487160072662
+  },
+  "50f04bd603982e1873d9fde7c87a16017c0b8965bcb76e923237032a37ed4983": {
+   "raw": "{\"out_of_catalog\": false, \"asked\": null, \"nearest\": [], \"title\": \"SRE-инженер\", \"specialization\": \"devops\", \"grade\": \"senior\", \"stack\": [\"kafka\", \"postgresql\", \"redis\", \"terraform\", \"ansible\"], \"work_format\": \"remote\", \"city\": \"Москва\", \"salary_from\": 270000, \"salary_to\": null}",
+   "error": null,
+   "ms": 8805.229395045899
+  },
+  "53a990e0f0d23a8c2d7964eb314cee525b934a02bc880d74c0b78db9d45fa955": {
+   "raw": "{\"out_of_catalog\": false, \"asked\": null, \"nearest\": [], \"title\": \"Machine Learning Engineer (NLP)\", \"specialization\": \"data-ml\", \"grade\": \"senior\", \"stack\": [\"python\", \"pandas\", \"numpy\", \"scikit-learn\", \"docker\", \"fastapi\", \"mlflow\"], \"work_format\": \"remote\", \"city\": \"Москва\", \"salary_from\": null, \"salary_to\": 320000}",
+   "error": null,
+   "ms": 9443.672758992761
+  },
+  "544be416e945a45e3331b22004ad5a13b2929368b9295e36f8466eda86a4252b": {
+   "raw": "{\"out_of_catalog\": false, \"asked\": null, \"nearest\": [], \"title\": \"Тестировщик (Manual QA Engineer)\", \"specialization\": \"qa\", \"grade\": \"junior\", \"stack\": [], \"work_format\": \"office\", \"city\": \"Воронеж\", \"salary_from\": null, \"salary_to\": null}",
+   "error": null,
+   "ms": 7436.943203094415
+  },
+  "546daa8134c35d6a458e711a2b33fbc63c64a23afdff1924d9a9ed5fbae6a84b": {
+   "raw": "{\"out_of_catalog\": true, \"asked\": \"Разработка 1С\", \"nearest\": [\"backend\", \"data-ml\"], \"title\": \"Начинающий разработчик 1С\", \"specialization\": null, \"grade\": null, \"stack\": [], \"work_format\": null, \"city\": null, \"salary_from\": null, \"salary_to\": null}",
+   "error": null,
+   "ms": 5700.894393026829
+  },
+  "54c7d4b826247213cf9db0688690b8c183780799f73bb486ff6880f87cd3ad70": {
+   "raw": "{\"out_of_catalog\": false, \"asked\": null, \"nearest\": [], \"title\": \"Стажер Data Scientist (Риски)\", \"specialization\": \"data-ml\", \"grade\": \"intern\", \"stack\": [\"python\", \"fastapi\", \"docker\", \"java\"], \"work_format\": \"hybrid\", \"city\": \"Москва\", \"salary_from\": null, \"salary_to\": null}",
+   "error": null,
+   "ms": 8600.37449200172
+  },
+  "54efb1bd85990ed924778e87d2194f6fdef07b17c4b04acb6fcfa1e952312638": {
+   "raw": "{\"out_of_catalog\": false, \"asked\": null, \"nearest\": [], \"title\": \"Senior MLOps Engineer\", \"specialization\": \"devops\", \"grade\": \"senior\", \"stack\": [\"docker\", \"kubernetes\", \"mlflow\", \"airflow\", \"linux\", \"python\", \"bash\", \"postgresql\", \"redis\", \"kafka\", \"terraform\", \"ansible\", \"prometheus\", \"grafana\"], \"work_format\": \"remote\", \"city\": null, \"salary_from\": null, \"salary_to\": null}",
+   "error": null,
+   "ms": 8833.286691922694
+  },
+  "5507f67d230e9dd1a5dd1dd73be68cfea073b34aa2c5ee811b48c9d37929a8ec": {
+   "raw": "{\"out_of_catalog\": true, \"asked\": \"Unity-разработка (геймдев)\", \"nearest\": [\"backend\", \"frontend\"], \"title\": null, \"specialization\": null, \"grade\": null, \"stack\": [], \"work_format\": null, \"city\": null, \"salary_from\": null, \"salary_to\": null}",
+   "error": null,
+   "ms": 7868.341914960183
+  },
+  "571058909dc5c53f96fc5fa089bb2c51e0aadd6ba70f127af3af0a6055bc105a": {
+   "raw": "{\"out_of_catalog\": false, \"asked\": null, \"nearest\": [], \"title\": \"Сменный SRE-инженер\", \"specialization\": \"devops\", \"grade\": \"senior\", \"stack\": [\"linux\", \"docker\", \"kubernetes\", \"postgresql\", \"clickhouse\", \"grafana\", \"kafka\", \"ansible\", \"terraform\"], \"work_format\": \"remote\", \"city\": \"Москва\", \"salary_from\": null, \"salary_to\": null}",
+   "error": null,
+   "ms": 7261.120876995847
+  },
+  "58d84f49557bfe684c834f5c972bffd2faea88dae1fb9d7e89d7fb7b7bce8df3": {
+   "raw": "{\"out_of_catalog\": true, \"asked\": \"1С\", \"nearest\": [\"backend\"], \"title\": \"Программист 1С\", \"specialization\": null, \"grade\": null, \"stack\": [], \"work_format\": null, \"city\": null, \"salary_from\": null, \"salary_to\": null}",
+   "error": null,
+   "ms": 6331.966303987429
+  },
+  "594308da6c34a7fc0e476dcba25b2c1347df1c6988a50929a66051a028ca04fe": {
+   "raw": "{\"out_of_catalog\": false, \"asked\": null, \"nearest\": [], \"title\": \"Senior DevOps Engineer\", \"specialization\": \"devops\", \"grade\": \"senior\", \"stack\": [\"kubernetes\", \"go\", \"angular\", \"ansible\", \"terraform\", \"prometheus\", \"postgresql\", \"mysql\", \"clickhouse\", \"rabbitmq\", \"kafka\", \"bash\", \"python\", \"docker\", \"linux\"], \"work_format\": \"remote\", \"city\": null, \"salary_from\": null, \"salary_to\": null}",
+   "error": null,
+   "ms": 8003.259829012677
+  },
+  "597d257195054e17e1bc01b63c0b6a87a00c38e228fc4a8ed9e11d41a109f96c": {
+   "raw": "{\"out_of_catalog\": true, \"asked\": \"встраиваемое ПО для микроконтроллеров (силовая электроника, электропривод)\", \"nearest\": [\"backend\", \"devops\"], \"title\": null, \"specialization\": null, \"grade\": null, \"stack\": [], \"work_format\": null, \"city\": null, \"salary_from\": null, \"salary_to\": null}",
+   "error": null,
+   "ms": 12582.33810996171
+  },
+  "59c47758ce68a021ba4e0bef14515e07e2b57e1f77aabc5cb382c8c43cea757c": {
+   "raw": "{\"out_of_catalog\": true, \"asked\": \"встраиваемое ПО для микроконтроллеров (C/C++)\", \"nearest\": [\"backend\"], \"title\": null, \"specialization\": null, \"grade\": null, \"stack\": [], \"work_format\": null, \"city\": null, \"salary_from\": null, \"salary_to\": null}",
+   "error": null,
+   "ms": 6847.078507998958
+  },
+  "5c98de5e98e5f20cd3067007c618e11399588c31a2e86c8c12c34e324e3c3580": {
+   "raw": "{\"out_of_catalog\": false, \"asked\": null, \"nearest\": [], \"title\": \"Стажер QA\", \"specialization\": \"qa\", \"grade\": \"intern\", \"stack\": [\"postman\"], \"work_format\": \"hybrid\", \"city\": \"Москва\", \"salary_from\": 40000, \"salary_to\": 40000}",
+   "error": null,
+   "ms": 5424.677234957926
+  },
+  "5d0719b672ad2f71314493e2de0d3f949773f7cb90d789066d15e6203059c98b": {
+   "raw": "{\"out_of_catalog\": false, \"asked\": null, \"nearest\": [], \"title\": \"Инженер-тестировщик (QA WebUI)\", \"specialization\": \"qa\", \"grade\": \"junior\", \"stack\": [\"typescript\", \"playwright\", \"linux\", \"html-css\", \"python\"], \"work_format\": \"office\", \"city\": \"Уфа\", \"salary_from\": null, \"salary_to\": null}",
+   "error": null,
+   "ms": 6218.843100010417
+  },
+  "60545b63fab630fa64bd40e1f346c6347a33cc6ee70dbb0d83b90a39aa291ba5": {
+   "raw": "{\"out_of_catalog\": false, \"asked\": null, \"nearest\": [], \"title\": \"Ведущий инженер по автоматизации тестирования\", \"specialization\": \"qa\", \"grade\": \"senior\", \"stack\": [\"python\", \"gitlab-ci\", \"bash\", \"pytest\"], \"work_format\": \"remote\", \"city\": null, \"salary_from\": null, \"salary_to\": null}",
+   "error": null,
+   "ms": 6481.022791005671
+  },
+  "6121932689e609e17ce131cda45d436ffab2e4a329cccb1bfae9eef88b423967": {
+   "raw": "{\"out_of_catalog\": false, \"asked\": null, \"nearest\": [], \"title\": \"Fullstack-разработчик Bitrix (PHP)\", \"specialization\": \"backend\", \"grade\": \"middle\", \"stack\": [\"vue\", \"postgresql\", \"mysql\", \"redis\"], \"work_format\": \"remote\", \"city\": null, \"salary_from\": 100000, \"salary_to\": 180000}",
+   "error": null,
+   "ms": 8987.562012975104
+  },
+  "6164a5cfd4090ca9bcefad8469d7fbb6e9df0132837915dca297c6edd74d2cfa": {
+   "raw": "{\"out_of_catalog\": false, \"asked\": null, \"nearest\": [], \"title\": \"Разработчик\", \"specialization\": \"frontend\", \"grade\": \"junior\", \"stack\": [\"typescript\", \"vue\", \"nodejs\", \"react\", \"mysql\", \"postgresql\", \"redis\", \"docker\", \"nginx\", \"gitlab-ci\"], \"work_format\": \"remote\", \"city\": \"Екатеринбург\", \"salary_from\": null, \"salary_to\": null}",
+   "error": null,
+   "ms": 9747.652085032314
+  },
+  "628331cd70c4921d6f87fe4319fe75aa26c62f51e57e279418faf4686c6c0b37": {
+   "raw": "{\"out_of_catalog\": false, \"asked\": null, \"nearest\": [], \"title\": \"Senior backend developer (PHP, Symfony)\", \"specialization\": \"backend\", \"grade\": \"senior\", \"stack\": [\"postgresql\", \"clickhouse\", \"nginx\", \"docker\", \"redis\", \"rabbitmq\", \"kubernetes\", \"ansible\", \"terraform\", \"grafana\", \"prometheus\", \"go\", \"python\"], \"work_format\": \"remote\", \"city\": \"Москва\", \"salary_from\": 400000, \"salary_to\": 600000}",
+   "error": null,
+   "ms": 7378.750737057999
+  },
+  "62c040305035933301309f82e97d071a39c9a43f0637915c36d074c3659798d0": {
+   "raw": "{\"out_of_catalog\": true, \"asked\": \"Системный аналитик\", \"nearest\": [\"backend\", \"qa\", \"data-ml\"], \"title\": null, \"specialization\": null, \"grade\": null, \"stack\": [], \"work_format\": null, \"city\": null, \"salary_from\": null, \"salary_to\": null}",
+   "error": null,
+   "ms": 6086.966748931445
+  },
+  "6534c852a5c88cdc731bb6413b374d28d5b80f14f9265870385374523711e943": {
+   "raw": "{\"out_of_catalog\": true, \"asked\": \"Embedded-разработка на C/C++ (встраиваемое ПО)\", \"nearest\": [\"backend\", \"devops\"], \"title\": null, \"specialization\": null, \"grade\": null, \"stack\": [], \"work_format\": null, \"city\": null, \"salary_from\": null, \"salary_to\": null}",
+   "error": null,
+   "ms": 7517.4783549737185
+  },
+  "6673cc453ededd22d0e2fc73e518d0e5000d15c114ea524f868959ffb646aae2": {
+   "raw": "{\"out_of_catalog\": true, \"asked\": \"менеджер IT-проектов\", \"nearest\": [\"backend\", \"frontend\"], \"title\": null, \"specialization\": null, \"grade\": null, \"stack\": [], \"work_format\": null, \"city\": null, \"salary_from\": null, \"salary_to\": null}",
+   "error": null,
+   "ms": 8849.652266944759
+  },
+  "6908b309c7d05ac8a72d87ca4209a6f23b6675de88bf372fae3559d9b7e68afc": {
+   "raw": "{\"out_of_catalog\": false, \"asked\": null, \"nearest\": [], \"title\": \"Инженер по нагрузочному тестированию\", \"specialization\": \"qa\", \"grade\": \"senior\", \"stack\": [\"jmeter\", \"java\", \"python\", \"javascript\", \"go\", \"csharp\", \"postgresql\", \"linux\", \"prometheus\", \"grafana\"], \"work_format\": \"remote\", \"city\": \"Москва\", \"salary_from\": null, \"salary_to\": null}",
+   "error": null,
+   "ms": 8799.059584969655
+  },
+  "6b540116aebcc0aaa4d61941ecb13098d16140498c772d8a71d29f7eca9de521": {
+   "raw": "{\"out_of_catalog\": false, \"asked\": null, \"nearest\": [], \"title\": \"Разработчик C# .NET Middle\", \"specialization\": \"backend\", \"grade\": \"middle\", \"stack\": [\"csharp\", \"postgresql\", \"docker\", \"linux\", \"javascript\"], \"work_format\": \"remote\", \"city\": \"Санкт-Петербург\", \"salary_from\": 60000, \"salary_to\": 80000}",
+   "error": null,
+   "ms": 9129.418742959388
+  },
+  "6c0d256af6c0b741952eb2bb73e4b84983cd559136cb0d65801dffbcf834a4ab": {
+   "raw": "{\"out_of_catalog\": false, \"asked\": null, \"nearest\": [], \"title\": \"Full-stack разработчик внутренних продуктов\", \"specialization\": \"backend\", \"grade\": \"junior\", \"stack\": [\"javascript\", \"typescript\", \"react\", \"python\", \"nodejs\", \"postgresql\", \"linux\", \"docker\", \"fastapi\", \"redis\"], \"work_format\": \"remote\", \"city\": \"Воронеж\", \"salary_from\": 150000, \"salary_to\": 170000}",
+   "error": null,
+   "ms": 12147.450805990957
+  },
+  "70491dd2fb1121dbf5a2af3ba7c77f53367ad658538b3fefdec9c449d1f6db96": {
+   "raw": "{\"out_of_catalog\": false, \"asked\": null, \"nearest\": [], \"title\": \"Python-разработчик\", \"specialization\": \"backend\", \"grade\": \"senior\", \"stack\": [\"python\", \"fastapi\", \"kafka\", \"redis\", \"postgresql\", \"docker\"], \"work_format\": \"remote\", \"city\": \"Москва\", \"salary_from\": null, \"salary_to\": null}",
+   "error": null,
+   "ms": 5672.186616924591
+  },
+  "70b46ec51456705120d5d9aa2b8357f6329852b7d639bdaf861eb941de80c1a1": {
+   "raw": "{\"out_of_catalog\": false, \"asked\": null, \"nearest\": [], \"title\": \"DevOps-инженер\", \"specialization\": \"devops\", \"grade\": \"middle\", \"stack\": [\"linux\", \"prometheus\", \"grafana\", \"clickhouse\", \"kafka\", \"bash\", \"python\", \"go\"], \"work_format\": \"remote\", \"city\": \"Москва\", \"salary_from\": 300000, \"salary_to\": null}",
+   "error": null,
+   "ms": 8330.03337297123
+  },
+  "70b4b6f5085a87a382338ccf3c39d6e1b733b3e062ec64ecde57e75aa4f518b3": {
+   "raw": "{\"out_of_catalog\": true, \"asked\": \"геймдизайн\", \"nearest\": [], \"title\": \"Junior Game Designer (social farm)\", \"specialization\": null, \"grade\": null, \"stack\": [], \"work_format\": null, \"city\": null, \"salary_from\": null, \"salary_to\": null}",
+   "error": null,
+   "ms": 5444.052592967637
+  },
+  "70eb615c2ec8be3fc9eae3bd4756a5bda16f6da7654ffc42daea4b2745f30d1e": {
+   "raw": "{\"out_of_catalog\": false, \"asked\": null, \"nearest\": [], \"title\": \"Стажер-разработчик Python / Junior Backend Developer\", \"specialization\": \"backend\", \"grade\": \"intern\", \"stack\": [\"python\", \"fastapi\", \"django\", \"react\", \"vue\", \"postgresql\", \"rabbitmq\", \"redis\", \"linux\", \"docker\", \"kubernetes\", \"gitlab-ci\"], \"work_format\": \"office\", \"city\": null, \"salary_from\": 20000, \"salary_to\": 40000}",
+   "error": null,
+   "ms": 12712.868753937073
+  },
+  "7426b94f9f64e2f2c8d015ecbc2ffeb72d25972a9a39cf14c2b60d3850713b67": {
+   "raw": "{\"out_of_catalog\": false, \"asked\": null, \"nearest\": [], \"title\": \"DevOps Engineer\", \"specialization\": \"devops\", \"grade\": \"middle\", \"stack\": [\"linux\", \"kubernetes\", \"gitlab-ci\", \"bash\", \"python\", \"ansible\", \"prometheus\", \"grafana\", \"mysql\", \"clickhouse\", \"redis\", \"kafka\", \"rabbitmq\", \"terraform\"], \"work_format\": \"remote\", \"city\": null, \"salary_from\": null, \"salary_to\": null}",
+   "error": null,
+   "ms": 6879.4326490024105
+  },
+  "751ceab6f2716af355b7503def7db0e5577e71dae52e08a71b86807008bd7869": {
+   "raw": "{\"out_of_catalog\": false, \"asked\": null, \"nearest\": [], \"title\": \".NET разработчик\", \"specialization\": \"backend\", \"grade\": \"junior\", \"stack\": [\"csharp\", \"postgresql\", \"rabbitmq\", \"docker\", \"kubernetes\", \"typescript\"], \"work_format\": \"hybrid\", \"city\": \"Новосибирск\", \"salary_from\": null, \"salary_to\": null}",
+   "error": null,
+   "ms": 8219.633233966306
+  },
+  "75299b4d34068093c6ecb6386d6293d5a60ff5fc994dcf5c81c69f9109c8e10d": {
+   "raw": "{\"out_of_catalog\": false, \"asked\": null, \"nearest\": [], \"title\": \"SRE-инженер\", \"specialization\": \"devops\", \"grade\": \"middle\", \"stack\": [\"linux\", \"ansible\", \"prometheus\", \"grafana\", \"bash\", \"python\", \"go\", \"kubernetes\", \"docker\", \"postgresql\", \"clickhouse\", \"kafka\", \"rabbitmq\"], \"work_format\": \"remote\", \"city\": \"Санкт-Петербург\", \"salary_from\": 230000, \"salary_to\": null}",
+   "error": null,
+   "ms": 8230.373266967945
+  },
+  "75dfd5ce194aaa588268effb5eea8841b7cc80c9dbb06af2caca49987b564c1e": {
+   "raw": "{\"out_of_catalog\": false, \"asked\": null, \"nearest\": [], \"title\": \"Senior Kubernetes Platform Engineer (ClickHouse, Valkey)\", \"specialization\": \"devops\", \"grade\": \"senior\", \"stack\": [\"kubernetes\", \"clickhouse\", \"redis\", \"gitlab-ci\", \"terraform\", \"ansible\", \"postgresql\", \"kafka\", \"go\", \"python\", \"prometheus\", \"grafana\"], \"work_format\": \"remote\", \"city\": \"Москва\", \"salary_from\": null, \"salary_to\": null}",
+   "error": null,
+   "ms": 10670.645078993402
+  },
+  "7631ef564805cb42bfe2222ade6632619aa0fb232abb2cfc42b5802fcd65b2e8": {
+   "raw": "{\"out_of_catalog\": false, \"asked\": null, \"nearest\": [], \"title\": \"Senior ML Разработчик\", \"specialization\": \"data-ml\", \"grade\": \"senior\", \"stack\": [\"python\", \"pytorch\", \"numpy\", \"pandas\", \"scikit-learn\", \"postgresql\"], \"work_format\": \"office\", \"city\": \"Новосибирск\", \"salary_from\": null, \"salary_to\": null}",
+   "error": null,
+   "ms": 5527.4796260055155
+  },
+  "76741a5e98e1c10dcb4ef6b9c77d656528738a12e371e9566ba7bc2d4987be85": {
+   "raw": "{\"out_of_catalog\": true, \"asked\": \"Системная аналитика (ML)\", \"nearest\": [\"data-ml\"], \"title\": null, \"specialization\": null, \"grade\": null, \"stack\": [], \"work_format\": null, \"city\": null, \"salary_from\": null, \"salary_to\": null}",
+   "error": null,
+   "ms": 6832.565936958417
+  },
+  "76ed9fabd5594e712510e2efe0ca2a68cf493b6e17642fe1642b0fbd2a3d49ca": {
+   "raw": "{\"out_of_catalog\": false, \"asked\": null, \"nearest\": [], \"title\": \"Fullstack QA (Java, ручное)\", \"specialization\": \"qa\", \"grade\": \"middle\", \"stack\": [\"java\", \"postgresql\", \"postman\", \"kafka\"], \"work_format\": \"remote\", \"city\": \"Москва\", \"salary_from\": null, \"salary_to\": null}",
+   "error": null,
+   "ms": 6931.781710009091
+  },
+  "7786641fe450419a9a36297386d7da9aaa029ec2737ab8975ff3361a8b52a43b": {
+   "raw": "{\"out_of_catalog\": false, \"asked\": null, \"nearest\": [], \"title\": \"Full-Stack QA Engineer (Manual + Automation, Python)\", \"specialization\": \"qa\", \"grade\": \"senior\", \"stack\": [\"python\", \"playwright\", \"gitlab-ci\", \"docker\", \"linux\"], \"work_format\": \"remote\", \"city\": \"Москва\", \"salary_from\": 200000, \"salary_to\": 280000}",
+   "error": null,
+   "ms": 6840.111037017778
+  },
+  "780e1445173d142e685514cd370233dd2dee8e825dd580f1611fc85dde33f0c9": {
+   "raw": "{\"out_of_catalog\": false, \"asked\": null, \"nearest\": [], \"title\": \"Инженер по тестированию fullstack (java)\", \"specialization\": \"qa\", \"grade\": \"junior\", \"stack\": [\"selenium\", \"java\", \"html-css\"], \"work_format\": \"remote\", \"city\": \"Уфа\", \"salary_from\": null, \"salary_to\": null}",
+   "error": null,
+   "ms": 6913.5904419235885
+  },
+  "787ec9eb2b350b5f20113ab80e88eb18c1f0da236e5625bae9a7d0e09f7dd6d6": {
+   "raw": "{\"out_of_catalog\": false, \"asked\": null, \"nearest\": [], \"title\": \"DevOps инженер (ученик)\", \"specialization\": \"devops\", \"grade\": \"intern\", \"stack\": [\"linux\"], \"work_format\": \"remote\", \"city\": \"Санкт-Петербург\", \"salary_from\": 70000, \"salary_to\": null}",
+   "error": null,
+   "ms": 12045.280596939847
+  },
+  "788974fbecb7051ec11b7e961461f1f6d2932134156cfa8bf77113f4f60dc8b2": {
+   "raw": "{\"out_of_catalog\": false, \"asked\": null, \"nearest\": [], \"title\": \"Junior Frontend-разработчик\", \"specialization\": \"frontend\", \"grade\": \"junior\", \"stack\": [\"react\"], \"work_format\": \"office\", \"city\": \"Казань\", \"salary_from\": 127500, \"salary_to\": null}",
+   "error": null,
+   "ms": 6846.572408918291
+  },
+  "78cd446b06103b18083f25ed03c9fadc513d5bdc98bfbf890db168cdf5832d77": {
+   "raw": "{\"out_of_catalog\": true, \"asked\": \"Embedded/Firmware разработка на C++ и Python для автоматизированных систем\", \"nearest\": [\"backend\", \"devops\"], \"title\": null, \"specialization\": null, \"grade\": null, \"stack\": [], \"work_format\": null, \"city\": null, \"salary_from\": null, \"salary_to\": null}",
+   "error": null,
+   "ms": 7205.767035018653
+  },
+  "7a9d0cb563ed3664c2938b3e78483278ea4b9536d866b972948503dfdc3c2fbb": {
+   "raw": "{\"out_of_catalog\": false, \"asked\": null, \"nearest\": [], \"title\": \"Automation QA Engineer\", \"specialization\": \"qa\", \"grade\": \"middle\", \"stack\": [\"python\", \"pytest\", \"gitlab-ci\"], \"work_format\": \"hybrid\", \"city\": \"Санкт-Петербург\", \"salary_from\": null, \"salary_to\": null}",
+   "error": null,
+   "ms": 6238.695010077208
+  },
+  "7b78c514a07bcbe88597626727799bcf91b2890f0a18efdfa93534f8489a6504": {
+   "raw": "{\"out_of_catalog\": true, \"asked\": \"Разработка игровой логики (геймдев, Unity/Unreal)\", \"nearest\": [\"backend\"], \"title\": null, \"specialization\": null, \"grade\": null, \"stack\": [], \"work_format\": null, \"city\": null, \"salary_from\": null, \"salary_to\": null}",
+   "error": null,
+   "ms": 7705.5439739488065
+  },
+  "7c18d38da36cb68dfe6e768c4e673ccda721e61b93e91fe50e7cd65d13eee76e": {
+   "raw": "{\"out_of_catalog\": true, \"asked\": \"системный аналитик\", \"nearest\": [\"backend\", \"data-ml\", \"qa\"], \"title\": null, \"specialization\": null, \"grade\": null, \"stack\": [], \"work_format\": null, \"city\": null, \"salary_from\": null, \"salary_to\": null}",
+   "error": null,
+   "ms": 6003.9173669647425
+  },
+  "7f1956a35668e460692509f78073598ed88820e1d150c964e949630cb5c10762": {
+   "raw": "{\"out_of_catalog\": false, \"asked\": null, \"nearest\": [], \"title\": \"Senior PHP-разработчик\", \"specialization\": \"backend\", \"grade\": \"senior\", \"stack\": [\"kafka\", \"docker\", \"kubernetes\"], \"work_format\": \"remote\", \"city\": null, \"salary_from\": null, \"salary_to\": null}",
+   "error": null,
+   "ms": 6810.83387194667
+  },
+  "7f3c2bae36e7bb997a5895f95e5dfb88d0d240b75b5add60fe82f9e0379a7cc0": {
+   "raw": "{\"out_of_catalog\": false, \"asked\": null, \"nearest\": [], \"title\": \"Стажер - тестировщик\", \"specialization\": \"qa\", \"grade\": \"intern\", \"stack\": [], \"work_format\": \"office\", \"city\": \"Самара\", \"salary_from\": null, \"salary_to\": 90000}",
+   "error": null,
+   "ms": 6941.9146799482405
+  },
+  "8012f8807e766f46085dbcaa9be41f521ab3093dcfd065f372f385a1f6c55bef": {
+   "raw": "{\"out_of_catalog\": false, \"asked\": null, \"nearest\": [], \"title\": \"Python/C++ Backend Developer\", \"specialization\": \"backend\", \"grade\": \"middle\", \"stack\": [\"python\", \"fastapi\", \"postgresql\", \"docker\", \"linux\"], \"work_format\": \"hybrid\", \"city\": \"Санкт-Петербург\", \"salary_from\": 180000, \"salary_to\": 250000}",
+   "error": null,
+   "ms": 6364.099604077637
+  },
+  "80aa731122937ec2e9dc8b9e62bd694a003d95bda24e4b6892da30e21d7deac9": {
+   "raw": "{\"out_of_catalog\": true, \"asked\": \"1С\", \"nearest\": [\"backend\"], \"title\": \"Программист 1С\", \"specialization\": null, \"grade\": null, \"stack\": [], \"work_format\": null, \"city\": null, \"salary_from\": null, \"salary_to\": null}",
+   "error": null,
+   "ms": 5762.090833042748
+  },
+  "827dd2090d0f52e5367b3dae680bad73d38b5a204668640ed5e8547b259c18c6": {
+   "raw": "{\"out_of_catalog\": true, \"asked\": \"Продуктовый дизайн UX/UI\", \"nearest\": [\"frontend\"], \"title\": null, \"specialization\": null, \"grade\": null, \"stack\": [], \"work_format\": null, \"city\": null, \"salary_from\": null, \"salary_to\": null}",
+   "error": null,
+   "ms": 5951.402875944041
+  },
+  "84ceaecfeb4fdb5d3f0aa653aee963a882b11a959451078decdaf5e8bcd08488": {
+   "raw": "{\"out_of_catalog\": false, \"asked\": null, \"nearest\": [], \"title\": \"Битрикс разработчик\", \"specialization\": \"backend\", \"grade\": \"middle\", \"stack\": [\"rabbitmq\", \"kafka\", \"redis\", \"mysql\", \"postgresql\", \"linux\", \"vue\", \"javascript\", \"html-css\", \"docker\", \"go\"], \"work_format\": \"hybrid\", \"city\": \"Самара\", \"salary_from\": 150000, \"salary_to\": 180000}",
+   "error": null,
+   "ms": 7678.002153057605
+  },
+  "8b9bf0fff7d772d06f7aa726096c39d077d52c18bfaae16a09c9bcd1d49cb85b": {
+   "raw": "{\"out_of_catalog\": false, \"asked\": null, \"nearest\": [], \"title\": \"C#/.NET + React/Vue разработчик (Middle+/Senior), Fullstack\", \"specialization\": \"backend\", \"grade\": \"middle\", \"stack\": [\"csharp\", \"react\", \"vue\", \"typescript\", \"postgresql\", \"mysql\", \"docker\", \"linux\", \"jest\", \"kafka\", \"rabbitmq\", \"redis\", \"kubernetes\", \"terraform\", \"ansible\"], \"work_format\": \"remote\", \"city\": \"Москва\", \"salary_from\": 230000, \"salary_to\": 250000}",
+   "error": null,
+   "ms": 6810.800942010246
+  },
+  "9013e75f9aae8645e49c9be24bf1204b4be8ec645e181265ffee6bfdcf0f4578": {
+   "raw": "{\"out_of_catalog\": false, \"asked\": null, \"nearest\": [], \"title\": \"Руководитель группы тестирования ПО\", \"specialization\": \"qa\", \"grade\": \"senior\", \"stack\": [\"linux\", \"redis\", \"postgresql\"], \"work_format\": \"office\", \"city\": \"Москва\", \"salary_from\": null, \"salary_to\": null}",
+   "error": null,
+   "ms": 6966.6993719292805
+  },
+  "909d5ab09b910019188d01abf33ae8ae4321a2045118185072d7a3912125cc63": {
+   "raw": "{\"out_of_catalog\": true, \"asked\": \"Android-разработка\", \"nearest\": [\"frontend\", \"backend\", \"qa\"], \"title\": null, \"specialization\": null, \"grade\": null, \"stack\": [], \"work_format\": null, \"city\": null, \"salary_from\": null, \"salary_to\": null}",
+   "error": null,
+   "ms": 14614.844880998135
+  },
+  "9156ff9706d5df92299a2f5c11beffa6c8b23ad4122391d7165c59b652e4fac7": {
+   "raw": "{\"out_of_catalog\": false, \"asked\": null, \"nearest\": [], \"title\": \"Java разработчик (ученик)\", \"specialization\": \"backend\", \"grade\": \"intern\", \"stack\": [\"java\"], \"work_format\": \"remote\", \"city\": \"Новосибирск\", \"salary_from\": 60000, \"salary_to\": null}",
+   "error": null,
+   "ms": 5378.0754620675
+  },
+  "916e9f378f1972a698d4e446c5a9750fbe2372cc16050ee02eb66ab1bcf314c2": {
+   "raw": "{\"out_of_catalog\": false, \"asked\": null, \"nearest\": [], \"title\": \"Инженер по тестированию (QA Engineer)\", \"specialization\": \"qa\", \"grade\": \"junior\", \"stack\": [\"linux\"], \"work_format\": \"office\", \"city\": \"Воронеж\", \"salary_from\": 80000, \"salary_to\": null}",
+   "error": null,
+   "ms": 10981.87619203236
+  },
+  "92a445720f96179130bcbd747ba91c9ef48650417ac0a3d7359120f9760455d9": {
+   "raw": "{\"out_of_catalog\": false, \"asked\": null, \"nearest\": [], \"title\": \"Веб разработчик / PHP разработчик\", \"specialization\": \"backend\", \"grade\": \"middle\", \"stack\": [\"vue\", \"javascript\", \"html-css\", \"vite\", \"typescript\", \"docker\"], \"work_format\": \"remote\", \"city\": \"Москва\", \"salary_from\": 150000, \"salary_to\": null}",
+   "error": null,
+   "ms": 7521.130865090527
+  },
+  "92d12d9f80d947fc9b230f603d75c3b1228d346ea620f02f2f0a804349606579": {
+   "raw": "{\"out_of_catalog\": false, \"asked\": null, \"nearest\": [], \"title\": \"Senior Fullstack-разработчик (Python + React, Nodejs)\", \"specialization\": \"backend\", \"grade\": \"senior\", \"stack\": [\"python\", \"django\", \"fastapi\", \"react\", \"nodejs\", \"postgresql\"], \"work_format\": \"remote\", \"city\": \"Москва\", \"salary_from\": 250000, \"salary_to\": null}",
+   "error": null,
+   "ms": 7181.318423943594
+  },
+  "9413c66bc48bcb88d1149a5884f2d1b5de6dc56d44fad9d72fc81a4b6acaede7": {
+   "raw": "{\"out_of_catalog\": false, \"asked\": null, \"nearest\": [], \"title\": \"Senior React разработчик\", \"specialization\": \"frontend\", \"grade\": \"senior\", \"stack\": [\"react\", \"javascript\", \"typescript\", \"html-css\"], \"work_format\": \"remote\", \"city\": \"Санкт-Петербург\", \"salary_from\": null, \"salary_to\": 230000}",
+   "error": null,
+   "ms": 9386.172225000337
+  },
+  "991bdb132113a8570d37c5188584c1eaf087dd959db37f6e27ff24e9189046f8": {
+   "raw": "{\"out_of_catalog\": false, \"asked\": null, \"nearest\": [], \"title\": \"Инженер-Программист - C#\", \"specialization\": \"backend\", \"grade\": \"middle\", \"stack\": [\"csharp\", \"javascript\", \"html-css\", \"postgresql\"], \"work_format\": \"hybrid\", \"city\": \"Новосибирск\", \"salary_from\": null, \"salary_to\": null}",
+   "error": null,
+   "ms": 6562.834394979291
+  },
+  "99ec1ec005c19e5a9adef23a438c58af288d2aa8095b2020a3e482ed001dc8b1": {
+   "raw": "{\"out_of_catalog\": false, \"asked\": null, \"nearest\": [], \"title\": \"Data Analyst (NLP / LLM)\", \"specialization\": \"data-ml\", \"grade\": \"junior\", \"stack\": [\"python\", \"pandas\", \"numpy\", \"scikit-learn\"], \"work_format\": \"office\", \"city\": \"Санкт-Петербург\", \"salary_from\": 120000, \"salary_to\": 120000}",
+   "error": null,
+   "ms": 7877.117794007063
+  },
+  "9a15b9ebb0cc2832aa2035f9014a177a0f030add4fc767e6c29d871d53d0bb5a": {
+   "raw": "{\"out_of_catalog\": false, \"asked\": null, \"nearest\": [], \"title\": \"Ведущий DevOps/SRE-инженер\", \"specialization\": \"devops\", \"grade\": \"senior\", \"stack\": [\"kubernetes\", \"prometheus\", \"grafana\", \"gitlab-ci\", \"ansible\", \"terraform\", \"linux\"], \"work_format\": \"hybrid\", \"city\": \"Санкт-Петербург\", \"salary_from\": null, \"salary_to\": null}",
+   "error": null,
+   "ms": 5783.941749017686
+  },
+  "9c70d4f08c6d1b344892fcd01eb246d85e9b361b1be83faae0fc3b33d796cd97": {
+   "raw": "{\"out_of_catalog\": false, \"asked\": null, \"nearest\": [], \"title\": \"ML-инженер\", \"specialization\": \"data-ml\", \"grade\": \"junior\", \"stack\": [\"python\", \"docker\", \"numpy\", \"pandas\", \"pytorch\", \"scikit-learn\"], \"work_format\": \"office\", \"city\": \"Санкт-Петербург\", \"salary_from\": 90000, \"salary_to\": null}",
+   "error": null,
+   "ms": 7531.5640000626445
+  },
+  "9d0b96294af72ef15247bd7d25e93abb7e9b4071f58d29504f28869eae97c425": {
+   "raw": "{\"out_of_catalog\": true, \"asked\": \"Unity-разработчик (WebGL)\", \"nearest\": [\"frontend\", \"backend\"], \"title\": null, \"specialization\": null, \"grade\": null, \"stack\": [], \"work_format\": null, \"city\": null, \"salary_from\": null, \"salary_to\": null}",
+   "error": null,
+   "ms": 6703.28033901751
+  },
+  "9e5de594232b04f439e90e248a1f0ff8dea3b2d8493dcc14a1b98b10cc6393de": {
+   "raw": "{\"out_of_catalog\": true, \"asked\": \"Системный анализ и методология разработки ПО\", \"nearest\": [\"qa\", \"backend\"], \"title\": null, \"specialization\": null, \"grade\": null, \"stack\": [], \"work_format\": null, \"city\": null, \"salary_from\": null, \"salary_to\": null}",
+   "error": null,
+   "ms": 6897.661763010547
+  },
+  "a01d23350accbafe54eeafa403ab74ce294ee20fbd781acbf7bebcffd5c0c363": {
+   "raw": "{\"out_of_catalog\": false, \"asked\": null, \"nearest\": [], \"title\": \"Data Scientist\", \"specialization\": \"data-ml\", \"grade\": \"middle\", \"stack\": [\"python\", \"pytorch\", \"kubernetes\", \"gitlab-ci\"], \"work_format\": \"remote\", \"city\": null, \"salary_from\": null, \"salary_to\": null}",
+   "error": null,
+   "ms": 5518.634085077792
+  },
+  "a0baa71a997cc94298e99625c7c796ad912c5f3fb7e18fcf203a9b3bd3383cc3": {
+   "raw": "{\"out_of_catalog\": false, \"asked\": null, \"nearest\": [], \"title\": \"DevOps инженер (стажер)\", \"specialization\": \"devops\", \"grade\": \"intern\", \"stack\": [\"linux\"], \"work_format\": \"remote\", \"city\": \"Москва\", \"salary_from\": 70000, \"salary_to\": null}",
+   "error": null,
+   "ms": 9025.554302963428
+  },
+  "a12fa1dbd880fd91c77f0aa33759a7201208816bc9e127b91fb9d27cb586a182": {
+   "raw": "{\"out_of_catalog\": false, \"asked\": null, \"nearest\": [], \"title\": \"Go developer / engineer (High Load Platform)\", \"specialization\": \"backend\", \"grade\": \"middle\", \"stack\": [\"go\", \"postgresql\", \"kafka\", \"clickhouse\", \"kubernetes\", \"prometheus\", \"grafana\", \"gitlab-ci\"], \"work_format\": \"remote\", \"city\": \"Санкт-Петербург\", \"salary_from\": 230000, \"salary_to\": 366000}",
+   "error": null,
+   "ms": 7201.4033399755135
+  },
+  "a174d147a8db94e227a0a852140963298e910df434ea4afd9a11f9e3ecd3eebb": {
+   "raw": "{\"out_of_catalog\": false, \"asked\": null, \"nearest\": [], \"title\": \"Middle Backend Developer (PHP, Yii2)\", \"specialization\": \"backend\", \"grade\": \"middle\", \"stack\": [\"postgresql\", \"redis\", \"rabbitmq\", \"nginx\", \"docker\", \"grafana\", \"linux\", \"javascript\"], \"work_format\": \"remote\", \"city\": \"Москва\", \"salary_from\": 170000, \"salary_to\": null}",
+   "error": null,
+   "ms": 6918.602696037851
+  },
+  "a9ffe9e1e20151567e461deb0e8edcb6c1b32c2f049a5db1e280a71567e5d673": {
+   "raw": "{\"out_of_catalog\": true, \"asked\": \"Программист 1С\", \"nearest\": [\"backend\"], \"title\": null, \"specialization\": null, \"grade\": null, \"stack\": [], \"work_format\": null, \"city\": null, \"salary_from\": null, \"salary_to\": null}",
+   "error": null,
+   "ms": 10173.28704195097
+  },
+  "aad8eda8ba21869b890b52c2e2fd4147603fd81e0a24df436111e4c8dd6910f9": {
+   "raw": "{\"out_of_catalog\": true, \"asked\": \"iOS-разработка\", \"nearest\": [\"backend\", \"frontend\"], \"title\": null, \"specialization\": null, \"grade\": null, \"stack\": [], \"work_format\": null, \"city\": null, \"salary_from\": null, \"salary_to\": null}",
+   "error": null,
+   "ms": 9861.550068017095
+  },
+  "ac6c086fc3db06bb8d5b969675bf0f8dab9448d9374d87b1663d232286475da5": {
+   "raw": "{\"out_of_catalog\": false, \"asked\": null, \"nearest\": [], \"title\": \"ML Engineer \\\"Search\\\"\", \"specialization\": \"data-ml\", \"grade\": \"senior\", \"stack\": [\"python\"], \"work_format\": \"remote\", \"city\": \"Москва\", \"salary_from\": null, \"salary_to\": null}",
+   "error": null,
+   "ms": 11074.622121057473
+  },
+  "aceed6521f405cc9f1cc8b54a72ed47df28d7327f3d5220ec74ab019e452a868": {
+   "raw": "{\"out_of_catalog\": false, \"asked\": null, \"nearest\": [], \"title\": \"Frontend-разработчик (мобильные приложения)\", \"specialization\": \"frontend\", \"grade\": \"senior\", \"stack\": [\"javascript\", \"typescript\", \"react\", \"vue\", \"jest\", \"postgresql\", \"clickhouse\", \"docker\", \"jmeter\"], \"work_format\": \"office\", \"city\": \"Москва\", \"salary_from\": null, \"salary_to\": null}",
+   "error": null,
+   "ms": 11221.394245978445
+  },
+  "b0572f46b3e42e1db37cec02bae893549cf1d4f0319bc55f352aa42f1fb5056e": {
+   "raw": "{\"out_of_catalog\": true, \"asked\": \"Мобильная разработка (React Native)\", \"nearest\": [\"frontend\", \"backend\"], \"title\": null, \"specialization\": null, \"grade\": null, \"stack\": [], \"work_format\": null, \"city\": null, \"salary_from\": null, \"salary_to\": null}",
+   "error": null,
+   "ms": 6463.424107991159
+  },
+  "b073f68273ce10db6e90866f38274dd713280fc14d0b218faf53f28c080dc21b": {
+   "raw": "{\"out_of_catalog\": true, \"asked\": \"Системный аналитик\", \"nearest\": [\"data-ml\", \"qa\", \"backend\"], \"title\": null, \"specialization\": null, \"grade\": null, \"stack\": [], \"work_format\": null, \"city\": null, \"salary_from\": null, \"salary_to\": null}",
+   "error": null,
+   "ms": 6469.197032041848
+  },
+  "b25c808a3ff38b0955c6bad0c0e688465388ed706ec8e66d755bc9c5ea202878": {
+   "raw": "{\"out_of_catalog\": true, \"asked\": \"Android-разработка\", \"nearest\": [\"backend\", \"frontend\"], \"title\": \"Senior Android Developer\", \"specialization\": null, \"grade\": null, \"stack\": [], \"work_format\": null, \"city\": null, \"salary_from\": null, \"salary_to\": null}",
+   "error": null,
+   "ms": 12951.808771002106
+  },
+  "b358705643491ff2684b0821596935458ee2b5479b3b4c8053d5d21217546a5a": {
+   "raw": "{\"out_of_catalog\": false, \"asked\": null, \"nearest\": [], \"title\": \"DevOps Engineer\", \"specialization\": \"devops\", \"grade\": \"middle\", \"stack\": [\"docker\", \"kubernetes\", \"postgresql\", \"mysql\", \"clickhouse\", \"redis\", \"rabbitmq\", \"kafka\", \"prometheus\", \"grafana\", \"linux\", \"bash\", \"gitlab-ci\", \"ansible\", \"terraform\", \"nginx\", \"go\"], \"work_format\": \"office\", \"city\": \"Краснодар\", \"salary_from\": null, \"salary_to\": 200000}",
+   "error": null,
+   "ms": 6810.299170901999
+  },
+  "b5179bb536fcfe219f01f06949edca6e24c1a725c974b6e36883d3baa43eeb01": {
+   "raw": "{\"out_of_catalog\": false, \"asked\": null, \"nearest\": [], \"title\": \"DevOps инженер\", \"specialization\": \"devops\", \"grade\": \"middle\", \"stack\": [\"linux\", \"kubernetes\", \"spark\", \"airflow\", \"kafka\", \"prometheus\", \"grafana\", \"ansible\", \"terraform\", \"bash\", \"python\"], \"work_format\": \"remote\", \"city\": \"Москва\", \"salary_from\": null, \"salary_to\": null}",
+   "error": null,
+   "ms": 12737.324353074655
+  },
+  "b597ff7f1a56829f2e70519a2e6c1e247a22e990a0a1e3327a0904bc83713aa4": {
+   "raw": "{\"out_of_catalog\": false, \"asked\": null, \"nearest\": [], \"title\": \"Java/.Net-разработчик\", \"specialization\": \"backend\", \"grade\": \"middle\", \"stack\": [\"java\", \"csharp\", \"kafka\", \"javascript\", \"vue\"], \"work_format\": \"hybrid\", \"city\": \"Санкт-Петербург\", \"salary_from\": null, \"salary_to\": null}",
+   "error": null,
+   "ms": 7202.500618994236
+  },
+  "b6232ed7a96594d958d2b3e2193ee405b263f74515602fa8e4c63625d9565bd1": {
+   "raw": "{\"out_of_catalog\": false, \"asked\": null, \"nearest\": [], \"title\": \"Frontend разработчик (Vue\\\\Nuxt)\", \"specialization\": \"frontend\", \"grade\": \"junior\", \"stack\": [\"html-css\", \"javascript\", \"typescript\", \"vue\"], \"work_format\": \"remote\", \"city\": \"Санкт-Петербург\", \"salary_from\": null, \"salary_to\": null}",
+   "error": null,
+   "ms": 6435.427583055571
+  },
+  "b751da68e4d2eb7baa7771d289d3a110d7a8c41cf7910ff176694d51b6ba58cc": {
+   "raw": "{\"out_of_catalog\": false, \"asked\": null, \"nearest\": [], \"title\": \"Аналитик\", \"specialization\": \"data-ml\", \"grade\": \"junior\", \"stack\": [\"python\"], \"work_format\": \"office\", \"city\": \"Самара\", \"salary_from\": 79000, \"salary_to\": null}",
+   "error": null,
+   "ms": 7328.504131990485
+  },
+  "b7e74e838382635d14eaf5c14494996cd166afdb8e62e0bd7a8d011c78d90387": {
+   "raw": "{\"out_of_catalog\": false, \"asked\": null, \"nearest\": [], \"title\": \"Инженер по автотестированию (Python)\", \"specialization\": \"qa\", \"grade\": \"junior\", \"stack\": [\"python\", \"pytest\", \"postgresql\"], \"work_format\": \"remote\", \"city\": \"Казань\", \"salary_from\": null, \"salary_to\": null}",
+   "error": null,
+   "ms": 9109.165670000948
+  },
+  "b8e93b476393478a416720d4e5eee1b49decd772eff0f3219b87123a935f8f84": {
+   "raw": "{\"out_of_catalog\": true, \"asked\": \"Системный аналитик 1С\", \"nearest\": [\"backend\"], \"title\": null, \"specialization\": null, \"grade\": null, \"stack\": [], \"work_format\": null, \"city\": null, \"salary_from\": null, \"salary_to\": null}",
+   "error": null,
+   "ms": 5323.853733949363
+  },
+  "b95b3219207e2bcd5cb79d5a4df6d2f7dde24fefce9bb0a30afa9c6e36677c7c": {
+   "raw": "{\"out_of_catalog\": false, \"asked\": null, \"nearest\": [], \"title\": \"DevOps / SRE Engineer\", \"specialization\": \"devops\", \"grade\": \"senior\", \"stack\": [\"docker\", \"kubernetes\", \"linux\", \"postgresql\", \"kafka\", \"redis\", \"gitlab-ci\", \"prometheus\", \"grafana\", \"terraform\", \"ansible\", \"bash\", \"python\"], \"work_format\": \"remote\", \"city\": \"Москва\", \"salary_from\": null, \"salary_to\": 330000}",
+   "error": null,
+   "ms": 14185.497613041662
+  },
+  "b999e92779cb6dfbc6b76a63c56530dc5ca3737b3f7660a5073289f567595864": {
+   "raw": "{\"out_of_catalog\": true, \"asked\": \"Системное администрирование\", \"nearest\": [\"devops\"], \"title\": null, \"specialization\": null, \"grade\": null, \"stack\": [], \"work_format\": null, \"city\": null, \"salary_from\": null, \"salary_to\": null}",
+   "error": null,
+   "ms": 8148.483449942432
+  },
+  "bb6f97930f56f7bfe1ee839ca5d296be1c4d52b0caa79cb8854f4d04143a5487": {
+   "raw": "{\"out_of_catalog\": false, \"asked\": null, \"nearest\": [], \"title\": \"Frontend-разработчик\", \"specialization\": \"frontend\", \"grade\": \"junior\", \"stack\": [\"javascript\", \"typescript\", \"react\", \"html-css\"], \"work_format\": \"office\", \"city\": \"Казань\", \"salary_from\": 157500, \"salary_to\": null}",
+   "error": null,
+   "ms": 7983.855466009118
+  },
+  "bb7dc12c049053a06a066c50c22655cb9ad18ebbab7181e50d725384598a9cd2": {
+   "raw": "{\"out_of_catalog\": true, \"asked\": \"Разработка сайтов на 1С-Битрикс\", \"nearest\": [\"backend\", \"frontend\"], \"title\": null, \"specialization\": null, \"grade\": null, \"stack\": [], \"work_format\": null, \"city\": null, \"salary_from\": null, \"salary_to\": null}",
+   "error": null,
+   "ms": 6947.9069410590455
+  },
+  "bcb7b963f6fb487bd3ec20b6cbb730f0270ab8bc15f2a45cdc36994863b1332e": {
+   "raw": "{\"out_of_catalog\": false, \"asked\": null, \"nearest\": [], \"title\": \"Frontend-разработчик (Vue.js)\", \"specialization\": \"frontend\", \"grade\": \"middle\", \"stack\": [\"vue\"], \"work_format\": \"remote\", \"city\": null, \"salary_from\": 200000, \"salary_to\": null}",
+   "error": null,
+   "ms": 6512.904993956909
+  },
+  "bea1b1f4739135f330eab0c12da9949aa06e876d44e83fea960919ec46ce44ad": {
+   "raw": "{\"out_of_catalog\": true, \"asked\": \"бизнес/системный аналитик (1С-Битрикс)\", \"nearest\": [\"backend\", \"qa\"], \"title\": null, \"specialization\": null, \"grade\": null, \"stack\": [], \"work_format\": null, \"city\": null, \"salary_from\": null, \"salary_to\": null}",
+   "error": null,
+   "ms": 8921.153747942299
+  },
+  "bf6269b310bce8aa2043cd9ee85e119c2deb98f401afe8b9de91652c8224a1aa": {
+   "raw": "{\"out_of_catalog\": true, \"asked\": \"Системный аналитик\", \"nearest\": [\"backend\", \"data-ml\", \"qa\"], \"title\": \"Системный аналитик\", \"specialization\": null, \"grade\": null, \"stack\": [], \"work_format\": null, \"city\": null, \"salary_from\": null, \"salary_to\": null}",
+   "error": null,
+   "ms": 11838.625705917366
+  },
+  "bfb56cff0b39540c2cde7a4770a857f4386938a93a5baa65699191a1b43da175": {
+   "raw": "{\"out_of_catalog\": false, \"asked\": null, \"nearest\": [], \"title\": \"Тестировщик/ QA\", \"specialization\": \"qa\", \"grade\": \"junior\", \"stack\": [\"linux\"], \"work_format\": \"office\", \"city\": \"Санкт-Петербург\", \"salary_from\": null, \"salary_to\": 100000}",
+   "error": null,
+   "ms": 7036.096255062148
+  },
+  "c04e872838e0b6a3b8339fcf75c0d5cb304c65970b5c5b0872a7debe91867332": {
+   "raw": "{\"out_of_catalog\": false, \"asked\": null, \"nearest\": [], \"title\": \"Golang-разработчик\", \"specialization\": \"backend\", \"grade\": \"middle\", \"stack\": [\"go\", \"postgresql\", \"redis\", \"kafka\", \"docker\", \"kubernetes\"], \"work_format\": \"remote\", \"city\": \"Москва\", \"salary_from\": null, \"salary_to\": 350000}",
+   "error": null,
+   "ms": 10672.547269961797
+  },
+  "c1243e4acbab28f47d93891ae8fb94c6473f7ad79f9e2f5c0cbfdf508d7cc513": {
+   "raw": "{\"out_of_catalog\": true, \"asked\": \"Руководство IT-отделом\", \"nearest\": [\"backend\", \"devops\", \"frontend\"], \"title\": null, \"specialization\": null, \"grade\": null, \"stack\": [], \"work_format\": null, \"city\": null, \"salary_from\": null, \"salary_to\": null}",
+   "error": null,
+   "ms": 7193.640455021523
+  },
+  "c190ca6cda883daf7c137c482e1a60d2fe0d459cf523c7f1b7cf163ae675c92e": {
+   "raw": "{\"out_of_catalog\": true, \"asked\": \"Бизнес-аналитика (e-commerce)\", \"nearest\": [\"data-ml\"], \"title\": null, \"specialization\": null, \"grade\": null, \"stack\": [], \"work_format\": null, \"city\": null, \"salary_from\": null, \"salary_to\": null}",
+   "error": null,
+   "ms": 6639.9258360033855
+  },
+  "c346190edee15ce18c303fcef32123bf6010a210da14039c16c2ed209bc3827e": {
+   "raw": "{\"out_of_catalog\": true, \"asked\": \"iOS-разработка\", \"nearest\": [\"frontend\", \"backend\"], \"title\": null, \"specialization\": null, \"grade\": null, \"stack\": [], \"work_format\": null, \"city\": null, \"salary_from\": null, \"salary_to\": null}",
+   "error": null,
+   "ms": 7278.617815929465
+  },
+  "c352c776de147391def50cdc445fb7c59b282d37c0751670f3d98ec3c34f9f5a": {
+   "raw": "{\"out_of_catalog\": true, \"asked\": \"геймдев (Unreal Engine, C++)\", \"nearest\": [\"backend\"], \"title\": \"Unreal Engine Programmer\", \"specialization\": null, \"grade\": null, \"stack\": [], \"work_format\": null, \"city\": null, \"salary_from\": null, \"salary_to\": null}",
+   "error": null,
+   "ms": 6477.332533104345
+  },
+  "c396ce618667b16a2f747460e6962301a97935770c1ba7fffeb04644dccf917f": {
+   "raw": "{\"out_of_catalog\": true, \"asked\": \"1С:ERP\", \"nearest\": [\"backend\"], \"title\": null, \"specialization\": null, \"grade\": null, \"stack\": [], \"work_format\": null, \"city\": null, \"salary_from\": null, \"salary_to\": null}",
+   "error": null,
+   "ms": 5884.776575025171
+  },
+  "c3effc01f468b3e248f0d76398a29c11b2d77b7a0c345cf30c4fe6999719eb48": {
+   "raw": "{\"out_of_catalog\": false, \"asked\": null, \"nearest\": [], \"title\": \"Системный администратор Linux\", \"specialization\": \"devops\", \"grade\": \"senior\", \"stack\": [\"linux\", \"kubernetes\", \"docker\", \"gitlab-ci\", \"ansible\", \"bash\", \"python\"], \"work_format\": \"office\", \"city\": \"Москва\", \"salary_from\": 250000, \"salary_to\": 350000}",
+   "error": null,
+   "ms": 7535.373569000512
+  },
+  "c4a9e2099588eebdf7ee35b584144fd5ef670fa66f4320d0a5c4a3b358767805": {
+   "raw": "{\"out_of_catalog\": false, \"asked\": null, \"nearest\": [], \"title\": \"DevOps-инженер\", \"specialization\": \"devops\", \"grade\": \"junior\", \"stack\": [\"linux\", \"gitlab-ci\", \"docker\", \"bash\", \"python\", \"ansible\", \"nginx\", \"postgresql\", \"mysql\"], \"work_format\": \"hybrid\", \"city\": \"Санкт-Петербург\", \"salary_from\": 80000, \"salary_to\": 130000}",
+   "error": null,
+   "ms": 7874.459614045918
+  },
+  "c57ada7df3d9e208da46d53fc4699ec6b7f923c247317856fbb10d4f297db086": {
+   "raw": "{\"out_of_catalog\": false, \"asked\": null, \"nearest\": [], \"title\": \"Data Scientist\", \"specialization\": \"data-ml\", \"grade\": \"middle\", \"stack\": [\"python\", \"pytorch\"], \"work_format\": \"remote\", \"city\": \"Москва\", \"salary_from\": 120000, \"salary_to\": 200000}",
+   "error": null,
+   "ms": 11557.797229033895
+  },
+  "c5eac436e3d869c70ab7e41bdd1f32bfb241cdf33327e8bedc68aa485ecddd92": {
+   "raw": "{\"out_of_catalog\": false, \"asked\": null, \"nearest\": [], \"title\": \"Разработчик ПО\", \"specialization\": \"backend\", \"grade\": \"junior\", \"stack\": [\"nodejs\", \"playwright\", \"rabbitmq\", \"redis\", \"go\", \"csharp\", \"python\"], \"work_format\": \"remote\", \"city\": \"Москва\", \"salary_from\": 300000, \"salary_to\": null}",
+   "error": null,
+   "ms": 6741.780711920001
+  },
+  "c5f6e0adefa5cecd1d190bd1d919458418aaf26d330c463dd79bc799bddf6ae1": {
+   "raw": "{\"out_of_catalog\": false, \"asked\": null, \"nearest\": [], \"title\": \"Frontend-разработчик — Angular\", \"specialization\": \"frontend\", \"grade\": \"middle\", \"stack\": [\"angular\", \"javascript\"], \"work_format\": \"remote\", \"city\": \"Казань\", \"salary_from\": null, \"salary_to\": null}",
+   "error": null,
+   "ms": 7427.488383022137
+  },
+  "c97dc9cc8075934c733faff5b7914299d1e082da337319915aaffde798a11c83": {
+   "raw": "{\"out_of_catalog\": false, \"asked\": null, \"nearest\": [], \"title\": \"ML-разработчик в розничные риски\", \"specialization\": \"data-ml\", \"grade\": \"senior\", \"stack\": [\"python\"], \"work_format\": \"hybrid\", \"city\": \"Москва\", \"salary_from\": 330000, \"salary_to\": 550000}",
+   "error": null,
+   "ms": 6246.112201013602
+  },
+  "ca9bf1ebf5c8deb2cb1212afed2396c7dcdffef304a7882acd4f0fd99d07697a": {
+   "raw": "{\"out_of_catalog\": false, \"asked\": null, \"nearest\": [], \"title\": \"Frontend-разработчик в Яндекс Документы\", \"specialization\": \"frontend\", \"grade\": \"senior\", \"stack\": [\"typescript\", \"javascript\", \"react\", \"nodejs\"], \"work_format\": \"remote\", \"city\": \"Санкт-Петербург\", \"salary_from\": 250000, \"salary_to\": 450000}",
+   "error": null,
+   "ms": 6221.483165980317
+  },
+  "cd7b02c7e6d89623c6d8fc2ba4d55cc66e6ece2647d3d2e27a9e835d5de4d501": {
+   "raw": "{\"out_of_catalog\": false, \"asked\": null, \"nearest\": [], \"title\": \"Java-разработчик (TicketNet)\", \"specialization\": \"backend\", \"grade\": \"middle\", \"stack\": [\"java\", \"spring\", \"postgresql\", \"redis\", \"kafka\", \"prometheus\", \"gitlab-ci\"], \"work_format\": \"office\", \"city\": \"Санкт-Петербург\", \"salary_from\": null, \"salary_to\": null}",
+   "error": null,
+   "ms": 10403.397144982591
+  },
+  "cf84ff70be3bd063d0219144f621922fd2ffe11a364b79d9a920c64ede6a3408": {
+   "raw": "{\"out_of_catalog\": true, \"asked\": \"Unity-разработка интерактивных приложений для музеев и выставок\", \"nearest\": [\"backend\", \"frontend\"], \"title\": null, \"specialization\": null, \"grade\": null, \"stack\": [], \"work_format\": null, \"city\": null, \"salary_from\": null, \"salary_to\": null}",
+   "error": null,
+   "ms": 6564.9088739883155
+  },
+  "d0bc275b3c7a322c92d8a8ff81c20fd1a962ba8f3e89fac1741208d575be0354": {
+   "raw": "{\"out_of_catalog\": false, \"asked\": null, \"nearest\": [], \"title\": \"Разработчик веб-продукта\", \"specialization\": \"backend\", \"grade\": \"middle\", \"stack\": [\"typescript\", \"react\", \"vue\", \"go\", \"nodejs\", \"docker\", \"linux\"], \"work_format\": \"office\", \"city\": \"Санкт-Петербург\", \"salary_from\": 160000, \"salary_to\": null}",
+   "error": null,
+   "ms": 7840.543408994563
+  },
+  "d102364def642c92ab004ebd7d919204fcb62a3367bb4e27a6f2f8b3c116b96d": {
+   "raw": "{\"out_of_catalog\": false, \"asked\": null, \"nearest\": [], \"title\": \"Java разработчик\", \"specialization\": \"backend\", \"grade\": \"junior\", \"stack\": [\"java\", \"kafka\", \"rabbitmq\"], \"work_format\": \"remote\", \"city\": \"Новосибирск\", \"salary_from\": null, \"salary_to\": null}",
+   "error": null,
+   "ms": 7190.639229025692
+  },
+  "d1bf23f3c34f464070fd7c6c80682e4e1274c782c9ac847768db99b5779608c6": {
+   "raw": "{\"out_of_catalog\": false, \"asked\": null, \"nearest\": [], \"title\": \"ML Инженер\", \"specialization\": \"data-ml\", \"grade\": \"middle\", \"stack\": [\"python\", \"pytorch\", \"docker\", \"fastapi\", \"rabbitmq\", \"redis\"], \"work_format\": \"hybrid\", \"city\": \"Москва\", \"salary_from\": null, \"salary_to\": null}",
+   "error": null,
+   "ms": 6667.65303700231
+  },
+  "d36c24144f61a11a0b59fe710e62ece549d0b8708a0e876edb24e2040f0fad46": {
+   "raw": "{\"out_of_catalog\": false, \"asked\": null, \"nearest\": [], \"title\": \"Сетевой инженер / Сетевой администратор\", \"specialization\": \"qa\", \"grade\": \"middle\", \"stack\": [\"linux\", \"docker\", \"nginx\", \"bash\", \"python\"], \"work_format\": \"remote\", \"city\": \"Новосибирск\", \"salary_from\": 80000, \"salary_to\": 100000}",
+   "error": null,
+   "ms": 7094.778271974064
+  },
+  "d49a1a193d10f7035d7995366d27c51be2a6e30db62da37d71fd6fb7a3ed3970": {
+   "raw": "{\"out_of_catalog\": true, \"asked\": \"Продуктовый дизайн\", \"nearest\": [\"frontend\"], \"title\": null, \"specialization\": null, \"grade\": null, \"stack\": [], \"work_format\": null, \"city\": null, \"salary_from\": null, \"salary_to\": null}",
+   "error": null,
+   "ms": 7984.511469025165
+  },
+  "dc53d9cb889362404bfffb9f92133c2d0b60dc9cddb8473099ef01082e0bb27b": {
+   "raw": "{\"out_of_catalog\": false, \"asked\": null, \"nearest\": [], \"title\": \"Data Engineering Team Lead\", \"specialization\": \"data-ml\", \"grade\": \"senior\", \"stack\": [\"clickhouse\", \"airflow\", \"python\", \"kafka\", \"spark\"], \"work_format\": \"hybrid\", \"city\": \"Санкт-Петербург\", \"salary_from\": null, \"salary_to\": null}",
+   "error": null,
+   "ms": 6120.643122005276
+  },
+  "df0f7851a68cf113112fc8839b0f9ddf4bb2f7207cc06dfd21c301e1a0e7c2a1": {
+   "raw": "{\"out_of_catalog\": false, \"asked\": null, \"nearest\": [], \"title\": \"Junior DevOps engineer\", \"specialization\": \"devops\", \"grade\": \"junior\", \"stack\": [\"linux\", \"bash\", \"python\", \"postgresql\"], \"work_format\": \"office\", \"city\": \"Санкт-Петербург\", \"salary_from\": 80000, \"salary_to\": 100000}",
+   "error": null,
+   "ms": 7223.585237050429
+  },
+  "df80a7f73805dacaece8a6718dbb1dbd2552b0bb24d266aeafd9ede090894313": {
+   "raw": "{\"out_of_catalog\": false, \"asked\": null, \"nearest\": [], \"title\": \"Стажер-тестировщик\", \"specialization\": \"qa\", \"grade\": \"intern\", \"stack\": [], \"work_format\": \"hybrid\", \"city\": \"Москва\", \"salary_from\": null, \"salary_to\": 60000}",
+   "error": null,
+   "ms": 5620.600098045543
+  },
+  "e22de55ff5f1410764b7e358b2a9da99f21ddd0f5b326bd703951d567b74712e": {
+   "raw": "{\"out_of_catalog\": true, \"asked\": \"Full-stack-разработка (PHP, 1С-Битрикс)\", \"nearest\": [\"backend\", \"frontend\"], \"title\": null, \"specialization\": null, \"grade\": null, \"stack\": [], \"work_format\": null, \"city\": null, \"salary_from\": null, \"salary_to\": null}",
+   "error": null,
+   "ms": 9573.705072980374
+  },
+  "e2cb391b6f5f747a8318a7a3871c8005168fcf3de135eb107dfff275282fb6ec": {
+   "raw": "{\"out_of_catalog\": true, \"asked\": \"Программист 1С\", \"nearest\": [\"backend\"], \"title\": \"Программист 1С\", \"specialization\": null, \"grade\": null, \"stack\": [], \"work_format\": null, \"city\": null, \"salary_from\": null, \"salary_to\": null}",
+   "error": null,
+   "ms": 6868.82492096629
+  },
+  "e551ed3ca3bfb69d25ba4d9f5f41597f66ae2dfa732466e30dd1dd8da81482eb": {
+   "raw": "{\"out_of_catalog\": false, \"asked\": null, \"nearest\": [], \"title\": \"Golang-разработчик\", \"specialization\": \"backend\", \"grade\": \"middle\", \"stack\": [\"go\", \"linux\"], \"work_format\": \"remote\", \"city\": \"Санкт-Петербург\", \"salary_from\": 250000, \"salary_to\": 600000}",
+   "error": null,
+   "ms": 38125.52079895977
+  },
+  "e6152315bbf571eecaca6f0dee868e8daee72655040981aaa088ef00502d984e": {
+   "raw": "{\"out_of_catalog\": false, \"asked\": null, \"nearest\": [], \"title\": \"Senior-разработчик Битрикс24 (коробочная версия)\", \"specialization\": \"backend\", \"grade\": \"senior\", \"stack\": [\"javascript\", \"redis\"], \"work_format\": \"hybrid\", \"city\": \"Пермь\", \"salary_from\": null, \"salary_to\": null}",
+   "error": null,
+   "ms": 8346.955833025277
+  },
+  "e6580497c7407a4f6fe64563a56f5c61b1a04772de48e753bc5c3db8d3dd4d73": {
+   "raw": "{\"out_of_catalog\": false, \"asked\": null, \"nearest\": [], \"title\": \"Frontend-разработчик\", \"specialization\": \"frontend\", \"grade\": \"senior\", \"stack\": [\"typescript\", \"javascript\", \"react\", \"nodejs\"], \"work_format\": \"remote\", \"city\": \"Москва\", \"salary_from\": 250000, \"salary_to\": 450000}",
+   "error": null,
+   "ms": 5862.632200005464
+  },
+  "e720611e9890726e245b38d820a27eb93ebfec462e042bd529ba73558043d89c": {
+   "raw": "{\"out_of_catalog\": false, \"asked\": null, \"nearest\": [], \"title\": \"Frontend разработчик\", \"specialization\": \"frontend\", \"grade\": \"junior\", \"stack\": [\"javascript\", \"typescript\", \"react\", \"html-css\"], \"work_format\": \"hybrid\", \"city\": \"Казань\", \"salary_from\": null, \"salary_to\": null}",
+   "error": null,
+   "ms": 7948.804619954899
+  },
+  "e9c064ce8db806ee75890df58a819cd4d5355a3f0c994340c0b490944a0d3438": {
+   "raw": "{\"out_of_catalog\": false, \"asked\": null, \"nearest\": [], \"title\": \"Тестировщик ПО (Manual QA)\", \"specialization\": \"qa\", \"grade\": \"junior\", \"stack\": [\"linux\", \"gitlab-ci\", \"docker\", \"python\", \"bash\"], \"work_format\": \"office\", \"city\": \"Санкт-Петербург\", \"salary_from\": 100000, \"salary_to\": null}",
+   "error": null,
+   "ms": 7035.387551994063
+  },
+  "ec9e1bc487b9c41d734fe4ccd9ea6cc9029b6bdea4f7766d9456f56a953e4e4d": {
+   "raw": "{\"out_of_catalog\": false, \"asked\": null, \"nearest\": [], \"title\": \"Старший инженер по автоматизации тестирования, ERP и учётные системы\", \"specialization\": \"qa\", \"grade\": \"senior\", \"stack\": [\"python\", \"pytest\", \"kubernetes\"], \"work_format\": \"remote\", \"city\": \"Москва\", \"salary_from\": null, \"salary_to\": null}",
+   "error": null,
+   "ms": 5504.941288032569
+  },
+  "ee9d6b3e8c5dc8312dc1900f1b6b75522dd93d59c1a5159bfe223230b236ab01": {
+   "raw": "{\"out_of_catalog\": true, \"asked\": \"Unity-разработка\", \"nearest\": [\"backend\", \"frontend\"], \"title\": null, \"specialization\": null, \"grade\": null, \"stack\": [], \"work_format\": null, \"city\": null, \"salary_from\": null, \"salary_to\": null}",
+   "error": null,
+   "ms": 7654.1936619905755
+  },
+  "eeb8ef9694a3369ffec5c45fa269af502bc5d8045494af13da9017c0bdfd99c0": {
+   "raw": "{\"out_of_catalog\": false, \"asked\": null, \"nearest\": [], \"title\": \"DevOps-инженер\", \"specialization\": \"devops\", \"grade\": \"middle\", \"stack\": [\"linux\", \"python\", \"java\", \"go\", \"csharp\", \"kafka\", \"rabbitmq\", \"postgresql\", \"clickhouse\", \"prometheus\", \"grafana\", \"docker\", \"kubernetes\"], \"work_format\": \"hybrid\", \"city\": \"Москва\", \"salary_from\": null, \"salary_to\": 270000}",
+   "error": null,
+   "ms": 8171.777808922343
+  },
+  "ef8b158d7a008b0e411c466b6a3ac92625181c1ed630dfac6174c45ce3fb1b92": {
+   "raw": "{\"out_of_catalog\": true, \"asked\": \"Разработка игр (программист игровой логики, Unreal Engine)\", \"nearest\": [\"backend\"], \"title\": \"Senior C++ Gameplay Programmer (Unreal Engine)\", \"specialization\": null, \"grade\": null, \"stack\": [], \"work_format\": null, \"city\": null, \"salary_from\": null, \"salary_to\": null}",
+   "error": null,
+   "ms": 6696.857503033243
+  },
+  "f00a9fcd218c9cd60f0c484d7062d33259d169adb9f22ce7ab8468c1af05d319": {
+   "raw": "{\"out_of_catalog\": false, \"asked\": null, \"nearest\": [], \"title\": \"Golang разработчик\", \"specialization\": \"backend\", \"grade\": \"middle\", \"stack\": [\"go\", \"postgresql\", \"clickhouse\", \"kubernetes\", \"ansible\", \"linux\"], \"work_format\": \"remote\", \"city\": \"Москва\", \"salary_from\": 250000, \"salary_to\": 350000}",
+   "error": null,
+   "ms": 10181.316519039683
+  },
+  "f08535f71121cad383cbdec036cb0c22fb85d42aeb39e5b8c28d81b8b7f37563": {
+   "raw": "{\"out_of_catalog\": true, \"asked\": \"менеджер проектов\", \"nearest\": [\"backend\", \"frontend\", \"qa\"], \"title\": null, \"specialization\": null, \"grade\": null, \"stack\": [], \"work_format\": null, \"city\": null, \"salary_from\": null, \"salary_to\": null}",
+   "error": null,
+   "ms": 6838.768456946127
+  },
+  "f0e4cb0626cf287178bc18e6b69d1117a6b46ef01b9174b583629882dcbc4eab": {
+   "raw": "{\"out_of_catalog\": false, \"asked\": null, \"nearest\": [], \"title\": \"Data Engineer (Senior)\", \"specialization\": \"data-ml\", \"grade\": \"senior\", \"stack\": [\"clickhouse\", \"airflow\", \"python\"], \"work_format\": \"remote\", \"city\": \"Санкт-Петербург\", \"salary_from\": null, \"salary_to\": null}",
+   "error": null,
+   "ms": 6569.440033053979
+  },
+  "f1ca986a4cd7c48367244cfdb3de37a968915c484fef5b8f5a2ff9dd01319388": {
+   "raw": "{\"out_of_catalog\": false, \"asked\": null, \"nearest\": [], \"title\": \"QA Engineer (ручное тестирование)\", \"specialization\": \"qa\", \"grade\": \"junior\", \"stack\": [], \"work_format\": \"remote\", \"city\": \"Москва\", \"salary_from\": null, \"salary_to\": 100000}",
+   "error": null,
+   "ms": 5511.786862043664
+  },
+  "f244d4399d416ed4dd9f61ca19c416ca485c0b1cea9f58a6638177e7862d6c83": {
+   "raw": "{\"out_of_catalog\": false, \"asked\": null, \"nearest\": [], \"title\": \"Автотестировщик в крауд-тестирование\", \"specialization\": \"qa\", \"grade\": \"junior\", \"stack\": [\"javascript\", \"typescript\", \"python\"], \"work_format\": \"remote\", \"city\": \"Казань\", \"salary_from\": null, \"salary_to\": null}",
+   "error": null,
+   "ms": 6017.076905001886
+  },
+  "f3d66cf2bf6ae01959f121be5e815cf1f8994042cffa0b51081578cf5f83af68": {
+   "raw": "{\"out_of_catalog\": false, \"asked\": null, \"nearest\": [], \"title\": \"DevOps / SRE-инженер\", \"specialization\": \"devops\", \"grade\": \"senior\", \"stack\": [\"docker\", \"postgresql\", \"redis\", \"rabbitmq\", \"gitlab-ci\", \"prometheus\", \"grafana\", \"linux\", \"bash\", \"python\", \"ansible\", \"terraform\", \"kubernetes\", \"k6\", \"nginx\"], \"work_format\": \"remote\", \"city\": \"Санкт-Петербург\", \"salary_from\": 150000, \"salary_to\": null}",
+   "error": null,
+   "ms": 10595.085441018455
+  },
+  "f5a2311ad3e667b3f1b09d21619b0de5986750cd95408efd06067e87f77900c8": {
+   "raw": "{\"out_of_catalog\": true, \"asked\": \"Системная разработка на Rust/C++ (кросс-платформенное десктопное приложение)\", \"nearest\": [\"backend\"], \"title\": null, \"specialization\": null, \"grade\": null, \"stack\": [], \"work_format\": null, \"city\": null, \"salary_from\": null, \"salary_to\": null}",
+   "error": null,
+   "ms": 7164.684140938334
+  },
+  "f5b551b624175034699e6225e33b6f050f21101605a884b271233d07e4c9cdcc": {
+   "raw": "{\"out_of_catalog\": true, \"asked\": \"Системный аналитик\", \"nearest\": [\"backend\", \"data-ml\", \"qa\"], \"title\": null, \"specialization\": null, \"grade\": null, \"stack\": [], \"work_format\": null, \"city\": null, \"salary_from\": null, \"salary_to\": null}",
+   "error": null,
+   "ms": 38369.31446194649
+  },
+  "f5f844d7a439ca29089979d21baca2deecf603d37c686a0c9f3f84f7cf3c15e2": {
+   "raw": "{\"out_of_catalog\": true, \"asked\": \"Системное администрирование\", \"nearest\": [\"devops\"], \"title\": null, \"specialization\": null, \"grade\": null, \"stack\": [], \"work_format\": null, \"city\": null, \"salary_from\": null, \"salary_to\": null}",
+   "error": null,
+   "ms": 9225.50268296618
+  },
+  "f622932d3a2c9eb2998106e3640ae1c62bbbbb379e553254f6f31d0f47ef0581": {
+   "raw": "{\"out_of_catalog\": false, \"asked\": null, \"nearest\": [], \"title\": \"Тестировщик ПО\", \"specialization\": \"qa\", \"grade\": \"middle\", \"stack\": [\"python\", \"pytest\", \"postgresql\", \"redis\"], \"work_format\": \"office\", \"city\": \"Санкт-Петербург\", \"salary_from\": null, \"salary_to\": null}",
+   "error": null,
+   "ms": 14944.051368976943
+  },
+  "f624114a15b0f82b9c27ca6e3841c1958e2bd7b3d194f30dbf772086af8ea524": {
+   "raw": "{\"out_of_catalog\": false, \"asked\": null, \"nearest\": [], \"title\": \"DevOps инженер со знанием платформы ЦФТ\", \"specialization\": \"devops\", \"grade\": \"senior\", \"stack\": [\"postgresql\", \"kafka\", \"ansible\", \"docker\", \"kubernetes\", \"linux\", \"java\", \"prometheus\", \"grafana\"], \"work_format\": \"remote\", \"city\": null, \"salary_from\": null, \"salary_to\": null}",
+   "error": null,
+   "ms": 7092.588298022747
+  },
+  "f6e8753e9d8fc8e8312da4693c80ef90620d02b088962a0010afc8e6e8c77e52": {
+   "raw": "{\"out_of_catalog\": false, \"asked\": null, \"nearest\": [], \"title\": \"Java-разработчик\", \"specialization\": \"backend\", \"grade\": \"middle\", \"stack\": [\"java\", \"spark\", \"docker\", \"kubernetes\", \"kafka\"], \"work_format\": \"remote\", \"city\": \"Санкт-Петербург\", \"salary_from\": null, \"salary_to\": null}",
+   "error": null,
+   "ms": 6768.394178012386
+  },
+  "f7a3e97760e2b88b36731f2dbc61a757ba4c93c91af3cb913be487b083c603dc": {
+   "raw": "{\"out_of_catalog\": true, \"asked\": \"Unity-разработка (геймдев)\", \"nearest\": [\"frontend\", \"backend\"], \"title\": null, \"specialization\": null, \"grade\": null, \"stack\": [], \"work_format\": null, \"city\": null, \"salary_from\": null, \"salary_to\": null}",
+   "error": null,
+   "ms": 9452.15869799722
+  },
+  "fcea6c69195b00891a25ad5986dc27572da065e551332ed18aa1e1f4c2625aec": {
+   "raw": "{\"out_of_catalog\": false, \"asked\": null, \"nearest\": [], \"title\": \"Data инженер (маркетплейсы)\", \"specialization\": \"data-ml\", \"grade\": \"middle\", \"stack\": [\"python\", \"clickhouse\", \"postgresql\", \"airflow\", \"grafana\"], \"work_format\": \"remote\", \"city\": \"Екатеринбург\", \"salary_from\": 200000, \"salary_to\": 350000}",
+   "error": null,
+   "ms": 8269.945326959714
+  },
+  "fe0f82b7eb0c41336ed8e36d17e57ad9b2d00b763237a734bef4dbed8a653d30": {
+   "raw": "{\"out_of_catalog\": false, \"asked\": null, \"nearest\": [], \"title\": \"Стажер Data scientist\", \"specialization\": \"data-ml\", \"grade\": \"intern\", \"stack\": [\"python\", \"pandas\", \"scikit-learn\", \"catboost\", \"spark\"], \"work_format\": \"hybrid\", \"city\": \"Москва\", \"salary_from\": null, \"salary_to\": null}",
+   "error": null,
+   "ms": 7264.009364997037
+  },
+  "fe1182b6fa5a9142903c8e1dcbb53df9306a962c9a3fb5f36cdab766547f29c0": {
+   "raw": "{\"out_of_catalog\": true, \"asked\": \"Программист 1С\", \"nearest\": [\"backend\"], \"title\": \"Программист 1С\", \"specialization\": null, \"grade\": null, \"stack\": [], \"work_format\": null, \"city\": null, \"salary_from\": null, \"salary_to\": null}",
+   "error": null,
+   "ms": 5941.801276057959
+  },
+  "fe9b23f429f7aa1cb0c3e694d3a98a7a6b032513cf6bc0afbf0379a834c7a529": {
+   "raw": "{\"out_of_catalog\": false, \"asked\": null, \"nearest\": [], \"title\": \"Сетевой инженер / Linux-инженер (DevOps стек)\", \"specialization\": \"devops\", \"grade\": \"middle\", \"stack\": [\"linux\", \"bash\", \"python\", \"docker\", \"nginx\"], \"work_format\": \"remote\", \"city\": \"Новосибирск\", \"salary_from\": 80000, \"salary_to\": 100000}",
+   "error": null,
+   "ms": 8088.863893062808
+  },
+  "ff92b5b170292fe31f9feb5ae1db6ba629f9a11740e82415ae88048c2633f427": {
+   "raw": "{\"out_of_catalog\": false, \"asked\": null, \"nearest\": [], \"title\": \"Стажер разработчик интерфейсов (Frontend)\", \"specialization\": \"frontend\", \"grade\": \"intern\", \"stack\": [\"vue\", \"typescript\", \"javascript\", \"gitlab-ci\"], \"work_format\": \"office\", \"city\": \"Москва\", \"salary_from\": null, \"salary_to\": null}",
+   "error": null,
+   "ms": 6544.2326120100915
+  },
+  "ffc1cc806898bb84e41064bcdfa46d6beb539f83a6117722b763de52920129df": {
+   "raw": "{\"out_of_catalog\": true, \"asked\": \"системный анализ CRM\", \"nearest\": [\"backend\", \"qa\"], \"title\": null, \"specialization\": null, \"grade\": null, \"stack\": [], \"work_format\": null, \"city\": null, \"salary_from\": null, \"salary_to\": null}",
+   "error": null,
+   "ms": 5868.556072004139
+  }
+ }
+}

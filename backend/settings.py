@@ -48,9 +48,14 @@ class Settings(BaseSettings):
     synonyms_file: Path = SYNONYMS_FILE
 
     # Разбор текста за портом `TextUnderstanding` (docs/adr/0002-text-understanding-port.md):
-    # реализация по имени и сколько ждать модель, прежде чем ответить правилами.
+    # реализация по имени — `rules` или `llama` — и сколько ждать модель, прежде чем ответить
+    # правилами. По умолчанию правила: модель становится вариантом по умолчанию только по замеру.
     text_understanding: str = "rules"
     text_understanding_timeout_seconds: float = Field(default=10.0, gt=0)
+    # `llama-server` из llama.cpp — сервис compose под profile `llama`; модель GGUF выбирает
+    # compose, имя здесь — для запроса.
+    llama_url: str = "http://llama:8080"
+    llama_model: str = "local"
 
     # ФСП ID — OpenID Connect. Настоящий ФСП ID — смена этих значений, без правки кода.
     # Публичный адрес realm: его видит браузер, он же `iss` в токенах.
@@ -166,12 +171,21 @@ class Mechanics(BaseModel):
     invitation_ttl_days: int
     acceptance_target_probability: float
     salary_hint_rounding_rub: int
+    message_max_length: int = Field(gt=0)
 
     # Обратная связь
     feedback_min_companies: int
     feedback_period_days: int
     feedback_hints_max: int
     feedback_min_gain: float
+
+    # Резюме из PDF
+    resume_max_bytes: int = Field(gt=0)
+    resume_max_pages: int = Field(gt=0)
+    resume_max_content_bytes: int = Field(gt=0)
+    resume_min_font_pt: float = Field(ge=0)
+    resume_max_lightness: float = Field(gt=0, le=1)
+    resume_draft_confident: float = Field(ge=0, le=1)
 
     @field_validator("need_importance_weights")
     @classmethod

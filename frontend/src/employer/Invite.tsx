@@ -30,7 +30,7 @@ export function InviteAction({
       </p>
     )
   }
-  if (latest?.status === 'accepted') {
+  if (latest?.status === 'accepted' && !latest.revoked_at) {
     return (
       <p className="success">
         Кандидат принял приглашение — имя и контакты открыты в карточке.
@@ -56,7 +56,12 @@ export function InviteAction({
       <button type="button" className="button button-small" disabled={exhausted} onClick={() => setOpen(true)}>
         Пригласить
       </button>
-      {latest && <span className="muted">Прошлое приглашение {invitationStatusWords[latest.status]}</span>}
+      {latest && (
+        <span className="muted">
+          Прошлое приглашение {invitationStatusWords[latest.status]}
+          {latest.revoked_at && ', кандидат отозвал доступ'}
+        </span>
+      )}
       {exhausted && budget && (
         <span className="muted">Бюджет приглашений исчерпан до {dateWords(budget.resets_at)}</span>
       )}

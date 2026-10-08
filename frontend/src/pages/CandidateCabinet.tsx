@@ -12,6 +12,7 @@ import { SkillProfileView, TestResultView } from '../candidate/Results'
 import { SurveyStep } from '../candidate/SurveyStep'
 import { TestStep } from '../candidate/TestStep'
 import { dateWords, levelWords } from '../candidate/words'
+import { useUnreadMessages } from '../invitation/unread'
 
 const steps = ['Опрос', 'Грейд', 'Тест', 'Категория']
 const stepOf: Record<CandidatePath['stage'], number> = {
@@ -38,6 +39,19 @@ export function CandidateCabinet() {
 
   if (error || failed) return <p className="error">{error ?? 'Не удалось загрузить справочники'}</p>
   if (!path || !catalog) return <p className="muted">Загрузка…</p>
+  // Блок по теме идёт при категории: только задания, профиль обновится по итогу.
+  if (path.topic_block) {
+    return (
+      <section className="stack">
+        <h1>Блок по теме «{path.topic_block.topic.name}»</h1>
+        <p className="lead">
+          {path.topic_block.items} заданий по одной теме: ответы уточнят уровень и погрешность в
+          профиле навыков. Категория и грейд от блока не меняются.
+        </p>
+        <TestStep onDone={setPath} />
+      </section>
+    )
+  }
   if (path.stage === 'category') return <CategoryCabinet catalog={catalog} path={path} onChange={setPath} />
   // Попытка вверх идёт при категории: только тест, категория до итога прежняя.
   if (path.stage === 'test' && path.category) {
@@ -169,8 +183,9 @@ function OfferStep({ catalog, path, onChange }: StepProps) {
 function CategoryCabinet({ catalog, path, onChange }: StepProps) {
   const category = path.category
   const hint = path.result?.grade_up_hint
+  const { unread, reload } = useUnreadMessages('candidate')
   return (
-    <Cabinet title="Кабинет кандидата" upcoming={[]}>
+    <Cabinet title="Кабинет кандидата" upcoming={[]} unread={unread}>
       {category && (
         <div className="card">
           <span className="muted">Ваша категория</span>
@@ -188,8 +203,8 @@ function CategoryCabinet({ catalog, path, onChange }: StepProps) {
         </div>
       )}
       <GradeChangeCard catalog={catalog} path={path} onChange={onChange} />
-      <Inbox />
-      <FeedbackCard />
+      <Inbox onRead={reload} />
+      <FeedbackCard onStartBlock={onChange} />
       <ProfileCard />
       <div className="card">
         <div className="section-head">

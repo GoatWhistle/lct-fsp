@@ -4,6 +4,7 @@
 from app.repository.orm.account import EmailVerificationToken, User
 from app.repository.orm.attempt import (
     CandidateCategory,
+    CategoryChange,
     FamilyCalibration,
     FamilyStatus,
     Presentation,
@@ -41,6 +42,7 @@ from app.repository.orm.skill_profile import SkillProfile, SkillProfileTopic
 __all__ = [
     "CandidateCategory",
     "CandidateProfile",
+    "CategoryChange",
     "Company",
     "EmailVerificationToken",
     "FamilyCalibration",

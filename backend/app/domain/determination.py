@@ -29,12 +29,31 @@ class NoCategory:
     """Не хватило уверенности и для младшего грейда."""
 
 
+@dataclass(frozen=True)
+class NotPassed:
+    """Попытка вверх: уверенности для её грейда не хватило — категория прежняя."""
+
+
 Decision = Assign | Offer | NoCategory
 
 
 def grades_by_threshold(thresholds: Mapping[str, float]) -> list[str]:
     """Грейды от младшего к старшему — по порогам c_g."""
     return sorted(thresholds, key=lambda grade: thresholds[grade])
+
+
+def grade_above(grade: str, thresholds: Mapping[str, float]) -> str | None:
+    """Следующий грейд выше; None — грейд старший."""
+    order = grades_by_threshold(thresholds)
+    level = order.index(grade)
+    return order[level + 1] if level + 1 < len(order) else None
+
+
+def grade_below(grade: str, thresholds: Mapping[str, float]) -> str | None:
+    """Следующий грейд ниже; None — грейд младший."""
+    order = grades_by_threshold(thresholds)
+    level = order.index(grade)
+    return order[level - 1] if level > 0 else None
 
 
 def grade_probabilities(overall: Normal, thresholds: Mapping[str, float]) -> dict[str, float]:
@@ -69,13 +88,19 @@ def decide(
     return NoCategory()
 
 
+def decide_up(
+    overall: Normal, grade: str, *, thresholds: Mapping[str, float], confidence: float
+) -> Assign | NotPassed:
+    """Итог попытки вверх на `grade`: только правило уверенности, каскада нет."""
+    passed = overall.prob_at_least(thresholds[grade]) >= confidence
+    return Assign(grade) if passed else NotPassed()
+
+
 def grade_up_hint(
     overall: Normal, grade: str, *, thresholds: Mapping[str, float], confidence: float
 ) -> str | None:
     """Грейд выше присвоенного, если P(θ̄ ≥ c_{g+1}) не ниже порога подсказки."""
-    order = grades_by_threshold(thresholds)
-    level = order.index(grade)
-    if level + 1 == len(order):
+    higher = grade_above(grade, thresholds)
+    if higher is None:
         return None
-    higher = order[level + 1]
     return higher if overall.prob_at_least(thresholds[higher]) >= confidence else None

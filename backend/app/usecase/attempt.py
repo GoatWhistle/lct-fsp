@@ -1,5 +1,5 @@
-"""Сценарии пути кандидата к категории: опрос → грейд → тест → оценка → категория
-(mechanics.md, §4, §6).
+"""Сценарии пути кандидата к категории: опрос → грейд → тест → оценка → категория, затем
+смена грейда — попытка вверх и переход вниз (mechanics.md, §4, §6).
 
 Опрос — направление: специализация справочника, «отрасль» в ТЗ. Сферы бизнеса в опрос не
 входят — это необязательное предпочтение в профиле кандидата.
@@ -15,6 +15,7 @@ import logging
 import random
 import uuid
 from collections.abc import Iterable, Sequence
+from dataclasses import replace
 from datetime import datetime, timedelta
 
 from app.domain import bank
@@ -25,19 +26,38 @@ from app.domain.attempt import (
     Attempt,
     AttemptOutcome,
     AttemptProgress,
+    AttemptPurpose,
+    CategoryChange,
+    GradeUp,
+    HistoryEntry,
     Item,
     PathState,
     PathView,
     Presentation,
     Stage,
+    grade_up_available_at,
+    path_history,
     stage_of,
     test_result,
 )
 from app.domain.bank.runner import CodeRunner
-from app.domain.determination import Assign, Offer, decide
+from app.domain.determination import (
+    Assign,
+    Decision,
+    NoCategory,
+    NotPassed,
+    Offer,
+    decide,
+    decide_up,
+    grade_above,
+    grade_below,
+)
 from app.domain.errors import (
+    GradeChangeTooEarly,
+    GradeNotNext,
     GradeNotOffered,
     ItemNotCurrent,
+    NoLowerGrade,
     NoTestInProgress,
     SpecializationWithoutTest,
     StepUnavailable,
@@ -144,8 +164,12 @@ class CandidatePath:
             return self._view(self._attempts.state(user_id), now, user_id)
 
     def start_attempt(self, user_id: uuid.UUID, *, grade: str) -> PathView:
-        """Тест на заявленный грейд или дотест каскада на предложенный; возвращает шаг пути на
-        тот же момент."""
+        """Тест на заявленный грейд, дотест каскада на предложенный или, при категории, попытка
+        на грейд выше; возвращает шаг пути на тот же момент.
+
+        Попытка вверх — с чистого листа: дотестом она не продолжает ничью оценку. Раньше срока
+        по правилу ожидания (§4) она не начинается — ошибка несёт дату, когда можно.
+        """
         with self._uow:
             self._attempts.lock_candidate(user_id)
             if grade not in self._mechanics.grade_thresholds:
@@ -153,16 +177,32 @@ class CandidatePath:
             now = self._clock.now()
             state = self._attempts.state(user_id)
             stage = stage_of(state, now)
+            purpose = AttemptPurpose.determination
             if stage == Stage.grade and state.survey is not None:
                 survey, continues = state.survey, None
             elif stage == Stage.offer and state.attempt is not None:
                 if grade != state.attempt.outcome_grade_code:
                     raise GradeNotOffered()
                 survey, continues = self._attempts.survey(state.attempt.survey_id), state.attempt
+            elif stage == Stage.category and state.category is not None:
+                up = self._grade_up(
+                    state.category.grade.code,
+                    self._attempts.attempts(user_id),
+                    self._attempts.category_changes(user_id),
+                    now,
+                )
+                if up is None or grade != up.grade:
+                    raise GradeNotNext()
+                if up.available_at is not None:
+                    raise GradeChangeTooEarly(up.available_at)
+                # Опрос после присвоения не меняется: последний — тот, по которому категория.
+                assert state.survey is not None
+                survey, continues = state.survey, None
+                purpose = AttemptPurpose.grade_up
             else:
                 raise StepUnavailable()
 
-            attempt = self._attempts.add_attempt(user_id, survey, grade, continues, now)
+            attempt = self._attempts.add_attempt(user_id, survey, grade, continues, now, purpose)
             prior = self._prior(attempt.specialization_code)
             if not self._remaining(attempt, prior):
                 # Дотест, в котором спрашивать нечего, оценку не меняет — его итог известен сразу.
@@ -170,6 +210,21 @@ class CandidatePath:
                 observations = _observations(chain)
                 estimate = self._skill_model.estimate(prior, observations)
                 self._finish(attempt, chain, prior, estimate, observations, now)
+            return self._view(self._attempts.state(user_id), now, user_id)
+
+    def step_down(self, user_id: uuid.UUID) -> PathView:
+        """Переход на грейд ниже — без теста и без ожидания (§4): правило уверенности для
+        младшего грейда уже выполнено той же оценкой. Заданий не показывает, банк не тратит."""
+        with self._uow:
+            self._attempts.lock_candidate(user_id)
+            now = self._clock.now()
+            state = self._attempts.state(user_id)
+            if stage_of(state, now) != Stage.category or state.category is None:
+                raise StepUnavailable()
+            lower = grade_below(state.category.grade.code, self._mechanics.grade_thresholds)
+            if lower is None:
+                raise NoLowerGrade()
+            self._attempts.lower_category(user_id, lower, now)
             return self._view(self._attempts.state(user_id), now, user_id)
 
     def current_item(self, user_id: uuid.UUID) -> Item:
@@ -318,20 +373,29 @@ class CandidatePath:
         observations: list[Observation],
         now: datetime,
     ) -> None:
-        """Остановка попытки: оценка теста по всему определению, решение каскада (§4) и пересчёт
-        профиля навыков по всем ответам и достижениям ФСП (§11)."""
+        """Остановка попытки: оценка теста по всему определению, решение (§4) и пересчёт
+        профиля навыков по всем ответам и достижениям ФСП (§11). Определение решает каскадом
+        вниз; попытка вверх — только правилом уверенности на свой грейд, провал категорию не
+        меняет."""
         overall = estimate.overall()
-        # Дотест всегда есть что спросить, пока у тем есть семейства в выдаче: невиданные
-        # кончатся — возьмутся давно виденные с новыми экземплярами.
-        available = bool(self._calibration.current(_bank(prior)))
-
-        decision = decide(
-            overall,
-            attempt.grade_code,
-            thresholds=self._mechanics.grade_thresholds,
-            confidence=self._mechanics.grade_confidence,
-            has_items=lambda _: available,
-        )
+        thresholds = self._mechanics.grade_thresholds
+        confidence = self._mechanics.grade_confidence
+        decision: Decision | NotPassed
+        if attempt.purpose == AttemptPurpose.grade_up:
+            decision = decide_up(
+                overall, attempt.grade_code, thresholds=thresholds, confidence=confidence
+            )
+        else:
+            # Дотест всегда есть что спросить, пока у тем есть семейства в выдаче: невиданные
+            # кончатся — возьмутся давно виденные с новыми экземплярами.
+            available = bool(self._calibration.current(_bank(prior)))
+            decision = decide(
+                overall,
+                attempt.grade_code,
+                thresholds=thresholds,
+                confidence=confidence,
+                has_items=lambda _: available,
+            )
         attempt.finished_at = now
         attempt.overall = overall
         answered = [p for a in chain for p in a.presentations if p.answered_at is not None]
@@ -344,13 +408,18 @@ class CandidatePath:
                 attempt.outcome, attempt.outcome_grade_code = AttemptOutcome.assigned, grade
             case Offer(grade):
                 attempt.outcome, attempt.outcome_grade_code = AttemptOutcome.offered, grade
-            case _:
+            case NotPassed():
+                attempt.outcome = AttemptOutcome.not_passed
+            case NoCategory():
                 attempt.outcome = AttemptOutcome.no_category
                 attempt.retest_after = now + timedelta(days=self._mechanics.no_category_retest_days)
         self._attempts.finish_attempt(attempt)
         self._attempts.save_rest_levels([answered[i] for i in mine])
         if attempt.outcome == AttemptOutcome.assigned:
-            self._attempts.add_category(attempt, now)
+            if attempt.purpose == AttemptPurpose.grade_up:
+                self._attempts.raise_category(attempt, now)
+            else:
+                self._attempts.add_category(attempt, now)
         levels = refresh_skill_profile(
             self._attempts,
             self._skill_model,
@@ -379,6 +448,28 @@ class CandidatePath:
                 grade_confidence=self._mechanics.grade_confidence,
                 hint_confidence=self._mechanics.grade_up_hint_confidence,
             )
+        grade_up, grade_down = None, None
+        history: tuple[HistoryEntry, ...] = ()
+        if stage == Stage.category and state.category is not None:
+            grade = state.category.grade.code
+            attempts = self._attempts.attempts(user_id)
+            changes = self._attempts.category_changes(user_id)
+            grade_up = self._grade_up(grade, attempts, changes, now)
+            grade_down = grade_below(grade, self._mechanics.grade_thresholds)
+            # Подсказка «грейд выше» — только пока она про доступную сейчас попытку вверх: после
+            # перехода вниз или при сроке ожидания она устарела.
+            if result is not None and (
+                grade_up is None
+                or grade_up.available_at is not None
+                or result.grade_up_hint != grade_up.grade
+            ):
+                result = replace(result, grade_up_hint=None)
+            history = path_history(
+                attempts,
+                changes,
+                thresholds=self._mechanics.grade_thresholds,
+                confidence=self._mechanics.grade_confidence,
+            )
         return PathView(
             stage=stage,
             survey=state.survey,
@@ -399,7 +490,34 @@ class CandidatePath:
             category=state.category,
             result=result,
             profile=profile,
+            grade_up=grade_up,
+            grade_down=grade_down,
+            history=history,
         )
+
+    def _grade_up(
+        self,
+        grade: str,
+        attempts: Sequence[Attempt],
+        changes: Sequence[CategoryChange],
+        now: datetime,
+    ) -> GradeUp | None:
+        """Попытка вверх с грейда `grade` на момент `now`: срок по правилу ожидания, если он ещё
+        не наступил; None — грейд старший."""
+        target = grade_above(grade, self._mechanics.grade_thresholds)
+        if target is None:
+            return None
+        available_at = grade_up_available_at(
+            target,
+            attempts,
+            changes,
+            thresholds=self._mechanics.grade_thresholds,
+            change_interval=timedelta(days=self._mechanics.grade_change_interval_days),
+            retry_interval=timedelta(days=self._mechanics.grade_retry_interval_days),
+        )
+        if available_at is not None and available_at <= now:
+            available_at = None
+        return GradeUp(target, available_at)
 
     def _attempt_in_progress(self, user_id: uuid.UUID) -> Attempt:
         attempt = self._attempts.attempt_in_progress(user_id)

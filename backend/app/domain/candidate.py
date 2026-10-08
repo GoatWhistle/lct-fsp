@@ -6,7 +6,8 @@
 и controller показывают карточку как есть. Выдача подборки (`app.domain.selection`) данных
 кандидата не несёт: в записи выдачи только скоры и объяснение. Обезличенная карточка — те же
 категория, профиль навыков и структурное самоописание, что в раскрытой, только без раскрываемого:
-его в ней нет по типу.
+его в ней нет по типу. Достижения ФСП в обезличенной карточке — тип результата, дисциплина и год;
+мероприятие, место и команда — только в раскрытой.
 """
 
 import uuid
@@ -18,7 +19,8 @@ from typing import Self
 
 from app.domain.catalog import CatalogRef
 from app.domain.errors import CityRequired
-from app.domain.skill import LevelBand, Normal, level_band
+from app.domain.fsp import AnonymizedAchievement, ConfirmedAchievement, FspHistory, anonymized
+from app.domain.skill import LevelBand, Normal, SignalSource, level_band
 from app.domain.work import WorkFormat
 
 
@@ -48,6 +50,8 @@ class Level:
 class TopicLevel:
     topic: CatalogRef
     level: Level
+    # Из каких уровней доверия есть наблюдения по теме; пусто — уровень только из априорного.
+    sources: frozenset[SignalSource] = frozenset()
 
 
 @dataclass(frozen=True)
@@ -111,7 +115,7 @@ class Candidate:
 
     Части, которых ещё нет, — `None`: анкета не заполнена, категория не присвоена. Профиль
     навыков — только вместе с категорией и по её специализации: оценки незаконченной или
-    неудачной попытки он не подтверждает.
+    неудачной попытки он не подтверждает. `fsp` — `None`, если ФСП ID не привязан.
     """
 
     id: uuid.UUID
@@ -119,6 +123,12 @@ class Candidate:
     expected_salary: int | None
     category: Category | None
     skill_profile: SkillProfile | None
+    fsp: FspHistory | None = None
+
+    @property
+    def fsp_achievements(self) -> tuple[ConfirmedAchievement, ...]:
+        """Подтверждённые достижения; без ФСП ID — пусто, как и без истории ФСП."""
+        return self.fsp.achievements if self.fsp else ()
 
 
 @dataclass(frozen=True)
@@ -167,6 +177,8 @@ class AnonymizedCard:
     self_reported: SelfReported | None
     category: Category | None
     skill_profile: SkillProfile | None
+    # Пусто — нет истории ФСП: нейтральная пометка, не штраф.
+    fsp_achievements: tuple[AnonymizedAchievement, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -179,6 +191,7 @@ class DisclosedCard:
     expected_salary: int | None
     category: Category | None
     skill_profile: SkillProfile | None
+    fsp_achievements: tuple[ConfirmedAchievement, ...] = ()
 
     @property
     def self_reported(self) -> SelfReported | None:
@@ -204,6 +217,7 @@ def disclosure(
         self_reported=candidate.profile.self_reported if candidate.profile else None,
         category=candidate.category,
         skill_profile=candidate.skill_profile,
+        fsp_achievements=tuple(anonymized(a) for a in candidate.fsp_achievements),
     )
 
 
@@ -214,6 +228,7 @@ def _disclosed(candidate: Candidate, expected_salary: int | None) -> DisclosedCa
         expected_salary=expected_salary,
         category=candidate.category,
         skill_profile=candidate.skill_profile,
+        fsp_achievements=candidate.fsp_achievements,
     )
 
 
@@ -222,7 +237,8 @@ class ProfileSheet:
     """Всё, что входит в PDF-профиль, — раскрытая карточка в формате файла. Ожидаемой зарплаты
     в формате нет: файл может оказаться у работодателя (§14).
 
-    `grade_confidence` — порог уверенности для подписи к уровням словами.
+    `grade_confidence` — порог уверенности для подписи к уровням словами. Достижения ФСП —
+    полностью, отдельно от самоописания; пусто — нет истории ФСП.
     """
 
     disclosed: Disclosed
@@ -230,6 +246,7 @@ class ProfileSheet:
     category: Category | None
     skill_profile: SkillProfile | None
     grade_confidence: float
+    fsp_achievements: tuple[ConfirmedAchievement, ...] = ()
 
     @classmethod
     def of(cls, card: DisclosedCard, grade_confidence: float) -> Self | None:
@@ -242,6 +259,7 @@ class ProfileSheet:
             category=card.category,
             skill_profile=card.skill_profile,
             grade_confidence=grade_confidence,
+            fsp_achievements=card.fsp_achievements,
         )
 
 

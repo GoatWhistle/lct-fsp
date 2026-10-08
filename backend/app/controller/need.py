@@ -265,6 +265,7 @@ def _selection_out(page: Page) -> SelectionOut:
                         contribution=fit.contribution,
                         verdict=fit.verdict,
                         low_data=fit.low_data,
+                        fsp_confirmed=fit.fsp_confirmed,
                     )
                     for fit in explanation.topics
                 ],

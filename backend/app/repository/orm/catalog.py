@@ -1,4 +1,4 @@
-"""Справочники: грейды, сферы бизнеса, специализации, их темы и технологии стека.
+"""Справочники: грейды, сферы бизнеса, специализации, их темы, технологии стека и дисциплины ФСП.
 
 Содержимое — в `config/catalog.yaml`, в базу его кладёт синхронизация справочника
 (`app.usecase.catalog`). Ключ каждой записи — стабильный `code`: на него ссылаются тест, профиль и
@@ -15,6 +15,17 @@ technology_topics = Table(
     Base.metadata,
     Column(
         "technology_code", ForeignKey("technologies.code", ondelete="CASCADE"), primary_key=True
+    ),
+    Column("topic_code", ForeignKey("topics.code", ondelete="CASCADE"), primary_key=True),
+)
+
+fsp_discipline_topics = Table(
+    "fsp_discipline_topics",
+    Base.metadata,
+    Column(
+        "discipline_code",
+        ForeignKey("fsp_disciplines.code", ondelete="CASCADE"),
+        primary_key=True,
     ),
     Column("topic_code", ForeignKey("topics.code", ondelete="CASCADE"), primary_key=True),
 )
@@ -67,3 +78,18 @@ class Technology(Base):
     name: Mapped[str] = mapped_column(String(64))
 
     topics: Mapped[list[Topic]] = relationship(secondary=technology_topics, order_by="Topic.code")
+
+
+class FspDiscipline(Base):
+    """Дисциплина ФСП. Достижения ссылаются на неё кодом без внешнего ключа: снимок реестра
+    хранится как получен, неизвестная дисциплина — только факт в профиле."""
+
+    __tablename__ = "fsp_disciplines"
+
+    code: Mapped[str] = mapped_column(String(32), primary_key=True)
+    name: Mapped[str] = mapped_column(String(128))
+    position: Mapped[int]
+
+    topics: Mapped[list[Topic]] = relationship(
+        secondary=fsp_discipline_topics, order_by="Topic.code"
+    )

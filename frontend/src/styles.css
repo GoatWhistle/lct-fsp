@@ -344,6 +344,11 @@ h2 {
   color: var(--accent);
 }
 
+.fsp-tag {
+  margin-left: 0.5rem;
+  white-space: nowrap;
+}
+
 .prompt {
   margin: 0;
   font-size: 1.05rem;

@@ -115,6 +115,90 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/auth/fsp/authorize": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Начать вход или привязку через ФСП ID
+         * @description Ставит httpOnly-cookie `fsp_authorization` с начатым входом на 10 минут и отдаёт адрес страницы ФСП ID. После входа ФСП ID возвращает браузер на `GET /api/auth/fsp/callback`.
+         */
+        post: operations["authorize_api_auth_fsp_authorize_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/auth/fsp/callback": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Возврат из ФСП ID
+         * @description Сюда ФСП ID возвращает браузер. Вход — ставит cookie входа и ведёт в кабинет; привязка — ведёт в профиль кандидата `/candidate/profile`. Ошибка — на страницу входа или в профиль с кодом в `fsp_error`.
+         */
+        get: operations["callback_api_auth_fsp_callback_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/candidate/fsp": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * ФСП ID кандидата
+         * @description Привязка, подтверждённые достижения с датой снимка и расхождения ФСП и теста.
+         */
+        get: operations["get_status_api_candidate_fsp_get"];
+        put?: never;
+        post?: never;
+        /**
+         * Отвязать ФСП ID
+         * @description Достижения и их вклад в профиль навыков уходят, ФСП ID освобождается. Учётке, созданной через ФСП ID, отвязать нельзя: она входит только через него.
+         */
+        delete: operations["unlink_api_candidate_fsp_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/candidate/fsp/refresh": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Обновить достижения из реестра ФСП
+         * @description Новый снимок достижений и пересчёт профиля навыков. Реестр недоступен — остаётся прошлый снимок.
+         */
+        post: operations["refresh_api_candidate_fsp_refresh_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/candidate/cabinet": {
         parameters: {
             query?: never;
@@ -719,8 +803,18 @@ export interface components {
             skill_profile: components["schemas"]["SkillProfileOut"] | null;
             /** @description Самоописание; `null` — кандидат ещё не заполнил профиль */
             self_reported: components["schemas"]["SelfReportedOut"] | null;
+            /**
+             * Fsp Achievements
+             * @description Достижения ФСП — подтверждены, отдельно от самоописания: тип результата, дисциплина и год. Пусто — нет истории ФСП, это не штраф
+             */
+            fsp_achievements: components["schemas"]["FspAnonymizedAchievementOut"][];
             /** @description ФИО, контакты и свободный текст — только после принятия приглашения вашей компании; `null` — карточка обезличена или профиль не заполнен */
             disclosed: components["schemas"]["DisclosedOut"] | null;
+            /**
+             * Fsp Details
+             * @description Достижения ФСП полностью — с мероприятием, местом и ролью в команде: только после принятия приглашения вашей компании; `null` — карточка обезличена
+             */
+            fsp_details: components["schemas"]["FspAchievementOut"][] | null;
         };
         /** CatalogRef */
         CatalogRef: {
@@ -822,6 +916,121 @@ export interface components {
              * @example Неверный email или пароль
              */
             message: string;
+        };
+        /**
+         * FspAchievementOut
+         * @description Подтверждённое достижение ФСП — полностью: самому кандидату, в PDF и работодателю после
+         *     раскрытия.
+         */
+        FspAchievementOut: {
+            /**
+             * Event
+             * @description Мероприятие
+             */
+            event: string;
+            /**
+             * Date
+             * Format: date
+             */
+            date: string;
+            discipline: components["schemas"]["CatalogRef"];
+            /**
+             * Place
+             * @description Место; `null` — реестр его не знает
+             */
+            place: number | null;
+            /** @description `winner` — победитель, `prize` — призёр, `finalist` — финалист, `participant` — участник отбора: факт в профиле, не свидетельство уровня */
+            result: components["schemas"]["FspResult"];
+            /** @description Роль в команде — специализация; `null` — личный зачёт или роль не указана */
+            team_role: components["schemas"]["CatalogRef"] | null;
+        };
+        /**
+         * FspAnonymizedAchievementOut
+         * @description Достижение в обезличенной карточке: только тип результата, дисциплина и год.
+         */
+        FspAnonymizedAchievementOut: {
+            /** @description `winner` — победитель, `prize` — призёр, `finalist` — финалист, `participant` — участник отбора: факт в профиле, не свидетельство уровня */
+            result: components["schemas"]["FspResult"];
+            discipline: components["schemas"]["CatalogRef"];
+            /** Year */
+            year: number;
+        };
+        /** FspAuthorizeIn */
+        FspAuthorizeIn: {
+            /** @description `login` — войти или зарегистрироваться кандидатом, `link` — привязать ФСП ID к своей учётке кандидата (нужен вход) */
+            intent: components["schemas"]["FspIntent"];
+        };
+        /** FspAuthorizeOut */
+        FspAuthorizeOut: {
+            /**
+             * Authorization Url
+             * @description Куда отправить браузер — страница входа ФСП ID
+             */
+            authorization_url: string;
+        };
+        /**
+         * FspDivergenceOut
+         * @description Тест по теме ниже уровня результата ФСП больше чем на `fsp_divergence_theta`. Видит только
+         *     кандидат; на профиль и подбор не влияет.
+         */
+        FspDivergenceOut: {
+            topic: components["schemas"]["CatalogRef"];
+            discipline: components["schemas"]["CatalogRef"];
+            /** Event */
+            event: string;
+            result: components["schemas"]["FspResult"];
+            /**
+             * Result Level
+             * @description Уровень, который подтверждает результат, θ
+             */
+            result_level: number;
+            /**
+             * Test Level
+             * @description Уровень по теме по оценке теста, θ
+             */
+            test_level: number;
+        };
+        /**
+         * FspIntent
+         * @description Зачем кандидат ушёл в ФСП ID: войти или привязать ID к своей учётке.
+         * @enum {string}
+         */
+        FspIntent: "login" | "link";
+        /**
+         * FspResult
+         * @description Тип результата — поле реестра `fsp_result`.
+         * @enum {string}
+         */
+        FspResult: "winner" | "prize" | "finalist" | "participant";
+        /** FspStatusOut */
+        FspStatusOut: {
+            /**
+             * Linked
+             * @description ФСП ID привязан
+             */
+            linked: boolean;
+            /** Fsp Id */
+            fsp_id: string | null;
+            /**
+             * Can Unlink
+             * @description Отвязать можно: у учётки есть пароль. Учётка, созданная через ФСП ID, входит только через него
+             */
+            can_unlink: boolean;
+            /**
+             * Fetched At
+             * @description Когда достижения получены из реестра; `null` — реестр ещё не ответил
+             */
+            fetched_at: string | null;
+            /**
+             * Achievements
+             * @description Подтверждённые достижения; пусто — нет истории ФСП
+             */
+            achievements: components["schemas"]["FspAchievementOut"][];
+            /**
+             * Divergences
+             * @description Расхождения ФСП и теста — рекомендация пройти проверочный блок, без штрафа
+             */
+            divergences: components["schemas"]["FspDivergenceOut"][];
         };
         /** GradeOut */
         GradeOut: {
@@ -1586,6 +1795,13 @@ export interface components {
             invitations: components["schemas"]["InvitationOut"][];
         };
         /**
+         * SignalSource
+         * @description Уровень доверия, из которого пришло наблюдение (§11). Проверочный блок и регулярные
+         *     задания встанут рядом.
+         * @enum {string}
+         */
+        SignalSource: "fsp" | "test";
+        /**
          * SkillProfileOut
          * @description Профиль навыков: уровень и погрешность по темам из всех сигналов — так его видит подбор.
          */
@@ -1737,6 +1953,11 @@ export interface components {
              * @description Погрешность выше `topic_low_data_sd` — данных мало
              */
             low_data: boolean;
+            /**
+             * Fsp Confirmed
+             * @description Уровень подтверждён результатом ФСП — к формулировке «подтверждено ФСП»
+             */
+            fsp_confirmed: boolean;
         };
         /**
          * TopicImportance
@@ -1783,6 +2004,11 @@ export interface components {
         TopicLevelOut: {
             topic: components["schemas"]["CatalogRef"];
             level: components["schemas"]["LevelOut"];
+            /**
+             * Sources
+             * @description Из каких сигналов сложился уровень: `fsp` — результаты ФСП, `test` — адаптивный тест; пусто — данных по теме нет
+             */
+            sources: components["schemas"]["SignalSource"][];
         };
         /** TopicOut */
         TopicOut: {
@@ -2055,6 +2281,243 @@ export interface operations {
             };
             /** @description `not_authenticated` — Войдите, чтобы продолжить */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    authorize_api_auth_fsp_authorize_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FspAuthorizeIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FspAuthorizeOut"];
+                };
+            };
+            /** @description `not_authenticated` — Войдите, чтобы продолжить */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description `wrong_role` — Раздел доступен другой роли */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description `fsp_id_unavailable` — ФСП ID сейчас недоступен — попробуйте позже или войдите по email */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    callback_api_auth_fsp_callback_get: {
+        parameters: {
+            query?: {
+                state?: string | null;
+                code?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: {
+                fsp_authorization?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            303: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_status_api_candidate_fsp_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FspStatusOut"];
+                };
+            };
+            /** @description `not_authenticated` — Войдите, чтобы продолжить */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description `wrong_role` — Раздел доступен другой роли */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    unlink_api_candidate_fsp_delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FspStatusOut"];
+                };
+            };
+            /** @description `not_authenticated` — Войдите, чтобы продолжить */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description `wrong_role` — Раздел доступен другой роли */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /**
+             * @description `fsp_not_linked` — ФСП ID не привязан
+             *
+             *     `fsp_unlink_forbidden` — Учётка создана через ФСП ID и входит только через него — отвязать ID нельзя
+             */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    refresh_api_candidate_fsp_refresh_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FspStatusOut"];
+                };
+            };
+            /** @description `not_authenticated` — Войдите, чтобы продолжить */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description `wrong_role` — Раздел доступен другой роли */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description `fsp_not_linked` — ФСП ID не привязан */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description `fsp_registry_unavailable` — Реестр ФСП сейчас недоступен — показаны последние полученные достижения */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };

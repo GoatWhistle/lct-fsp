@@ -26,6 +26,7 @@ from app.domain.errors import StepUnavailable
 from app.domain.skill import Normal
 from app.repository.memory.attempt import MemoryAttemptRepository
 from app.repository.memory.calibration import MemoryCalibrationRepository
+from app.repository.memory.regular_task import MemoryRegularTasks
 from app.repository.memory.unit_of_work import MemoryStore, MemoryUnitOfWork
 from app.usecase.attempt import CandidatePath
 from app.usecase.calibration import AnswerCalibration
@@ -125,6 +126,7 @@ def paths(
     return CandidatePath(
         MemoryUnitOfWork(store),
         attempts,
+        MemoryRegularTasks(store),
         calibration,
         MaxInformationSelector(
             top_k=MECHANICS.exposure_top_k, max_rate=MECHANICS.exposure_max_rate

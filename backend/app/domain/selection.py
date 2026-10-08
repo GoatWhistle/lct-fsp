@@ -165,6 +165,8 @@ class PoolCandidate:
     candidate_id: uuid.UUID
     specialization: str
     grade: Grade
+    # Общий уровень из профиля навыков категории — нужен доводу профиля до «сейчас».
+    overall: Normal
     # Тема → уровень из профиля навыков категории; тем, добавленных после пересчёта, нет.
     levels: Mapping[str, Normal]
     # Технологии потребности в самоописанном стеке — коды; остальные подборке не нужны.
@@ -172,6 +174,8 @@ class PoolCandidate:
     last_signal_at: datetime | None
     # Без заполненного профиля кандидата ожиданий нет.
     expectations: Expectations | None
+    # Темы, по которым в профиль вошли ответы на регулярные задания.
+    regular_task_topics: frozenset[str] = frozenset()
 
 
 @dataclass(frozen=True)
@@ -273,6 +277,8 @@ class TopicExplanation:
     verdict: Verdict
     # Погрешность выше `topic_low_data_sd`.
     low_data: bool
+    # Источник уверенности: в профиль по теме вошли ответы на регулярные задания.
+    regular_task: bool = False
 
 
 @dataclass(frozen=True)
@@ -291,7 +297,9 @@ class Explanation:
     stack: StackExplanation
 
 
-def explain(match: Match, rules: SelectionRules) -> Explanation:
+def explain(
+    match: Match, rules: SelectionRules, regular_task_topics: frozenset[str] = frozenset()
+) -> Explanation:
     return Explanation(
         topics=tuple(
             TopicExplanation(
@@ -302,6 +310,7 @@ def explain(match: Match, rules: SelectionRules) -> Explanation:
                 contribution=fit.contribution,
                 verdict=verdict(fit.probability, rules.verdict_bands),
                 low_data=fit.level.sd > rules.low_data_sd,
+                regular_task=fit.topic in regular_task_topics,
             )
             for fit in match.topics
         ),
@@ -364,7 +373,7 @@ def arrange(
                     match_score=item.match.score,
                     acceptance_probability=probability,
                     mutual_score=mutual[candidate_id],
-                    explanation=explain(item.match, rules),
+                    explanation=explain(item.match, rules, item.candidate.regular_task_topics),
                     stale=is_stale(item.candidate.last_signal_at, now, rules.stale_after),
                 )
             )

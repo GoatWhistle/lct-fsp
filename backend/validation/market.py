@@ -191,6 +191,7 @@ class Market:
                     candidate_id=user,
                     specialization=self.specialization,
                     grade=stand.catalog.grades[category.grade.code],
+                    overall=Normal(profile.overall.theta, profile.overall.theta_sd),
                     levels={
                         t.topic.code: Normal(t.level.theta, t.level.theta_sd)
                         for t in profile.topics

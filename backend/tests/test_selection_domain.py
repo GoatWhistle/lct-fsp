@@ -89,6 +89,7 @@ def scored(score: float, grade: Grade, block: SelectionBlock) -> Scored:
         candidate_id=uuid.uuid4(),
         specialization="qa",
         grade=grade,
+        overall=Normal(0.0, 1.0),
         levels={},
         stack=frozenset(),
         last_signal_at=T0,

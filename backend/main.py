@@ -36,6 +36,8 @@ from app.controller.need import selections_router
 from app.controller.path import router as path_router
 from app.controller.profile import employer_router as candidates_router
 from app.controller.profile import router as profile_router
+from app.controller.regular_task import candidate_router as candidate_tasks_router
+from app.controller.regular_task import employer_router as employer_tasks_router
 from app.repository.account import SqlAccounts, SqlEmailVerifications
 from app.repository.attempt import SqlAttemptRepository
 from app.repository.calibration import SqlCalibrationRepository
@@ -44,6 +46,7 @@ from app.repository.catalog import SqlCatalog
 from app.repository.company import SqlCompanies
 from app.repository.database import create_db_engine
 from app.repository.need import SqlNeeds
+from app.repository.regular_task import SqlRegularTasks
 from app.repository.selection import SqlCandidatePool, SqlSelections
 from app.repository.unit_of_work import SqlUnitOfWork
 from app.usecase.account import VerificationLinks
@@ -134,11 +137,16 @@ def create_app(
     # Алгоритмы механики получают параметры конфига через конструктор —
     # tests/test_mechanics_config.py сверяет их с config/mechanics.yaml.
     app.state.item_selector = selector = item_selector(mechanics)
+
+    def attempts(uow: SqlUnitOfWork) -> SqlAttemptRepository:
+        return SqlAttemptRepository(
+            uow.session, mechanics.grade_thresholds, mechanics.grade_confidence
+        )
+
     usecases = build_usecases(
         Repositories[SqlUnitOfWork](
-            attempts=lambda uow: SqlAttemptRepository(
-                uow.session, mechanics.grade_thresholds, mechanics.grade_confidence
-            ),
+            attempts=attempts,
+            regular_tasks=lambda uow: SqlRegularTasks(uow.session),
             calibration=lambda uow: SqlCalibrationRepository(uow.session),
             needs=lambda uow: SqlNeeds(uow.session),
             pool=lambda uow: SqlCandidatePool(uow.session),
@@ -156,6 +164,7 @@ def create_app(
     app.state.candidate_path = usecases.candidate_path
     app.state.answer_calibration = usecases.answer_calibration
     app.state.selections = usecases.selections
+    app.state.profile_freshness = usecases.freshness
     platform = build_platform_usecases(
         PlatformRepositories[SqlUnitOfWork](
             accounts=lambda uow: SqlAccounts(uow.session),
@@ -163,6 +172,8 @@ def create_app(
             companies=lambda uow: SqlCompanies(uow.session),
             needs=lambda uow: SqlNeeds(uow.session),
             catalog=lambda uow: SqlCatalog(uow.session),
+            regular_tasks=lambda uow: SqlRegularTasks(uow.session),
+            attempts=attempts,
         ),
         mechanics=mechanics,
         passwords=passwords or Argon2Passwords(),
@@ -170,11 +181,13 @@ def create_app(
         mailer=mailer or SmtpMailer(settings.smtp_host, settings.smtp_port, settings.mail_from),
         clock=clock,
         links=VerificationLinks(settings.frontend_url, settings.email_token_ttl_hours),
+        skill_model=skill_model,
     )
     app.state.accounts = platform.accounts
     app.state.companies = platform.companies
     app.state.needs = platform.needs
     app.state.catalog = platform.catalog
+    app.state.regular_tasks = platform.regular_tasks
 
     install_error_handlers(app)
     app.include_router(auth_router)
@@ -186,6 +199,8 @@ def create_app(
     app.include_router(needs_router)
     app.include_router(selections_router)
     app.include_router(candidates_router)
+    app.include_router(employer_tasks_router)
+    app.include_router(candidate_tasks_router)
     app.include_router(catalog_router)
 
     @app.get("/api/health", tags=["service"], summary="Проверка, что бэкенд жив")

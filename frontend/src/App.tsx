@@ -5,11 +5,13 @@ import { CandidateCabinet } from './pages/CandidateCabinet'
 import { CandidateProfile } from './pages/CandidateProfile'
 import { CompanyProfile } from './pages/CompanyProfile'
 import { EmployerCabinet } from './pages/EmployerCabinet'
+import { EmployerTasks } from './pages/EmployerTasks'
 import { Home } from './pages/Home'
 import { Login } from './pages/Login'
 import { NeedForm } from './pages/NeedForm'
 import { Register } from './pages/Register'
 import { Selection } from './pages/Selection'
+import { TaskCatalog } from './pages/TaskCatalog'
 import { VerifyEmail } from './pages/VerifyEmail'
 
 export default function App() {
@@ -30,6 +32,7 @@ export default function App() {
         >
           <Route index element={<CandidateCabinet />} />
           <Route path="profile" element={<CandidateProfile />} />
+          <Route path="tasks" element={<TaskCatalog />} />
         </Route>
         <Route
           path="employer"
@@ -44,6 +47,7 @@ export default function App() {
           <Route path="needs/new" element={<NeedForm />} />
           <Route path="needs/:id" element={<NeedForm />} />
           <Route path="selections/:id" element={<Selection />} />
+          <Route path="tasks" element={<EmployerTasks />} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>

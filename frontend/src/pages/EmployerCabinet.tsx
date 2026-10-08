@@ -58,6 +58,18 @@ export function EmployerCabinet() {
         )}
       </section>
       <SelectionList selections={selections} error={selectionsError} />
+      <div className="card">
+        <div className="section-head">
+          <h2>Регулярные задания</h2>
+          <Link to="/employer/tasks" className="button button-small">
+            Задания и ответы
+          </Link>
+        </div>
+        <p>
+          Короткие задачи для категории: ответы кандидатов уточняют их профили навыков, открытые
+          ответы оцениваете вы.
+        </p>
+      </div>
     </Cabinet>
   )
 }

@@ -26,8 +26,10 @@ from app.usecase.interface import (
     NeedReader,
     SeedSource,
     SelectionRepository,
+    SkillModel,
     UnitOfWork,
 )
+from app.usecase.skill_profile import ProfileFreshness
 from settings import Mechanics
 
 
@@ -51,6 +53,7 @@ class Selections:
         pool: CandidatePool,
         selections: SelectionRepository,
         acceptance: AcceptanceModel,
+        skill_model: SkillModel,
         clock: Clock,
         seeds: SeedSource,
         mechanics: Mechanics,
@@ -64,12 +67,14 @@ class Selections:
         self._seeds = seeds
         self._mechanics = mechanics
         self._rules = selection_rules(mechanics)
+        self._freshness = ProfileFreshness(skill_model, mechanics)
 
     def build(self, user_id: uuid.UUID, need_id: uuid.UUID, *, limit: int) -> Page:
-        """Строит подборку по текущей потребности и профилям навыков и сохраняет её; отдаёт
-        первую страницу. Тот же seed на тех же входах даёт ту же выдачу."""
+        """Строит подборку по текущей потребности и профилям навыков на «сейчас» и сохраняет её;
+        отдаёт первую страницу. Тот же seed на тех же входах даёт ту же выдачу."""
         mechanics, rules = self._mechanics, self._rules
         with self._uow:
+            now = self._clock.now()
             need = self._needs.get(user_id, need_id)
             snapshot = need_snapshot(
                 need,
@@ -77,17 +82,19 @@ class Selections:
                 importance_weights=mechanics.need_importance_weights,
                 key_min_technologies=mechanics.need_key_topic_min_technologies,
             )
-            pool = self._pool.in_reach(
-                need.specialization.code,
-                need.grade.rank,
-                rules.nearby_grade_distance,
-                [t.code for t in need.stack],
-            )
+            pool = [
+                self._freshness.pool(member, now)
+                for member in self._pool.in_reach(
+                    need.specialization.code,
+                    need.grade.rank,
+                    rules.nearby_grade_distance,
+                    [t.code for t in need.stack],
+                )
+            ]
             scored = score(snapshot, need.grade.rank, pool, rules)
             acceptance = self._acceptance.predict(
                 [acceptance_features(snapshot, item) for item in scored]
             )
-            now = self._clock.now()
             entries = arrange(scored, acceptance, salt=self._seeds.seed(), now=now, rules=rules)
             draft = SelectionDraft(user_id, need.id, snapshot, rules.stack_cap, now)
             selection = self._selections.add(draft, entries)

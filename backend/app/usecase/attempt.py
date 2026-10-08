@@ -50,11 +50,16 @@ from app.usecase.interface import (
     Calibration,
     Clock,
     ItemSelector,
+    RegularTaskReader,
     SeedSource,
     SkillModel,
     UnitOfWork,
 )
-from app.usecase.skill_profile import refresh_skill_profile, specialization_prior
+from app.usecase.skill_profile import (
+    ProfileFreshness,
+    refresh_skill_profile,
+    specialization_prior,
+)
 from settings import Mechanics
 
 log = logging.getLogger(__name__)
@@ -100,6 +105,7 @@ class CandidatePath:
         self,
         uow: UnitOfWork,
         attempts: AttemptRepository,
+        tasks: RegularTaskReader,
         calibration: Calibration,
         selector: ItemSelector,
         skill_model: SkillModel,
@@ -110,6 +116,7 @@ class CandidatePath:
     ) -> None:
         self._uow = uow
         self._attempts = attempts
+        self._tasks = tasks
         self._calibration = calibration
         self._selector = selector
         self._skill_model = skill_model
@@ -117,6 +124,7 @@ class CandidatePath:
         self._seeds = seeds
         self._runner = runner
         self._mechanics = mechanics
+        self._freshness = ProfileFreshness(skill_model, mechanics)
         # Априорное специализации — от тем и конфига: на запрос считается один раз.
         self._priors: dict[str, Prior] = {}
 
@@ -350,6 +358,7 @@ class CandidatePath:
             self._attempts.add_category(attempt, now)
         levels = refresh_skill_profile(
             self._attempts,
+            self._tasks,
             self._skill_model,
             self._mechanics,
             attempt.user_id,
@@ -364,6 +373,8 @@ class CandidatePath:
         profile = None
         if attempt is not None:
             profile = self._attempts.profile(user_id, attempt.specialization_code)
+        if profile is not None:
+            profile = self._freshness.view(profile, now)
         if stage in (Stage.survey, Stage.grade):
             attempt = None
         finished = attempt is not None and attempt.finished_at is not None

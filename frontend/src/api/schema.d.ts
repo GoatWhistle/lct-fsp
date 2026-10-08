@@ -448,6 +448,164 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/employer/tasks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Свои задания, новые сверху — и снятые */
+        get: operations["list_tasks_api_employer_tasks_get"];
+        put?: never;
+        /**
+         * Новое задание
+         * @description Для любой категории — специализация × грейд; 1–3 темы специализации. Ответ кандидата сужает погрешность его профиля по темам задания со сложностью от грейда задания.
+         */
+        post: operations["create_task_api_employer_tasks_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/employer/tasks/{task_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Изменить задание
+         * @description Только пока на задание никто не ответил и оно не снято.
+         */
+        put: operations["update_task_api_employer_tasks__task_id__put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/employer/tasks/{task_id}/withdraw": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Снять задание из каталога
+         * @description Ответы и оценки по нему остаются в профилях кандидатов.
+         */
+        post: operations["withdraw_task_api_employer_tasks__task_id__withdraw_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/employer/tasks/{task_id}/answers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Ответы на своё задание
+         * @description Обезличенно: псевдоним вместо кандидата, без ФИО, фото, возраста, вуза и контактов. Другие работодатели ответов не видят — только влияние на профиль.
+         */
+        get: operations["task_answers_api_employer_tasks__task_id__answers_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/employer/tasks/{task_id}/answers/{answer_id}/grade": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Оценить ответ по рубрике
+         * @description Только открытое задание и только его автор; оценка ставится один раз.
+         */
+        post: operations["grade_answer_api_employer_tasks__task_id__answers__answer_id__grade_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/candidate/tasks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Каталог заданий своей специализации
+         * @description Активные задания специализации категории, всех грейдов: сначала с меньшим числом ответов, при равенстве — новые. Только кандидату с категорией по тесту.
+         */
+        get: operations["task_catalog_api_candidate_tasks_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/candidate/tasks/{task_id}/answer": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Ответить на задание
+         * @description Один ответ на задание. Вердикт не показывается: ответ уходит в профиль навыков — сразу у задания с эталоном, после оценки автора у открытого. Категорию не меняет.
+         */
+        post: operations["answer_task_api_candidate_tasks__task_id__answer_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/candidate/tasks/answers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Свои ответы, новые сверху */
+        get: operations["own_answers_api_candidate_tasks_answers_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/catalog/grades": {
         parameters: {
             query?: never;
@@ -554,6 +712,11 @@ export interface components {
             /** Response */
             response: string;
         };
+        /**
+         * AnswerStatus
+         * @enum {string}
+         */
+        AnswerStatus: "accepted" | "awaiting_review" | "reviewed";
         /** AttemptIn */
         AttemptIn: {
             /**
@@ -573,6 +736,44 @@ export interface components {
              * @description Больше заданий попытка не задаст; обычно тест останавливается раньше — когда уровень определён с нужной точностью
              */
             max_items: number;
+        };
+        /**
+         * AuthorAnswerOut
+         * @description Ответ на задание для его автора — обезличенно: без ФИО, контактов и профиля.
+         */
+        AuthorAnswerOut: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Candidate
+             * @description Псевдоним кандидата — свой в каждом задании
+             */
+            candidate: string;
+            /**
+             * Response
+             * @description Текст ответа как есть
+             */
+            response: string;
+            /**
+             * Answered At
+             * Format: date-time
+             */
+            answered_at: string;
+            /**
+             * Correct
+             * @description Вердикт системы — у задания с эталоном
+             */
+            correct: boolean | null;
+            /**
+             * Rubric
+             * @description Оценка по рубрике 0–3 — у открытого после оценки
+             */
+            rubric: number | null;
+            /** Graded At */
+            graded_at: string | null;
         };
         /** CabinetOut */
         CabinetOut: {
@@ -603,6 +804,39 @@ export interface components {
             code: string;
             /** Name */
             name: string;
+        };
+        /**
+         * CatalogTaskOut
+         * @description Задание в каталоге кандидата — без эталона и автора.
+         */
+        CatalogTaskOut: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            grade: components["schemas"]["CatalogRef"];
+            /** @description `reference` — с эталоном: короткий ответ строкой или числом проверяет система; `open` — открытое: ответ оценивает автор по рубрике 0–3 */
+            kind: components["schemas"]["TaskKind"];
+            /** Prompt */
+            prompt: string;
+            /** Topics */
+            topics: components["schemas"]["CatalogRef"][];
+            /**
+             * Answers
+             * @description Сколько кандидатов ответило
+             */
+            answers: number;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Answered
+             * @description Кандидат уже ответил — второй ответ не принимается
+             */
+            answered: boolean;
         };
         /** CategoryOut */
         CategoryOut: {
@@ -674,6 +908,14 @@ export interface components {
              * @example Неверный email или пароль
              */
             message: string;
+        };
+        /** GradeIn */
+        GradeIn: {
+            /**
+             * Rubric
+             * @description 0 — не решено или не по делу; 1 — частично, подход с ошибками; 2 — верно в целом; 3 — верно и хорошо: оптимально, с разбором краёв
+             */
+            rubric: number;
         };
         /** GradeOut */
         GradeOut: {
@@ -915,6 +1157,22 @@ export interface components {
             updated_at: string;
             /** @description Все суммы платформы — до вычета НДФЛ (`gross`) */
             readonly salary_basis: components["schemas"]["SalaryBasis"];
+        };
+        /**
+         * OwnAnswerOut
+         * @description Свой ответ кандидата. Вердикта и оценки нет: они уходят в профиль навыков.
+         */
+        OwnAnswerOut: {
+            task: components["schemas"]["CatalogTaskOut"];
+            /** Response */
+            response: string;
+            /**
+             * Answered At
+             * Format: date-time
+             */
+            answered_at: string;
+            /** @description `accepted` — принят и учтён в профиле (задание с эталоном), `awaiting_review` — ждёт оценки автора, `reviewed` — оценён и учтён в профиле */
+            status: components["schemas"]["AnswerStatus"];
         };
         /** PathOut */
         PathOut: {
@@ -1387,6 +1645,95 @@ export interface components {
              */
             created_at: string;
         };
+        /** TaskAnswerIn */
+        TaskAnswerIn: {
+            /**
+             * Response
+             * @description Ответ: у задания с эталоном — строка или число
+             */
+            response: string;
+        };
+        /** TaskIn */
+        TaskIn: {
+            /**
+             * Specialization
+             * @description Код специализации из `/api/catalog/specializations`
+             */
+            specialization: string;
+            /**
+             * Grade
+             * @description Код грейда из `/api/catalog/grades` — от него сложность
+             */
+            grade: string;
+            /** @description `reference` — с эталоном: короткий ответ строкой или числом проверяет система; `open` — открытое: ответ оценивает автор по рубрике 0–3 */
+            kind: components["schemas"]["TaskKind"];
+            /**
+             * Prompt
+             * @description Условие задания
+             */
+            prompt: string;
+            /**
+             * Topics
+             * @description Коды тем специализации задания — от 1 до 3
+             */
+            topics: string[];
+            /**
+             * Reference Answer
+             * @description Эталон — только у задания с эталоном: строка или число, сравнивается с ответом после нормализации, как в тесте
+             */
+            reference_answer?: string | null;
+        };
+        /**
+         * TaskKind
+         * @enum {string}
+         */
+        TaskKind: "reference" | "open";
+        /**
+         * TaskOut
+         * @description Задание в кабинете автора — с эталоном.
+         */
+        TaskOut: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            specialization: components["schemas"]["CatalogRef"];
+            grade: components["schemas"]["CatalogRef"];
+            /** @description `reference` — с эталоном: короткий ответ строкой или числом проверяет система; `open` — открытое: ответ оценивает автор по рубрике 0–3 */
+            kind: components["schemas"]["TaskKind"];
+            /** Prompt */
+            prompt: string;
+            /** Topics */
+            topics: components["schemas"]["CatalogRef"][];
+            /** Reference Answer */
+            reference_answer: string | null;
+            /**
+             * Answers
+             * @description Сколько кандидатов ответило
+             */
+            answers: number;
+            /**
+             * Editable
+             * @description Править можно, пока нет ответов и задание не снято
+             */
+            editable: boolean;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+            /**
+             * Withdrawn At
+             * @description Снято из каталога; `null` — активно
+             */
+            withdrawn_at: string | null;
+        };
         /** TechnologyOut */
         TechnologyOut: {
             /** Code */
@@ -1463,6 +1810,11 @@ export interface components {
              * @description Погрешность выше `topic_low_data_sd` — данных мало
              */
             low_data: boolean;
+            /**
+             * Regular Task
+             * @description Источник уверенности: уровень по теме подтверждён регулярным заданием
+             */
+            regular_task: boolean;
         };
         /**
          * TopicImportance
@@ -2950,6 +3302,565 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_tasks_api_employer_tasks_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TaskOut"][];
+                };
+            };
+            /** @description `not_authenticated` — Войдите, чтобы продолжить */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description `wrong_role` — Раздел доступен другой роли */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    create_task_api_employer_tasks_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TaskIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TaskOut"];
+                };
+            };
+            /** @description `not_authenticated` — Войдите, чтобы продолжить */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description `wrong_role` — Раздел доступен другой роли */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description `company_required` — Сначала заполните профиль компании */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /**
+             * @description `unknown_specialization` — Такой специализации нет в справочнике
+             *
+             *     `unknown_grade` — Такого грейда нет в справочнике
+             *
+             *     `task_topics_count` — Отметьте от одной до трёх тем
+             *
+             *     `task_topic_not_in_specialization` — Темы задания — только из тем его специализации
+             *
+             *     `reference_answer_mismatch` — Эталон нужен заданию с эталоном и не нужен открытому
+             */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    update_task_api_employer_tasks__task_id__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                task_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TaskIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TaskOut"];
+                };
+            };
+            /** @description `not_authenticated` — Войдите, чтобы продолжить */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description `wrong_role` — Раздел доступен другой роли */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description `task_not_found` — Задание не найдено — возможно, его сняли */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description `task_locked` — На задание уже ответили или его сняли — править его нельзя */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /**
+             * @description `unknown_specialization` — Такой специализации нет в справочнике
+             *
+             *     `unknown_grade` — Такого грейда нет в справочнике
+             *
+             *     `task_topics_count` — Отметьте от одной до трёх тем
+             *
+             *     `task_topic_not_in_specialization` — Темы задания — только из тем его специализации
+             *
+             *     `reference_answer_mismatch` — Эталон нужен заданию с эталоном и не нужен открытому
+             */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    withdraw_task_api_employer_tasks__task_id__withdraw_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                task_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TaskOut"];
+                };
+            };
+            /** @description `not_authenticated` — Войдите, чтобы продолжить */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description `wrong_role` — Раздел доступен другой роли */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description `task_not_found` — Задание не найдено — возможно, его сняли */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    task_answers_api_employer_tasks__task_id__answers_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                task_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthorAnswerOut"][];
+                };
+            };
+            /** @description `not_authenticated` — Войдите, чтобы продолжить */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description `wrong_role` — Раздел доступен другой роли */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description `task_not_found` — Задание не найдено — возможно, его сняли */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    grade_answer_api_employer_tasks__task_id__answers__answer_id__grade_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                task_id: string;
+                answer_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GradeIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthorAnswerOut"];
+                };
+            };
+            /** @description `not_authenticated` — Войдите, чтобы продолжить */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description `wrong_role` — Раздел доступен другой роли */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /**
+             * @description `task_not_found` — Задание не найдено — возможно, его сняли
+             *
+             *     `task_answer_not_found` — Ответ не найден
+             */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /**
+             * @description `task_not_gradable` — Ответ на задание с эталоном проверяет система
+             *
+             *     `answer_already_graded` — Ответ уже оценён
+             */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    task_catalog_api_candidate_tasks_get: {
+        parameters: {
+            query?: {
+                /** @description Код грейда задания */
+                grade?: string | null;
+                /** @description Код темы задания */
+                topic?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CatalogTaskOut"][];
+                };
+            };
+            /** @description `not_authenticated` — Войдите, чтобы продолжить */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description `wrong_role` — Раздел доступен другой роли */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description `category_required` — Задания открываются после теста — сначала получите категорию */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    answer_task_api_candidate_tasks__task_id__answer_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                task_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TaskAnswerIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OwnAnswerOut"];
+                };
+            };
+            /** @description `not_authenticated` — Войдите, чтобы продолжить */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description `wrong_role` — Раздел доступен другой роли */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description `task_not_found` — Задание не найдено — возможно, его сняли */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /**
+             * @description `category_required` — Задания открываются после теста — сначала получите категорию
+             *
+             *     `task_already_answered` — Вы уже ответили на это задание
+             */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    own_answers_api_candidate_tasks_answers_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OwnAnswerOut"][];
+                };
+            };
+            /** @description `not_authenticated` — Войдите, чтобы продолжить */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description `wrong_role` — Раздел доступен другой роли */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
                 };
             };
         };

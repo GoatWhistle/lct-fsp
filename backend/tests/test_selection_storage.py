@@ -70,7 +70,8 @@ EXPLANATION = Explanation(
 )
 EXPLANATION_JSON = (
     '{"topics": [{"topic": "qa.api", "theta": 1.0, "theta_sd": 0.4, "probability": 0.9, '
-    '"contribution": 0.6, "verdict": "confidently_above", "low_data": false}], '
+    '"contribution": 0.6, "verdict": "confidently_above", "low_data": false, '
+    '"regular_task": false}], '
     '"stack": {"matched": ["pytest"], "overlap": 1.0, "contribution": 0.15}}'
 )
 

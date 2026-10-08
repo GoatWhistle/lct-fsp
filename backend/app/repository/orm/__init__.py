@@ -32,6 +32,7 @@ from app.repository.orm.need import (
     SelectionEntry,
     need_technologies,
 )
+from app.repository.orm.regular_task import RegularTask, RegularTaskAnswer, RegularTaskTopic
 from app.repository.orm.skill_profile import SkillProfile, SkillProfileTopic
 
 __all__ = [
@@ -46,6 +47,9 @@ __all__ = [
     "Need",
     "NeedTopicImportance",
     "Presentation",
+    "RegularTask",
+    "RegularTaskAnswer",
+    "RegularTaskTopic",
     "ScaleLink",
     "Selection",
     "SelectionEntry",

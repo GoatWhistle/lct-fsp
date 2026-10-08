@@ -45,6 +45,7 @@ class AnsweredPresentation:
             discrimination=self.discrimination,
             difficulty=self.difficulty,
             weight=weight,
+            at=self.answered_at,
         )
 
 

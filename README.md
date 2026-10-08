@@ -95,6 +95,14 @@ docker compose run --rm --build tests
 - `uv run python -m validation tune` — подбор поправки погрешности `level_sd_inflation` на
   настроечном наборе D3.
 
+Банк заданий — тоже из `backend/`:
+
+- `uv run python -m bank_report` — отчёт покрытия в markdown: доля трассировки по темам,
+  сценарные семейства у middle и senior, ячейки «тема × грейд» без семейств и без описания в
+  матрице грейдов; с `--calibration` — и сверка сложности с экспертной по калибровке из базы;
+- `uv run python -m bank_report matrix` — пересобрать [`docs/grade-matrix.md`](docs/grade-matrix.md)
+  из `config/grade_matrix.yaml`.
+
 ## Устройство
 
 ```
@@ -129,9 +137,11 @@ docker-compose.yml       PostgreSQL, бэкенд, фронт, Mailpit, Keycloak
 проходит все слои под одним именем: учётки — `domain/account.py`, `usecase/account.py`,
 `controller/auth.py`, `repository/account.py`; потребность — `need.py` в каждом слое; путь
 кандидата к категории — `domain/attempt.py`, `usecase/attempt.py`, `controller/path.py`,
-`repository/attempt.py`; подборка — `selection.py`, P(принятия) — за портом `AcceptanceModel`.
+`repository/attempt.py`; подборка — `selection.py`, P(принятия) — за портом `AcceptanceModel`;
+приглашение — `invitation.py` в каждом слое, статус «истекло» выводит домен при чтении.
 Вход — по email и паролю или через ФСП ID (`controller/fsp.py`, сценарии — `usecase/fsp.py`),
-пароль хранится хэшем argon2, сессия — подписанный токен в httpOnly-cookie. Права проверяет бэкенд: разделы `/api/candidate/*` и `/api/employer/*`
+пароль хранится хэшем argon2, сессия — подписанный токен в httpOnly-cookie. Права проверяет
+бэкенд: разделы `/api/candidate/*` и `/api/employer/*`
 отвечают 403 чужой роли.
 
 ## Разработка

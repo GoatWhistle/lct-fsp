@@ -38,8 +38,9 @@ from app.domain.fsp import (
     FspResult,
 )
 from app.repository.orm import User
-from tests.candidate_path import answer_items, nothing, pass_test, start, take_survey
+from tests.candidate_path import answer_items, nothing, pass_test, start, take_survey, with_company
 from tests.conftest import PASSWORD, Seeds, transaction
+from tests.test_invitations import answer, invite
 from tests.test_selections import build, create_need, entry_of
 
 Json = dict[str, Any]
@@ -566,3 +567,30 @@ def test_broken_discovery_is_unavailable_fsp_id(
 
     with pytest.raises(FspIdUnavailable):
         provider.authorization_url(FspAuthorization("s", "v", "n", FspIntent.login))
+
+
+def test_card_shows_full_achievements_only_after_accepted_invitation(
+    candidate: TestClient,
+    signed_in: SignIn,
+    seeds: Seeds,
+    fsp_id: MemoryFspId,
+    fsp_registry: MemoryFspRegistry,
+) -> None:
+    pass_test(candidate, seeds)
+    who = identity()
+    fsp_registry.records[who.sub] = [WINNER]
+    linked(candidate, fsp_id, who)
+    me = candidate.get("/api/auth/me").json()["id"]
+    employer = with_company(signed_in(Role.employer))
+    before = employer.get(f"/api/employer/candidates/{me}").json()
+
+    invitation = invite(employer, me)
+    answer(candidate, invitation["id"], "accept").raise_for_status()
+    after = employer.get(f"/api/employer/candidates/{me}").json()
+
+    assert before["fsp_details"] is None
+    assert WINNER.event not in str(before)
+    assert after["fsp_achievements"] == before["fsp_achievements"]
+    assert [(a["event"], a["place"], a["team_role"]["code"]) for a in after["fsp_details"]] == [
+        (WINNER.event, 1, "qa")
+    ]

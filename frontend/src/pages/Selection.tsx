@@ -1,15 +1,20 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router'
 import {
   api,
   errorMessage,
   type CandidateCard,
+  type Invitation,
+  type InvitationBudget,
   type Selection as SelectionData,
   type SelectionEntry,
 } from '../api/client'
-import { dateTimeWords, levelWords, percent, thetaWithError, yearsWords } from '../candidate/words'
+import { dateTimeWords, percent } from '../candidate/words'
+import { CandidateCardView } from '../employer/CandidateCardView'
+import { InviteAction } from '../employer/Invite'
+import { useSentInvitations } from '../employer/invitations'
 import { contributionWords, importanceWord, verdictWords, workFormatWord } from '../employer/words'
-import { fspResultWords } from '../candidate/fsp'
+import { latestByCandidate } from '../invitation/words'
 
 const PAGE = 20
 
@@ -48,8 +53,17 @@ function SelectionView({ first }: { first: SelectionData }) {
   const [loadingMore, setLoadingMore] = useState(false)
   const [rebuilding, setRebuilding] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const { sent, error: invitationsError, reload: reloadInvitations } = useSentInvitations()
   const { need } = first
   const total = first.exact_total + first.nearby_total
+  const invitations: Invitations = useMemo(
+    () => ({
+      latest: latestByCandidate(sent?.invitations ?? []),
+      budget: sent?.budget ?? null,
+      onSent: reloadInvitations,
+    }),
+    [sent, reloadInvitations],
+  )
 
   async function more() {
     setLoadingMore(true)
@@ -133,6 +147,12 @@ function SelectionView({ first }: { first: SelectionData }) {
           Порядок — по соответствию: модель вероятности принятия приглашения ещё не обучена. Карточки
           обезличены — имя и контакты откроются, когда кандидат примет приглашение.
         </p>
+        {sent && (
+          <p className="hint">
+            Осталось приглашений на неделю: {sent.budget.remaining} из {sent.budget.limit}.
+          </p>
+        )}
+        {invitationsError && <p className="error">Приглашения не загрузились: {invitationsError}</p>}
       </div>
 
       {total === 0 && (
@@ -145,10 +165,15 @@ function SelectionView({ first }: { first: SelectionData }) {
       )}
 
       {first.exact_total > 0 && (
-        <Block title={`${need.specialization.name} · ${need.grade.name}`} count={first.exact_total} entries={exact} />
+        <Block
+          title={`${need.specialization.name} · ${need.grade.name}`}
+          count={first.exact_total}
+          entries={exact}
+          invitations={invitations}
+        />
       )}
       {first.nearby_total > 0 && nearby.length > 0 && (
-        <Block title="Близкие — соседний грейд" count={first.nearby_total} entries={nearby} />
+        <Block title="Близкие — соседний грейд" count={first.nearby_total} entries={nearby} invitations={invitations} />
       )}
 
       {error && <p className="error">{error}</p>}
@@ -163,20 +188,37 @@ function SelectionView({ first }: { first: SelectionData }) {
   )
 }
 
-function Block({ title, count, entries }: { title: string; count: number; entries: SelectionEntry[] }) {
+/** Приглашения компании для строк выдачи: последнее по кандидату и бюджет недели. */
+type Invitations = {
+  latest: Map<string, Invitation>
+  budget: InvitationBudget | null
+  onSent: () => void
+}
+
+function Block({
+  title,
+  count,
+  entries,
+  invitations,
+}: {
+  title: string
+  count: number
+  entries: SelectionEntry[]
+  invitations: Invitations
+}) {
   return (
     <section className="stack">
       <h2>
         {title} <span className="muted">· {count}</span>
       </h2>
       {entries.map((entry) => (
-        <EntryCard key={entry.candidate_id} entry={entry} />
+        <EntryCard key={entry.candidate_id} entry={entry} invitations={invitations} />
       ))}
     </section>
   )
 }
 
-function EntryCard({ entry }: { entry: SelectionEntry }) {
+function EntryCard({ entry, invitations }: { entry: SelectionEntry; invitations: Invitations }) {
   return (
     <article className="card match-card">
       <div className="section-head">
@@ -228,18 +270,26 @@ function EntryCard({ entry }: { entry: SelectionEntry }) {
           </tr>
         </tbody>
       </table>
+      <InviteAction
+        candidateId={entry.candidate_id}
+        latest={invitations.latest.get(entry.candidate_id)}
+        budget={invitations.budget}
+        onSent={invitations.onSent}
+      />
       <CardDetails candidateId={entry.candidate_id} />
     </article>
   )
 }
 
-/** Обезличенная карточка кандидата — грузится, когда работодатель её раскрывает. */
+/** Карточка кандидата — грузится, когда работодатель её раскрывает. */
 function CardDetails({ candidateId }: { candidateId: string }) {
   const [card, setCard] = useState<CandidateCard | null>(null)
   const [error, setError] = useState<string | null>(null)
 
+  // Перечитывается при каждом открытии: после принятия приглашения карточка уже раскрыта.
   function load(open: boolean) {
-    if (!open || card) return
+    if (!open) return
+    setError(null)
     api
       .GET('/api/employer/candidates/{candidate_id}', { params: { path: { candidate_id: candidateId } } })
       .then(({ data, error }) => {
@@ -248,53 +298,16 @@ function CardDetails({ candidateId }: { candidateId: string }) {
       })
   }
 
-  const self = card?.self_reported
   return (
     <details onToggle={(e) => load(e.currentTarget.open)}>
       <summary>Карточка кандидата</summary>
       {error && <p className="error">{error}</p>}
       {!card && !error && <p className="muted">Загрузка…</p>}
       {card && (
-        <div className="stack card-details">
-          {card.skill_profile && (
-            <p>
-              Общий уровень — <strong>{levelWords(card.skill_profile.overall.band)}</strong>{' '}
-              <span className="muted">({thetaWithError(card.skill_profile.overall)})</span>
-            </p>
-          )}
-          {self ? (
-            <>
-              <p className="muted">
-                Стаж в ИТ — {yearsWords(self.experience_years)} ·{' '}
-                {self.work_formats.map((f) => workFormatWord(f).toLowerCase()).join(', ')}
-                {self.city && ` · ${self.city}${self.relocation ? ', готов к переезду' : ''}`}
-                {self.industries.length > 0 &&
-                  ` · интересные сферы: ${self.industries.map((i) => i.name).join(', ')}`}
-              </p>
-              {self.stack.length > 0 && (
-                <ul className="chips">
-                  {self.stack.map((t) => (
-                    <li key={t.code} className="chip">
-                      {t.name}
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </>
-          ) : (
-            <p className="muted">Профиль кандидат ещё не заполнил — есть только категория и профиль навыков.</p>
-          )}
-          {card.fsp_achievements.length > 0 ? (
-            <p>
-              Подтверждено ФСП:{' '}
-              {card.fsp_achievements
-                .map((a) => `${fspResultWords[a.result]} — ${a.discipline.name}, ${a.year}`)
-                .join('; ')}
-            </p>
-          ) : (
-            <p className="muted">Нет истории ФСП — профиль построен по тесту.</p>
-          )}
-        </div>
+        <>
+          <CandidateCardView card={card} />
+          <Link to={`/employer/candidates/${candidateId}`}>Открыть карточку отдельно</Link>
+        </>
       )}
     </details>
   )

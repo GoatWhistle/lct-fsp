@@ -20,6 +20,9 @@ MECHANICS_FILE = BACKEND_DIR / "config" / "mechanics.yaml"
 CATALOG_FILE = BACKEND_DIR / "config" / "catalog.yaml"
 # Заглушка реестра ФСП — синтетика, её и realm Keycloak генерирует `fsp_stub.py`.
 FSP_REGISTRY_FILE = BACKEND_DIR / "config" / "fsp_registry.json"
+# Матрица грейдов и документ для жюри, который генерируется из неё.
+GRADE_MATRIX_FILE = BACKEND_DIR / "config" / "grade_matrix.yaml"
+GRADE_MATRIX_DOC = BACKEND_DIR.parent / "docs" / "grade-matrix.md"
 
 
 class Settings(BaseSettings):
@@ -79,6 +82,8 @@ class Mechanics(BaseModel):
     expert_discrimination: float
     bank_min_families_per_topic: int
     bank_min_families_per_grade: int
+    bank_max_trace_share_per_topic: float = Field(ge=0, le=1)
+    bank_min_scenario_families_per_grade: int = Field(ge=0)
     anchor_families_per_topic: int
     family_answer_collision_max: float
     family_instance_difficulty_sd_max: float
@@ -155,8 +160,10 @@ class Mechanics(BaseModel):
     salary_hint_rounding_rub: int
 
     # Обратная связь
-    feedback_min_selections: int
+    feedback_min_companies: int
     feedback_period_days: int
+    feedback_hints_max: int
+    feedback_min_gain: float
 
     @field_validator("need_importance_weights")
     @classmethod

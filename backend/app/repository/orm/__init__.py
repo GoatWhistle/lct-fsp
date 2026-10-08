@@ -28,6 +28,7 @@ from app.repository.orm.catalog import (
 )
 from app.repository.orm.company import Company
 from app.repository.orm.fsp import FspAchievement, FspSnapshot
+from app.repository.orm.invitation import Invitation
 from app.repository.orm.need import (
     Need,
     NeedTopicImportance,
@@ -49,6 +50,7 @@ __all__ = [
     "FspSnapshot",
     "Grade",
     "Industry",
+    "Invitation",
     "Need",
     "NeedTopicImportance",
     "Presentation",

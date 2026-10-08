@@ -4,7 +4,7 @@
 передают их сюда; сценарии собираются здесь одинаково для обоих. Сценарий живёт на единице
 работы: проводка отдаёт фабрики сценариев от неё, репозитории приходят фабриками от неё же.
 Сценарии механик (`build_usecases`) нужны обоим; сценарии кабинетов — учётки, ФСП ID, компании,
-потребностей, справочников (`build_platform_usecases`) — только проду.
+потребностей, приглашений, справочников (`build_platform_usecases`) — только проду.
 
 Пакет стенда отсюда не импортируется — это проверяет тест на импорты.
 """
@@ -27,6 +27,7 @@ from app.usecase.interface import (
     AttemptRepository,
     CalibrationRepository,
     CandidatePool,
+    CandidateRepository,
     CatalogRepository,
     CatalogSource,
     Clock,
@@ -36,6 +37,7 @@ from app.usecase.interface import (
     FspIdProvider,
     FspRegistry,
     FspRepository,
+    InvitationRepository,
     ItemSelector,
     Mailer,
     NeedReader,
@@ -47,6 +49,7 @@ from app.usecase.interface import (
     SkillModel,
     UnitOfWork,
 )
+from app.usecase.invitation import Invitations
 from app.usecase.need import Needs
 from app.usecase.selection import Selections
 from settings import Mechanics
@@ -158,6 +161,8 @@ class PlatformRepositories[U: UnitOfWork]:
     catalog: Callable[[U], CatalogRepository]
     attempts: Callable[[U], AttemptRepository]
     fsp: Callable[[U], FspRepository]
+    candidates: Callable[[U], CandidateRepository]
+    invitations: Callable[[U], InvitationRepository]
 
 
 @dataclass(frozen=True)
@@ -169,6 +174,7 @@ class PlatformUsecases[U: UnitOfWork]:
     needs: Callable[[U], Needs]
     catalog: Callable[[U], CatalogQueries]
     fsp_accounts: Callable[[U], FspAccounts]
+    invitations: Callable[[U], Invitations]
 
 
 def build_platform_usecases[U: UnitOfWork](
@@ -225,7 +231,18 @@ def build_platform_usecases[U: UnitOfWork](
             mechanics,
         )
 
-    return PlatformUsecases(accounts, companies, needs, catalog, fsp_accounts)
+    def invitations(uow: U) -> Invitations:
+        return Invitations(
+            uow,
+            repositories.invitations(uow),
+            repositories.candidates(uow),
+            repositories.companies(uow),
+            clock,
+            weekly_budget=mechanics.invitation_weekly_budget,
+            ttl_days=mechanics.invitation_ttl_days,
+        )
+
+    return PlatformUsecases(accounts, companies, needs, catalog, fsp_accounts, invitations)
 
 
 def catalog_sync[U: UnitOfWork](

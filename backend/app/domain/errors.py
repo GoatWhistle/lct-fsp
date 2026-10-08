@@ -203,3 +203,36 @@ class InvalidSalaryRange(DomainError):
 class SelectionNotFound(DomainError):
     code = "selection_not_found"
     message = "Подборка не найдена"
+
+
+# Приглашения.
+
+
+class InvitationNotFound(DomainError):
+    code = "invitation_not_found"
+    message = "Приглашение не найдено"
+
+
+class CompanyProfileRequired(DomainError):
+    code = "company_profile_required"
+    message = "Сначала заполните профиль компании — кандидат увидит его в приглашении"
+
+
+class InvitationTransitionNotAllowed(DomainError):
+    code = "invitation_transition_not_allowed"
+    message = "На это приглашение уже ответили — обновите страницу"
+
+
+class InvitationExpired(InvitationTransitionNotAllowed):
+    code = "invitation_expired"
+    message = "Срок ответа на приглашение истёк"
+
+
+class InvitationAlreadyOpen(DomainError):
+    code = "invitation_already_open"
+    message = "Кандидат ещё не ответил на прошлое приглашение компании — дождитесь ответа"
+
+
+class InvitationBudgetExhausted(DomainError):
+    code = "invitation_budget_exhausted"
+    message = "Бюджет приглашений на эту неделю исчерпан — он обновится в понедельник"

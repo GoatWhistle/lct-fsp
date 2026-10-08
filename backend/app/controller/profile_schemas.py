@@ -16,7 +16,7 @@ from pydantic import (
     field_validator,
 )
 
-from app.controller.fsp_schemas import FspAnonymizedAchievementOut
+from app.controller.fsp_schemas import FspAchievementOut, FspAnonymizedAchievementOut
 from app.controller.path_schemas import CategoryOut, SkillProfileOut
 from app.controller.salary import SALARY_UNIT, Salary, SalaryBasisOut
 from app.controller.schemas import CatalogRef
@@ -149,10 +149,22 @@ class ProfileIn(BaseModel):
         return username
 
 
+class DisclosedOut(BaseModel):
+    """Раскрытая часть анкеты: ФИО, контакты и свободный текст. Ожидаемой зарплаты нет и здесь."""
+
+    full_name: str
+    contact_email: str
+    contact_phone: str | None
+    telegram: str | None = Field(description="Имя пользователя без «@»")
+    about: str
+    job_roles: list[str]
+    soft_skills: list[str]
+
+
 class CandidateCardOut(BaseModel):
-    """Обезличенная карточка: решение — по навыкам. Без ФИО, контактов, свободного текста
-    («о себе», роли, софт-скиллы) и ожидаемой зарплаты; фото, возраст и вуз платформа не
-    собирает."""
+    """Карточка кандидата для работодателя. До принятия приглашения — обезличенная: решение по
+    навыкам, без ФИО, контактов, свободного текста («о себе», роли, софт-скиллы) и ожидаемой
+    зарплаты; фото, возраст и вуз платформа не собирает. Ожидаемой зарплаты нет и после."""
 
     id: uuid.UUID
     category: CategoryOut = Field(description="Категория по тесту")
@@ -163,4 +175,12 @@ class CandidateCardOut(BaseModel):
     fsp_achievements: list[FspAnonymizedAchievementOut] = Field(
         description="Достижения ФСП — подтверждены, отдельно от самоописания: тип результата, "
         "дисциплина и год. Пусто — нет истории ФСП, это не штраф"
+    )
+    disclosed: DisclosedOut | None = Field(
+        description="ФИО, контакты и свободный текст — только после принятия приглашения вашей "
+        "компании; `null` — карточка обезличена или профиль не заполнен"
+    )
+    fsp_details: list[FspAchievementOut] | None = Field(
+        description="Достижения ФСП полностью — с мероприятием, местом и ролью в команде: только "
+        "после принятия приглашения вашей компании; `null` — карточка обезличена"
     )

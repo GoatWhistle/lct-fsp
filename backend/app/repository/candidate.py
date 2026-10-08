@@ -14,6 +14,7 @@ from app.domain import candidate
 from app.domain.catalog import CatalogRef
 from app.domain.catalog import Grade as GradeRef
 from app.domain.errors import UnknownIndustry, UnknownTechnology
+from app.domain.experience import ExperienceEntry, ExperienceInput, Month
 from app.domain.skill import SignalSource
 from app.domain.work import WorkFormat
 from app.repository.fsp import histories
@@ -53,6 +54,8 @@ class SqlCandidateRepository:
     ) -> None:
         stack = self._technologies(form.stack)
         industries = self._industries(form.industries)
+        # Коды стека записей опыта сверяются со справочником так же, как стек анкеты.
+        self._technologies([code for e in form.experience for code in e.stack])
         fields = {
             "full_name": form.full_name,
             "contact_email": form.contact_email,
@@ -62,6 +65,7 @@ class SqlCandidateRepository:
             "job_roles": list(form.job_roles),
             "experience_years": form.experience_years,
             "soft_skills": list(form.soft_skills),
+            "experience": [_entry_row(e) for e in form.experience],
             "work_formats": [f.value for f in form.work_formats],
             "city": form.city,
             "relocation": form.relocation,
@@ -132,6 +136,9 @@ class SqlCandidateRepository:
             .where(candidate_industries.c.user_id.in_(ids))
             .order_by(Industry.position)
         )
+        technologies = self._technology_refs(
+            {code for row in profiles.values() for e in row.experience for code in e["stack"]}
+        )
         skill_profiles = self._skill_profiles(ids)
         claimed = claimed_grades(db, ids)
         fsp = histories(db, ids)
@@ -148,7 +155,12 @@ class SqlCandidateRepository:
             category, category_grade = categories.get(candidate_id, (None, None))
             row = profiles.get(candidate_id)
             profile = (
-                _profile(row, stacks.get(candidate_id, ()), industries.get(candidate_id, ()))
+                _profile(
+                    row,
+                    stacks.get(candidate_id, ()),
+                    industries.get(candidate_id, ()),
+                    technologies,
+                )
                 if row
                 else None
             )
@@ -170,6 +182,16 @@ class SqlCandidateRepository:
         for user_id, code, name in self.session.execute(query):
             refs[user_id].append(CatalogRef(code, name))
         return refs
+
+    def _technology_refs(self, codes: Collection[str]) -> dict[str, CatalogRef]:
+        if not codes:
+            return {}
+        return {
+            code: CatalogRef(code, name)
+            for code, name in self.session.execute(
+                select(Technology.code, Technology.name).where(Technology.code.in_(codes))
+            )
+        }
 
     def _skill_profiles(self, ids: Sequence[uuid.UUID]) -> dict[uuid.UUID, candidate.SkillProfile]:
         """Профили навыков специализации категории; темы — в порядке справочника. Профиль и его
@@ -234,6 +256,8 @@ class SqlCandidateRepository:
 
     def _technologies(self, codes: Sequence[str]) -> list[Technology]:
         unique = set(codes)
+        if not unique:
+            return []
         technologies = list(
             self.session.scalars(
                 select(Technology).where(Technology.code.in_(unique)).order_by(Technology.name)
@@ -318,6 +342,7 @@ _PROFILE_COLUMNS = (
     CandidateProfile.about,
     CandidateProfile.job_roles,
     CandidateProfile.soft_skills,
+    CandidateProfile.experience,
     CandidateProfile.experience_years,
     CandidateProfile.work_formats,
     CandidateProfile.city,
@@ -328,8 +353,39 @@ _PROFILE_COLUMNS = (
 )
 
 
+def _entry_row(entry: ExperienceInput) -> dict[str, Any]:
+    return {
+        "place": entry.place,
+        "role": entry.role,
+        "start": str(entry.start),
+        "end": str(entry.end) if entry.end else None,
+        "stack": list(dict.fromkeys(entry.stack)),
+        "summary": entry.summary,
+    }
+
+
+def _entry(row: Mapping[str, Any], technologies: Mapping[str, CatalogRef]) -> ExperienceEntry:
+    """Запись опыта из строки профиля; стек — в порядке названий."""
+    return ExperienceEntry(
+        place=row["place"],
+        role=row["role"],
+        start=Month.parse(row["start"]),
+        end=Month.parse(row["end"]) if row["end"] else None,
+        stack=tuple(
+            sorted(
+                (technologies[code] for code in row["stack"] if code in technologies),
+                key=lambda t: t.name,
+            )
+        ),
+        summary=row["summary"],
+    )
+
+
 def _profile(
-    row: Row[*tuple[Any, ...]], stack: Sequence[CatalogRef], industries: Sequence[CatalogRef]
+    row: Row[*tuple[Any, ...]],
+    stack: Sequence[CatalogRef],
+    industries: Sequence[CatalogRef],
+    technologies: Mapping[str, CatalogRef],
 ) -> candidate.CandidateProfile:
     return candidate.CandidateProfile(
         disclosed=candidate.Disclosed(
@@ -340,6 +396,7 @@ def _profile(
             about=row.about,
             job_roles=tuple(row.job_roles),
             soft_skills=tuple(row.soft_skills),
+            experience=tuple(_entry(e, technologies) for e in row.experience),
         ),
         self_reported=candidate.SelfReported(
             stack=tuple(stack),

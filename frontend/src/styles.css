@@ -907,3 +907,32 @@ details summary {
 .message p {
   margin: 0.15rem 0 0;
 }
+
+.experience-card {
+  border-left: 3px solid var(--border);
+  padding-left: 0.75rem;
+}
+
+.experience-card h3,
+.experience-card p {
+  margin: 0 0 0.35rem;
+}
+
+.experience-list {
+  list-style: none;
+  margin: 0 0 0.5rem;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.experience-list p {
+  margin: 0.25rem 0 0;
+}
+
+.experience-entry {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.75rem;
+}

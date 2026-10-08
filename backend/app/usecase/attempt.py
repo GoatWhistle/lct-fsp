@@ -69,12 +69,13 @@ from app.usecase.interface import (
     AttemptRepository,
     Calibration,
     Clock,
+    FspEvidenceReader,
     ItemSelector,
     SeedSource,
     SkillModel,
     UnitOfWork,
 )
-from app.usecase.skill_profile import refresh_skill_profile, specialization_prior
+from app.usecase.skill_profile import fsp_evidence, refresh_skill_profile, specialization_prior
 from settings import Mechanics
 
 log = logging.getLogger(__name__)
@@ -120,6 +121,7 @@ class CandidatePath:
         self,
         uow: UnitOfWork,
         attempts: AttemptRepository,
+        fsp: FspEvidenceReader,
         calibration: Calibration,
         selector: ItemSelector,
         skill_model: SkillModel,
@@ -130,6 +132,7 @@ class CandidatePath:
     ) -> None:
         self._uow = uow
         self._attempts = attempts
+        self._fsp = fsp
         self._calibration = calibration
         self._selector = selector
         self._skill_model = skill_model
@@ -371,8 +374,9 @@ class CandidatePath:
         now: datetime,
     ) -> None:
         """Остановка попытки: оценка теста по всему определению, решение (§4) и пересчёт
-        профиля навыков по всем ответам (§11). Определение решает каскадом вниз; попытка вверх —
-        только правилом уверенности на свой грейд, провал категорию не меняет."""
+        профиля навыков по всем ответам и достижениям ФСП (§11). Определение решает каскадом
+        вниз; попытка вверх — только правилом уверенности на свой грейд, провал категорию не
+        меняет."""
         overall = estimate.overall()
         thresholds = self._mechanics.grade_thresholds
         confidence = self._mechanics.grade_confidence
@@ -423,6 +427,7 @@ class CandidatePath:
             attempt.user_id,
             attempt.specialization_code,
             prior.topics,
+            fsp_evidence(self._attempts, self._fsp, attempt.user_id),
         )
         self._attempts.save_profile(attempt.user_id, attempt.specialization_code, levels, now)
 

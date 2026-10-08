@@ -28,6 +28,7 @@ from app.controller.path_schemas import (
     GradeUpOut,
     HistoryEntryOut,
     ItemOut,
+    OptionOut,
     PathOut,
     SurveyIn,
     SurveyOut,
@@ -124,7 +125,8 @@ def get_item(user: CurrentUser, paths: CandidatePathDep, mechanics: MechanicsDep
         topic=CatalogRef.model_validate(item.topic),
         prompt=item.instance.prompt,
         code=item.instance.code,
-        options=list(item.instance.options),
+        answer_format=item.instance.answer_format,
+        options=[OptionOut(letter=o.letter, text=o.text) for o in item.instance.options],
     )
 
 

@@ -9,7 +9,9 @@ from pydantic import BaseModel, ConfigDict, Field
 from app.controller.schemas import CatalogRef
 from app.domain import candidate
 from app.domain.attempt import AttemptOutcome, AttemptPurpose, HistoryEvent, Stage
+from app.domain.bank import AnswerFormat
 from app.domain.candidate import Level
+from app.domain.skill import SignalSource
 
 
 class _Out(BaseModel):
@@ -73,6 +75,10 @@ class TestResultOut(BaseModel):
 class TopicLevelOut(BaseModel):
     topic: CatalogRef
     level: LevelOut
+    sources: list[SignalSource] = Field(
+        description="Из каких сигналов сложился уровень: `fsp` — результаты ФСП, `test` — "
+        "адаптивный тест; пусто — данных по теме нет"
+    )
 
 
 class SkillProfileOut(BaseModel):
@@ -97,7 +103,11 @@ def skill_profile_view(profile: candidate.SkillProfile) -> SkillProfileOut:
     return SkillProfileOut(
         overall=level_view(profile.overall),
         topics=[
-            TopicLevelOut(topic=CatalogRef.model_validate(t.topic), level=level_view(t.level))
+            TopicLevelOut(
+                topic=CatalogRef.model_validate(t.topic),
+                level=level_view(t.level),
+                sources=sorted(t.sources),
+            )
             for t in profile.topics
         ],
         updated_at=profile.updated_at,
@@ -168,6 +178,11 @@ class PathOut(BaseModel):
     )
 
 
+class OptionOut(BaseModel):
+    letter: str = Field(description="Буква варианта — её кандидат и отвечает")
+    text: str
+
+
 class ItemOut(BaseModel):
     id: uuid.UUID
     number: int = Field(description="Номер задания в попытке, с 1")
@@ -177,4 +192,10 @@ class ItemOut(BaseModel):
     topic: CatalogRef
     prompt: str
     code: str | None = Field(description="Листинг, таблица или граф к условию — моноширинно")
-    options: list[str] = Field(description="Варианты; пусто — ответ вводится текстом")
+    answer_format: AnswerFormat = Field(
+        description="`value` — ответ вводится текстом; `choice` — буква одного варианта; "
+        "`ordering` — буквы всех вариантов в верном порядке строкой, например «KBXF»"
+    )
+    options: list[OptionOut] = Field(
+        description="Варианты по алфавиту букв; буквы и порядок текстов свои у каждого экземпляра"
+    )

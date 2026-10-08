@@ -82,34 +82,48 @@ export function TestStep({ onDone }: Props) {
       )}
       <p className="prompt">{item.prompt}</p>
       {item.code && <pre className="code">{item.code}</pre>}
-      {item.options.length > 0 ? (
+      {item.answer_format === 'choice' ? (
         <fieldset className="options">
           {item.options.map((option) => (
-            <label key={option} className={response === option ? 'role-option selected' : 'role-option'}>
+            <label
+              key={option.letter}
+              className={response === option.letter ? 'role-option selected' : 'role-option'}
+            >
               <input
                 type="radio"
                 name="option"
-                value={option}
-                checked={response === option}
-                onChange={() => setResponse(option)}
+                value={option.letter}
+                checked={response === option.letter}
+                onChange={() => setResponse(option.letter)}
               />
-              {option}
+              <b>{option.letter}.</b> {option.text}
             </label>
           ))}
         </fieldset>
       ) : (
-        <label className="field">
-          Ответ
-          <input
-            required
-            maxLength={500}
-            autoComplete="off"
-            spellCheck={false}
-            autoFocus
-            value={response}
-            onChange={(e) => setResponse(e.target.value)}
-          />
-        </label>
+        <>
+          {item.answer_format === 'ordering' && (
+            <ul className="steps">
+              {item.options.map((option) => (
+                <li key={option.letter}>
+                  <b>{option.letter}.</b> {option.text}
+                </li>
+              ))}
+            </ul>
+          )}
+          <label className="field">
+            {item.answer_format === 'ordering' ? 'Буквы шагов в верном порядке' : 'Ответ'}
+            <input
+              required
+              maxLength={500}
+              autoComplete="off"
+              spellCheck={false}
+              autoFocus
+              value={response}
+              onChange={(e) => setResponse(e.target.value)}
+            />
+          </label>
+        </>
       )}
       {error && <p className="error">{error}</p>}
       <div className="actions">

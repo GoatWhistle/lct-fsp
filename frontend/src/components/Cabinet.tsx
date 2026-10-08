@@ -14,14 +14,16 @@ export function Cabinet({
     <section className="stack">
       <h1>{title}</h1>
       {children}
-      <div className="card">
-        <h2>Скоро здесь</h2>
-        <ul className="upcoming">
-          {upcoming.map((item) => (
-            <li key={item}>{item}</li>
-          ))}
-        </ul>
-      </div>
+      {upcoming.length > 0 && (
+        <div className="card">
+          <h2>Скоро здесь</h2>
+          <ul className="upcoming">
+            {upcoming.map((item) => (
+              <li key={item}>{item}</li>
+            ))}
+          </ul>
+        </div>
+      )}
     </section>
   )
 }

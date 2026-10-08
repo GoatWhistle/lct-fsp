@@ -5,10 +5,11 @@ import math
 import random
 from itertools import pairwise
 
-from app.domain.bank.family import Instance, rounded
+from app.domain.bank.family import Instance, Kind, kind, rounded
 from app.domain.bank.runner import CodeRunner
 
 
+@kind(Kind.COMPUTE)
 def log_retention(rng: random.Random, runner: CodeRunner) -> Instance:
     per_day = rng.choice([20, 35, 50, 80, 120, 200])
     ratio = rng.choice([4, 5, 8, 10])
@@ -31,6 +32,7 @@ def log_retention(rng: random.Random, runner: CodeRunner) -> Instance:
     )
 
 
+@kind(Kind.COMPUTE)
 def label_cardinality(rng: random.Random, runner: CodeRunner) -> Instance:
     methods = rng.randint(2, 6)
     statuses = rng.randint(3, 8)
@@ -59,6 +61,7 @@ def label_cardinality(rng: random.Random, runner: CodeRunner) -> Instance:
     )
 
 
+@kind(Kind.COMPUTE)
 def error_budget(rng: random.Random, runner: CodeRunner) -> Instance:
     slo = rng.choice([99.0, 99.5, 99.9, 99.95])
     days = rng.choice([28, 30])
@@ -81,6 +84,7 @@ def error_budget(rng: random.Random, runner: CodeRunner) -> Instance:
     )
 
 
+@kind(Kind.COMPUTE)
 def availability_chain(rng: random.Random, runner: CodeRunner) -> Instance:
     values = [99.9, 99.95, 99.5, 99.0, 98.0, 99.99]
     a, b, c = (rng.choice(values) for _ in range(3))
@@ -102,6 +106,7 @@ def availability_chain(rng: random.Random, runner: CodeRunner) -> Instance:
     )
 
 
+@kind(Kind.COMPUTE)
 def counter_rate(rng: random.Random, runner: CodeRunner) -> Instance:
     step = 15
     count = rng.randint(6, 9)
@@ -134,6 +139,7 @@ def counter_rate(rng: random.Random, runner: CodeRunner) -> Instance:
     )
 
 
+@kind(Kind.TRACE)
 def alert_for(rng: random.Random, runner: CodeRunner) -> Instance:
     threshold = rng.choice([80, 90, 95])
     hold = rng.randint(2, 5)
@@ -182,6 +188,7 @@ def alert_for(rng: random.Random, runner: CodeRunner) -> Instance:
     )
 
 
+@kind(Kind.COMPUTE)
 def burn_rate(rng: random.Random, runner: CodeRunner) -> Instance:
     slo = rng.choice([99.9, 99.5, 99.0])
     budget = (100 - slo) / 100
@@ -229,6 +236,7 @@ def burn_rate(rng: random.Random, runner: CodeRunner) -> Instance:
     )
 
 
+@kind(Kind.COMPUTE)
 def trace_sampling(rng: random.Random, runner: CodeRunner) -> Instance:
     traces = rng.choice([10000, 20000, 50000, 100000])
     head = rng.choice([1, 5, 10, 20])

@@ -7,7 +7,7 @@ import statistics
 from collections.abc import Callable, Mapping
 from typing import Any
 
-from app.domain.bank.family import Instance, rounded
+from app.domain.bank.family import Instance, Kind, kind, rounded
 from app.domain.bank.runner import CodeRunner
 
 _STAGES = {
@@ -17,6 +17,7 @@ _STAGES = {
 }
 
 
+@kind(Kind.TRACE)
 def stage_duration(rng: random.Random, runner: CodeRunner) -> Instance:
     jobs = []
     for stage, names in _STAGES.items():
@@ -43,6 +44,7 @@ def stage_duration(rng: random.Random, runner: CodeRunner) -> Instance:
     )
 
 
+@kind(Kind.TRACE)
 def needs_dag(rng: random.Random, runner: CodeRunner) -> Instance:
     names = ["compile", "lint", "unit", "image", "e2e", "deploy"]
     stage_of = {"compile": 0, "lint": 0, "unit": 1, "image": 1, "e2e": 2, "deploy": 2}
@@ -111,6 +113,7 @@ _CONDITIONS: list[tuple[str, Callable[[dict[str, Any]], bool]]] = [
 ]
 
 
+@kind(Kind.TRACE)
 def rules_first_match(rng: random.Random, runner: CodeRunner) -> Instance:
     rules = []
     for i in rng.sample(range(len(_CONDITIONS)), rng.randint(2, 4)):
@@ -147,6 +150,7 @@ def rules_first_match(rng: random.Random, runner: CodeRunner) -> Instance:
     )
 
 
+@kind(Kind.COMPUTE)
 def semver_bump(rng: random.Random, runner: CodeRunner) -> Instance:
     major, minor, patch = rng.randint(1, 9), rng.randint(0, 20), rng.randint(0, 20)
     pool = [
@@ -193,6 +197,7 @@ def semver_bump(rng: random.Random, runner: CodeRunner) -> Instance:
 _MULTIPLIERS = {"Linux": 1, "Windows": 2, "macOS": 10}
 
 
+@kind(Kind.COMPUTE)
 def pipeline_minutes(rng: random.Random, runner: CodeRunner) -> Instance:
     jobs = []
     for _ in range(rng.randint(3, 5)):
@@ -210,6 +215,7 @@ def pipeline_minutes(rng: random.Random, runner: CodeRunner) -> Instance:
     return Instance(prompt, f"{raw} {billed}", {"jobs": jobs}, code="\n".join(lines))
 
 
+@kind(Kind.COMPUTE)
 def cache_key_hits(rng: random.Random, runner: CodeRunner) -> Instance:
     versions = ["v1"]
     pipelines = []
@@ -247,6 +253,7 @@ def cache_key_hits(rng: random.Random, runner: CodeRunner) -> Instance:
     )
 
 
+@kind(Kind.TRACE)
 def matrix_jobs(rng: random.Random, runner: CodeRunner) -> Instance:
     oses = rng.sample(["ubuntu-latest", "windows-latest", "macos-latest"], rng.randint(2, 3))
     pythons = rng.sample(["3.10", "3.11", "3.12", "3.13"], rng.randint(2, 4))
@@ -317,6 +324,7 @@ def matrix_jobs(rng: random.Random, runner: CodeRunner) -> Instance:
     )
 
 
+@kind(Kind.COMPUTE)
 def dora_metrics(rng: random.Random, runner: CodeRunner) -> Instance:
     weeks = 2
     deploys = []
@@ -345,6 +353,7 @@ def dora_metrics(rng: random.Random, runner: CodeRunner) -> Instance:
     return Instance(prompt, answer, {"deploys": deploys}, code="\n".join(lines))
 
 
+@kind(Kind.TRACE)
 def helm_rollback(rng: random.Random, runner: CodeRunner) -> Instance:
     revision = 1
     app = "1.0.0"
@@ -383,6 +392,7 @@ def helm_rollback(rng: random.Random, runner: CodeRunner) -> Instance:
     return Instance(prompt, f"{revision} {app}", {"lines": lines}, code="\n".join(lines))
 
 
+@kind(Kind.COMPUTE)
 def flaky_pipeline(rng: random.Random, runner: CodeRunner) -> Instance:
     jobs = rng.randint(4, 20)
     p = rng.choice([0.02, 0.05, 0.1, 0.15, 0.2])

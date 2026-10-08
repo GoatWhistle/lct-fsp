@@ -18,14 +18,18 @@ from app.repository.orm.candidate import (
     candidate_technologies,
 )
 from app.repository.orm.catalog import (
+    FspDiscipline,
     Grade,
     Industry,
     Specialization,
     Technology,
     Topic,
+    fsp_discipline_topics,
     technology_topics,
 )
 from app.repository.orm.company import Company
+from app.repository.orm.fsp import FspAchievement, FspSnapshot
+from app.repository.orm.invitation import Invitation
 from app.repository.orm.need import (
     Need,
     NeedTopicImportance,
@@ -43,8 +47,12 @@ __all__ = [
     "EmailVerificationToken",
     "FamilyCalibration",
     "FamilyStatus",
+    "FspAchievement",
+    "FspDiscipline",
+    "FspSnapshot",
     "Grade",
     "Industry",
+    "Invitation",
     "Need",
     "NeedTopicImportance",
     "Presentation",
@@ -61,6 +69,7 @@ __all__ = [
     "User",
     "candidate_industries",
     "candidate_technologies",
+    "fsp_discipline_topics",
     "need_technologies",
     "technology_topics",
 ]

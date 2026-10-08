@@ -1,9 +1,9 @@
 """Рендер PDF-профиля на fpdf2 — реализация порта `ProfilePdfRenderer`. Стандартизированный
 PDF-профиль: у всех один вид и один порядок разделов.
 
-Сначала — что подтвердил тест платформы (категория и профиль навыков), затем — что кандидат
-сказал о себе сам: читатель сразу видит уровни доверия (mechanics.md, §11). Что показать, решает
-сценарий: рендер выводит проекцию `ProfileSheet` как есть.
+Сначала — что подтвердил тест платформы (категория и профиль навыков), затем — достижения ФСП,
+затем — что кандидат сказал о себе сам: читатель сразу видит уровни доверия (mechanics.md, §11).
+Что показать, решает сценарий: рендер выводит проекцию `ProfileSheet` как есть.
 
 Шрифт PT Sans лежит рядом под лицензией OFL — кириллица не зависит от шрифтов системы. Глифов
 θ и стрелок в нём нет, поэтому уровни подписаны словами.
@@ -25,6 +25,7 @@ from app.domain.candidate import (
     SelfReported,
     SkillProfile,
 )
+from app.domain.fsp import ConfirmedAchievement, FspResult
 from app.domain.skill import LevelBand
 from app.domain.work import WorkFormat
 
@@ -54,6 +55,12 @@ MONTHS = (
     "ноября",
     "декабря",
 )
+FSP_RESULTS = {
+    FspResult.winner: "победитель",
+    FspResult.prize: "призёр",
+    FspResult.finalist: "финалист",
+    FspResult.participant: "участник отбора",
+}
 WORK_FORMATS = {
     WorkFormat.office: "офис",
     WorkFormat.hybrid: "гибрид",
@@ -74,6 +81,7 @@ class FpdfProfileRenderer:
 
         _header(pdf, disclosed)
         _verified(pdf, sheet.category, sheet.skill_profile, sheet.grade_confidence)
+        _fsp(pdf, sheet.fsp_achievements)
         _self_reported(pdf, sheet.self_reported, disclosed)
         return bytes(pdf.output())
 
@@ -172,6 +180,54 @@ def _verified(
         color=MUTED,
         height=4,
     )
+
+
+def _fsp(pdf: _Document, achievements: Sequence[ConfirmedAchievement]) -> None:
+    _section(pdf, "Подтверждено ФСП")
+    if not achievements:
+        _text(pdf, "Нет истории ФСП — профиль навыков построен по тесту платформы.", size=11)
+        return
+    pdf.set_font(FONT, size=10)
+    pdf.set_text_color(*TEXT)
+    pdf.set_draw_color(*BORDER)
+    with pdf.table(
+        col_widths=(18, 40, 30, 20, 22),
+        text_align="LEFT",
+        v_align="TOP",
+        borders_layout="HORIZONTAL_LINES",
+        headings_style=FontFace(emphasis="BOLD", color=MUTED, size_pt=9),
+        line_height=5,
+        padding=(1.2, 0),
+    ) as table:
+        table.row(("Дата", "Мероприятие", "Дисциплина", "Результат", "Место, роль"))
+        for a in achievements:
+            table.row(
+                (
+                    a.date.strftime("%d.%m.%Y"),
+                    a.event,
+                    a.discipline.name,
+                    FSP_RESULTS[a.result],
+                    _place_and_role(a),
+                )
+            )
+    pdf.ln(2)
+    _text(
+        pdf,
+        "Результаты очных соревнований ФСП из реестра — высший уровень доверия. Победа, призовое "
+        "место и финал входят в профиль навыков; участие в отборе — факт, не оценка уровня.",
+        size=8.5,
+        color=MUTED,
+        height=4,
+    )
+
+
+def _place_and_role(achievement: ConfirmedAchievement) -> str:
+    parts = []
+    if achievement.place is not None:
+        parts.append(f"{achievement.place} место")
+    if achievement.team_role is not None:
+        parts.append(f"в команде — {achievement.team_role.name}")
+    return ", ".join(parts)
 
 
 def _self_reported(pdf: _Document, profile: SelfReported, disclosed: Disclosed) -> None:

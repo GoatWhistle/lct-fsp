@@ -307,7 +307,7 @@ class FamilyFit:
     choice: bool
     corruption: Corruption | None
     refitted: bool
-    # RMSD выше `item_fit_rmsd_max` на переоценке: проверка согласия вывела семейство из выдачи.
+    # Проверка согласия после переоценки вывела семейство из выдачи (mechanics.md, §7).
     flagged: bool
 
 

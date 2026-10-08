@@ -6,9 +6,11 @@
 и controller показывают карточку как есть. Выдача подборки (`app.domain.selection`) данных
 кандидата не несёт: в записи выдачи только скоры и объяснение. Обезличенная карточка — те же
 категория, профиль навыков и структурное самоописание, что в раскрытой, только без раскрываемого:
-его в ней нет по типу.
+его в ней нет по типу. Достижения ФСП в обезличенной карточке — тип результата, дисциплина и год;
+мероприятие, место и команда — только в раскрытой.
 """
 
+import enum
 import uuid
 from collections.abc import Mapping
 from dataclasses import dataclass
@@ -16,9 +18,10 @@ from datetime import datetime
 from functools import cached_property
 from typing import Self
 
-from app.domain.catalog import CatalogRef
+from app.domain.catalog import CatalogRef, Grade
 from app.domain.errors import CityRequired
-from app.domain.skill import LevelBand, Normal, level_band
+from app.domain.fsp import AnonymizedAchievement, ConfirmedAchievement, FspHistory, anonymized
+from app.domain.skill import LevelBand, Normal, SignalSource, level_band
 from app.domain.work import WorkFormat
 
 
@@ -48,6 +51,8 @@ class Level:
 class TopicLevel:
     topic: CatalogRef
     level: Level
+    # Из каких уровней доверия есть наблюдения по теме; пусто — уровень только из априорного.
+    sources: frozenset[SignalSource] = frozenset()
 
 
 @dataclass(frozen=True)
@@ -68,6 +73,42 @@ class Category:
     specialization: CatalogRef
     grade: CatalogRef
     assigned_at: datetime
+
+
+class GradeStatusKind(enum.StrEnum):
+    # Категория — заявленного грейда.
+    confirmed = "confirmed"
+    # Каскад дал категорию ниже заявленного грейда.
+    below_claimed = "below_claimed"
+    # Грейд заявлен, категории нет: тест не пройден или не закончен.
+    unconfirmed = "unconfirmed"
+
+
+@dataclass(frozen=True)
+class GradeStatus:
+    """Что тест сказал о заявленном грейде (§12). Заявленный грейд — грейд первой попытки
+    цепочки определения категории: дотест каскада его не меняет."""
+
+    kind: GradeStatusKind
+    claimed: CatalogRef
+    # Грейд категории; у `unconfirmed` — нет.
+    confirmed: CatalogRef | None
+
+
+def grade_status(category: Grade | None, claimed: Grade | None) -> GradeStatus | None:
+    """Статус из грейда категории и заявленного грейда; без того и другого статуса нет.
+    Категория без известной заявки — подтверждена: присвоить её мог только тест."""
+    if category is None:
+        if claimed is None:
+            return None
+        return GradeStatus(GradeStatusKind.unconfirmed, _ref(claimed), None)
+    if claimed is not None and claimed.rank > category.rank:
+        return GradeStatus(GradeStatusKind.below_claimed, _ref(claimed), _ref(category))
+    return GradeStatus(GradeStatusKind.confirmed, _ref(category), _ref(category))
+
+
+def _ref(grade: Grade) -> CatalogRef:
+    return CatalogRef(grade.code, grade.name)
 
 
 @dataclass(frozen=True)
@@ -111,7 +152,7 @@ class Candidate:
 
     Части, которых ещё нет, — `None`: анкета не заполнена, категория не присвоена. Профиль
     навыков — только вместе с категорией и по её специализации: оценки незаконченной или
-    неудачной попытки он не подтверждает.
+    неудачной попытки он не подтверждает. `fsp` — `None`, если ФСП ID не привязан.
     """
 
     id: uuid.UUID
@@ -119,6 +160,14 @@ class Candidate:
     expected_salary: int | None
     category: Category | None
     skill_profile: SkillProfile | None
+    # Нет ни категории, ни заявленного грейда — статуса нет.
+    grade_status: GradeStatus | None = None
+    fsp: FspHistory | None = None
+
+    @property
+    def fsp_achievements(self) -> tuple[ConfirmedAchievement, ...]:
+        """Подтверждённые достижения; без ФСП ID — пусто, как и без истории ФСП."""
+        return self.fsp.achievements if self.fsp else ()
 
 
 @dataclass(frozen=True)
@@ -144,8 +193,8 @@ class Access:
     уже сейчас, но решения они не меняют, пока их смысл не задан вместе с согласиями: без
     согласия кандидат уходит из выдачи — это отбор, а не проекция.
 
-    Пока приглашений, откликов, согласий и настроек видимости нет, сценарии передают
-    `NO_ACCESS`.
+    Работодателю сценарии собирают доступ из приглашений компании; откликов, согласий и настроек
+    видимости пока нет. `NO_ACCESS` — доступа нет.
     """
 
     invitation_accepted: bool = False
@@ -167,6 +216,9 @@ class AnonymizedCard:
     self_reported: SelfReported | None
     category: Category | None
     skill_profile: SkillProfile | None
+    grade_status: GradeStatus | None
+    # Пусто — нет истории ФСП: нейтральная пометка, не штраф.
+    fsp_achievements: tuple[AnonymizedAchievement, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -179,6 +231,8 @@ class DisclosedCard:
     expected_salary: int | None
     category: Category | None
     skill_profile: SkillProfile | None
+    grade_status: GradeStatus | None
+    fsp_achievements: tuple[ConfirmedAchievement, ...] = ()
 
     @property
     def self_reported(self) -> SelfReported | None:
@@ -204,6 +258,8 @@ def disclosure(
         self_reported=candidate.profile.self_reported if candidate.profile else None,
         category=candidate.category,
         skill_profile=candidate.skill_profile,
+        grade_status=candidate.grade_status,
+        fsp_achievements=tuple(anonymized(a) for a in candidate.fsp_achievements),
     )
 
 
@@ -214,6 +270,8 @@ def _disclosed(candidate: Candidate, expected_salary: int | None) -> DisclosedCa
         expected_salary=expected_salary,
         category=candidate.category,
         skill_profile=candidate.skill_profile,
+        grade_status=candidate.grade_status,
+        fsp_achievements=candidate.fsp_achievements,
     )
 
 
@@ -222,7 +280,8 @@ class ProfileSheet:
     """Всё, что входит в PDF-профиль, — раскрытая карточка в формате файла. Ожидаемой зарплаты
     в формате нет: файл может оказаться у работодателя (§14).
 
-    `grade_confidence` — порог уверенности для подписи к уровням словами.
+    `grade_confidence` — порог уверенности для подписи к уровням словами. Достижения ФСП —
+    полностью, отдельно от самоописания; пусто — нет истории ФСП.
     """
 
     disclosed: Disclosed
@@ -230,6 +289,7 @@ class ProfileSheet:
     category: Category | None
     skill_profile: SkillProfile | None
     grade_confidence: float
+    fsp_achievements: tuple[ConfirmedAchievement, ...] = ()
 
     @classmethod
     def of(cls, card: DisclosedCard, grade_confidence: float) -> Self | None:
@@ -242,6 +302,7 @@ class ProfileSheet:
             category=card.category,
             skill_profile=card.skill_profile,
             grade_confidence=grade_confidence,
+            fsp_achievements=card.fsp_achievements,
         )
 
 

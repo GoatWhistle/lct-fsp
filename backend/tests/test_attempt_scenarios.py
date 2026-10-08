@@ -20,12 +20,13 @@ from app.adapter.seed import DerivedSeeds
 from app.domain import bank
 from app.domain.attempt import PathView, Stage
 from app.domain.bank import Family, get_family
-from app.domain.calibration import Parameters
+from app.domain.calibration import ExpertGap, Parameters
 from app.domain.catalog import Grade, Specialization, Topic
 from app.domain.errors import StepUnavailable
 from app.domain.skill import Normal
 from app.repository.memory.attempt import MemoryAttemptRepository
 from app.repository.memory.calibration import MemoryCalibrationRepository
+from app.repository.memory.fsp import MemoryFspEvidence
 from app.repository.memory.unit_of_work import MemoryStore, MemoryUnitOfWork
 from app.usecase.attempt import CandidatePath
 from app.usecase.calibration import AnswerCalibration
@@ -93,6 +94,10 @@ class SpyCalibration:
         self.calls.append("refit_due")
         self.inner.refit_due(codes, specialization, now)
 
+    def expert_gaps(self, families: Sequence[bank.Family]) -> dict[str, ExpertGap]:
+        self.calls.append("expert_gaps")
+        return self.inner.expert_gaps(families)
+
 
 @pytest.fixture
 def calibration(store: MemoryStore) -> SpyCalibration:
@@ -125,6 +130,7 @@ def paths(
     return CandidatePath(
         MemoryUnitOfWork(store),
         attempts,
+        MemoryFspEvidence(store, load_catalog(CATALOG_FILE).fsp_disciplines),
         calibration,
         MaxInformationSelector(
             top_k=MECHANICS.exposure_top_k, max_rate=MECHANICS.exposure_max_rate

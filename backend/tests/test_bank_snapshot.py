@@ -24,7 +24,7 @@ FAMILIES = (*BANK, *RETIRED)
 def fingerprint(family: Family) -> str:
     """Отпечаток семейства: метаданные, экземпляры по seed и проверка эталона и чужого ответа."""
     digest = hashlib.sha256()
-    meta = [family.code, family.topic, family.grade, family.anchor]
+    meta = [family.code, family.topic, family.grade, family.kind, family.anchor]
     digest.update(json.dumps(meta, ensure_ascii=False).encode())
     for seed in SEEDS:
         instance = family.instance(seed, RUNNER)
@@ -34,7 +34,8 @@ def fingerprint(family: Family) -> str:
             instance.answer,
             instance.params,
             instance.code,
-            list(instance.options),
+            [[o.letter, o.text] for o in instance.options],
+            instance.answer_format,
             checks,
         ]
         digest.update(json.dumps(record, ensure_ascii=False, sort_keys=True).encode())

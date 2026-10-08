@@ -30,6 +30,14 @@ export type SelectionSummary = components['schemas']['SelectionSummaryOut']
 export type SelectionEntry = components['schemas']['SelectionEntryOut']
 export type Verdict = components['schemas']['Verdict']
 export type CandidateCard = components['schemas']['CandidateCardOut']
+export type FspStatus = components['schemas']['FspStatusOut']
+export type FspAchievement = components['schemas']['FspAchievementOut']
+export type FspResult = components['schemas']['FspResult']
+export type Invitation = components['schemas']['InvitationOut']
+export type InvitationStatus = components['schemas']['InvitationStatus']
+export type InvitationBudget = components['schemas']['InvitationBudgetOut']
+export type SentInvitations = components['schemas']['SentInvitationsOut']
+export type GradeStatus = components['schemas']['GradeStatusOut']
 
 export const api = createClient<paths>({ credentials: 'same-origin' })
 

@@ -18,6 +18,8 @@ expert_difficulty_by_grade: {intern: -1.0, junior: 0.0, middle: 1.0, senior: 2.0
 expert_discrimination: 1.2
 bank_min_families_per_topic: 10
 bank_min_families_per_grade: 2
+bank_max_trace_share_per_topic: 0.25
+bank_min_scenario_families_per_grade: 2
 anchor_families_per_topic: 2
 family_answer_collision_max: 0.05
 family_instance_difficulty_sd_max: 0.3
@@ -95,5 +97,7 @@ acceptance_target_probability: 0.6
 salary_hint_rounding_rub: 10000
 
 # Обратная связь
-feedback_min_selections: 5
+feedback_min_companies: 5
 feedback_period_days: 30
+feedback_hints_max: 3
+feedback_min_gain: 0.01

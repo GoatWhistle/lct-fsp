@@ -8,12 +8,13 @@ Bash на бэкенде не запускается: эталон считае�
 import math
 import random
 
-from app.domain.bank.family import Instance
+from app.domain.bank.family import Instance, Kind, kind
 from app.domain.bank.runner import CodeRunner
 
 PROMPT = "Что выведет скрипт? Ответ — выведенные значения через пробел по порядку."
 
 
+@kind(Kind.TRACE)
 def seq_loop(rng: random.Random, runner: CodeRunner) -> Instance:
     start, step = rng.randint(1, 9), rng.randint(2, 5)
     stop = start + step * rng.randint(3, 9) + rng.randint(0, step - 1)
@@ -32,6 +33,7 @@ def seq_loop(rng: random.Random, runner: CodeRunner) -> Instance:
     return Instance(PROMPT, answer, {"start": start, "step": step, "stop": stop, "k": k}, code=code)
 
 
+@kind(Kind.TRACE)
 def test_conditions(rng: random.Random, runner: CodeRunner) -> Instance:
     a, b = rng.sample(range(2, 40), 2)
     s1, s2 = str(rng.randint(10, 99)), str(rng.randint(2, 9))
@@ -62,6 +64,7 @@ def test_conditions(rng: random.Random, runner: CodeRunner) -> Instance:
     )
 
 
+@kind(Kind.TRACE)
 def param_expansion(rng: random.Random, runner: CodeRunner) -> Instance:
     directory = rng.choice(["/var/log/app", "/srv/data/backup", "/opt/build/out", "/home/dev/tmp"])
     name = rng.choice(["report", "access", "dump", "release", "metrics"])
@@ -93,6 +96,7 @@ def param_expansion(rng: random.Random, runner: CodeRunner) -> Instance:
     )
 
 
+@kind(Kind.TRACE)
 def word_splitting(rng: random.Random, runner: CodeRunner) -> Instance:
     words = rng.sample(["alpha", "beta", "gamma", "delta", "omega", "sigma"], rng.randint(2, 4))
     # Двойной пробел внутри строки: при разбиении на слова пустых аргументов не получается.
@@ -129,6 +133,7 @@ def word_splitting(rng: random.Random, runner: CodeRunner) -> Instance:
     )
 
 
+@kind(Kind.TRACE)
 def awk_sum(rng: random.Random, runner: CodeRunner) -> Instance:
     regions = rng.sample(["north", "south", "east", "west", "center"], rng.randint(3, 4))
     rows = [
@@ -153,6 +158,7 @@ def awk_sum(rng: random.Random, runner: CodeRunner) -> Instance:
     return Instance(prompt, answer, {"rows": rows, "threshold": threshold}, code="\n".join(lines))
 
 
+@kind(Kind.TRACE)
 def find_filters(rng: random.Random, runner: CodeRunner) -> Instance:
     days, size = rng.randint(3, 10), rng.randint(1, 2)
     pattern = rng.choice(["*.log", "app*", "*.gz"])
@@ -209,6 +215,7 @@ _STATEMENTS = [
 ]
 
 
+@kind(Kind.TRACE)
 def errexit(rng: random.Random, runner: CodeRunner) -> Instance:
     pipefail = rng.random() < 0.5
     letters = iter(rng.sample("ABCDEFGHKMNPRSTUVWXZ", 11))

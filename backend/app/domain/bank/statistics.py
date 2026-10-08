@@ -6,10 +6,11 @@ from collections.abc import Callable
 from fractions import Fraction
 from itertools import product
 
-from app.domain.bank.family import Instance, rounded
+from app.domain.bank.family import Instance, Kind, kind, rounded
 from app.domain.bank.runner import CodeRunner
 
 
+@kind(Kind.COMPUTE)
 def mean_median(rng: random.Random, runner: CodeRunner) -> Instance:
     values = [rng.randint(1, 99) for _ in range(rng.randint(6, 9))]
     ordered = sorted(values)
@@ -23,6 +24,7 @@ def mean_median(rng: random.Random, runner: CodeRunner) -> Instance:
     return Instance(prompt, f"{rounded(mean, 1)} {rounded(median, 1)}", {"values": values})
 
 
+@kind(Kind.COMPUTE)
 def dice_sum(rng: random.Random, runner: CodeRunner) -> Instance:
     sides = rng.choice([4, 6, 8])
     dice = rng.randint(2, 3)
@@ -46,6 +48,7 @@ def dice_sum(rng: random.Random, runner: CodeRunner) -> Instance:
     )
 
 
+@kind(Kind.COMPUTE)
 def conditional_table(rng: random.Random, runner: CodeRunner) -> Instance:
     a, b, c, d = (rng.randint(5, 80) for _ in range(4))
     code = (
@@ -67,6 +70,7 @@ def conditional_table(rng: random.Random, runner: CodeRunner) -> Instance:
     )
 
 
+@kind(Kind.COMPUTE)
 def variance_std(rng: random.Random, runner: CodeRunner) -> Instance:
     values = [rng.randint(1, 30) for _ in range(rng.randint(5, 7))]
     sample = rng.random() < 0.5
@@ -85,6 +89,7 @@ def variance_std(rng: random.Random, runner: CodeRunner) -> Instance:
     )
 
 
+@kind(Kind.COMPUTE)
 def combinatorics(rng: random.Random, runner: CodeRunner) -> Instance:
     n = rng.randint(6, 15)
     k = rng.randint(2, min(5, n - 1))
@@ -95,6 +100,7 @@ def combinatorics(rng: random.Random, runner: CodeRunner) -> Instance:
     return Instance(prompt, f"{math.comb(n, k)} {math.perm(n, k)}", {"n": n, "k": k})
 
 
+@kind(Kind.COMPUTE)
 def expected_value(rng: random.Random, runner: CodeRunner) -> Instance:
     outcomes = [(rng.randint(-50, 200), rng.randint(1, 9)) for _ in range(3)]
     total = sum(w for _, w in outcomes)
@@ -107,6 +113,7 @@ def expected_value(rng: random.Random, runner: CodeRunner) -> Instance:
     return Instance(prompt, f"{rounded(ev, 2)}", {"outcomes": outcomes}, code="\n".join(lines))
 
 
+@kind(Kind.COMPUTE)
 def bayes(rng: random.Random, runner: CodeRunner) -> Instance:
     prevalence = rng.choice([0.5, 1, 2, 5, 10])
     sensitivity = rng.choice([80, 90, 95, 99])
@@ -124,6 +131,7 @@ def bayes(rng: random.Random, runner: CodeRunner) -> Instance:
     return Instance(prompt, f"{rounded(posterior, 3)}", params)
 
 
+@kind(Kind.COMPUTE)
 def binomial(rng: random.Random, runner: CodeRunner) -> Instance:
     n = rng.randint(5, 15)
     p = rng.choice([0.1, 0.2, 0.3, 0.4, 0.5])
@@ -142,6 +150,7 @@ def binomial(rng: random.Random, runner: CodeRunner) -> Instance:
     return Instance(prompt, f"{rounded(value, 3)}", {"n": n, "p": p, "k": k, "at_least": at_least})
 
 
+@kind(Kind.COMPUTE)
 def z_score(rng: random.Random, runner: CodeRunner) -> Instance:
     mean = rng.randrange(50, 500, 10)
     sd = rng.randrange(5, 60, 5)
@@ -158,6 +167,7 @@ def z_score(rng: random.Random, runner: CodeRunner) -> Instance:
     )
 
 
+@kind(Kind.COMPUTE)
 def pearson(rng: random.Random, runner: CodeRunner) -> Instance:
     xs = [rng.randint(1, 20) for _ in range(5)]
     slope = rng.choice([-2, -1, 1, 2, 3])
@@ -173,6 +183,7 @@ def pearson(rng: random.Random, runner: CodeRunner) -> Instance:
     return Instance(prompt, f"{rounded(r, 2)}", {"xs": xs, "ys": ys}, code="\n".join(lines))
 
 
+@kind(Kind.COMPUTE)
 def matrix_product(rng: random.Random, runner: CodeRunner) -> Instance:
     a = [[rng.randint(-3, 5) for _ in range(3)] for _ in range(2)]
     b = [[rng.randint(-3, 5) for _ in range(2)] for _ in range(3)]
@@ -185,6 +196,7 @@ def matrix_product(rng: random.Random, runner: CodeRunner) -> Instance:
     return Instance(prompt, answer, {"a": a, "b": b}, code=code)
 
 
+@kind(Kind.COMPUTE)
 def gradient_step(rng: random.Random, runner: CodeRunner) -> Instance:
     points = [(rng.randint(0, 5), rng.randint(-5, 15)) for _ in range(3)]
     w, b = rng.randint(-2, 3), rng.randint(-3, 3)

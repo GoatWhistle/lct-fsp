@@ -1,4 +1,4 @@
-import type { Need, TopicImportance, Verdict, WorkFormat } from '../api/client'
+import type { GradeStatus, Need, TopicImportance, Verdict, WorkFormat } from '../api/client'
 import { oneDecimal } from '../candidate/words'
 import { salaryWords } from '../components/salary'
 
@@ -24,6 +24,18 @@ export const verdictWords: Record<Verdict, string> = {
   likely_above: 'скорее выше требования',
   likely_below: 'скорее ниже требования',
   below: 'ниже требования',
+}
+
+/** Статус грейда: «подтверждён тестом», «заявлен Middle — подтверждён Junior», «заявлен Middle, тест не пройден». */
+export function gradeStatusWords(status: GradeStatus): string {
+  switch (status.kind) {
+    case 'confirmed':
+      return 'подтверждён тестом'
+    case 'below_claimed':
+      return `заявлен ${status.claimed.name} — подтверждён ${status.confirmed?.name ?? ''}`
+    case 'unconfirmed':
+      return `заявлен ${status.claimed.name}, тест не пройден`
+  }
 }
 
 /** Вклад в соответствие в процентных пунктах: «+31,2». */

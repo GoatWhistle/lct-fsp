@@ -3,6 +3,7 @@ import { api, errorMessage, type CandidatePath } from '../api/client'
 import { Cabinet } from '../components/Cabinet'
 import { gradeName, useCatalog, type Catalog } from '../candidate/catalog'
 import { GradeStep } from '../candidate/GradeStep'
+import { Inbox } from '../candidate/Inbox'
 import { ProfileCard } from '../candidate/ProfileCard'
 import { SkillProfileView, TestResultView } from '../candidate/Results'
 import { SurveyStep } from '../candidate/SurveyStep'
@@ -155,10 +156,7 @@ function CategoryCabinet({ catalog, path }: { catalog: Catalog; path: CandidateP
   return (
     <Cabinet
       title="Кабинет кандидата"
-      upcoming={[
-        'Смена грейда и история тестов',
-        'Приглашения от работодателей',
-      ]}
+      upcoming={['Смена грейда и история тестов']}
     >
       {category && (
         <div className="card">
@@ -176,6 +174,7 @@ function CategoryCabinet({ catalog, path }: { catalog: Catalog; path: CandidateP
           )}
         </div>
       )}
+      <Inbox />
       <ProfileCard />
       {path.result && <TestResultView catalog={catalog} result={path.result} />}
       {path.profile && <SkillProfileView profile={path.profile} />}

@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react'
 import { Link, Navigate, useNavigate, useSearchParams } from 'react-router'
 import { api, cabinetPath, errorCode, errorMessage } from '../api/client'
 import { useAuth } from '../auth/context'
+import { fspReturnError, goToFspId } from '../candidate/fsp'
 import { ResendVerification } from '../components/ResendVerification'
 
 export function Login() {
@@ -12,6 +13,8 @@ export function Login() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState<{ message: string; unverified: boolean } | null>(null)
   const [submitting, setSubmitting] = useState(false)
+  const [fspError, setFspError] = useState<string | null>(fspReturnError(params.get('fsp_error')))
+  const [leaving, setLeaving] = useState(false)
 
   if (user) return <Navigate to={cabinetPath[user.role]} replace />
 
@@ -29,9 +32,30 @@ export function Login() {
     }
   }
 
+  async function viaFspId() {
+    setLeaving(true)
+    setFspError(null)
+    const failed = await goToFspId('login')
+    if (failed) {
+      setFspError(failed)
+      setLeaving(false)
+    }
+  }
+
   return (
     <section className="card narrow">
       <h1>Вход</h1>
+      <div className="form">
+        <button type="button" className="button" disabled={leaving} onClick={viaFspId}>
+          Войти через ФСП ID
+        </button>
+        {fspError && <p className="error">{fspError}</p>}
+        <p className="hint">
+          Для кандидатов: создаст учётку или войдёт в привязанную, достижения ФСП сразу попадут в
+          профиль. Уже есть учётка по email — войдите ниже и привяжите ФСП ID в профиле.
+        </p>
+      </div>
+      <p className="muted">или по email</p>
       <form onSubmit={submit} className="form">
         <label className="field">
           Email

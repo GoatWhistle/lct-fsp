@@ -24,9 +24,11 @@ from app.domain.calibration import CalibratedFamily, Parameters
 from app.domain.determination import grades_by_threshold
 from app.domain.selection import PoolCandidate
 from app.domain.skill import Normal, Observation, SkillEstimate, sigmoid
+from app.repository.memory.calibration import MemoryCalibrationRepository
+from app.repository.memory.unit_of_work import MemoryStore
 from app.usecase.interface import ItemSelector
 from app.usecase.skill_profile import specialization_prior
-from composition import item_selector
+from composition import elo_calibration, item_selector
 from validation.main import Stand, build_stand
 from validation.metrics import pearson, rmse
 
@@ -40,8 +42,8 @@ WRONG = "ответа нет"
 
 
 def expert(grade: str, mechanics: Mechanics) -> Parameters:
-    """Стартовые параметры семейства по грейду эксперта — как в `EloCalibration.expert`."""
-    return Parameters(mechanics.expert_discrimination, mechanics.expert_difficulty_by_grade[grade])
+    """Стартовые параметры семейства по грейду эксперта — у калибровки прода."""
+    return elo_calibration(MemoryCalibrationRepository(MemoryStore()), mechanics).expert(grade)
 
 
 @dataclass(frozen=True)
@@ -114,11 +116,12 @@ class Market:
         self.stand = build_stand(mechanics, seed=seed, selector=self.selector)
         topics = [t.code for t in self.stand.catalog.specializations[specialization].topics]
         self.prior = specialization_prior(topics, mechanics)
+        self.expert = elo_calibration(self.stand.calibration, mechanics).expert
         self.families = families_for_topics(topics)
         self._topics = {f.code: f.topic for f in self.families}
         self.truth: dict[str, Parameters] = {}
         for f in self.families:
-            start = expert(f.grade, mechanics)
+            start = self.expert(f.grade)
             # Параметры якоря известны — на этом знании и держится шкала.
             self.truth[f.code] = (
                 start
@@ -209,7 +212,7 @@ class Market:
         queues = {
             t: sorted(
                 (f for f in self.families if f.topic == t),
-                key=lambda f: (abs(expert(f.grade, self.mechanics).difficulty - target), f.code),
+                key=lambda f: (abs(self.expert(f.grade).difficulty - target), f.code),
             )
             for t in self.prior.topics
         }
@@ -258,7 +261,7 @@ class Market:
         """Текущие параметры всех семейств банка, и выведенных из выдачи тоже."""
         rows = self.calibrated()
         return {
-            f.code: rows[f.code].parameters if f.code in rows else expert(f.grade, self.mechanics)
+            f.code: rows[f.code].parameters if f.code in rows else self.expert(f.grade)
             for f in self.families
         }
 
@@ -325,7 +328,7 @@ def calibration_quality(m: Market) -> tuple[float, float, float]:
     params = m.parameters()
     regular = [f for f in m.families if not f.anchor]
     truth = [m.truth[f.code].difficulty for f in regular]
-    start = [expert(f.grade, m.mechanics).difficulty for f in regular]
+    start = [m.expert(f.grade).difficulty for f in regular]
     current = [params[f.code].difficulty for f in regular]
     return pearson(current, truth), rmse(current, truth), rmse(start, truth)
 

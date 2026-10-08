@@ -233,7 +233,7 @@ class MemoryAttemptRepository:
         recent = list(
             itertools.islice(
                 (a for a in candidates if a.id != current_attempt_id and a.presentations),
-                window - 1,
+                max(window - 1, 0),
             )
         )
         # Семейства остановленной попытки больше не меняются — их набор взят при остановке.

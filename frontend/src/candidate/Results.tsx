@@ -48,6 +48,9 @@ export function SkillProfileView({ profile }: { profile: SkillProfile }) {
               <th scope="row">
                 {t.topic.name}
                 {t.sources.includes('fsp') && <span className="hint importance-source">подтверждено ФСП</span>}
+                {t.sources.includes('verification') && (
+                  <span className="hint importance-source">есть задания проверочного блока</span>
+                )}
               </th>
               <td>{levelWords(t.level.band)}</td>
               <td className="num muted">{thetaWithError(t.level)}</td>

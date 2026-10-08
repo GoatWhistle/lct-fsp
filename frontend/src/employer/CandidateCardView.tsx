@@ -45,6 +45,7 @@ export function CandidateCardView({ card }: { card: CandidateCard }) {
           ? `Категория ${card.category.specialization.name} · ${card.category.grade.name} · `
           : 'Категории нет — '}
         грейд {gradeStatusWords(card.grade_status)}
+        {card.category?.verified_at && ' · уровень подтверждён проверочным блоком'}
       </p>
       {card.skill_profile && (
         <p>

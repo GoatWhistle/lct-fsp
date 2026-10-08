@@ -347,6 +347,12 @@ h2 {
   color: var(--accent);
 }
 
+/* Последняя минута проверочного блока. */
+.tag.warning {
+  background: var(--warning-soft);
+  color: var(--warning);
+}
+
 .fsp-tag {
   margin-left: 0.5rem;
   white-space: nowrap;

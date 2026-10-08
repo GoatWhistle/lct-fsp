@@ -1,5 +1,7 @@
-import { useEffect, useState, type FormEvent } from 'react'
+import { useCallback, useEffect, useState, type FormEvent } from 'react'
 import { api, errorMessage, type CandidatePath, type TestItem } from '../api/client'
+import { useFocusCounters } from './focus'
+import { Countdown } from './protection'
 
 // Задание создаётся при первом показе; повторный запрос отдаёт то же — часы ответа не сбросятся.
 function fetchItem() {
@@ -10,14 +12,14 @@ type Props = {
   onDone: (path: CandidatePath) => void
 }
 
-/** Попытка ещё идёт: тест на шаге `test` или незавершённый блок по теме. */
+/** Попытка ещё идёт: тест на шаге `test`, незавершённый блок по теме или проверочный блок. */
 function inProgress(path: CandidatePath): boolean {
-  return path.stage === 'test' || path.topic_block !== null
+  return path.stage === 'test' || path.topic_block !== null || !!path.verification?.progress
 }
 
 /**
- * Задание за заданием — у теста и у блока по теме. Верен ли ответ, сервер не сообщает; пропустить
- * задание нельзя.
+ * Задание за заданием — у теста, блока по теме и проверочного блока. Верен ли ответ, сервер не
+ * сообщает; пропустить задание нельзя. Счётчики событий — только при согласии на попытку.
  */
 export function TestStep({ onDone }: Props) {
   const [item, setItem] = useState<TestItem | null>(null)
@@ -25,6 +27,8 @@ export function TestStep({ onDone }: Props) {
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [stopped, setStopped] = useState(false)
+  const takeCounters = useFocusCounters(item?.focus_consent ?? false)
+  const expire = useCallback(() => setStopped(true), [])
 
   // Не загрузилось — старое задание с экрана убираем: на него уже ответили, повторная отправка
   // получила бы отказ.
@@ -58,7 +62,7 @@ export function TestStep({ onDone }: Props) {
     setSubmitting(true)
     setError(null)
     const { data, error } = await api.POST('/api/candidate/path/item/answer', {
-      body: { presentation_id: item.id, response },
+      body: { presentation_id: item.id, response, ...takeCounters() },
     })
     if (!data) {
       setSubmitting(false)
@@ -88,13 +92,14 @@ export function TestStep({ onDone }: Props) {
     <form onSubmit={submit} className="card form">
       <div className="item-head">
         <span className="muted">
-          {item.topic_block
+          {item.topic_block || item.verification
             ? `Задание ${item.number} из ${item.max_items}`
             : `Задание ${item.number} · не больше ${item.max_items}`}
         </span>
         <span className="tag">{item.topic.name}</span>
+        {item.verification && item.deadline && <Countdown deadline={item.deadline} onExpire={expire} />}
       </div>
-      {item.number === 1 && !item.topic_block && (
+      {item.number === 1 && !item.topic_block && !item.verification && (
         <p className="muted">
           Тест подбирает задания под ваш уровень и заканчивается, когда уровень определён с нужной
           точностью, — обычно раньше лимита.

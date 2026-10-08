@@ -318,6 +318,9 @@ function EntryCard({ entry, score, invitations }: { entry: SelectionEntry; score
                   `${verdictWords[t.verdict]} (${percent(t.probability)})`
                 )}
                 {t.fsp_confirmed && <span className="tag fsp-tag">подтверждено ФСП</span>}
+                {t.verification_confirmed && (
+                  <span className="tag fsp-tag">подтверждено проверочным блоком</span>
+                )}
               </td>
               <td className="num">{contributionWords(t.contribution)}</td>
             </tr>

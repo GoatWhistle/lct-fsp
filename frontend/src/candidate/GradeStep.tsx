@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { api, errorMessage, type CandidatePath, type GradeHint } from '../api/client'
 import { type Catalog } from './catalog'
+import { FocusConsent } from './protection'
 
 const hints: Record<string, string> = {
   intern: 'учусь, первые проекты',
@@ -22,6 +23,7 @@ export function GradeStep({ catalog, survey, onDone, onChangeSurvey }: Props) {
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [hint, setHint] = useState<GradeHint | null>(null)
+  const [consent, setConsent] = useState(false)
   const chosen = catalog.grades.find((g) => g.code === grade)
 
   // Подсказка только показывается: выбранный грейд она не меняет.
@@ -43,7 +45,9 @@ export function GradeStep({ catalog, survey, onDone, onChangeSurvey }: Props) {
     event.preventDefault()
     setSubmitting(true)
     setError(null)
-    const { data, error } = await api.POST('/api/candidate/path/attempts', { body: { grade } })
+    const { data, error } = await api.POST('/api/candidate/path/attempts', {
+      body: { grade, focus_consent: consent },
+    })
     setSubmitting(false)
     if (data) onDone(data)
     else setError(errorMessage(error))
@@ -88,6 +92,7 @@ export function GradeStep({ catalog, survey, onDone, onChangeSurvey }: Props) {
         сервер, время ответа записывается. Если уверенности для выбранного грейда не хватит, сразу
         предложим продолжить на грейд ниже — ответы засчитаются.
       </p>
+      <FocusConsent checked={consent} onChange={setConsent} />
       {error && <p className="error">{error}</p>}
       <div className="actions">
         <button type="submit" className="button" disabled={submitting || !chosen}>

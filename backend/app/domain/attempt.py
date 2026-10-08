@@ -450,6 +450,8 @@ class Item:
     verification: bool = False
     # Срок проверочного блока.
     deadline: datetime | None = None
+    # Кандидат согласился на счётчики событий: без согласия фронт их не собирает.
+    focus_consent: bool = False
 
 
 def test_result(

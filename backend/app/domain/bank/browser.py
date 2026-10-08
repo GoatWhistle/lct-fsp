@@ -5,10 +5,11 @@ import math
 import random
 from urllib.parse import urljoin, urlsplit
 
-from app.domain.bank.family import Instance, rounded
+from app.domain.bank.family import Instance, Kind, kind, rounded
 from app.domain.bank.runner import CodeRunner
 
 
+@kind(Kind.COMPUTE)
 def parallel_downloads(rng: random.Random, runner: CodeRunner) -> Instance:
     files = rng.randint(6, 30)
     per_host = rng.choice([2, 4, 6])
@@ -26,6 +27,7 @@ def parallel_downloads(rng: random.Random, runner: CodeRunner) -> Instance:
     return Instance(prompt, str(total), params)
 
 
+@kind(Kind.COMPUTE)
 def url_resolution(rng: random.Random, runner: CodeRunner) -> Instance:
     base = rng.choice(
         [
@@ -60,6 +62,7 @@ def url_resolution(rng: random.Random, runner: CodeRunner) -> Instance:
     return Instance(prompt, " ".join(answers), {"base": base, "refs": refs})
 
 
+@kind(Kind.TRACE)
 def script_order(rng: random.Random, runner: CodeRunner) -> Instance:
     """Модель: все загрузки стартуют в 0 (сканер предзагрузки), скрипт i загружен к моменту
     load_i. Разбор HTML мгновенный, синхронный скрипт останавливает его до своей загрузки.
@@ -78,23 +81,23 @@ def script_order(rng: random.Random, runner: CodeRunner) -> Instance:
         parser = 0
         moments: list[int] = []
         ambiguous = False
-        for kind, load in zip(kinds, loads, strict=True):
-            if kind == "sync":
+        for script, load in zip(kinds, loads, strict=True):
+            if script == "sync":
                 parser = max(parser, load)
-            if kind in ("inline", "sync"):
+            if script in ("inline", "sync"):
                 moments.append(parser)
-            elif kind == "async":
+            elif script == "async":
                 ambiguous = ambiguous or load <= parser
                 moments.append(load)
             else:
                 moments.append(-1)
         ready = parser
-        for i, kind in enumerate(kinds):
-            if kind in ("defer", "module"):
+        for i, script in enumerate(kinds):
+            if script in ("defer", "module"):
                 ready = max(ready, loads[i])
                 # Отложенные идут после разбора и друг за другом: ничья с ними — не ничья.
                 moments[i] = ready
-        deferred = [i for i, kind in enumerate(kinds) if kind in ("defer", "module")]
+        deferred = [i for i, script in enumerate(kinds) if script in ("defer", "module")]
         timed = [m for i, m in enumerate(moments) if i not in deferred]
         if not ambiguous and len(set(timed)) == len(timed):
             break
@@ -105,13 +108,13 @@ def script_order(rng: random.Random, runner: CodeRunner) -> Instance:
         key=lambda i: (moments[i], i in deferred, i),
     )
     lines = []
-    for name, kind, load in zip(names, kinds, loads, strict=True):
-        if kind == "inline":
+    for name, script, load in zip(names, kinds, loads, strict=True):
+        if script == "inline":
             lines.append(f"<script>log('{name}')</script>")
         else:
             attr = {"sync": "", "defer": " defer", "async": " async", "module": ' type="module"'}
             lines.append(
-                f'<script{attr[kind]} src="{name.lower()}.js"></script>'
+                f'<script{attr[script]} src="{name.lower()}.js"></script>'
                 f"  <!-- загрузится к {load} мс, печатает {name} -->"
             )
     prompt = (
@@ -127,6 +130,7 @@ def script_order(rng: random.Random, runner: CodeRunner) -> Instance:
     )
 
 
+@kind(Kind.TRACE)
 def event_propagation(rng: random.Random, runner: CodeRunner) -> Instance:
     levels = ["outer", "middle", "inner"]
     listeners = []
@@ -167,6 +171,7 @@ def event_propagation(rng: random.Random, runner: CodeRunner) -> Instance:
     return Instance(prompt, " ".join(log), {"listeners": listeners}, code=code)
 
 
+@kind(Kind.COMPUTE)
 def debounce_calls(rng: random.Random, runner: CodeRunner) -> Instance:
     wait = rng.choice([100, 200, 300])
     # Шаг 70 мс: паузы не совпадают с задержкой ровно — без ничьих таймера и нажатия.
@@ -184,6 +189,7 @@ def debounce_calls(rng: random.Random, runner: CodeRunner) -> Instance:
     return Instance(prompt, " ".join(map(str, calls)), {"wait": wait, "moments": moments})
 
 
+@kind(Kind.COMPUTE)
 def throttle_calls(rng: random.Random, runner: CodeRunner) -> Instance:
     wait = rng.choice([100, 200, 300])
     moments = sorted(rng.sample(range(0, 1200, 25), rng.randint(7, 10)))
@@ -201,6 +207,7 @@ def throttle_calls(rng: random.Random, runner: CodeRunner) -> Instance:
     return Instance(prompt, " ".join(map(str, calls)), {"wait": wait, "moments": moments})
 
 
+@kind(Kind.COMPUTE)
 def same_origin(rng: random.Random, runner: CodeRunner) -> Instance:
     base = "https://app.example.ru"
     candidates = [
@@ -228,6 +235,7 @@ def same_origin(rng: random.Random, runner: CodeRunner) -> Instance:
     return Instance(prompt, " ".join(answers), {"urls": picked}, code="\n".join(picked))
 
 
+@kind(Kind.COMPUTE)
 def critical_path(rng: random.Random, runner: CodeRunner) -> Instance:
     html = rng.randint(50, 300)
     css = rng.randint(50, 300)
@@ -255,6 +263,7 @@ def critical_path(rng: random.Random, runner: CodeRunner) -> Instance:
     return Instance(prompt, f"{first_paint} {text_paint}", params, code=code)
 
 
+@kind(Kind.COMPUTE)
 def layout_shift(rng: random.Random, runner: CodeRunner) -> Instance:
     viewport = rng.choice([(800, 600), (1000, 800), (400, 800)])
     shifts = []
@@ -283,6 +292,7 @@ def layout_shift(rng: random.Random, runner: CodeRunner) -> Instance:
     return Instance(prompt, f"{rounded(total, 3)}", params, code="\n".join(lines))
 
 
+@kind(Kind.COMPUTE)
 def cache_directives(rng: random.Random, runner: CodeRunner) -> Instance:
     max_age = rng.choice([30, 60, 90])
     swr = rng.choice([0, 0, 60, 120])
@@ -311,6 +321,7 @@ def cache_directives(rng: random.Random, runner: CodeRunner) -> Instance:
     return Instance(prompt, "".join(letters), {"directive": directive, "moments": moments})
 
 
+@kind(Kind.COMPUTE)
 def long_tasks(rng: random.Random, runner: CodeRunner) -> Instance:
     tasks = [rng.choice([5, 10, 20, 30, 45, 60, 80, 120, 200]) for _ in range(rng.randint(5, 8))]
     blocking = sum(max(0, t - 50) for t in tasks)
@@ -323,6 +334,7 @@ def long_tasks(rng: random.Random, runner: CodeRunner) -> Instance:
     return Instance(prompt, f"{long_count} {blocking}", {"tasks": tasks})
 
 
+@kind(Kind.COMPUTE)
 def service_worker(rng: random.Random, runner: CodeRunner) -> Instance:
     strategy = rng.choice(["cache-first", "network-first", "stale-while-revalidate"])
     start = rng.randint(1, 9)

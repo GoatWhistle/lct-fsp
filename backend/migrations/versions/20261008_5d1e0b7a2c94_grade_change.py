@@ -5,7 +5,7 @@
 ожидания. Уже присвоенные категории переносятся в журнал записью первичного определения.
 
 Revision ID: 5d1e0b7a2c94
-Revises: 7c604420b704
+Revises: 3f1c9a7d2e64
 Create Date: 2026-10-08 12:00:00.000000
 
 """
@@ -16,7 +16,7 @@ import sqlalchemy as sa
 from alembic import op
 
 revision: str = "5d1e0b7a2c94"
-down_revision: str | Sequence[str] | None = "7c604420b704"
+down_revision: str | Sequence[str] | None = "3f1c9a7d2e64"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 

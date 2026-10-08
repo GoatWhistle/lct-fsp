@@ -19,9 +19,34 @@ docker compose up --build
 | Фронт | http://localhost:3000 |
 | Swagger (OpenAPI) | http://localhost:8000/api/docs |
 | Mailpit — письма подтверждения | http://localhost:8025 |
+| Keycloak, изображает ФСП ID (админка `admin` / `admin`) | http://localhost:8080 |
 
 Путь для проверки: «Регистрация» → выбрать роль → письмо приходит в Mailpit → ссылка из письма
 → «Войти» → кабинет своей роли. Без подтверждения адреса вход закрыт.
+
+Кандидат входит и через ФСП ID: «Войти через ФСП ID» на странице входа → страница ФСП ID →
+тестовый участник → кабинет кандидата, достижения ФСП уже в профиле. Новый участник получает
+учётку кандидата; если учётка с его email уже есть, вход отклоняется — войдите по email и
+привяжите ФСП ID в профиле кандидата («ФСП ID» → «Привязать ФСП ID»). Тестовые участники — пароль
+`fsp-demo-2026`:
+
+| Логин ФСП ID | Что в реестре |
+|---|---|
+| `fsp-winner` | победитель и призёр по алгоритмам, финал по продуктовому |
+| `fsp-prize` | призёр хакатона в роли бэкенда, финал по алгоритмам |
+| `fsp-finalist` | только финалы |
+| `fsp-qualifier` | только отборы — факт в профиле, не наблюдение |
+| `fsp-no-history` | без истории ФСП |
+| `fsp-team-frontend`, `fsp-team-data`, `fsp-team-qa`, `fsp-team-devops` | командные результаты с ролью |
+| `fsp-security` | победитель и призёр по информационной безопасности |
+| `fsp-robotics` | дисциплины без тем — только факт |
+| `fsp-divergent-algo`, `fsp-divergent-product` | сильные результаты: пройдите тест слабо — увидите расхождение |
+| `fsp-unverified` | email в ФСП ID не подтверждён — вход отклоняется |
+
+Достижения ФСП — наблюдения высшего уровня доверия в профиле навыков: в объяснении подборки у
+темы появляется «подтверждено ФСП». Работодатель в обезличенной карточке видит тип результата,
+дисциплину и год, PDF-профиль — достижения полностью. Грейд и категорию ФСП не меняет. Keycloak на
+старте занимает около 0,5 ГБ памяти (лимит контейнера — 768 МБ); вход по email без него работает.
 
 Кандидат без категории попадает на путь к ней: опрос (направление — специализация) → выбор
 грейда → тест → результат — уровень с погрешностью, вероятность каждого грейда, категория и
@@ -46,7 +71,9 @@ docker compose up --build
 обезличена. Подборка сохраняется и открывается позже с той же выдачей; «Перестроить» создаёт
 новую по текущим данным.
 
-Порты и секрет подписи входа меняются в `.env` — образец в [`.env.example`](.env.example).
+Порты, секрет подписи входа и адрес и ключи ФСП ID меняются в `.env` — образец в
+[`.env.example`](.env.example). Настоящий ФСП ID — смена `FSP_ID_ISSUER`, `FSP_ID_SERVER_URL`,
+`FSP_ID_CLIENT_ID` и `FSP_ID_CLIENT_SECRET`, без правки кода.
 
 ## Тесты
 
@@ -68,6 +95,14 @@ docker compose run --rm --build tests
 - `uv run python -m validation tune` — подбор поправки погрешности `level_sd_inflation` на
   настроечном наборе D3.
 
+Банк заданий — тоже из `backend/`:
+
+- `uv run python -m bank_report` — отчёт покрытия в markdown: доля трассировки по темам,
+  сценарные семейства у middle и senior, ячейки «тема × грейд» без семейств и без описания в
+  матрице грейдов; с `--calibration` — и сверка сложности с экспертной по калибровке из базы;
+- `uv run python -m bank_report matrix` — пересобрать [`docs/grade-matrix.md`](docs/grade-matrix.md)
+  из `config/grade_matrix.yaml`.
+
 ## Устройство
 
 ```
@@ -76,6 +111,7 @@ backend/                 FastAPI + SQLAlchemy + Alembic, PostgreSQL
                          main:create_app`) и синхронизация справочника `sync_catalog`
   composition.py         общая проводка сценариев из портов — для прода и стенда
   settings.py            настройки окружения `Settings` и параметры механик `Mechanics`
+  fsp_stub.py            генератор заглушки ФСП: realm Keycloak и реестр достижений из одного seed
   validation/            стенд валидации: сборка `main.py`, синтетика, команды
   app/                   только слои — docs/adr/0001-layers-and-ports.md
     domain/              сущности и правила без библиотек: тест, категория, профиль навыков,
@@ -83,31 +119,38 @@ backend/                 FastAPI + SQLAlchemy + Alembic, PostgreSQL
     usecase/             сценарии на единице работы и порты (`interface.py`)
     controller/          роутеры FastAPI, схемы Pydantic, зависимости, guard ролей
     adapter/             реализации портов: модель навыка IRT, выбор задания, калибровка,
-                         почта, PDF, пароли, токен входа, файл справочника
+                         почта, PDF, пароли, токен входа, файл справочника, ФСП ID (OIDC),
+                         реестр ФСП
     repository/          хранилища на Postgres, ORM всех таблиц (`orm/`), in-memory (`memory/`)
   config/mechanics.yaml  параметры механик — те же, что в docs/parameters.md
-  config/catalog.yaml    справочники: грейды, сферы бизнеса, специализации, темы, технологии
+  config/catalog.yaml    справочники: грейды, сферы бизнеса, специализации, темы, технологии,
+                         дисциплины ФСП
+  config/fsp_registry.json  заглушка реестра ФСП — генерирует fsp_stub.py
   migrations/            миграции схемы
   tests/                 тесты через HTTP API и сценарии на in-memory хранилищах
 frontend/                React + TypeScript (Vite), на стенде — nginx
-docker-compose.yml       PostgreSQL, бэкенд, фронт, Mailpit
+keycloak/                realm, который изображает ФСП ID, — генерирует backend/fsp_stub.py
+docker-compose.yml       PostgreSQL, бэкенд, фронт, Mailpit, Keycloak
 ```
 
 Зависимости слоёв идут внутрь, к `domain`; `tests/test_layers.py` это проверяет. Сущность
 проходит все слои под одним именем: учётки — `domain/account.py`, `usecase/account.py`,
 `controller/auth.py`, `repository/account.py`; потребность — `need.py` в каждом слое; путь
 кандидата к категории — `domain/attempt.py`, `usecase/attempt.py`, `controller/path.py`,
-`repository/attempt.py`; подборка — `selection.py`, P(принятия) — за портом `AcceptanceModel`.
-Вход — по email и паролю, пароль хранится хэшем argon2, сессия — подписанный токен в
-httpOnly-cookie. Права проверяет бэкенд: разделы `/api/candidate/*` и `/api/employer/*`
+`repository/attempt.py`; подборка — `selection.py`, P(принятия) — за портом `AcceptanceModel`;
+приглашение — `invitation.py` в каждом слое, статус «истекло» выводит домен при чтении.
+Вход — по email и паролю или через ФСП ID (`controller/fsp.py`, сценарии — `usecase/fsp.py`),
+пароль хранится хэшем argon2, сессия — подписанный токен в httpOnly-cookie. Права проверяет
+бэкенд: разделы `/api/candidate/*` и `/api/employer/*`
 отвечают 403 чужой роли.
 
 ## Разработка
 
-Бэкенд локально — база и почта из compose, код с перезагрузкой:
+Бэкенд локально — база, почта и ФСП ID из compose, код с перезагрузкой (бэкенд вне compose ходит
+в Keycloak по `localhost:8080` — адрес по умолчанию):
 
 ```sh
-docker compose up -d db mailpit
+docker compose up -d db mailpit keycloak
 cd backend
 uv sync
 uv run alembic upgrade head
@@ -117,6 +160,11 @@ uv run uvicorn --factory main:create_app --reload
 
 Фронт локально — `cd frontend && npm install && npm run dev`, http://localhost:3000, запросы
 `/api` проксируются на `:8000`.
+
+Заглушка ФСП — синтетика: персоны тестовых участников в `backend/fsp_stub.py`, после правки —
+`cd backend && uv run python fsp_stub.py` перезапишет `keycloak/realm-fsp-id.json` и
+`backend/config/fsp_registry.json`. Realm импортируется при первом старте Keycloak; чтобы
+перечитать — `docker compose up -d --force-recreate keycloak`.
 
 Проверки перед PR:
 
@@ -170,5 +218,6 @@ cd frontend && npm run lint && npm run build
   4. тестовая реализация — тоже в `app/adapter/` (`MemoryMailer`); тесты подставляют её через
      параметр `create_app`, хелперы поверх — в `tests/conftest.py` (`Outbox`).
 - **Тест** — через HTTP API, фикстуры из `tests/conftest.py`: `client` — аноним,
-  `signed_in(Role.candidate)` — вошедший пользователь роли, `outbox` — отправленные письма.
+  `signed_in(Role.candidate)` — вошедший пользователь роли, `outbox` — отправленные письма,
+  `fsp_id` — ФСП ID в памяти (код за участника — `issue`), `fsp_registry` — реестр ФСП в памяти.
 - **Типы API на фронте** генерируются из OpenAPI: при запущенном бэкенде `npm run api:types`.

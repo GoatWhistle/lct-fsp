@@ -27,7 +27,7 @@ from app.controller.need_schemas import (
     TopicImportanceIn,
     TopicImportanceOut,
 )
-from app.controller.schemas import CatalogRef
+from app.controller.schemas import CatalogRef, GradeStatusOut
 from app.domain import errors
 from app.domain.account import Role
 from app.domain.need import NEED_ERRORS, NeedForm, TopicView
@@ -208,6 +208,7 @@ def _summary_out(summary: Summary) -> SelectionSummaryOut:
         grade=CatalogRef.model_validate(need.grade),
         exact_total=summary.totals[SelectionBlock.exact],
         nearby_total=summary.totals[SelectionBlock.nearby],
+        unconfirmed_total=summary.totals[SelectionBlock.unconfirmed],
         created_at=selection.created_at,
     )
 
@@ -250,6 +251,7 @@ def _selection_out(page: Page) -> SelectionOut:
                 block=entry.block,
                 rank=entry.rank,
                 grade=CatalogRef.model_validate(entry.grade),
+                grade_status=GradeStatusOut.model_validate(entry.status),
                 match_score=entry.match_score,
                 acceptance_probability=entry.acceptance_probability,
                 mutual_score=entry.mutual_score,
@@ -265,6 +267,7 @@ def _selection_out(page: Page) -> SelectionOut:
                         contribution=fit.contribution,
                         verdict=fit.verdict,
                         low_data=fit.low_data,
+                        fsp_confirmed=fit.fsp_confirmed,
                     )
                     for fit in explanation.topics
                 ],

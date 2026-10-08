@@ -15,6 +15,7 @@ from app.controller.deps import (
     AUTH_RESPONSES,
     AccountsDep,
     CurrentUser,
+    SessionCookie,
     SessionCookieDep,
 )
 from app.controller.errors import error_responses
@@ -66,15 +67,20 @@ def login(
     body: LoginIn, response: Response, accounts: AccountsDep, cookie: SessionCookieDep
 ) -> UserOut:
     signed_in = accounts.sign_in(body.email, body.password)
+    set_session_cookie(response, signed_in.session_token, cookie)
+    return UserOut.model_validate(signed_in.account)
+
+
+def set_session_cookie(response: Response, token: str, cookie: SessionCookie) -> None:
+    """Cookie входа — одна для входа по email и через ФСП ID."""
     response.set_cookie(
         ACCESS_COOKIE,
-        signed_in.session_token,
+        token,
         max_age=cookie.max_age,
         httponly=True,
         secure=cookie.secure,
         samesite="lax",
     )
-    return UserOut.model_validate(signed_in.account)
 
 
 @router.post("/logout", status_code=status.HTTP_204_NO_CONTENT, summary="Выход")

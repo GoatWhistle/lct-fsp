@@ -4,27 +4,20 @@
 """
 
 import io
-import uuid
 from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import timedelta
 from typing import Any
 
 import pytest
 from fastapi.testclient import TestClient
 from pypdf import PdfReader
-from sqlalchemy import Engine, insert, select
+from sqlalchemy import Engine
 
+from app.adapter.clock import FrozenClock
 from app.domain.account import Role
-from app.repository.orm import (
-    CandidateCategory,
-    SkillProfile,
-    SkillProfileTopic,
-    Survey,
-    TestAttempt,
-    Topic,
-)
-from tests.conftest import transaction
+from settings import Mechanics
+from tests.candidate_path import grant_category, with_company
 
 Json = dict[str, Any]
 
@@ -106,8 +99,18 @@ ENDPOINTS = {
         Endpoint(
             "подборка: сохранённая", "GET", lambda w: f"/api/employer/selections/{w.selection_id}"
         ),
+        Endpoint("приглашения работодателя", "GET", lambda w: "/api/employer/invitations"),
     ]
 }
+
+# Эндпоинты, которые отдают работодателю данные кандидата или что-то о нём.
+EMPLOYER_ENDPOINTS = (
+    "карточка",
+    "подборка: построение",
+    "подборка: страница",
+    "подборка: сохранённая",
+    "приглашения работодателя",
+)
 
 # Эндпоинт × зритель → код и что из раскрываемого видно. Другой кандидат получает свой профиль
 # — он не заполнен — и не может собрать чужой PDF. PDF — для самого кандидата, но без ожидаемой
@@ -122,81 +125,13 @@ TABLE: list[tuple[str, str, int, frozenset[str]]] = [
     ("PDF", Viewer.employer, 403, NONE),
     ("PDF", Viewer.anonymous, 401, NONE),
 ]
-for endpoint in ("карточка", "подборка: построение", "подборка: страница", "подборка: сохранённая"):
+for endpoint in EMPLOYER_ENDPOINTS:
     TABLE += [
         (endpoint, Viewer.me, 403, NONE),
         (endpoint, Viewer.other, 403, NONE),
         (endpoint, Viewer.employer, 201 if endpoint == "подборка: построение" else 200, NONE),
         (endpoint, Viewer.anonymous, 401, NONE),
     ]
-
-
-def grant_category(db_engine: Engine, user_id: str) -> None:
-    """Категория QA · Middle и профиль навыков — прямо в базу, без прохождения теста."""
-    uid, survey, attempt, profile = uuid.UUID(user_id), uuid.uuid4(), uuid.uuid4(), uuid.uuid4()
-    now = datetime.now(UTC)
-    with transaction(db_engine) as db:
-        topics = db.scalars(select(Topic.code).where(Topic.specialization_code == "qa")).all()
-        db.execute(
-            insert(Survey),
-            [
-                {
-                    "id": survey,
-                    "user_id": uid,
-                    "number": 1,
-                    "specialization_code": "qa",
-                    "created_at": now,
-                }
-            ],
-        )
-        db.execute(
-            insert(TestAttempt),
-            [
-                {
-                    "id": attempt,
-                    "user_id": uid,
-                    "number": 1,
-                    "survey_id": survey,
-                    "specialization_code": "qa",
-                    "grade_code": "middle",
-                    "started_at": now,
-                }
-            ],
-        )
-        db.execute(
-            insert(CandidateCategory),
-            [
-                {
-                    "user_id": uid,
-                    "specialization_code": "qa",
-                    "grade_code": "middle",
-                    "attempt_id": attempt,
-                    "assigned_at": now,
-                }
-            ],
-        )
-        db.execute(
-            insert(SkillProfile),
-            [
-                {
-                    "id": profile,
-                    "user_id": uid,
-                    "specialization_code": "qa",
-                    "overall_theta": 0.5,
-                    "overall_theta_sd": 0.4,
-                    "observations": 20,
-                    "last_signal_at": now,
-                    "updated_at": now,
-                }
-            ],
-        )
-        db.execute(
-            insert(SkillProfileTopic),
-            [
-                {"profile_id": profile, "topic_code": t, "theta": 0.5, "theta_sd": 0.4}
-                for t in topics
-            ],
-        )
 
 
 @pytest.fixture
@@ -211,6 +146,7 @@ def world(
         signed_in(Role.employer),
     )
     me.put("/api/candidate/profile", json=PROFILE).raise_for_status()
+    with_company(employer)
     candidate_id: str = me.get("/api/auth/me").json()["id"]
     grant_category(db_engine, candidate_id)
 
@@ -264,3 +200,86 @@ def test_table_covers_every_endpoint_and_viewer() -> None:
     assert sorted((e, v) for e, v, _, _ in TABLE) == sorted(
         (e, v) for e in ENDPOINTS for v in viewers
     )
+
+
+# Раскрытие работодателю по приглашениям (§14): каждый эндпоинт работодателя × состояние
+# приглашений этому кандидату. Раскрывает только принятое приглашение этой же компании, и
+# ожидаемой зарплаты нет и тогда; раскрытое отдаёт одна карточка.
+INVITATION_STATES = (
+    "нет приглашения",
+    "отправлено",
+    "просмотрено",
+    "отклонено",
+    "истекло",
+    "принято другой компанией",
+    "принято",
+)
+DISCLOSED_TO_EMPLOYER = ALL - {"зарплата"}
+
+
+def bring_to(
+    state: str,
+    world: World,
+    other_employer: TestClient,
+    clock: FrozenClock,
+    ttl: timedelta,
+) -> None:
+    me, employer = world.clients[Viewer.me], world.clients[Viewer.employer]
+    terms = {
+        "candidate_id": world.candidate_id,
+        "description": "Автотесты платёжного шлюза",
+        "salary_from": 250_000,
+        "salary_to": 300_000,
+        "contact": "@pay_hr",
+    }
+
+    def invite(by: TestClient) -> str:
+        response = by.post("/api/employer/invitations", json=terms)
+        assert response.status_code == 201, response.text
+        invitation_id: str = response.json()["id"]
+        return invitation_id
+
+    def act(invitation_id: str, action: str) -> None:
+        me.post(f"/api/candidate/invitations/{invitation_id}/{action}").raise_for_status()
+
+    match state:
+        case "нет приглашения":
+            pass
+        case "отправлено":
+            invite(employer)
+        case "просмотрено":
+            act(invite(employer), "view")
+        case "отклонено":
+            act(invite(employer), "decline")
+        case "истекло":
+            # Отправлено срок назад: часы вперёд не двигаем — сессии тоже истекли бы.
+            clock.shift(-ttl)
+            invite(employer)
+            clock.shift(ttl)
+        case "принято другой компанией":
+            act(invite(other_employer), "accept")
+        case "принято":
+            act(invite(employer), "accept")
+        case _:
+            raise AssertionError(state)
+
+
+@pytest.mark.parametrize("state", INVITATION_STATES)
+@pytest.mark.parametrize("endpoint", EMPLOYER_ENDPOINTS)
+def test_employer_sees_candidate_disclosed_only_after_own_accepted_invitation(
+    world: World,
+    signed_in: Callable[[Role], TestClient],
+    clock: FrozenClock,
+    mechanics: Mechanics,
+    endpoint: str,
+    state: str,
+) -> None:
+    other_employer = with_company(signed_in(Role.employer), "Другая компания")
+    bring_to(state, world, other_employer, clock, timedelta(days=mechanics.invitation_ttl_days))
+
+    code, text = ENDPOINTS[endpoint].call(world, Viewer.employer)
+
+    assert code < 300, text
+    visible = {name for name, marker in SECRETS.items() if marker in text}
+    expected = DISCLOSED_TO_EMPLOYER if (endpoint, state) == ("карточка", "принято") else NONE
+    assert visible == expected

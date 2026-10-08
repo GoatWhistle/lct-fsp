@@ -1,11 +1,14 @@
 """Подборка по потребности (mechanics.md, §12–13): кто попадает, в какой блок, скор, объяснение и
 порядок.
 
-Категория отсекает: в подборку попадают только кандидаты с категорией по тесту — точные
-(специализация и грейд потребности) и «близкие» (грейд на `nearby_grade_distance` от грейда
+Категория отсекает: скор считается только кандидатам с категорией по тесту — точным
+(специализация и грейд потребности) и «близким» (грейд на `nearby_grade_distance` от грейда
 потребности). Блоки идут в порядке `BLOCK_ORDER`, внутри блока — по взаимному скору S × P.
 P(принятия) приходит снаружи, из модели принятия; скор, вклады и их сумма считаются здесь, и
 модель на них не влияет: сумма вкладов равна S при любой P.
+
+Нижний блок — витрина кандидатов без категории, заявивших грейд потребности: скора по темам и
+P(принятия) у них нет, порядок — только по самоописанному стеку, и блок всегда последний.
 
 Подборка — снимок потребности и выдача на момент построения. Хранится и открывается позже с той
 же выдачей; перестроение — новая подборка.
@@ -18,6 +21,7 @@ from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 
+from app.domain.candidate import GradeStatus, grade_status
 from app.domain.catalog import CatalogRef, Grade, Specialization, Technology
 from app.domain.importance import TopicImportance, topic_importance
 from app.domain.match import (
@@ -27,6 +31,7 @@ from app.domain.match import (
     match_score,
     ranking,
     requirements,
+    stack_overlap,
     verdict,
 )
 from app.domain.skill import Normal
@@ -38,11 +43,17 @@ class SelectionBlock(enum.StrEnum):
     exact = "exact"
     # Та же специализация, грейд на `nearby_grade_distance` от грейда потребности.
     nearby = "nearby"
+    # Без категории, заявлен грейд потребности: витрина, а не ранжирование навыка.
+    unconfirmed = "unconfirmed"
 
 
-# Блоки выдачи сверху вниз. Блок неподтверждённого грейда встанет последним: он никогда не выше
-# подтверждённых (docs/adr/0001-layers-and-ports.md).
-BLOCK_ORDER: tuple[SelectionBlock, ...] = (SelectionBlock.exact, SelectionBlock.nearby)
+# Блоки выдачи сверху вниз. Неподтверждённый грейд — последним: он никогда не выше
+# подтверждённых.
+BLOCK_ORDER: tuple[SelectionBlock, ...] = (
+    SelectionBlock.exact,
+    SelectionBlock.nearby,
+    SelectionBlock.unconfirmed,
+)
 
 
 def block_of(need_rank: int, candidate_rank: int, distance: int) -> SelectionBlock | None:
@@ -172,6 +183,22 @@ class PoolCandidate:
     last_signal_at: datetime | None
     # Без заполненного профиля кандидата ожиданий нет.
     expectations: Expectations | None
+    # Заявленный грейд цепочки, давшей категорию; не известен — равен грейду категории.
+    claimed: Grade | None = None
+    # Темы профиля, среди источников которых есть ФСП.
+    fsp_topics: frozenset[str] = frozenset()
+
+
+@dataclass(frozen=True)
+class UnconfirmedCandidate:
+    """Кандидат без категории, заявивший грейд, — то, из чего строится нижний блок."""
+
+    candidate_id: uuid.UUID
+    # Специализация последнего опроса.
+    specialization: str
+    claimed: Grade
+    # Технологии потребности в самоописанном стеке — коды.
+    stack: frozenset[str]
 
 
 @dataclass(frozen=True)
@@ -273,6 +300,8 @@ class TopicExplanation:
     verdict: Verdict
     # Погрешность выше `topic_low_data_sd`.
     low_data: bool
+    # Среди источников уровня темы — результат ФСП.
+    fsp_confirmed: bool = False
 
 
 @dataclass(frozen=True)
@@ -280,18 +309,22 @@ class StackExplanation:
     # Технологии потребности в самоописании кандидата.
     matched: tuple[str, ...]
     overlap: float
-    contribution: float
+    # None — нижний блок: скора, в который входит вклад, нет.
+    contribution: float | None
 
 
 @dataclass(frozen=True)
 class Explanation:
-    """Вклады слагаемых скора: их сумма равна S."""
+    """Вклады слагаемых скора: их сумма равна S. В нижнем блоке тем нет, есть только стек."""
 
     topics: tuple[TopicExplanation, ...]
     stack: StackExplanation
 
 
-def explain(match: Match, rules: SelectionRules) -> Explanation:
+def explain(
+    match: Match, rules: SelectionRules, fsp_topics: frozenset[str] = frozenset()
+) -> Explanation:
+    """Вклады из скора; `fsp_topics` — темы, уровень которых подтверждён ФСП."""
     return Explanation(
         topics=tuple(
             TopicExplanation(
@@ -302,11 +335,35 @@ def explain(match: Match, rules: SelectionRules) -> Explanation:
                 contribution=fit.contribution,
                 verdict=verdict(fit.probability, rules.verdict_bands),
                 low_data=fit.level.sd > rules.low_data_sd,
+                fsp_confirmed=fit.topic in fsp_topics,
             )
             for fit in match.topics
         ),
         stack=StackExplanation(match.stack.matched, match.stack.overlap, match.stack.contribution),
     )
+
+
+@dataclass(frozen=True)
+class Showcased:
+    candidate: UnconfirmedCandidate
+    # Вклада нет: скора у нижнего блока нет.
+    stack: StackExplanation
+
+
+def showcase(need: NeedSnapshot, pool: Iterable[UnconfirmedCandidate]) -> list[Showcased]:
+    """Нижний блок: заявлен ровно грейд потребности в её специализации — без расширения на
+    соседние грейды, что бы ни отдал пул. Порядок задаёт доля стека потребности."""
+    need_stack = [t.code for t in need.stack]
+    shown = []
+    for candidate in pool:
+        if (
+            candidate.specialization != need.specialization.code
+            or candidate.claimed.code != need.grade.code
+        ):
+            continue
+        matched, overlap = stack_overlap(need_stack, candidate.stack)
+        shown.append(Showcased(candidate, StackExplanation(matched, overlap, None)))
+    return shown
 
 
 @dataclass(frozen=True)
@@ -319,57 +376,99 @@ class SelectionEntry:
     block: SelectionBlock
     # Место внутри блока с 1.
     rank: int
-    # Грейд категории кандидата — со снимком названия.
-    grade: CatalogRef
-    match_score: float
-    # None — модели принятия нет, множитель 1.
+    # Статус грейда — со снимком названий.
+    status: GradeStatus
+    # None — нижний блок: скора по темам нет.
+    match_score: float | None
+    # None — модели принятия нет, множитель 1, или нижний блок.
     acceptance_probability: float | None
-    mutual_score: float
+    mutual_score: float | None
     explanation: Explanation
-    # Последний сигнал профиля старше `profile_stale_days`.
+    # Последний сигнал профиля старше `profile_stale_days`; в нижнем блоке профиля нет.
     stale: bool
+
+    @property
+    def grade(self) -> CatalogRef:
+        """Грейд, по которому кандидат в блоке: категории, в нижнем блоке — заявленный."""
+        return self.status.confirmed or self.status.claimed
 
 
 def arrange(
     scored: Sequence[Scored],
     acceptance: Sequence[float | None],
     *,
+    showcased: Sequence[Showcased] = (),
     salt: int,
     now: datetime,
     rules: SelectionRules,
 ) -> list[SelectionEntry]:
     """Выдача: блоки в порядке `BLOCK_ORDER`, внутри блока — по S × P, ничьи — по соли.
-    `acceptance` — P(принятия) по порядку `scored`."""
+    `acceptance` — P(принятия) по порядку `scored`. Нижний блок — `showcased`, по доле стека:
+    он идёт после всех кандидатов с категорией."""
     if len(acceptance) != len(scored):
         raise ValueError("P(принятия) — по одной на кандидата")
     blocks: defaultdict[SelectionBlock, dict[uuid.UUID, tuple[Scored, float | None]]]
     blocks = defaultdict(dict)
     for item, probability in zip(scored, acceptance, strict=True):
         blocks[item.block][item.candidate.candidate_id] = (item, probability)
+    if SelectionBlock.unconfirmed in blocks:
+        raise ValueError("у кандидата нижнего блока нет скора по темам")
+    if {s.candidate.candidate_id for s in showcased} & {i.candidate.candidate_id for i in scored}:
+        raise ValueError("кандидат с категорией в нижний блок не попадает")
 
     entries: list[SelectionEntry] = []
     for block in BLOCK_ORDER:
+        if block is SelectionBlock.unconfirmed:
+            entries.extend(_bottom(showcased, len(entries), salt))
+            continue
         members = blocks.pop(block, {})
         mutual = {c: mutual_score(item.match.score, p) for c, (item, p) in members.items()}
         for rank, candidate_id in enumerate(ranking(mutual, salt), start=1):
             item, probability = members[candidate_id]
-            grade = item.candidate.grade
+            status = grade_status(item.candidate.grade, item.candidate.claimed)
+            assert status is not None, "у кандидата с категорией статус есть всегда"
             entries.append(
                 SelectionEntry(
                     candidate_id=candidate_id,
                     position=len(entries) + 1,
                     block=block,
                     rank=rank,
-                    grade=CatalogRef(grade.code, grade.name),
+                    status=status,
                     match_score=item.match.score,
                     acceptance_probability=probability,
                     mutual_score=mutual[candidate_id],
-                    explanation=explain(item.match, rules),
+                    explanation=explain(item.match, rules, item.candidate.fsp_topics),
                     stale=is_stale(item.candidate.last_signal_at, now, rules.stale_after),
                 )
             )
     if blocks:
         raise ValueError(f"блоков нет в BLOCK_ORDER: {sorted(blocks)}")
+    return entries
+
+
+def _bottom(showcased: Sequence[Showcased], above: int, salt: int) -> list[SelectionEntry]:
+    """Нижний блок с места `above + 1`: только по доле стека, ничьи — той же солью."""
+    members = {s.candidate.candidate_id: s for s in showcased}
+    overlap = {c: s.stack.overlap for c, s in members.items()}
+    entries = []
+    for rank, candidate_id in enumerate(ranking(overlap, salt), start=1):
+        shown = members[candidate_id]
+        status = grade_status(None, shown.candidate.claimed)
+        assert status is not None
+        entries.append(
+            SelectionEntry(
+                candidate_id=candidate_id,
+                position=above + rank,
+                block=SelectionBlock.unconfirmed,
+                rank=rank,
+                status=status,
+                match_score=None,
+                acceptance_probability=None,
+                mutual_score=None,
+                explanation=Explanation((), shown.stack),
+                stale=False,
+            )
+        )
     return entries
 
 

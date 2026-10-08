@@ -4,6 +4,7 @@ import { Cabinet } from '../components/Cabinet'
 import { gradeName, useCatalog, type Catalog } from '../candidate/catalog'
 import { GradeChangeCard, HistoryView } from '../candidate/GradeChange'
 import { GradeStep } from '../candidate/GradeStep'
+import { Inbox } from '../candidate/Inbox'
 import { ProfileCard } from '../candidate/ProfileCard'
 import { SkillProfileView, TestResultView } from '../candidate/Results'
 import { SurveyStep } from '../candidate/SurveyStep'
@@ -167,7 +168,7 @@ function CategoryCabinet({ catalog, path, onChange }: StepProps) {
   const category = path.category
   const hint = path.result?.grade_up_hint
   return (
-    <Cabinet title="Кабинет кандидата" upcoming={['Приглашения от работодателей']}>
+    <Cabinet title="Кабинет кандидата" upcoming={[]}>
       {category && (
         <div className="card">
           <span className="muted">Ваша категория</span>
@@ -185,6 +186,7 @@ function CategoryCabinet({ catalog, path, onChange }: StepProps) {
         </div>
       )}
       <GradeChangeCard catalog={catalog} path={path} onChange={onChange} />
+      <Inbox />
       <ProfileCard />
       {path.result && <TestResultView catalog={catalog} result={path.result} />}
       {path.profile && <SkillProfileView profile={path.profile} />}

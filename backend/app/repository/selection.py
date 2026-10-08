@@ -10,9 +10,10 @@ from collections.abc import Collection, Sequence
 from datetime import UTC, datetime
 from typing import Any
 
-from sqlalchemy import ColumnElement, and_, func, insert, select
-from sqlalchemy.orm import Session
+from sqlalchemy import ColumnElement, and_, exists, func, insert, select
+from sqlalchemy.orm import Session, aliased
 
+from app.domain.candidate import GradeStatus, GradeStatusKind
 from app.domain.catalog import CatalogRef, Grade
 from app.domain.errors import SelectionNotFound
 from app.domain.importance import TopicImportance
@@ -31,10 +32,12 @@ from app.domain.selection import (
     StackExplanation,
     Summary,
     TopicExplanation,
+    UnconfirmedCandidate,
 )
-from app.domain.skill import Normal
+from app.domain.skill import Normal, SignalSource
 from app.domain.work import SalaryBasis, SalaryRange, WorkFormat
-from app.repository.orm.attempt import CandidateCategory
+from app.repository.candidate import claimed_grades
+from app.repository.orm.attempt import CandidateCategory, Survey
 from app.repository.orm.candidate import CandidateProfile, candidate_technologies
 from app.repository.orm.catalog import Grade as GradeRow
 from app.repository.orm.need import Selection as SelectionRow
@@ -65,6 +68,7 @@ class SqlCandidatePool:
                 SkillProfileTopic.topic_code,
                 SkillProfileTopic.theta,
                 SkillProfileTopic.theta_sd,
+                SkillProfileTopic.sources,
             )
             .join(GradeRow, GradeRow.code == CandidateCategory.grade_code)
             .join(
@@ -80,14 +84,24 @@ class SqlCandidatePool:
 
         grades: dict[uuid.UUID, tuple[Grade, datetime | None]] = {}
         topics: dict[uuid.UUID, dict[str, Normal]] = {}
-        for user_id, code, name, rank, last_signal_at, topic, theta, theta_sd in levels:
+        fsp_topics: dict[uuid.UUID, set[str]] = {}
+        for user_id, code, name, rank, last_signal_at, topic, theta, theta_sd, sources in levels:
             if user_id not in grades:
                 grades[user_id] = (Grade(code, name, rank), last_signal_at)
                 topics[user_id] = {}
+                fsp_topics[user_id] = set()
             topics[user_id][topic] = Normal(theta, theta_sd)
+            if SignalSource.fsp in sources:
+                fsp_topics[user_id].add(topic)
 
         stacks = self._stacks(reach, technologies)
         expectations = self._expectations(reach)
+        claimed = claimed_grades(
+            self._session,
+            select(CandidateCategory.user_id)
+            .join(GradeRow, GradeRow.code == CandidateCategory.grade_code)
+            .where(*reach),
+        )
         return [
             PoolCandidate(
                 candidate_id=user_id,
@@ -97,8 +111,42 @@ class SqlCandidatePool:
                 stack=frozenset(stacks.get(user_id, ())),
                 last_signal_at=last_signal_at,
                 expectations=expectations.get(user_id),
+                claimed=claim.grade if (claim := claimed.get(user_id)) else None,
+                fsp_topics=frozenset(fsp_topics[user_id]),
             )
             for user_id, (grade, last_signal_at) in grades.items()
+        ]
+
+    def unconfirmed(
+        self, specialization: str, grade: str, technologies: Collection[str]
+    ) -> list[UnconfirmedCandidate]:
+        # Последний опрос — по `specialization`, категории нет.
+        later = aliased(Survey)
+        surveyed = select(Survey.user_id).where(
+            Survey.specialization_code == specialization,
+            ~exists().where(later.user_id == Survey.user_id, later.number > Survey.number),
+            ~exists().where(CandidateCategory.user_id == Survey.user_id),
+        )
+        # Заявка — по той же специализации, что опрос: попытка по прошлому опросу не в счёт.
+        claimed = {
+            user_id: claim.grade
+            for user_id, claim in claimed_grades(self._session, surveyed).items()
+            if claim.specialization == specialization and claim.grade.code == grade
+        }
+        stacks: dict[uuid.UUID, set[str]] = {}
+        if claimed and technologies:
+            for user_id, technology in self._session.execute(
+                select(
+                    candidate_technologies.c.user_id, candidate_technologies.c.technology_code
+                ).where(
+                    candidate_technologies.c.user_id.in_(claimed),
+                    candidate_technologies.c.technology_code.in_(technologies),
+                )
+            ):
+                stacks.setdefault(user_id, set()).add(technology)
+        return [
+            UnconfirmedCandidate(user_id, specialization, claim, frozenset(stacks.get(user_id, ())))
+            for user_id, claim in claimed.items()
         ]
 
     def _stacks(
@@ -166,6 +214,9 @@ class SqlSelections:
                         "rank": e.rank,
                         "grade_code": e.grade.code,
                         "grade_name": e.grade.name,
+                        "grade_status": e.status.kind,
+                        "claimed_grade_code": e.status.claimed.code,
+                        "claimed_grade_name": e.status.claimed.name,
                         "match_score": e.match_score,
                         "acceptance_probability": e.acceptance_probability,
                         "mutual_score": e.mutual_score,
@@ -231,7 +282,13 @@ def _entry(row: EntryRow) -> SelectionEntry:
         position=row.position,
         block=row.block,
         rank=row.rank,
-        grade=CatalogRef(row.grade_code, row.grade_name),
+        status=GradeStatus(
+            row.grade_status,
+            CatalogRef(row.claimed_grade_code, row.claimed_grade_name),
+            None
+            if row.grade_status is GradeStatusKind.unconfirmed
+            else CatalogRef(row.grade_code, row.grade_name),
+        ),
         match_score=row.match_score,
         acceptance_probability=row.acceptance_probability,
         mutual_score=row.mutual_score,
@@ -303,13 +360,14 @@ def explanation_json(explanation: Explanation) -> Json:
                 "contribution": float(t.contribution),
                 "verdict": t.verdict.value,
                 "low_data": t.low_data,
+                "fsp_confirmed": t.fsp_confirmed,
             }
             for t in explanation.topics
         ],
         "stack": {
             "matched": list(stack.matched),
             "overlap": float(stack.overlap),
-            "contribution": float(stack.contribution),
+            "contribution": None if stack.contribution is None else float(stack.contribution),
         },
     }
 
@@ -326,11 +384,14 @@ def explanation_of(data: Json) -> Explanation:
                 contribution=float(t["contribution"]),
                 verdict=Verdict(t["verdict"]),
                 low_data=t["low_data"],
+                fsp_confirmed=t["fsp_confirmed"],
             )
             for t in data["topics"]
         ),
         stack=StackExplanation(
-            tuple(stack["matched"]), float(stack["overlap"]), float(stack["contribution"])
+            tuple(stack["matched"]),
+            float(stack["overlap"]),
+            None if stack["contribution"] is None else float(stack["contribution"]),
         ),
     )
 

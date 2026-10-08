@@ -5,7 +5,7 @@ import ipaddress
 import math
 import random
 
-from app.domain.bank.family import Instance
+from app.domain.bank.family import Instance, Kind, kind
 from app.domain.bank.runner import CodeRunner
 
 _RESOURCES = [
@@ -22,6 +22,7 @@ _RESOURCES = [
 ]
 
 
+@kind(Kind.TRACE)
 def plan_symbols(rng: random.Random, runner: CodeRunner) -> Instance:
     rows = []
     for address in rng.sample(_RESOURCES, rng.randint(5, 8)):
@@ -38,6 +39,7 @@ def plan_symbols(rng: random.Random, runner: CodeRunner) -> Instance:
     return Instance(prompt, f"{add} {change} {destroy}", {"rows": rows}, code="\n".join(lines))
 
 
+@kind(Kind.TRACE)
 def resource_count(rng: random.Random, runner: CodeRunner) -> Instance:
     web = rng.randint(1, 5)
     zones = rng.sample(["a", "b", "c", "d"], rng.randint(2, 4))
@@ -82,6 +84,7 @@ _VALUES = {
 }
 
 
+@kind(Kind.TRACE)
 def var_precedence(rng: random.Random, runner: CodeRunner) -> Instance:
     names = list(_VALUES)
     pools = {name: rng.sample(_VALUES[name], 7) for name in names}
@@ -138,6 +141,7 @@ def var_precedence(rng: random.Random, runner: CodeRunner) -> Instance:
     )
 
 
+@kind(Kind.TRACE)
 def cidrsubnet(rng: random.Random, runner: CodeRunner) -> Instance:
     base = ipaddress.IPv4Network(
         f"10.{rng.randint(0, 255)}.0.0/{rng.choice([16, 16, 20])}", strict=False
@@ -165,6 +169,7 @@ def cidrsubnet(rng: random.Random, runner: CodeRunner) -> Instance:
     return Instance(prompt, " ".join(results), {"calls": calls}, code="\n".join(calls))
 
 
+@kind(Kind.TRACE)
 def count_vs_for_each(rng: random.Random, runner: CodeRunner) -> Instance:
     pool = ["alpha", "beta", "gamma", "delta", "omega", "sigma", "kappa", "theta", "zeta"]
     names = rng.sample(pool, rng.randint(4, 7))
@@ -216,6 +221,7 @@ def count_vs_for_each(rng: random.Random, runner: CodeRunner) -> Instance:
     )
 
 
+@kind(Kind.TRACE)
 def tf_expressions(rng: random.Random, runner: CodeRunner) -> Instance:
     services = rng.sample(["api", "web", "db", "cache", "queue", "auth"], rng.randint(3, 5))
     sizes = {s: rng.randint(1, 9) for s in services}
@@ -246,6 +252,7 @@ def tf_expressions(rng: random.Random, runner: CodeRunner) -> Instance:
     return Instance(prompt, answer, params, code=code)
 
 
+@kind(Kind.TRACE)
 def moved_refactor(rng: random.Random, runner: CodeRunner) -> Instance:
     web = rng.randint(2, 8)
     module_size = rng.randint(2, 12)
@@ -325,6 +332,7 @@ _TASKS = [
 ]
 
 
+@kind(Kind.TRACE)
 def ansible_idempotency(rng: random.Random, runner: CodeRunner) -> Instance:
     tasks = [_TASKS[0], *rng.sample(_TASKS[1:], rng.randint(4, 8))]
     notifying = {i for i in range(len(tasks)) if rng.random() < 0.35}
@@ -350,6 +358,7 @@ def ansible_idempotency(rng: random.Random, runner: CodeRunner) -> Instance:
     )
 
 
+@kind(Kind.TRACE)
 def loop_when(rng: random.Random, runner: CodeRunner) -> Instance:
     names = rng.sample(["anna", "oleg", "ira", "max", "lev", "zoya", "egor"], rng.randint(5, 7))
     users = []
@@ -386,6 +395,7 @@ def loop_when(rng: random.Random, runner: CodeRunner) -> Instance:
     return Instance(prompt, f"{skipped} {changed} {ok}", {"users": users}, code="\n".join(lines))
 
 
+@kind(Kind.COMPUTE)
 def ansible_serial(rng: random.Random, runner: CodeRunner) -> Instance:
     hosts = rng.randint(6, 20)
     forks = rng.choice([2, 3, 5, 10])
@@ -431,6 +441,7 @@ _ANSIBLE_SOURCES = [
 ]
 
 
+@kind(Kind.TRACE)
 def ansible_vars(rng: random.Random, runner: CodeRunner) -> Instance:
     names = ["app_port", "log_level", "workers"]
     pools: dict[str, list[object]] = {

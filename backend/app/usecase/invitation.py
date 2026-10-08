@@ -1,0 +1,129 @@
+"""Сценарии приглашений (mechanics.md, §14): работодатель отправляет и видит отправленные с
+остатком бюджета, кандидат видит входящие, открывает их и отвечает.
+
+Чужое приглашение для зрителя не существует — `InvitationNotFound`, а не отказ в доступе: так не
+раскрывается, что такое есть. Статус на момент чтения выводит домен (`Invitation.at`), поэтому
+каждый сценарий читает «сейчас» один раз и проводит приглашения через него. Приглашают только
+кандидата с категорией — без неё работодатель его не видит; приглашает компания — без профиля
+компании кандидату не показать, кто зовёт.
+"""
+
+import uuid
+from dataclasses import dataclass
+from datetime import datetime, timedelta
+
+from app.domain.errors import CandidateNotFound, CompanyProfileRequired, InvitationNotFound
+from app.domain.invitation import (
+    Invitation,
+    InvitationBudget,
+    InvitationTerms,
+    answered,
+    budget_week,
+    check_can_send,
+    viewed,
+)
+from app.usecase.interface import (
+    CandidateRepository,
+    Clock,
+    CompanyRepository,
+    InvitationRepository,
+    UnitOfWork,
+)
+
+
+@dataclass(frozen=True)
+class SentInvitations:
+    budget: InvitationBudget
+    invitations: list[Invitation]
+
+
+class Invitations:
+    def __init__(
+        self,
+        uow: UnitOfWork,
+        invitations: InvitationRepository,
+        candidates: CandidateRepository,
+        companies: CompanyRepository,
+        clock: Clock,
+        *,
+        weekly_budget: int,
+        ttl_days: int,
+    ) -> None:
+        self._uow = uow
+        self._invitations = invitations
+        self._candidates = candidates
+        self._companies = companies
+        self._clock = clock
+        self._weekly_budget = weekly_budget
+        self.ttl = timedelta(days=ttl_days)
+
+    def send(
+        self, employer_id: uuid.UUID, candidate_id: uuid.UUID, terms: InvitationTerms
+    ) -> Invitation:
+        """Новое приглашение: кандидат с категорией, профиль компании заполнен, прошлое
+        приглашение этому кандидату закрыто, бюджет недели не исчерпан."""
+        with self._uow:
+            now = self._clock.now()
+            company = self._companies.get(employer_id)
+            if company is None:
+                raise CompanyProfileRequired()
+            if self._candidates.get(candidate_id).category is None:
+                raise CandidateNotFound()
+            self._invitations.lock_company(employer_id)
+            latest = self._invitations.latest(employer_id, candidate_id)
+            check_can_send(self._budget(employer_id, now), latest, now, self.ttl)
+            return self._invitations.add(employer_id, candidate_id, company.name, terms, now)
+
+    def sent(self, employer_id: uuid.UUID) -> SentInvitations:
+        """Отправленные компанией и остаток бюджета на текущую неделю."""
+        with self._uow:
+            now = self._clock.now()
+            return SentInvitations(
+                self._budget(employer_id, now),
+                [i.at(now, self.ttl) for i in self._invitations.by_employer(employer_id)],
+            )
+
+    def sent_one(self, employer_id: uuid.UUID, invitation_id: uuid.UUID) -> Invitation:
+        with self._uow:
+            invitation = self._invitations.get(invitation_id)
+            if invitation is None or invitation.employer_id != employer_id:
+                raise InvitationNotFound()
+            return invitation.at(self._clock.now(), self.ttl)
+
+    def inbox(self, candidate_id: uuid.UUID) -> list[Invitation]:
+        """Входящие кандидата."""
+        with self._uow:
+            now = self._clock.now()
+            return [i.at(now, self.ttl) for i in self._invitations.by_candidate(candidate_id)]
+
+    def view(self, candidate_id: uuid.UUID, invitation_id: uuid.UUID) -> Invitation:
+        """Кандидат открыл приглашение: отправленное становится просмотренным."""
+        with self._uow:
+            now = self._clock.now()
+            current = self._own(candidate_id, invitation_id, now)
+            result = viewed(current, now)
+            if result != current:
+                self._invitations.save(result)
+            return result
+
+    def answer(
+        self, candidate_id: uuid.UUID, invitation_id: uuid.UUID, *, accept: bool
+    ) -> Invitation:
+        """Принять или отклонить; ответ на закрытое — `InvitationTransitionNotAllowed`."""
+        with self._uow:
+            now = self._clock.now()
+            result = answered(self._own(candidate_id, invitation_id, now), accept=accept, now=now)
+            self._invitations.save(result)
+            return result
+
+    def _own(self, candidate_id: uuid.UUID, invitation_id: uuid.UUID, now: datetime) -> Invitation:
+        """Приглашение кандидата на момент `now` — под блокировкой до конца блока."""
+        invitation = self._invitations.get(invitation_id, for_update=True)
+        if invitation is None or invitation.candidate_id != candidate_id:
+            raise InvitationNotFound()
+        return invitation.at(now, self.ttl)
+
+    def _budget(self, employer_id: uuid.UUID, now: datetime) -> InvitationBudget:
+        start, end = budget_week(now)
+        used = self._invitations.sent_since(employer_id, start)
+        return InvitationBudget(limit=self._weekly_budget, used=used, resets_at=end)

@@ -9,7 +9,15 @@ from pathlib import Path
 import yaml
 from pydantic import BaseModel, ConfigDict
 
-from app.domain.catalog import Catalog, Grade, Industry, Specialization, Technology, Topic
+from app.domain.catalog import (
+    Catalog,
+    FspDiscipline,
+    Grade,
+    Industry,
+    Specialization,
+    Technology,
+    Topic,
+)
 
 
 class _Entry(BaseModel):
@@ -31,6 +39,10 @@ class _Technology(_Entry):
     topics: list[str]
 
 
+class _FspDiscipline(_Entry):
+    topics: list[str]
+
+
 class _CatalogFile(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
@@ -38,6 +50,7 @@ class _CatalogFile(BaseModel):
     industries: list[_Entry]
     specializations: list[_Specialization]
     technologies: list[_Technology]
+    fsp_disciplines: list[_FspDiscipline]
 
 
 def load_catalog(path: Path) -> Catalog:
@@ -51,6 +64,9 @@ def load_catalog(path: Path) -> Catalog:
             for s in data.specializations
         ),
         technologies=tuple(Technology(t.code, t.name, tuple(t.topics)) for t in data.technologies),
+        fsp_disciplines=tuple(
+            FspDiscipline(d.code, d.name, tuple(d.topics)) for d in data.fsp_disciplines
+        ),
     )
 
 

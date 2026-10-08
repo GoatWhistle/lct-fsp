@@ -35,6 +35,8 @@ from app.domain.selection import (
 )
 from app.domain.skill import Normal
 from app.domain.work import SalaryRange, WorkFormat
+from app.repository.catalog import SqlCatalog
+from app.repository.memory.catalog import MemoryCatalog
 from app.repository.memory.selection import MemoryCandidatePool, MemoryNeeds, MemorySelections
 from app.repository.memory.unit_of_work import MemoryStore, MemoryUnitOfWork
 from app.repository.need import SqlNeeds
@@ -181,6 +183,7 @@ class MemoryHarness(Harness):
         self.selections = Selections(
             MemoryUnitOfWork(store),
             self.needs,
+            MemoryCatalog(store),
             self.pool,
             MemorySelections(store),
             acceptance,
@@ -244,6 +247,7 @@ class PostgresHarness(Harness):
         self.selections = Selections(
             self.uow,
             SqlNeeds(session),
+            SqlCatalog(session),
             SqlCandidatePool(session),
             SqlSelections(session),
             acceptance,

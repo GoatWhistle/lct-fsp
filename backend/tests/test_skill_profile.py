@@ -178,9 +178,9 @@ def task_answer(
 
 
 def test_task_answers_join_test_answers_in_time_order() -> None:
-    tests = [answered("qa.sql", True, 1), answered("qa.api", False, 10)]
+    tests = [answered("qa.databases", True, 1), answered("qa.api", False, 10)]
     reference = task_answer(("qa.api",), 5, correct=True)
-    graded = task_answer(("qa.sql",), 20, rubric=2)
+    graded = task_answer(("qa.databases",), 20, rubric=2)
     model = RecordingModel()
 
     profile = refresh_skill_profile(
@@ -197,11 +197,11 @@ def test_task_answers_join_test_answers_in_time_order() -> None:
     ]
     assert profile.observations == len(observations)
     assert profile.last_signal_at == START + timedelta(minutes=20)
-    assert profile.regular_task_topics == {"qa.sql", "qa.api"}
+    assert profile.regular_task_topics == {"qa.databases", "qa.api"}
 
 
 def test_only_right_answers_confirm_topic_but_every_answer_counts() -> None:
-    wrong = task_answer(("qa.sql",), 5, correct=False)
+    wrong = task_answer(("qa.databases",), 5, correct=False)
     weak = task_answer(("qa.api",), 6, rubric=1)
     model = RecordingModel()
 
@@ -215,7 +215,7 @@ def test_only_right_answers_confirm_topic_but_every_answer_counts() -> None:
 
 
 def test_ungraded_open_answer_is_not_a_signal() -> None:
-    tests = [answered("qa.sql", True, 1)]
+    tests = [answered("qa.databases", True, 1)]
     waiting = task_answer(("qa.api",), 5)
 
     with_waiting = refresh_skill_profile(
@@ -231,7 +231,7 @@ def test_ungraded_open_answer_is_not_a_signal() -> None:
 
 def test_rubric_narrows_uncertainty_only_on_task_topics() -> None:
     tests = [answered(t, True, i) for i, t in enumerate(TOPICS * 3)]
-    graded = task_answer(("qa.sql",), 30, rubric=3)
+    graded = task_answer(("qa.databases",), 30, rubric=3)
 
     before = refresh_skill_profile(
         Attempts(tests), Tasks(), RecordingModel(), MECHANICS, USER, "qa", TOPICS
@@ -240,10 +240,10 @@ def test_rubric_narrows_uncertainty_only_on_task_topics() -> None:
         Attempts(tests), Tasks([graded]), RecordingModel(), MECHANICS, USER, "qa", TOPICS
     )
 
-    assert after.topics["qa.sql"].sd < before.topics["qa.sql"].sd
-    assert after.topics["qa.sql"].mean > before.topics["qa.sql"].mean
+    assert after.topics["qa.databases"].sd < before.topics["qa.databases"].sd
+    assert after.topics["qa.databases"].mean > before.topics["qa.databases"].mean
     # Чужая тема сужается только через общую часть уровня — заметно меньше своей.
-    sql_gain = before.topics["qa.sql"].sd - after.topics["qa.sql"].sd
+    sql_gain = before.topics["qa.databases"].sd - after.topics["qa.databases"].sd
     api_gain = before.topics["qa.api"].sd - after.topics["qa.api"].sd
     assert api_gain < sql_gain / 2
 
@@ -361,6 +361,26 @@ def test_signals_go_to_the_model_in_time_order() -> None:
     assert [o.difficulty for o in observations[5:]] == [difficulty["finalist"]] * 3
     last = profile(TEST_ROWS, evidence(late, early)).last_signal_at
     assert last == datetime(2030, 1, 1, tzinfo=UTC)
+
+
+def test_test_task_and_fsp_join_one_profile_each_with_its_source() -> None:
+    """Пересчёт после любого сигнала берёт все уровни доверия: ни один не стирает другой."""
+    graded = task_answer(("qa.databases",), 20, rubric=3)
+
+    levels = refresh_skill_profile(
+        Attempts(TEST_ROWS),
+        Tasks([graded]),
+        irt,
+        MECHANICS,
+        USER,
+        "qa",
+        TOPICS,
+        evidence(achievement(FspResult.winner)),
+    )
+
+    assert levels.sources["qa.databases"] == {SignalSource.regular_task}
+    assert levels.sources["qa.api"] == {SignalSource.test, SignalSource.fsp}
+    assert levels.regular_task_topics == {"qa.databases"}
 
 
 QA = [Topic(code, code, "qa") for code in TOPICS]

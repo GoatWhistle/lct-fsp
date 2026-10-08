@@ -1,0 +1,158 @@
+# Словарь синонимов для разбора потребности из текста на правилах (app/adapter/text_rules.py).
+# Коды — из catalog.yaml; названия записей справочника узнаются и без этого файла.
+#
+# Синоним — целое слово или фраза: «go» не найдётся в «google», «java» — в «javascript». Звёздочка
+# в конце — основа слова: «удален*» найдёт «удалённо» и «удалёнка». Регистр и «ё» не важны.
+#
+# Словарь подбирается по своим примерам, а не по набору D5: D5 отложенный (docs/adr/0002).
+
+specializations:
+  backend: [бэкенд*, бекенд*, бэк-енд*, бэкэнд*, backend, back-end, серверн*, python-разработчик*,
+    java-разработчик*, go-разработчик*, golang-разработчик*, php-разработчик*, kotlin-разработчик*,
+    .net-разработчик*, c#-разработчик*, node.js-разработчик*, разработчик python, разработчика python,
+    разработчик java, разработчика java, разработчик go, разработчика go]
+  frontend: [фронтенд*, фронтэнд*, фронт-енд*, frontend, front-end, верстальщик*, react-разработчик*,
+    vue-разработчик*, angular-разработчик*, javascript-разработчик*, typescript-разработчик*,
+    разработчик интерфейсов, разработчика интерфейсов, ui-разработчик*]
+  data-ml: [data scientist, data science, дата-сайентист*, датасайентист*, machine learning,
+    машинного обучения, машинное обучение, машинным обучением, ml-инженер*, ml engineer,
+    ml-разработчик*, data engineer, инженер данных, инженера данных, дата-инженер*, аналитик данных,
+    аналитика данных, data analyst, nlp, computer vision, компьютерного зрения, компьютерное зрение]
+  qa: [тестировщик*, тестирован*, qa, quality assurance, автотест*, автоматизатор*, sdet, aqa]
+  devops: [devops, девопс*, sre, site reliability, инженер инфраструктуры, инженера инфраструктуры,
+    системный администратор*, системного администратора, сисадмин*, platform engineer]
+
+grades:
+  intern: [стажер*, стажёр*, стажировк*, intern, internship, практикант*, trainee]
+  junior: [junior, джун*, джуниор*, младш*, начинающ*]
+  middle: [middle, мидл*, миддл*]
+  senior: [senior, сеньор*, синьор*, сеньёр*, старш*, ведущ*, lead, тимлид*, техлид*, team lead]
+
+# Стаж в годах, начиная с которого текст «опыт от N лет» говорит о грейде. Грейд по стажу —
+# неуверенный: стаж не равен уровню.
+experience_years:
+  junior: 1
+  middle: 3
+  senior: 5
+
+technologies:
+  python: [питон*, python3, пайтон*]
+  java: [джава, джаве, джавой]
+  kotlin: [котлин*]
+  go: [golang, голанг*]
+  csharp: [c#, .net, дотнет*, asp.net]
+  nodejs: [node, nodejs, нода, ноде, node.js]
+  javascript: [js, джаваскрипт*, es6]
+  typescript: [ts, тайпскрипт*]
+  html-css: [html, html5, css, css3, scss, sass, вёрстк*, верстк*]
+  react: [реакт*, react.js, reactjs, next.js, nextjs, redux]
+  vue: [vue.js, vuejs, vue3, nuxt]
+  angular: [ангуляр*]
+  vite: [webpack, вебпак*]
+  fastapi: [fast api]
+  django: [джанго, drf]
+  spring: [spring boot, спринг*]
+  postgresql: [postgres, постгрес*, pg, psql]
+  mysql: [mariadb]
+  clickhouse: [кликхаус*]
+  redis: [редис*]
+  kafka: [кафк*]
+  rabbitmq: [rabbit]
+  pytest: [py.test]
+  jest: [vitest]
+  playwright: [плейрайт*]
+  selenium: [селениум*, selenide]
+  postman: [постман*, swagger]
+  jmeter: [джиметр*]
+  k6: [locust, gatling]
+  pandas: [пандас*]
+  numpy: [нампа*]
+  scikit-learn: [sklearn, scikit]
+  catboost: [xgboost, lightgbm, градиентный бустинг, градиентного бустинга]
+  pytorch: [torch, tensorflow, keras]
+  spark: [pyspark, hadoop, спарк*]
+  airflow: [эйрфлоу]
+  mlflow: [kubeflow]
+  linux: [линукс*, unix, ubuntu, debian, centos]
+  bash: [shell, баш]
+  nginx: [haproxy]
+  docker: [докер*, docker-compose, контейнеризац*]
+  kubernetes: [k8s, кубернетес*, кубер*, helm, openshift]
+  gitlab-ci: [gitlab, гитлаб*]
+  github-actions: [github actions]
+  terraform: [терраформ*]
+  ansible: [ансибл*]
+  prometheus: [прометеус*, прометей]
+  grafana: [графан*]
+
+work_formats:
+  remote: [удален*, удалён*, remote, дистанцион*, из дома, из любой точки, из любого города]
+  office: [офис*, office, on-site, onsite]
+  hybrid: [гибрид*, hybrid, смешанн*]
+
+# Канонические названия городов: город — свободный текст формы, словарь только приводит
+# написание к одному виду.
+cities:
+  Москва: [москв*, мск]
+  Санкт-Петербург: [санкт-петербург*, петербург*, спб, питер*]
+  Новосибирск: [новосибирск*, нск]
+  Екатеринбург: [екатеринбург*, екб]
+  Казань: [казан*]
+  Нижний Новгород: [нижний новгород, нижнем новгороде, нижнего новгорода]
+  Иннополис: [иннополис*]
+  Краснодар: [краснодар*]
+  Самара: [самар*]
+  Ростов-на-Дону: [ростов*]
+  Пермь: [перм*]
+  Томск: [томск*]
+  Уфа: [уфа, уфе, уфы]
+  Воронеж: [воронеж*]
+  Челябинск: [челябинск*]
+  Калининград: [калининград*]
+  Владивосток: [владивосток*]
+  Красноярск: [красноярск*]
+  Омск: [омск*]
+  Тюмень: [тюмен*]
+  Минск: [минск*]
+
+# Вилка: множители после числа и признаки суммы «на руки» — её платформа не пересчитывает, поле
+# только подсвечивается. Сумма в другой валюте не берётся. Числа меньше `min_rub` — не зарплата
+# («опыт от 3 до 5 лет»).
+salary:
+  min_rub: 10000
+  multipliers:
+    1000: [тыс, тысяч, т.р, к, k]
+    1000000: [млн, миллион*]
+  net: [на руки, net, нетто, после вычета, чистыми]
+  foreign: [$, usd, долл*, €, eur, евро]
+
+# Направления вне справочника: честный ответ «такой специализации нет» и ближайшие
+# специализации — кнопками на экране.
+out_of_catalog:
+  - name: 1С
+    synonyms: [1с, 1c, 1с:предприятие, 1c:enterprise]
+    nearest: [backend]
+  - name: Геймдев
+    synonyms: [геймдев*, gamedev, game dev, разработчик игр, разработчика игр, разработка игр,
+      разработки игр, unity, unreal, геймдизайн*]
+    nearest: [backend, frontend]
+  - name: Встраиваемые системы
+    synonyms: [embedded, встраиваем*, микроконтроллер*, stm32, прошивк*, firmware, rtos, плис, fpga]
+    nearest: [backend, devops]
+  - name: Мобильная разработка
+    synonyms: [ios, android, swift, swiftui, flutter, react native, мобильн*, kotlin multiplatform]
+    nearest: [frontend, backend]
+  - name: Аналитика и управление продуктом
+    synonyms: [системный аналитик*, системного аналитика, бизнес-аналитик*, бизнес аналитик*,
+      product manager, продакт*, project manager, проджект*, scrum master, скрам-мастер*]
+    nearest: [data-ml, qa]
+  - name: Дизайн
+    synonyms: [ui/ux, ux/ui, дизайнер*, designer, figma]
+    nearest: [frontend]
+  - name: Информационная безопасность
+    synonyms: [пентест*, pentest, информационной безопасност*, информационная безопасность, appsec,
+      soc-аналитик*, специалист иб]
+    nearest: [devops, backend]
+  - name: Сопровождение и поддержка
+    synonyms: [техподдержк*, технической поддержк*, helpdesk, service desk]
+    nearest: [devops, qa]

@@ -19,7 +19,7 @@ from app.domain.errors import (
     UnknownTechnology,
 )
 from app.domain.importance import TopicImportance, topic_importance
-from app.domain.selection import Need
+from app.domain.selection import Need, NeedContent
 from app.domain.work import SalaryRange, WorkFormat
 
 # Ошибки формы потребности — в порядке проверки.
@@ -134,6 +134,22 @@ def need_terms(
         work_format=form.work_format,
         city=city,
         salary=salary,
+    )
+
+
+def need_content(terms: NeedTerms, now: datetime) -> NeedContent:
+    """Проверенная потребность, которую не сохраняли, — черновик после правки человеком: подборка
+    по нему строится так же, как по сохранённой."""
+    return NeedContent(
+        title=terms.title,
+        specialization=terms.specialization,
+        grade=terms.grade,
+        stack=terms.stack,
+        edited_importance=terms.edited_importance,
+        work_format=terms.work_format,
+        city=terms.city,
+        salary=terms.salary,
+        updated_at=now,
     )
 
 

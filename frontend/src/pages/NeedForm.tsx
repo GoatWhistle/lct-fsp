@@ -1,8 +1,9 @@
-import { useEffect, useState, type FormEvent } from 'react'
+import { useEffect, useState, type FormEvent, type ReactNode } from 'react'
 import { Link, useNavigate, useParams } from 'react-router'
 import {
   api,
   errorMessage,
+  type DraftField,
   type Need,
   type NeedInput,
   type Technology,
@@ -14,13 +15,14 @@ import { SalaryRangeInput } from '../components/SalaryInput'
 import { useEmployerCatalog, type EmployerCatalog } from '../employer/catalog'
 import { importances, workFormats } from '../employer/words'
 
-type Draft = {
+export type Draft = {
   title: string
   team_description: string
   specialization: string
   grade: string
   stack: string[]
-  work_format: WorkFormat
+  // Пусто — формат не выбран: черновик из текста его не нашёл.
+  work_format: WorkFormat | ''
   city: string
   salary_from: string
   salary_to: string
@@ -67,10 +69,15 @@ function splitTechnologies(catalog: EmployerCatalog, specialization: string) {
   return { chosen, related, others: catalog.technologies.filter((t) => !related.includes(t)) }
 }
 
+/** Поля черновика из текста, которые экран выделяет: неуверенные и не найденные в тексте. */
+export type DraftMarks = { uncertain: DraftField[]; missing: DraftField[] }
+
 function inputOf(draft: Draft): NeedInput {
   const salary = (value: string) => (value.trim() === '' ? null : Number(value))
   return {
     ...draft,
+    // Пустой формат не пройдёт обязательный выбор в форме — сюда он не доходит.
+    work_format: draft.work_format as WorkFormat,
     city: draft.city.trim() || null,
     salary_from: salary(draft.salary_from),
     salary_to: salary(draft.salary_to),
@@ -99,10 +106,21 @@ export function NeedForm() {
   return <NeedEditor key={need?.id ?? 'new'} catalog={catalog} need={need} />
 }
 
-function NeedEditor({ catalog, need }: { catalog: EmployerCatalog; need: Need | null }) {
+type EditorProps = {
+  catalog: EmployerCatalog
+  need: Need | null
+  // Черновик из текста: форма открывается с ним и умеет строить подборку без сохранения.
+  initial?: Draft
+  marks?: DraftMarks
+}
+
+export function NeedEditor({ catalog, need, initial, marks }: EditorProps) {
   const id = need?.id
+  const fromText = initial !== undefined
   const navigate = useNavigate()
-  const [draft, setDraft] = useState<Draft>(() => (need ? draftOf(need) : emptyDraft(catalog)))
+  const [draft, setDraft] = useState<Draft>(() => initial ?? (need ? draftOf(need) : emptyDraft(catalog)))
+  // Выделение снимается с поля, как только работодатель его поправил.
+  const [flagged, setFlagged] = useState<DraftMarks>(() => marks ?? { uncertain: [], missing: [] })
   const [topics, setTopics] = useState<TopicImportanceRow[]>(need?.topics ?? [])
   const [topicsError, setTopicsError] = useState<string | null>(null)
   const [othersOpen, setOthersOpen] = useState(() =>
@@ -114,6 +132,7 @@ function NeedEditor({ catalog, need }: { catalog: EmployerCatalog; need: Need | 
   // Важность тем считает бэкенд той же функцией, что у сохранённой потребности.
   const { specialization, stack, topic_importance: edited } = draft
   useEffect(() => {
+    if (!specialization) return
     let stale = false
     api
       .POST('/api/employer/needs/topic-importance', {
@@ -129,19 +148,35 @@ function NeedEditor({ catalog, need }: { catalog: EmployerCatalog; need: Need | 
     }
   }, [specialization, stack, edited])
 
-  function change(changes: Partial<Draft>) {
+  function change(changes: Partial<Draft>, field?: DraftField) {
     setDraft((current) => ({ ...current, ...changes }))
+    if (field) {
+      setFlagged((current) => ({
+        uncertain: current.uncertain.filter((f) => f !== field),
+        missing: current.missing.filter((f) => f !== field),
+      }))
+    }
+  }
+
+  function mark(field: DraftField): ReactNode {
+    if (flagged.uncertain.includes(field)) return <span className="draft-mark">Проверьте: система не уверена</span>
+    if (flagged.missing.includes(field)) return <span className="draft-mark">В тексте не нашлось — укажите</span>
+    return null
+  }
+
+  function flagClass(field: DraftField, base: string): string {
+    return flagged.uncertain.includes(field) || flagged.missing.includes(field) ? `${base} flagged` : base
   }
 
   // Темы прошлой специализации убираем сразу: их правки новая специализация не примет.
   function chooseSpecialization(code: string) {
     setTopics([])
-    change({ specialization: code, topic_importance: {} })
+    change({ specialization: code, topic_importance: {} }, 'specialization')
   }
 
   function toggleTechnology(code: string) {
     const stack = draft.stack.includes(code) ? draft.stack.filter((c) => c !== code) : [...draft.stack, code]
-    change({ stack })
+    change({ stack }, 'stack')
   }
 
   function setImportance(topic: string, importance: TopicImportance | null) {
@@ -149,11 +184,20 @@ function NeedEditor({ catalog, need }: { catalog: EmployerCatalog; need: Need | 
     change({ topic_importance: importance ? { ...rest, [topic]: importance } : rest })
   }
 
-  async function submit(event: FormEvent) {
+  async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setSubmitting(true)
     setError(null)
     const body = inputOf(draft)
+    const pressed = (event.nativeEvent as SubmitEvent).submitter
+    if (pressed instanceof HTMLButtonElement && pressed.value === 'selection') {
+      // Подборка по черновику без сохранения; черновик едет с ней — вернуться и поправить.
+      const { data, error } = await api.POST('/api/employer/selections', { body })
+      setSubmitting(false)
+      if (data) navigate(`/employer/selections/${data.id}`, { state: { draft, marks: flagged } })
+      else setError(errorMessage(error))
+      return
+    }
     const { data, error } = id
       ? await api.PUT('/api/employer/needs/{need_id}', { params: { path: { need_id: id } }, body })
       : await api.POST('/api/employer/needs', { body })
@@ -177,7 +221,7 @@ function NeedEditor({ catalog, need }: { catalog: EmployerCatalog; need: Need | 
 
   return (
     <section className="stack">
-      <h1>{id ? 'Потребность' : 'Новая потребность'}</h1>
+      {!fromText && <h1>{id ? 'Потребность' : 'Новая потребность'}</h1>}
       <form onSubmit={submit} className="card form">
         <label className="field">
           Кого ищете
@@ -199,13 +243,14 @@ function NeedEditor({ catalog, need }: { catalog: EmployerCatalog; need: Need | 
           />
         </label>
 
-        <fieldset className="choice-grid">
-          <legend>Специализация</legend>
+        <fieldset className={flagClass('specialization', 'choice-grid')}>
+          <legend>Специализация {mark('specialization')}</legend>
           {catalog.specializations.map((s) => (
             <label key={s.code} className={draft.specialization === s.code ? 'role-option selected' : 'role-option'}>
               <input
                 type="radio"
                 name="specialization"
+                required
                 value={s.code}
                 checked={draft.specialization === s.code}
                 onChange={() => chooseSpecialization(s.code)}
@@ -222,24 +267,25 @@ function NeedEditor({ catalog, need }: { catalog: EmployerCatalog; need: Need | 
           </p>
         )}
 
-        <fieldset className="choice-grid">
-          <legend>Грейд</legend>
+        <fieldset className={flagClass('grade', 'choice-grid')}>
+          <legend>Грейд {mark('grade')}</legend>
           {catalog.grades.map((g) => (
             <label key={g.code} className={draft.grade === g.code ? 'role-option selected' : 'role-option'}>
               <input
                 type="radio"
                 name="grade"
+                required
                 value={g.code}
                 checked={draft.grade === g.code}
-                onChange={() => change({ grade: g.code })}
+                onChange={() => change({ grade: g.code }, 'grade')}
               />
               <strong>{g.name}</strong>
             </label>
           ))}
         </fieldset>
 
-        <fieldset className="plain">
-          <legend>Стек</legend>
+        <fieldset className={flagClass('stack', 'plain')}>
+          <legend>Стек {mark('stack')}</legend>
           <TechnologyChips technologies={related} selected={draft.stack} onToggle={toggleTechnology} />
           <details open={othersOpen} onToggle={(e) => setOthersOpen(e.currentTarget.open)}>
             <summary>Другие технологии</summary>
@@ -248,51 +294,70 @@ function NeedEditor({ catalog, need }: { catalog: EmployerCatalog; need: Need | 
           </details>
         </fieldset>
 
-        {topicsError ? (
+        {!draft.specialization ? null : topicsError ? (
           <p className="error">Важность тем не посчиталась: {topicsError}</p>
         ) : (
           <TopicImportanceTable topics={topics} onChange={setImportance} />
         )}
 
-        <fieldset className="choice-grid">
-          <legend>Формат работы</legend>
+        <fieldset className={flagClass('work_format', 'choice-grid')}>
+          <legend>Формат работы {mark('work_format')}</legend>
           {workFormats.map((f) => (
             <label key={f.value} className={draft.work_format === f.value ? 'role-option selected' : 'role-option'}>
               <input
                 type="radio"
                 name="work_format"
+                required
                 value={f.value}
                 checked={draft.work_format === f.value}
-                onChange={() => change({ work_format: f.value })}
+                onChange={() => change({ work_format: f.value }, 'work_format')}
               />
               <strong>{f.title}</strong>
             </label>
           ))}
         </fieldset>
-        <label className="field">
-          Город
+        <label className={flagClass('city', 'field')}>
+          <span>Город {mark('city')}</span>
           <input
             required={draft.work_format !== 'remote'}
             maxLength={100}
             value={draft.city}
-            onChange={(e) => change({ city: e.target.value })}
+            onChange={(e) => change({ city: e.target.value }, 'city')}
           />
           <span className="hint">
             {draft.work_format === 'remote' ? 'Для удалённой работы — по желанию' : 'Где офис'}
           </span>
         </label>
 
-        <SalaryRangeInput
-          range={{ from: draft.salary_from, to: draft.salary_to }}
-          onChange={({ from, to }) => change({ salary_from: from, salary_to: to })}
-          optional
-          hint="Можно не указывать. В приглашении кандидату вилка обязательна — он видит условия до начала общения."
-        />
+        <div className={flagClass('salary', 'plain')}>
+          {mark('salary')}
+          <SalaryRangeInput
+            range={{ from: draft.salary_from, to: draft.salary_to }}
+            onChange={({ from, to }) => change({ salary_from: from, salary_to: to }, 'salary')}
+            optional
+            hint={
+              fromText
+                ? 'Суммы — до вычета НДФЛ: если в тексте было «на руки», пересчитайте. Укажите обе границы или очистите обе.'
+                : 'Можно не указывать. В приглашении кандидату вилка обязательна — он видит условия до начала общения.'
+            }
+          />
+        </div>
 
         {error && <p className="error">{error}</p>}
         <div className="actions">
-          <button type="submit" className="button" disabled={submitting}>
-            {id ? 'Сохранить' : 'Создать потребность'}
+          {fromText && (
+            <button type="submit" name="action" value="selection" className="button" disabled={submitting}>
+              Сформировать подборку
+            </button>
+          )}
+          <button
+            type="submit"
+            name="action"
+            value="save"
+            className={fromText ? 'button button-secondary' : 'button'}
+            disabled={submitting}
+          >
+            {id ? 'Сохранить' : fromText ? 'Сохранить как потребность' : 'Создать потребность'}
           </button>
           <Link to="/employer">Отмена</Link>
           {id && (

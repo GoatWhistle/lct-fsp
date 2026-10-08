@@ -219,7 +219,9 @@ def count_vs_for_each(rng: random.Random, runner: CodeRunner) -> Instance:
 def tf_expressions(rng: random.Random, runner: CodeRunner) -> Instance:
     services = rng.sample(["api", "web", "db", "cache", "queue", "auth"], rng.randint(3, 5))
     sizes = {s: rng.randint(1, 9) for s in services}
-    threshold = rng.randint(2, max(sizes.values()))
+    # Все размеры 1 — порог 2: под него не попадает ни один сервис. Иначе экземпляры те же, что
+    # до правки: ветка раньше падала, других экземпляров у неё не было.
+    threshold = rng.randint(2, max(2, *sizes.values()))
     zones = rng.choices(["a", "b", "c", "d"], k=rng.randint(3, 6))
     envs = rng.sample(["dev", "stage", "prod"], rng.randint(1, 3))
     big = {k: v for k, v in sizes.items() if v >= threshold}

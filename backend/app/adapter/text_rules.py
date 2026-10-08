@@ -1,5 +1,6 @@
-"""Разбор потребности на правилах и словаре синонимов — реализация порта `TextUnderstanding`
-(docs/adr/0002-text-understanding-port.md). Вариант по умолчанию и запасной путь для модели.
+"""Разбор потребности и резюме на правилах и словаре синонимов — реализация порта
+`TextUnderstanding` (docs/adr/0002-text-understanding-port.md). Вариант по умолчанию и запасной
+путь для модели.
 
 Словарь — данные (`config/synonyms.yaml`), названия записей справочника узнаются и без него.
 Специализацию, грейд и направление вне справочника решает перевес упоминаний: упоминание в первой
@@ -8,12 +9,17 @@
 
 Уверенность у правил двузначная: `SURE` — значение названо прямо и без соперников, `UNSURE` —
 выведено косвенно (специализация по стеку, грейд по стажу), соперники поровну или вилка «на руки».
+
+В резюме правила берут ФИО и контакты по их виду, стек — по справочнику, роли и софт-скиллы — по
+словарю: в черновик идёт название записи словаря, а не фраза из текста. Стаж — из прямого «опыт
+N лет», иначе из суммы периодов работы в разделе опыта. Софт-скиллы всегда неуверенные.
 """
 
 import re
 from collections import defaultdict
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
+from datetime import date
 from pathlib import Path
 
 import yaml
@@ -21,6 +27,7 @@ from pydantic import BaseModel, ConfigDict
 
 from app.domain.catalog import Catalog
 from app.domain.need_draft import DraftField, NeedDraft, OutOfCatalog
+from app.domain.resume_draft import GradeHintRule, ResumeDraft, ResumeField
 from app.domain.work import WorkFormat
 
 SURE = 1.0
@@ -30,6 +37,76 @@ TITLE_WEIGHT = 3
 TITLE_MAX = 120
 # Где искать «на руки» и валюту вокруг вилки, знаков.
 SALARY_CONTEXT = 40
+
+# Резюме: ФИО ищется в первых строках, имя — от двух до трёх слов с заглавной.
+NAME_LINES = 5
+_NAME_WORD = r"[А-ЯЁA-Z][а-яёa-z]+(?:-[А-ЯЁA-Z][а-яёa-z]+)?"
+_NAME_LABEL = re.compile(r"^(?:фио|имя|name)(?![\w-])[\s:—–-]*", re.IGNORECASE)
+# Заголовки, которые выглядят как имя, но им не являются.
+_NOT_NAME = frozenset(
+    {
+        "резюме", "curriculum", "vitae", "cv", "контакты", "контактная", "информация", "опыт",
+        "работы", "образование", "навыки", "обо", "мне", "себе", "профиль", "summary",
+        "experience", "education", "skills", "contacts",
+    }
+)  # fmt: skip
+_EMAIL = re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}")
+_RU_PHONE = re.compile(
+    r"(?<![\d+])(?:\+7|8)[\s(-]*(\d{3})[\s)-]*(\d{3})[\s-]*(\d{2})[\s-]*(\d{2})(?!\d)"
+)
+_PHONE = re.compile(r"(?<![\d+])\+\d{1,3}(?:[\s()-]*\d){8,12}(?!\d)")
+_TELEGRAM = re.compile(
+    r"(?:t\.me/|telegram\W{0,3}|(?<!\w)tg\W{0,3})@?([A-Za-z][A-Za-z0-9_]{4,31})(?![\w.])",
+    re.IGNORECASE,
+)
+_BARE_TELEGRAM = re.compile(r"(?<![\w.@/])@([A-Za-z][A-Za-z0-9_]{4,31})(?![\w.@])")
+_EXPERIENCE = re.compile(
+    # «Стаж» — без «стажировки» и «стажёра»: срок стажировки — не весь стаж.
+    r"(?:опыт\w*|стаж(?:а|ем|у)?)(?!\w)(?: работы)?[^.\n\d]{0,30}?"
+    r"(?P<years>\d{1,2}) ?\+? ?(?:лет|года|год)(?!\w)"
+    r"|(?P<en>\d{1,2})\+? years? of (?:\w+ )?experience"
+)
+# Раздел опыта: периоды работы считаются от его заголовка до заголовка следующего раздела.
+_EXPERIENCE_SECTION = re.compile(
+    r"^(?:опыт работы|профессиональный опыт|места работы|опыт|work experience|experience)\b",
+    re.MULTILINE,
+)
+_NEXT_SECTION = re.compile(
+    r"^(?:образование|education|курсы|навыки|ключевые навыки|skills|о себе|обо мне|проекты|"
+    r"сертификаты|языки|достижения|хобби)\b",
+    re.MULTILINE,
+)
+_MONTHS = {
+    r"январ\w*|jan\w*": 1,
+    r"феврал\w*|feb\w*": 2,
+    r"март\w*|mar\w*": 3,
+    r"апрел\w*|apr\w*": 4,
+    r"ма[йя]|may": 5,
+    r"июн\w*|jun\w*": 6,
+    r"июл\w*|jul\w*": 7,
+    r"август\w*|aug\w*": 8,
+    r"сентябр\w*|sep\w*": 9,
+    r"октябр\w*|oct\w*": 10,
+    r"ноябр\w*|nov\w*": 11,
+    r"декабр\w*|dec\w*": 12,
+}
+_MONTH_NAMES = re.compile("|".join(rf"(?:{m})" for m in _MONTHS))
+
+
+def _point(n: int) -> str:
+    return (
+        rf"(?:(?P<m{n}>0?[1-9]|1[0-2])[./]|(?P<name{n}>{_MONTH_NAMES.pattern})\.? )?"
+        rf"(?P<y{n}>(?:19|20)\d{{2}})(?!\d)"
+    )
+
+
+_PRESENT = (
+    r"(?:по\s)?(?:н\. ?в\.?|настоящ\w* врем\w*|наст\. вр\.|сейчас|текущ\w* момент\w*"
+    r"|present|now|current)"
+)
+_PERIOD = re.compile(
+    rf"(?<!\d){_point(1)}\s?(?:-|–|—|по|to)?\s?(?:(?P<present>{_PRESENT})|{_point(2)})"
+)
 
 _WORD = r"[\w+#]"
 _NUMBER = r"\d{1,3}(?: \d{3})+|\d+(?:[.,]\d+)?"
@@ -61,6 +138,8 @@ class Synonyms(BaseModel):
     grades: dict[str, list[str]]
     experience_years: dict[str, int]
     technologies: dict[str, list[str]]
+    roles: dict[str, list[str]]
+    soft_skills: dict[str, list[str]]
     work_formats: dict[WorkFormat, list[str]]
     cities: dict[str, list[str]]
     salary: _Salary
@@ -70,6 +149,15 @@ class Synonyms(BaseModel):
 def load_synonyms(path: Path) -> Synonyms:
     with path.open(encoding="utf-8") as f:
         return Synonyms.model_validate(yaml.safe_load(f))
+
+
+def grade_hint_rule(synonyms: Synonyms) -> GradeHintRule:
+    """Подсказка грейда — на тех же порогах стажа и словах грейдов, что разбор потребности:
+    правила потребности и резюме не расходятся."""
+    return GradeHintRule(
+        experience_years=dict(synonyms.experience_years),
+        role_words={grade: tuple(words) for grade, words in synonyms.grades.items()},
+    )
 
 
 def normalize(text: str) -> str:
@@ -188,6 +276,11 @@ class RulesTextUnderstanding:
     def __init__(self, synonyms: Synonyms) -> None:
         self._synonyms = synonyms
         self._nearest = {f.name: tuple(f.nearest) for f in synonyms.out_of_catalog}
+        # Название записи узнаётся и без синонимов, как у справочника.
+        self._roles = _matchers({label: [label, *s] for label, s in synonyms.roles.items()})
+        self._soft_skills = _matchers(
+            {label: [label, *s] for label, s in synonyms.soft_skills.items()}
+        )
         self._vocabularies: dict[Catalog, _Vocabulary] = {}
         salary = synonyms.salary
         units = {
@@ -268,6 +361,92 @@ class RulesTextUnderstanding:
             salary_to=salary.high,
             confidence=confidence,
         )
+
+    def resume(self, text: str, catalog: Catalog, today: date) -> ResumeDraft:
+        vocabulary = self._vocabulary(catalog)
+        normalized = normalize(text)
+        confidence: dict[ResumeField, float | None] = {}
+
+        full_name, name_sure = self._full_name(text, vocabulary)
+        if full_name is not None:
+            confidence[ResumeField.full_name] = SURE if name_sure else UNSURE
+        email = _EMAIL.search(text)
+        if email:
+            confidence[ResumeField.contact_email] = SURE
+        phone = _phone(text)
+        if phone is not None:
+            confidence[ResumeField.contact_phone] = SURE
+        telegram = _TELEGRAM.search(text)
+        if telegram:
+            confidence[ResumeField.telegram] = SURE
+        elif telegram := _BARE_TELEGRAM.search(text):
+            confidence[ResumeField.telegram] = UNSURE
+
+        stack = tuple(sorted(_find(vocabulary.technologies, normalized).starts))
+        roles = self._labels(self._roles, normalized)
+        soft_skills = self._labels(self._soft_skills, normalized)
+        for name, found in (
+            (ResumeField.stack, stack),
+            (ResumeField.job_roles, roles),
+        ):
+            if found:
+                confidence[name] = SURE
+        # Софт-скиллы — слова из описаний работы, а не названия: их стоит проверить.
+        if soft_skills:
+            confidence[ResumeField.soft_skills] = UNSURE
+
+        experience = _stated_experience(normalized)
+        if experience is not None:
+            confidence[ResumeField.experience_years] = SURE
+        else:
+            experience = _experience_by_periods(normalized, today)
+            if experience is not None:
+                confidence[ResumeField.experience_years] = UNSURE
+
+        return ResumeDraft(
+            full_name=full_name,
+            contact_email=email[0] if email else None,
+            contact_phone=phone,
+            telegram=telegram[1] if telegram else None,
+            stack=stack,
+            job_roles=roles,
+            experience_years=experience,
+            soft_skills=soft_skills,
+            confidence=confidence,
+        )
+
+    @staticmethod
+    def _labels(matchers: Mapping[str, re.Pattern[str]], text: str) -> tuple[str, ...]:
+        """Названия записей словаря в порядке первого упоминания."""
+        starts = _find(matchers, text).starts
+        return tuple(sorted(starts, key=lambda label: starts[label][0]))
+
+    def _full_name(self, text: str, vocabulary: _Vocabulary) -> tuple[str | None, bool]:
+        """ФИО — первые два-три слова с заглавной в одной из первых строк, если ни одно из них
+        не заголовок, не технология, не роль и не город. Уверенно — когда в строке только
+        полное ФИО из трёх слов."""
+        lines = [" ".join(line.split()) for line in text.splitlines() if line.strip()]
+        known = [
+            *vocabulary.technologies.values(),
+            *vocabulary.specializations.values(),
+            *vocabulary.grades.values(),
+            *vocabulary.cities.values(),
+            *self._roles.values(),
+        ]
+        for line in lines[:NAME_LINES]:
+            line = _NAME_LABEL.sub("", line)
+            for count in (3, 2):
+                found = re.match(rf"{_NAME_WORD}(?: {_NAME_WORD}){{{count - 1}}}(?![\w-])", line)
+                if found is None:
+                    continue
+                name = found[0]
+                words = normalize(name).split()
+                if any(w in _NOT_NAME for w in words) or any(
+                    m.search(normalize(name)) for m in known
+                ):
+                    continue
+                return name, count == 3 and name == line
+        return None, False
 
     def _vocabulary(self, catalog: Catalog) -> _Vocabulary:
         # Хранится словарь только последней версии справочника: после синхронизации старый не нужен.
@@ -356,3 +535,62 @@ class RulesTextUnderstanding:
 
     def _is_net(self, text: str, match: re.Match[str]) -> bool:
         return self._net is not None and self._net.search(self._around(text, match)) is not None
+
+
+def _phone(text: str) -> str | None:
+    """Российский номер — в виде «+7 999 123-45-67», другой с кодом страны — как написан."""
+    found = _RU_PHONE.search(text)
+    if found:
+        return f"+7 {found[1]} {found[2]}-{found[3]}-{found[4]}"
+    found = _PHONE.search(text)
+    return " ".join(found[0].split()) if found else None
+
+
+def _stated_experience(text: str) -> int | None:
+    """Стаж, названный прямо: «опыт работы — 6 лет», «стаж 3 года», «5 years of experience»."""
+    found = _EXPERIENCE.search(text)
+    if found is None:
+        return None
+    return int(found["years"] or found["en"])
+
+
+def _month(number: str | None, name: str | None) -> int | None:
+    if number:
+        return int(number)
+    if name:
+        return next(m for pattern, m in _MONTHS.items() if re.fullmatch(pattern, name))
+    return None
+
+
+def _experience_by_periods(text: str, today: date) -> int | None:
+    """Полных лет в объединении периодов «03.2019 — н.в.», «2017–2020», «январь 2021 — май 2023».
+    Есть раздел опыта — только периоды в нём: годы учёбы стажем не считаются. Период без месяцев
+    идёт от января до января: «2019–2023» — четыре года."""
+    start = _EXPERIENCE_SECTION.search(text)
+    if start is not None:
+        end = _NEXT_SECTION.search(text, start.end())
+        text = text[start.end() : end.start() if end else len(text)]
+    now = today.year * 12 + today.month
+    periods = []
+    for found in _PERIOD.finditer(text):
+        first = int(found["y1"]) * 12 + (_month(found["m1"], found["name1"]) or 1) - 1
+        if found["present"]:
+            last = now
+        else:
+            month = _month(found["m2"], found["name2"])
+            last = int(found["y2"]) * 12 + (month or 1) - 1 + (1 if month else 0)
+            # «2023 — 2023» без месяцев — год работы, а не пустой период.
+            if month is None and last <= first:
+                last = first + 12
+        if first < last <= now:
+            periods.append((first, last))
+    if not periods:
+        return None
+    months = 0
+    reached = 0
+    for first, last in sorted(periods):
+        first = max(first, reached)
+        if last > first:
+            months += last - first
+            reached = last
+    return months // 12

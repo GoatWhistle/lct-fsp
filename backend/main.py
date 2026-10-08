@@ -25,11 +25,12 @@ from app.adapter.fsp_registry import FileFspRegistry
 from app.adapter.mail import SmtpMailer
 from app.adapter.password import Argon2Passwords
 from app.adapter.profile_pdf import FpdfProfileRenderer
+from app.adapter.resume_pdf import PypdfResumeText
 from app.adapter.seed import SecureSeeds
 from app.adapter.session import JwtSessions
 from app.adapter.text_llama import LlamaCompletion
 from app.adapter.text_model import Completion
-from app.adapter.text_rules import RulesTextUnderstanding, load_synonyms
+from app.adapter.text_rules import RulesTextUnderstanding, grade_hint_rule, load_synonyms
 from app.controller.auth import router as auth_router
 from app.controller.cabinets import candidate_router, employer_router
 from app.controller.catalog import router as catalog_router
@@ -73,6 +74,7 @@ from app.usecase.interface import (
     Mailer,
     PasswordHasher,
     ProfilePdfRenderer,
+    ResumeText,
     SeedSource,
     SkillModel,
     TextUnderstanding,
@@ -130,6 +132,7 @@ def create_app(
     acceptance: AcceptanceModel | None = None,
     passwords: PasswordHasher | None = None,
     understanding: TextUnderstanding | None = None,
+    resume_text: ResumeText | None = None,
     fsp_id: FspIdProvider | None = None,
     fsp_registry: FspRegistry | None = None,
 ) -> FastAPI:
@@ -181,6 +184,8 @@ def create_app(
     # tests/test_mechanics_config.py сверяет их с config/mechanics.yaml.
     app.state.item_selector = selector = item_selector(mechanics)
 
+    understanding = understanding or text_understanding(settings)
+
     def attempts(uow: SqlUnitOfWork) -> SqlAttemptRepository:
         return SqlAttemptRepository(
             uow.session, mechanics.grade_thresholds, mechanics.grade_confidence
@@ -204,7 +209,7 @@ def create_app(
         seeds=seeds,
         code_runner=InProcessCodeRunner(),
         acceptance=acceptance or NoAcceptanceModel(),
-        text_understanding=understanding or text_understanding(settings),
+        text_understanding=understanding,
     )
     app.state.calibration = usecases.calibration
     app.state.candidate_path = usecases.candidate_path
@@ -244,6 +249,15 @@ def create_app(
             redirect_uri=settings.fsp_id_callback,
         ),
         fsp_registry=fsp_registry or FileFspRegistry(settings.fsp_registry_path),
+        resume_text=resume_text
+        or PypdfResumeText(
+            max_pages=mechanics.resume_max_pages,
+            max_content_bytes=mechanics.resume_max_content_bytes,
+            min_font_pt=mechanics.resume_min_font_pt,
+            max_lightness=mechanics.resume_max_lightness,
+        ),
+        text_understanding=understanding,
+        grade_hints=grade_hint_rule(load_synonyms(settings.synonyms_file)),
     )
     app.state.accounts = platform.accounts
     app.state.companies = platform.companies
@@ -255,6 +269,7 @@ def create_app(
     app.state.invitations = platform.invitations
     app.state.conversations = platform.conversations
     app.state.feedback = platform.feedback
+    app.state.resume_drafts = platform.resume_drafts
 
     install_error_handlers(app)
     app.include_router(auth_router)

@@ -173,6 +173,7 @@ function SelectionList({ selections, error }: { selections: SelectionSummary[]; 
                 · {s.specialization.name} · {s.grade.name} · {dateTimeWords(s.created_at)} · {s.exact_total} в
                 категории
                 {s.nearby_total > 0 && `, ${s.nearby_total} близких`}
+                {s.unconfirmed_total > 0 && `, ${s.unconfirmed_total} с неподтверждённым грейдом`}
                 {!s.need_id && ' · потребность удалена'}
               </span>
             </li>
@@ -239,6 +240,7 @@ function NeedCard({ need, selections }: { need: Need; selections: SelectionSumma
           <Link to={`/employer/selections/${last.id}`}>
             Последняя подборка от {dateWords(last.created_at)}: {last.exact_total} в категории
             {last.nearby_total > 0 && `, ${last.nearby_total} близких`}
+            {last.unconfirmed_total > 0 && `, ${last.unconfirmed_total} с неподтверждённым грейдом`}
           </Link>
         )}
       </div>

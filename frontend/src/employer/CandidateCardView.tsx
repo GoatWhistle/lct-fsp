@@ -1,6 +1,6 @@
 import type { CandidateCard } from '../api/client'
 import { levelWords, thetaWithError, yearsWords } from '../candidate/words'
-import { workFormatWord } from './words'
+import { gradeStatusWords, workFormatWord } from './words'
 
 /**
  * Карточка кандидата для работодателя как её отдал бэкенд: обезличенная до принятия приглашения,
@@ -40,7 +40,10 @@ export function CandidateCardView({ card }: { card: CandidateCard }) {
         </div>
       )}
       <p className="muted">
-        Категория {card.category.specialization.name} · {card.category.grade.name}
+        {card.category
+          ? `Категория ${card.category.specialization.name} · ${card.category.grade.name} · `
+          : 'Категории нет — '}
+        грейд {gradeStatusWords(card.grade_status)}
       </p>
       {card.skill_profile && (
         <p>

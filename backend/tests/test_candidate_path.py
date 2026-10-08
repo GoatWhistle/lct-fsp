@@ -11,17 +11,17 @@ from sqlalchemy import Engine, text
 from sqlalchemy.orm import Session
 
 from app.adapter.calibration import EloCalibration
+from app.adapter.catalog_file import load_catalog
 from app.adapter.clock import FrozenClock
-from app.assessment.catalog import load_catalog
-from app.assessment.models import FamilyCalibration
-from app.config import Mechanics, Settings
+from app.adapter.irt import estimate
+from app.domain.account import Role
 from app.domain.bank import Family, families_for_topics, get_family
 from app.domain.skill import Normal, Observation
-from app.identity.models import Role
 from app.repository.calibration import SqlCalibrationRepository
-from app.skills.irt import estimate
+from app.repository.orm import FamilyCalibration
 from app.usecase.skill_profile import specialization_prior
 from main import create_app
+from settings import CATALOG_FILE, Mechanics, Settings
 from tests.candidate_path import (
     ITEM,
     PATH,
@@ -35,7 +35,9 @@ from tests.candidate_path import (
 )
 from tests.conftest import PASSWORD, Outbox, Seeds, transaction
 
-QA_TOPICS = [t.code for s in load_catalog().specializations if s.code == "qa" for t in s.topics]
+QA_TOPICS = [
+    t.code for s in load_catalog(CATALOG_FILE).specializations if s.code == "qa" for t in s.topics
+]
 
 Json = dict[str, Any]
 SignIn = Callable[[Role], TestClient]

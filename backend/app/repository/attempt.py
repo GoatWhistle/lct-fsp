@@ -1,7 +1,7 @@
 """Попытки теста в Postgres — реализация портов `AttemptReader` и `AttemptRepository`.
 
-ORM пути кандидата пока живёт в `app.assessment.models`; сюда он переедет вместе с остальными
-репозиториями. Изменения не фиксируются — это делает единица работы.
+Профиль навыков кандидата пишется здесь же: его пересчитывает путь кандидата. Изменения не
+фиксируются — это делает единица работы.
 """
 
 import uuid
@@ -11,15 +11,13 @@ from datetime import datetime
 from sqlalchemy import distinct, func, select
 from sqlalchemy.orm import Session, selectinload
 
-from app.assessment import models
 from app.domain import candidate
 from app.domain.attempt import AnsweredPresentation, Attempt, PathState, Presentation, Survey
 from app.domain.catalog import CatalogRef, Topic
 from app.domain.skill import Normal, SkillProfileLevels
-from app.identity.models import User
+from app.repository import orm as models
 from app.repository.catalog import ref_of, topic_of
-from app.skills.models import SkillProfile
-from app.skills.service import store_profile
+from app.repository.orm import SkillProfile, SkillProfileTopic, User
 
 
 def answered_of(row: models.Presentation) -> AnsweredPresentation:
@@ -364,7 +362,25 @@ class SqlAttemptRepository(SqlAttemptReader):
         levels: SkillProfileLevels,
         now: datetime,
     ) -> None:
-        store_profile(self.session, user_id, specialization_code, levels, now)
+        profile = self.session.scalar(
+            select(SkillProfile).where(
+                SkillProfile.user_id == user_id,
+                SkillProfile.specialization_code == specialization_code,
+            )
+        )
+        if profile is None:
+            profile = SkillProfile(user_id=user_id, specialization_code=specialization_code)
+            self.session.add(profile)
+        profile.overall_theta, profile.overall_theta_sd = levels.overall.mean, levels.overall.sd
+        profile.observations = levels.observations
+        profile.updated_at = now
+        profile.last_signal_at = levels.last_signal_at
+        rows = {row.topic_code: row for row in profile.topics}
+        for topic, level in levels.topics.items():
+            if topic not in rows:
+                rows[topic] = SkillProfileTopic(topic_code=topic)
+                profile.topics.append(rows[topic])
+            rows[topic].theta, rows[topic].theta_sd = level.mean, level.sd
         self.session.flush()
 
     def _level(self, theta: float, theta_sd: float) -> candidate.Level:

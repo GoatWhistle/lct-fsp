@@ -1,26 +1,68 @@
-"""Порты для эндпоинтов: реализации кладёт в `app.state` сборка в `backend/main.py`. Контроллер
-передаёт их в сценарий, сам время и seed не берёт."""
+"""Зависимости эндпоинтов: единица работы запроса, сценарии на ней, порты и текущий пользователь.
 
-from typing import Annotated
+Реализации и фабрики сценариев кладёт в `app.state` сборка в `backend/main.py`. Контроллер
+передаёт порты в сценарий, сам время и seed не берёт. Права проверяет только бэкенд — фронт лишь
+прячет кнопки: разделы одной роли — роутер с `dependencies=role_guard(Role.x)` и префиксом
+`/api/candidate` или `/api/employer`; пользователь в эндпоинте — `CurrentUser`.
+"""
 
-from fastapi import Depends, Request
+from collections.abc import Callable, Iterator
+from dataclasses import dataclass
+from typing import Annotated, Any
 
-from app.db import UnitOfWorkDep
+from fastapi import Depends, Request, params
+from fastapi.security import APIKeyCookie
+
+from app.controller.errors import error_responses
+from app.domain.account import Account, Role
+from app.domain.errors import NotAuthenticated, WrongRole
+from app.usecase.account import Accounts
 from app.usecase.attempt import CandidatePath
 from app.usecase.calibration import AnswerCalibration
+from app.usecase.catalog import CatalogQueries
+from app.usecase.company import Companies
 from app.usecase.interface import (
     CandidateRepository,
     Clock,
-    Mailer,
     ProfilePdfRenderer,
-    SeedSource,
+    RequestUnitOfWork,
 )
+from app.usecase.need import Needs
 from app.usecase.selection import Selections
+from settings import Mechanics
+
+ACCESS_COOKIE = "access_token"
 
 
-def get_mailer(request: Request) -> Mailer:
-    mailer: Mailer = request.app.state.mailer
-    return mailer
+@dataclass(frozen=True)
+class SessionCookie:
+    """Cookie входа: срок в секундах и флаг `Secure` — из настроек стенда."""
+
+    max_age: int
+    secure: bool
+
+
+def get_unit_of_work(request: Request) -> Iterator[RequestUnitOfWork]:
+    """Единица работы запроса; фабрику собирает `create_app`. Транзакции — блоки `with uow:`
+    в сценариях, соединение освобождается в конце запроса."""
+    uow: RequestUnitOfWork = request.app.state.unit_of_work()
+    try:
+        yield uow
+    finally:
+        uow.close()
+
+
+UnitOfWorkDep = Annotated[RequestUnitOfWork, Depends(get_unit_of_work)]
+
+
+def get_mechanics(request: Request) -> Mechanics:
+    mechanics: Mechanics = request.app.state.mechanics
+    return mechanics
+
+
+def get_session_cookie(request: Request) -> SessionCookie:
+    cookie: SessionCookie = request.app.state.session_cookie
+    return cookie
 
 
 def get_profile_pdf_renderer(request: Request) -> ProfilePdfRenderer:
@@ -33,19 +75,39 @@ def get_clock(request: Request) -> Clock:
     return clock
 
 
-def get_seeds(request: Request) -> SeedSource:
-    seeds: SeedSource = request.app.state.seeds
-    return seeds
+MechanicsDep = Annotated[Mechanics, Depends(get_mechanics)]
+SessionCookieDep = Annotated[SessionCookie, Depends(get_session_cookie)]
+ProfilePdfRendererDep = Annotated[ProfilePdfRenderer, Depends(get_profile_pdf_renderer)]
+ClockDep = Annotated[Clock, Depends(get_clock)]
+
+
+def get_accounts(request: Request, uow: UnitOfWorkDep) -> Accounts:
+    """Сценарии учётки на единице работы запроса."""
+    accounts: Accounts = request.app.state.accounts(uow)
+    return accounts
+
+
+def get_catalog(request: Request, uow: UnitOfWorkDep) -> CatalogQueries:
+    catalog: CatalogQueries = request.app.state.catalog(uow)
+    return catalog
+
+
+def get_companies(request: Request, uow: UnitOfWorkDep) -> Companies:
+    companies: Companies = request.app.state.companies(uow)
+    return companies
+
+
+def get_needs(request: Request, uow: UnitOfWorkDep) -> Needs:
+    needs: Needs = request.app.state.needs(uow)
+    return needs
 
 
 def get_selections(request: Request, uow: UnitOfWorkDep) -> Selections:
-    """Сценарии подборки на единице работы запроса."""
     selections: Selections = request.app.state.selections(uow)
     return selections
 
 
 def get_candidate_path(request: Request, uow: UnitOfWorkDep) -> CandidatePath:
-    """Сценарии пути кандидата на единице работы запроса."""
     paths: CandidatePath = request.app.state.candidate_path(uow)
     return paths
 
@@ -56,19 +118,51 @@ def get_answer_calibration(request: Request, uow: UnitOfWorkDep) -> AnswerCalibr
     return calibrations
 
 
-MailerDep = Annotated[Mailer, Depends(get_mailer)]
-ProfilePdfRendererDep = Annotated[ProfilePdfRenderer, Depends(get_profile_pdf_renderer)]
-ClockDep = Annotated[Clock, Depends(get_clock)]
-SeedsDep = Annotated[SeedSource, Depends(get_seeds)]
-SelectionsDep = Annotated[Selections, Depends(get_selections)]
-CandidatePathDep = Annotated[CandidatePath, Depends(get_candidate_path)]
-AnswerCalibrationDep = Annotated[AnswerCalibration, Depends(get_answer_calibration)]
-
-
 def get_candidates(request: Request, uow: UnitOfWorkDep) -> CandidateRepository:
-    """Репозиторий кандидатов на сессии единицы работы запроса."""
+    """Репозиторий кандидатов на единице работы запроса."""
     candidates: CandidateRepository = request.app.state.candidate_repository(uow)
     return candidates
 
 
+AccountsDep = Annotated[Accounts, Depends(get_accounts)]
+CatalogQueriesDep = Annotated[CatalogQueries, Depends(get_catalog)]
+CompaniesDep = Annotated[Companies, Depends(get_companies)]
+NeedsDep = Annotated[Needs, Depends(get_needs)]
+SelectionsDep = Annotated[Selections, Depends(get_selections)]
+CandidatePathDep = Annotated[CandidatePath, Depends(get_candidate_path)]
+AnswerCalibrationDep = Annotated[AnswerCalibration, Depends(get_answer_calibration)]
 CandidatesDep = Annotated[CandidateRepository, Depends(get_candidates)]
+
+_cookie_scheme = APIKeyCookie(
+    name=ACCESS_COOKIE,
+    scheme_name="session",
+    auto_error=False,
+    description="httpOnly-cookie; ставит `POST /api/auth/login`, снимает `POST /api/auth/logout`",
+)
+
+
+def get_current_user(
+    accounts: AccountsDep, access_token: Annotated[str | None, Depends(_cookie_scheme)]
+) -> Account:
+    return accounts.session_account(access_token)
+
+
+CurrentUser = Annotated[Account, Depends(get_current_user)]
+
+AUTH_RESPONSES = error_responses(NotAuthenticated)
+
+
+def require_role(role: Role) -> Callable[[Account], Account]:
+    def check(user: CurrentUser) -> Account:
+        if user.role != role:
+            raise WrongRole()
+        return user
+
+    return check
+
+
+def role_guard(role: Role) -> list[params.Depends]:
+    return [Depends(require_role(role))]
+
+
+ROLE_RESPONSES: dict[int | str, dict[str, Any]] = error_responses(NotAuthenticated, WrongRole)

@@ -8,10 +8,18 @@ from urllib.parse import quote
 
 from fastapi import APIRouter, Response
 
-from app.assessment.schemas import CategoryOut, skill_profile_view
-from app.config import MechanicsDep
-from app.controller.deps import CandidatesDep, ClockDep, ProfilePdfRendererDep
+from app.controller.deps import (
+    ROLE_RESPONSES,
+    CandidatesDep,
+    ClockDep,
+    CurrentUser,
+    MechanicsDep,
+    ProfilePdfRendererDep,
+    UnitOfWorkDep,
+    role_guard,
+)
 from app.controller.errors import error_responses
+from app.controller.path_schemas import CategoryOut, skill_profile_view
 from app.controller.profile_schemas import (
     CandidateCardOut,
     ProfileIn,
@@ -19,11 +27,9 @@ from app.controller.profile_schemas import (
     SelfReportedOut,
 )
 from app.controller.schemas import CatalogRef
-from app.db import UnitOfWorkDep
 from app.domain import candidate as domain
 from app.domain import errors
-from app.identity.deps import ROLE_RESPONSES, CurrentUser, role_guard
-from app.identity.models import Role
+from app.domain.account import Role
 from app.usecase import candidate as usecase
 
 PROFILE_ERRORS = (errors.UnknownTechnology, errors.UnknownIndustry, errors.CityRequired)

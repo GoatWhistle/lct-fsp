@@ -2,7 +2,7 @@
 (mechanics.md, §3–4).
 
 Здесь то, что не зависит от выбранной модели навыка; сама модель — за портом
-`app.usecase.interface.SkillModel`, сейчас IRT 2PL в `app/skills/irt.py`.
+`app.usecase.interface.SkillModel`, сейчас IRT 2PL в `app/adapter/irt.py`.
 """
 
 import math

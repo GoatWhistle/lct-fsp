@@ -6,11 +6,11 @@ from collections.abc import Iterable, Sequence
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 
-from app.config import Mechanics, Settings
+from app.adapter import irt
 from app.domain.attempt import AnsweredPresentation
 from app.domain.skill import Observation, Prior, SkillEstimate
-from app.skills import irt
 from app.usecase.skill_profile import refresh_skill_profile, specialization_prior
+from settings import Mechanics, Settings
 
 MECHANICS = Mechanics.from_yaml(Settings().mechanics_file)
 TOPICS = ("qa.sql", "qa.api")

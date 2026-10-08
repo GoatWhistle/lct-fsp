@@ -43,7 +43,7 @@ select = ["E", "F", "I", "B", "UP", "SIM", "RUF", "TID251"]
 ignore = ["RUF001", "RUF002", "RUF003"]
 
 [tool.ruff.lint.flake8-tidy-imports.banned-api]
-"sqlalchemy.create_engine".msg = "движок — через app.db.create_db_engine: время из базы в UTC"
+"sqlalchemy.create_engine".msg = "движок — через app.repository.database.create_db_engine: время из базы в UTC"
 
 [tool.mypy]
 python_version = "3.12"

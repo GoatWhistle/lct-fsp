@@ -7,9 +7,9 @@
 import uuid
 from collections.abc import Sequence
 
-from app.config import Mechanics
 from app.domain.skill import Prior, SkillProfileLevels
 from app.usecase.interface import AttemptReader, SkillModel
+from settings import Mechanics
 
 
 def specialization_prior(topics: Sequence[str], mechanics: Mechanics) -> Prior:

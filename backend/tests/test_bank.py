@@ -8,17 +8,17 @@ from decimal import Decimal, InvalidOperation
 
 import pytest
 
+from app.adapter.catalog_file import load_catalog
 from app.adapter.code_runner import InProcessCodeRunner
-from app.assessment.catalog import load_catalog
-from app.config import Mechanics, Settings
 from app.domain.bank import BANK, RETIRED, Family, covers, families_for_topics, get_family
 from app.domain.bank.family import same_answer, values
+from settings import CATALOG_FILE, Mechanics, Settings
 
 SEEDS = range(200)
 RUNNER = InProcessCodeRunner()
 # Совпадения ответов считаются на большей выборке: доля около 4 % на 200 экземплярах шумит.
 COLLISION_SEEDS = range(500)
-TOPICS = {s.code: [t.code for t in s.topics] for s in load_catalog().specializations}
+TOPICS = {s.code: [t.code for t in s.topics] for s in load_catalog(CATALOG_FILE).specializations}
 MECHANICS = Mechanics.from_yaml(Settings().mechanics_file)
 
 
@@ -84,7 +84,7 @@ def test_family_codes_are_unique_and_namespaced_by_topic() -> None:
 
 
 def test_family_grades_are_catalog_grades() -> None:
-    assert {f.grade for f in BANK} == {g.code for g in load_catalog().grades}
+    assert {f.grade for f in BANK} == {g.code for g in load_catalog(CATALOG_FILE).grades}
 
 
 def test_bank_covers_every_specialization() -> None:

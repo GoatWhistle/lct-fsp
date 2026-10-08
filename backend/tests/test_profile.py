@@ -10,7 +10,7 @@ from fastapi.testclient import TestClient
 from pypdf import PdfReader
 from pypdf.generic import DictionaryObject
 
-from app.identity.models import Role
+from app.domain.account import Role
 from tests.candidate_path import answer_items, nothing, pass_test, start, take_survey
 from tests.conftest import Seeds
 

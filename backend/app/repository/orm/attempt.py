@@ -10,7 +10,7 @@ from sqlalchemy import BigInteger, Enum, ForeignKey, String, UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.domain.attempt import AttemptOutcome
+from app.domain.attempt import AttemptOutcome, AttemptPurpose, ChangeKind
 from app.repository.database import Base
 from app.repository.orm.catalog import Grade, Specialization
 
@@ -52,6 +52,16 @@ class TestAttempt(Base):
     )
     started_at: Mapped[datetime]
     finished_at: Mapped[datetime | None]
+    purpose: Mapped[AttemptPurpose] = mapped_column(
+        Enum(
+            AttemptPurpose,
+            native_enum=False,
+            create_constraint=True,
+            length=16,
+            name="attempt_purpose",
+        ),
+        default=AttemptPurpose.determination,
+    )
 
     # Оценка теста на момент остановки: общий уровень θ̄ и его погрешность.
     overall_theta: Mapped[float | None]
@@ -173,8 +183,11 @@ class ScaleLink(Base):
 
 
 class CandidateCategory(Base):
-    """Категория кандидата — специализация × грейд. Строку пишет только присвоение по тесту:
-    выдача работодателя строится по этой таблице, кандидата без строки в ней нет."""
+    """Категория кандидата — специализация × грейд. Строку создаёт только присвоение по тесту:
+    выдача работодателя строится по этой таблице, кандидата без строки в ней нет. Смена грейда
+    правит строку на месте: `assigned_at` — момент последней смены, `attempt_id` — попытка, чья
+    оценка стоит за грейдом; переход вниз идёт без теста по той же оценке, попытка прежняя
+    (mechanics.md, §4)."""
 
     __tablename__ = "candidate_categories"
 
@@ -188,3 +201,31 @@ class CandidateCategory(Base):
 
     specialization: Mapped[Specialization] = relationship()
     grade: Mapped[Grade] = relationship()
+
+
+class CategoryChange(Base):
+    """Журнал категории: первичное определение и смены грейда. По нему считается правило
+    ожидания — часы сдвигают только смены вверх и вниз (mechanics.md, §4)."""
+
+    __tablename__ = "category_changes"
+    __table_args__ = (UniqueConstraint("user_id", "number"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    # Номер записи кандидата с 1 — порядок по нему, как у попыток.
+    number: Mapped[int]
+    specialization_code: Mapped[str] = mapped_column(ForeignKey("specializations.code"))
+    grade_code: Mapped[str] = mapped_column(ForeignKey("grades.code"))
+    kind: Mapped[ChangeKind] = mapped_column(
+        Enum(
+            ChangeKind,
+            native_enum=False,
+            create_constraint=True,
+            length=16,
+            name="category_change_kind",
+        )
+    )
+    attempt_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("test_attempts.id", ondelete="CASCADE")
+    )
+    changed_at: Mapped[datetime]

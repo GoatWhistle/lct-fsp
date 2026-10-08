@@ -4,6 +4,7 @@ HTTP-статуса здесь нет — его назначает таблиц
 своя строка в таблице, `tests/test_errors.py` это проверяет.
 """
 
+from datetime import datetime
 from typing import ClassVar
 
 
@@ -162,6 +163,28 @@ class NoTestInProgress(DomainError):
 class ItemNotCurrent(DomainError):
     code = "item_not_current"
     message = "Это задание уже не текущее — обновите страницу"
+
+
+class GradeNotNext(DomainError):
+    code = "grade_not_next"
+    message = "Попытка вверх — только на следующий грейд после вашего"
+
+
+class GradeChangeTooEarly(DomainError):
+    """Правило ожидания смены грейда (mechanics.md, §4): дата, с которой можно, — в
+    `available_at`."""
+
+    code = "grade_change_too_early"
+    message = "Попытка на этот грейд пока недоступна — грейд меняется не чаще установленного срока"
+
+    def __init__(self, available_at: datetime) -> None:
+        super().__init__()
+        self.available_at = available_at
+
+
+class NoLowerGrade(DomainError):
+    code = "no_lower_grade"
+    message = "Ниже вашего грейда грейдов нет"
 
 
 # Профиль кандидата.

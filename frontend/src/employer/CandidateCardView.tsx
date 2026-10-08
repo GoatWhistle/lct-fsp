@@ -44,7 +44,9 @@ export function CandidateCardView({ card }: { card: CandidateCard }) {
         {card.category
           ? `Категория ${card.category.specialization.name} · ${card.category.grade.name} · `
           : 'Категории нет — '}
-        грейд {gradeStatusWords(card.grade_status)}
+        {card.grade_status
+          ? `грейд ${gradeStatusWords(card.grade_status)}`
+          : 'кандидат откликнулся на вашу вакансию, тест не проходил'}
       </p>
       {card.skill_profile && (
         <p>

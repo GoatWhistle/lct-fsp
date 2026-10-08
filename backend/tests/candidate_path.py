@@ -182,3 +182,36 @@ def with_company(employer: TestClient, name: str = "Платёжные реше�
         },
     ).raise_for_status()
     return employer
+
+
+def fill_profile(candidate: TestClient, **changes: Any) -> TestClient:
+    """Кандидат с заполненной анкетой — он может откликаться на вакансии."""
+    profile: Json = {
+        "full_name": "Петров Пётр Петрович",
+        "contact_email": "petrov@example.ru",
+        "stack": ["pytest"],
+        "experience_years": 3,
+        "work_formats": ["remote"],
+        "salary_from": 250_000,
+    }
+    candidate.put("/api/candidate/profile", json=profile | changes).raise_for_status()
+    return candidate
+
+
+VACANCY: Json = {
+    "title": "QA-инженер в платёжный шлюз",
+    "description": "Автотесты на pytest, нагрузка, CI",
+    "specialization": "qa",
+    "grade": "middle",
+    "work_formats": ["remote", "hybrid"],
+    "salary_from": 220_000,
+    "salary_to": 280_000,
+}
+
+
+def publish_vacancy(employer: TestClient, **changes: Any) -> Json:
+    """Опубликованная вакансия работодателя с профилем компании."""
+    response = employer.post("/api/employer/vacancies", json=VACANCY | changes)
+    assert response.status_code == 201, response.text
+    body: Json = response.json()
+    return body

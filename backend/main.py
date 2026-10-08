@@ -50,6 +50,8 @@ from app.controller.profile import employer_router as candidates_router
 from app.controller.profile import router as profile_router
 from app.controller.regular_task import candidate_router as candidate_tasks_router
 from app.controller.regular_task import employer_router as employer_tasks_router
+from app.controller.vacancy import candidate_router as candidate_vacancies_router
+from app.controller.vacancy import employer_router as employer_vacancies_router
 from app.repository.account import SqlAccounts, SqlEmailVerifications
 from app.repository.attempt import SqlAttemptRepository
 from app.repository.calibration import SqlCalibrationRepository
@@ -64,6 +66,7 @@ from app.repository.need import SqlNeeds
 from app.repository.regular_task import SqlRegularTasks
 from app.repository.selection import SqlCandidatePool, SqlSelections
 from app.repository.unit_of_work import SqlUnitOfWork
+from app.repository.vacancy import SqlApplications, SqlVacancies
 from app.usecase.account import VerificationLinks
 from app.usecase.interface import (
     AcceptanceModel,
@@ -176,6 +179,11 @@ def create_app(
     app.state.unit_of_work = unit_of_work
     app.state.candidate_repository = candidate_repository
     app.state.invitation_repository = invitation_repository
+
+    def application_repository(uow: SqlUnitOfWork) -> SqlApplications:
+        return SqlApplications(uow.session)
+
+    app.state.application_repository = application_repository
     app.state.profile_pdf_renderer = profile_pdf_renderer or FpdfProfileRenderer()
     app.state.clock = clock = clock or SystemClock()
     seeds = seeds or SecureSeeds()
@@ -232,6 +240,8 @@ def create_app(
             messages=lambda uow: SqlMessages(uow.session),
             selections=lambda uow: SqlSelections(uow.session),
             calibration=lambda uow: SqlCalibrationRepository(uow.session),
+            vacancies=lambda uow: SqlVacancies(uow.session),
+            applications=application_repository,
         ),
         mechanics=mechanics,
         passwords=passwords or Argon2Passwords(),
@@ -270,6 +280,8 @@ def create_app(
     app.state.conversations = platform.conversations
     app.state.feedback = platform.feedback
     app.state.resume_drafts = platform.resume_drafts
+    app.state.vacancies = platform.vacancies
+    app.state.applications = platform.applications
 
     install_error_handlers(app)
     app.include_router(auth_router)
@@ -288,6 +300,8 @@ def create_app(
     app.include_router(candidate_tasks_router)
     app.include_router(invitations_router)
     app.include_router(inbox_router)
+    app.include_router(employer_vacancies_router)
+    app.include_router(candidate_vacancies_router)
     app.include_router(feedback_router)
     app.include_router(catalog_router)
 

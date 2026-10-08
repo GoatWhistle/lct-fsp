@@ -9,6 +9,7 @@ import { EmployerCabinet } from './pages/EmployerCabinet'
 import { Home } from './pages/Home'
 import { Login } from './pages/Login'
 import { NeedForm } from './pages/NeedForm'
+import { NeedFromText } from './pages/NeedFromText'
 import { Register } from './pages/Register'
 import { Selection } from './pages/Selection'
 import { VerifyEmail } from './pages/VerifyEmail'
@@ -43,6 +44,7 @@ export default function App() {
           <Route index element={<EmployerCabinet />} />
           <Route path="company" element={<CompanyProfile />} />
           <Route path="needs/new" element={<NeedForm />} />
+          <Route path="needs/text" element={<NeedFromText />} />
           <Route path="needs/:id" element={<NeedForm />} />
           <Route path="selections/:id" element={<Selection />} />
           <Route path="candidates/:id" element={<CandidateCardPage />} />

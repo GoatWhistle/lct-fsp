@@ -453,6 +453,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/employer/needs/parse": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Разобрать потребность из текста
+         * @description Текст вакансии или описание как есть → черновик «система поняла так» со значениями справочника или ответ «такой специализации нет» с ближайшими. Разбор локальный, наружу текст не уходит; ничего не сохраняется.
+         */
+        post: operations["parse_need_api_employer_needs_parse_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/employer/needs/{need_id}": {
         parameters: {
             query?: never;
@@ -505,7 +525,11 @@ export interface paths {
         /** Подборки компании, новые сверху */
         get: operations["list_selections_api_employer_selections_get"];
         put?: never;
-        post?: never;
+        /**
+         * Сформировать подборку по черновику
+         * @description Та же подборка, что по сохранённой потребности, но по полям формы без сохранения — черновик из текста после правки. Правка и новый вызов — новая подборка, прежняя открывается с той же выдачей. `need_id` у такой подборки — `null`.
+         */
+        post: operations["build_draft_selection_api_employer_selections_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -935,6 +959,12 @@ export interface components {
             /** Soft Skills */
             soft_skills: string[];
         };
+        /**
+         * DraftField
+         * @description Поля черновика с уверенностью. «Кого ищете» не из справочника — уверенности у него нет.
+         * @enum {string}
+         */
+        DraftField: "specialization" | "grade" | "stack" | "work_format" | "city" | "salary";
         /** ErrorOut */
         ErrorOut: {
             /**
@@ -1343,6 +1373,58 @@ export interface components {
             /** Password */
             password: string;
         };
+        /**
+         * NeedDraftOut
+         * @description Черновик «система поняла так»: только значения справочника. Ничего не сохранено —
+         *     работодатель правит поля и строит подборку (`POST /api/employer/selections`) или заводит
+         *     потребность (`POST /api/employer/needs`). Важность тем — из стека, как у формы.
+         */
+        NeedDraftOut: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "draft";
+            /**
+             * Title
+             * @description Кого ищете — первая строка текста, если похожа
+             */
+            title: string | null;
+            specialization: components["schemas"]["CatalogRef"] | null;
+            grade: components["schemas"]["CatalogRef"] | null;
+            /**
+             * Stack
+             * @description В порядке справочника
+             */
+            stack: components["schemas"]["CatalogRef"][];
+            work_format: components["schemas"]["WorkFormat"] | null;
+            /** City */
+            city: string | null;
+            /**
+             * Salary From
+             * @description Рубли в месяц до вычета НДФЛ (гросс). Может быть без «до»
+             */
+            salary_from: number | null;
+            /**
+             * Salary To
+             * @description Рубли в месяц до вычета НДФЛ (гросс). Может быть без «от»
+             */
+            salary_to: number | null;
+            /**
+             * Confidence
+             * @description Уверенность по распознанным полям в [0, 1]; `null` — разбор её не считает. Нераспознанных полей здесь нет
+             */
+            confidence: {
+                [key: string]: number | null;
+            };
+            /**
+             * Uncertain
+             * @description Распознанные поля с уверенностью ниже `need_draft_confident` — проверьте их
+             */
+            uncertain: components["schemas"]["DraftField"][];
+            /** @description Все суммы платформы — до вычета НДФЛ (`gross`) */
+            readonly salary_basis: components["schemas"]["SalaryBasis"];
+        };
         /** NeedIn */
         NeedIn: {
             /**
@@ -1482,6 +1564,14 @@ export interface components {
             /** @description Все суммы платформы — до вычета НДФЛ (`gross`) */
             readonly salary_basis: components["schemas"]["SalaryBasis"];
         };
+        /** NeedTextIn */
+        NeedTextIn: {
+            /**
+             * Text
+             * @description Текст вакансии или описание потребности как есть
+             */
+            text: string;
+        };
         /** OptionOut */
         OptionOut: {
             /**
@@ -1491,6 +1581,27 @@ export interface components {
             letter: string;
             /** Text */
             text: string;
+        };
+        /**
+         * OutOfCatalogOut
+         * @description Такой специализации на платформе нет: что просили и ближайшие специализации справочника.
+         */
+        OutOfCatalogOut: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "out_of_catalog";
+            /**
+             * Asked
+             * @description Что просили, например «1С» или «Геймдев»
+             */
+            asked: string;
+            /**
+             * Nearest
+             * @description Ближайшие специализации — не пусто
+             */
+            nearest: components["schemas"]["CatalogRef"][];
         };
         /** PathOut */
         PathOut: {
@@ -1789,7 +1900,7 @@ export interface components {
             id: string;
             /**
              * Need Id
-             * @description `null` — потребность удалена
+             * @description `null` — потребность удалена или подборка построена по черновику
              */
             need_id: string | null;
             /**
@@ -1842,7 +1953,7 @@ export interface components {
             id: string;
             /**
              * Need Id
-             * @description `null` — потребность удалена
+             * @description `null` — потребность удалена или подборка построена по черновику
              */
             need_id: string | null;
             /**
@@ -3449,6 +3560,57 @@ export interface operations {
             };
         };
     };
+    parse_need_api_employer_needs_parse_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NeedTextIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NeedDraftOut"] | components["schemas"]["OutOfCatalogOut"];
+                };
+            };
+            /** @description `not_authenticated` — Войдите, чтобы продолжить */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description `wrong_role` — Раздел доступен другой роли */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     get_need_api_employer_needs__need_id__get: {
         parameters: {
             query?: never;
@@ -3746,6 +3908,72 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    build_draft_selection_api_employer_selections_post: {
+        parameters: {
+            query?: {
+                /** @description Сколько кандидатов вернуть */
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NeedIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SelectionOut"];
+                };
+            };
+            /** @description `not_authenticated` — Войдите, чтобы продолжить */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description `wrong_role` — Раздел доступен другой роли */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /**
+             * @description `unknown_specialization` — Такой специализации нет в справочнике
+             *
+             *     `unknown_grade` — Такого грейда нет в справочнике
+             *
+             *     `unknown_technology` — Такой технологии нет в справочнике
+             *
+             *     `topic_not_in_specialization` — Важность задаётся только темам специализации потребности
+             *
+             *     `invalid_salary_range` — Вилка — обе границы больше нуля, «от» не больше «до»
+             *
+             *     `city_required` — Укажите город — для офиса и гибрида он обязателен
+             */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
                 };
             };
         };

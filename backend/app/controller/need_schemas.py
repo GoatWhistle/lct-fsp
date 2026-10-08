@@ -2,7 +2,7 @@
 
 import uuid
 from datetime import datetime
-from typing import Annotated
+from typing import Annotated, Literal
 
 from pydantic import BaseModel, Field, StringConstraints
 
@@ -10,6 +10,7 @@ from app.controller.salary import SALARY_UNIT, Salary, SalaryBasisOut
 from app.controller.schemas import CatalogRef, GradeStatusOut
 from app.domain.importance import TopicImportance
 from app.domain.match import Verdict
+from app.domain.need_draft import DraftField
 from app.domain.selection import SelectionBlock
 from app.domain.work import WorkFormat
 
@@ -46,6 +47,48 @@ class NeedIn(TopicImportanceIn):
         "нуля, «от» не больше «до»",
     )
     salary_to: Salary | None = Field(default=None, description=SALARY_UNIT)
+
+
+class NeedTextIn(BaseModel):
+    text: Annotated[
+        str, StringConstraints(strip_whitespace=True, min_length=1, max_length=20000)
+    ] = Field(description="Текст вакансии или описание потребности как есть")
+
+
+class NeedDraftOut(SalaryBasisOut):
+    """Черновик «система поняла так»: только значения справочника. Ничего не сохранено —
+    работодатель правит поля и строит подборку (`POST /api/employer/selections`) или заводит
+    потребность (`POST /api/employer/needs`). Важность тем — из стека, как у формы."""
+
+    kind: Literal["draft"]
+    title: str | None = Field(description="Кого ищете — первая строка текста, если похожа")
+    specialization: CatalogRef | None
+    grade: CatalogRef | None
+    stack: list[CatalogRef] = Field(description="В порядке справочника")
+    work_format: WorkFormat | None
+    city: str | None
+    salary_from: int | None = Field(description=f"{SALARY_UNIT}. Может быть без «до»")
+    salary_to: int | None = Field(description=f"{SALARY_UNIT}. Может быть без «от»")
+    confidence: dict[DraftField, float | None] = Field(
+        description="Уверенность по распознанным полям в [0, 1]; `null` — разбор её не считает. "
+        "Нераспознанных полей здесь нет"
+    )
+    uncertain: list[DraftField] = Field(
+        description="Распознанные поля с уверенностью ниже `need_draft_confident` — проверьте их"
+    )
+
+
+class OutOfCatalogOut(BaseModel):
+    """Такой специализации на платформе нет: что просили и ближайшие специализации справочника."""
+
+    kind: Literal["out_of_catalog"]
+    asked: str = Field(description="Что просили, например «1С» или «Геймдев»")
+    nearest: list[CatalogRef] = Field(
+        min_length=1, description="Ближайшие специализации — не пусто"
+    )
+
+
+NeedParseOut = Annotated[NeedDraftOut | OutOfCatalogOut, Field(discriminator="kind")]
 
 
 class TopicImportanceOut(BaseModel):
@@ -165,7 +208,9 @@ class SelectionEntryOut(BaseModel):
 
 class SelectionSummaryOut(BaseModel):
     id: uuid.UUID
-    need_id: uuid.UUID | None = Field(description="`null` — потребность удалена")
+    need_id: uuid.UUID | None = Field(
+        description="`null` — потребность удалена или подборка построена по черновику"
+    )
     title: str = Field(description="Кого ищете — из снимка потребности")
     specialization: CatalogRef
     grade: CatalogRef

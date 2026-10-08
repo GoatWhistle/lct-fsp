@@ -27,6 +27,7 @@ from app.adapter.password import Argon2Passwords
 from app.adapter.profile_pdf import FpdfProfileRenderer
 from app.adapter.seed import SecureSeeds
 from app.adapter.session import JwtSessions
+from app.adapter.text_rules import RulesTextUnderstanding, load_synonyms
 from app.controller.auth import router as auth_router
 from app.controller.cabinets import candidate_router, employer_router
 from app.controller.catalog import router as catalog_router
@@ -66,6 +67,7 @@ from app.usecase.interface import (
     ProfilePdfRenderer,
     SeedSource,
     SkillModel,
+    TextUnderstanding,
 )
 from composition import (
     PlatformRepositories,
@@ -90,6 +92,16 @@ ISO 8601 с `Z`.
 """
 
 
+def text_understanding(settings: Settings) -> TextUnderstanding:
+    """Разбор текста по имени из настроек. Сейчас реализация одна — правила; модельному адаптеру
+    достанется таймаут `text_understanding_timeout_seconds`, после которого отвечают правила."""
+    match settings.text_understanding:
+        case "rules":
+            return RulesTextUnderstanding(load_synonyms(settings.synonyms_file))
+        case name:
+            raise ValueError(f"неизвестный разбор текста {name!r}: есть только rules")
+
+
 def create_app(
     settings: Settings | None = None,
     mechanics: Mechanics | None = None,
@@ -100,6 +112,7 @@ def create_app(
     skill_model: SkillModel | None = None,
     acceptance: AcceptanceModel | None = None,
     passwords: PasswordHasher | None = None,
+    understanding: TextUnderstanding | None = None,
     fsp_id: FspIdProvider | None = None,
     fsp_registry: FspRegistry | None = None,
 ) -> FastAPI:
@@ -158,6 +171,7 @@ def create_app(
             fsp=lambda uow: SqlFspRepository(uow.session),
             calibration=lambda uow: SqlCalibrationRepository(uow.session),
             needs=lambda uow: SqlNeeds(uow.session),
+            catalog=lambda uow: SqlCatalog(uow.session),
             pool=lambda uow: SqlCandidatePool(uow.session),
             selections=lambda uow: SqlSelections(uow.session),
         ),
@@ -168,11 +182,13 @@ def create_app(
         seeds=seeds,
         code_runner=InProcessCodeRunner(),
         acceptance=acceptance or NoAcceptanceModel(),
+        text_understanding=understanding or text_understanding(settings),
     )
     app.state.calibration = usecases.calibration
     app.state.candidate_path = usecases.candidate_path
     app.state.answer_calibration = usecases.answer_calibration
     app.state.selections = usecases.selections
+    app.state.need_drafts = usecases.need_drafts
     platform = build_platform_usecases(
         PlatformRepositories[SqlUnitOfWork](
             accounts=lambda uow: SqlAccounts(uow.session),

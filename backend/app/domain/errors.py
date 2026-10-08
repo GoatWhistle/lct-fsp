@@ -228,6 +228,11 @@ class SelectionNotFound(DomainError):
     message = "Подборка не найдена"
 
 
+class NotInSelection(DomainError):
+    code = "not_in_selection"
+    message = "Кандидата нет в выдаче подборки"
+
+
 # Компания.
 
 

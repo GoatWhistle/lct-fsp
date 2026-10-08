@@ -36,6 +36,7 @@ from app.repository.orm.need import (
     Selection,
     SelectionEntry,
     need_technologies,
+    selection_shortlist,
 )
 from app.repository.orm.regular_task import RegularTask, RegularTaskAnswer, RegularTaskTopic
 from app.repository.orm.skill_profile import SkillProfile, SkillProfileTopic
@@ -75,5 +76,6 @@ __all__ = [
     "candidate_technologies",
     "fsp_discipline_topics",
     "need_technologies",
+    "selection_shortlist",
     "technology_topics",
 ]

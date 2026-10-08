@@ -14,6 +14,7 @@ from typing import Protocol, Self
 from app.domain import bank
 from app.domain.account import Account, Credentials, EmailVerification, Role
 from app.domain.adaptive import Blueprint, Choice, Option
+from app.domain.application import Application
 from app.domain.attempt import (
     AnsweredPresentation,
     Attempt,
@@ -79,6 +80,7 @@ from app.domain.selection import (
     UnconfirmedCandidate,
 )
 from app.domain.skill import Normal, Observation, Prior, SkillEstimate, SkillProfileLevels
+from app.domain.vacancy import Vacancy, VacancyTerms
 
 
 class SkillModel(Protocol):
@@ -828,6 +830,71 @@ class InvitationRepository(InvitationReader, Protocol):
 
     def sent_since(self, employer_id: uuid.UUID, since: datetime) -> int:
         """Сколько приглашений компания отправила с момента `since`, в любом статусе."""
+        ...
+
+
+class VacancyRepository(Protocol):
+    """Вакансии работодателей. Списки — новые сверху. Пишет только внутри единицы работы и сам не
+    фиксирует. Сейчас — Postgres (`app.repository.vacancy`)."""
+
+    def add(
+        self, employer_id: uuid.UUID, company_name: str, terms: VacancyTerms, now: datetime
+    ) -> Vacancy:
+        """Новая опубликованная вакансия; `now` — время публикации."""
+        ...
+
+    def get(self, vacancy_id: uuid.UUID, *, for_update: bool = False) -> Vacancy | None:
+        """Вакансия по id; `for_update` — с блокировкой до конца единицы работы: отклики на неё
+        идут по очереди."""
+        ...
+
+    def save(self, vacancy: Vacancy) -> None:
+        """Записывает условия, название компании, время правки и снятия с публикации."""
+        ...
+
+    def by_employer(self, employer_id: uuid.UUID) -> list[Vacancy]:
+        """Все вакансии компании, и архивные."""
+        ...
+
+    def published(self, specialization: str | None = None) -> list[Vacancy]:
+        """Опубликованные вакансии всех компаний; `specialization` — только этой специализации."""
+        ...
+
+
+class ApplicationReader(Protocol):
+    """Чтение откликов для правила раскрытия. Сейчас — Postgres (`app.repository.vacancy`)."""
+
+    def applied(self, employer_id: uuid.UUID, candidate_id: uuid.UUID) -> bool:
+        """Откликался ли кандидат на какую-нибудь вакансию компании, не отозвав доступ, — в любом
+        статусе отклика."""
+        ...
+
+
+class ApplicationRepository(ApplicationReader, Protocol):
+    """Отклики с записанным статусом: «истекло» не хранится, его выводит домен по моменту чтения
+    (`Application.at`). Списки — новые сверху. Пишет только внутри единицы работы и сам не
+    фиксирует. Сейчас — Postgres (`app.repository.vacancy`)."""
+
+    def add(self, vacancy: Vacancy, candidate_id: uuid.UUID, now: datetime) -> Application:
+        """Новый отправленный отклик; `now` — время отклика."""
+        ...
+
+    def get(self, application_id: uuid.UUID, *, for_update: bool = False) -> Application | None: ...
+
+    def find(self, vacancy_id: uuid.UUID, candidate_id: uuid.UUID) -> Application | None:
+        """Отклик кандидата на вакансию: он может быть только один."""
+        ...
+
+    def save(self, application: Application) -> None:
+        """Записывает статус, время просмотра, ответа и отзыва; истёкший не записывается."""
+        ...
+
+    def by_candidate(self, candidate_id: uuid.UUID) -> list[Application]: ...
+
+    def by_employer(
+        self, employer_id: uuid.UUID, vacancy_id: uuid.UUID | None = None
+    ) -> list[Application]:
+        """Отклики на вакансии компании; `vacancy_id` — только на эту."""
         ...
 
 

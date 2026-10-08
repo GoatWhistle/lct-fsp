@@ -3,6 +3,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router'
 import {
   api,
   errorMessage,
+  type HideableField,
   type Industry,
   type Profile,
   type ProfileInput,
@@ -15,6 +16,7 @@ import { FspCard } from '../candidate/FspCard'
 import { SalaryInput } from '../components/SalaryInput'
 import { TagInput } from '../components/TagInput'
 import { TechnologyPicker } from '../components/TechnologyPicker'
+import { hideableWords } from '../candidate/words'
 import { workFormats } from '../employer/words'
 
 const DISCLOSED = 'Работодатель увидит только после того, как вы примете его приглашение или откликнетесь сами'
@@ -34,6 +36,7 @@ type Draft = {
   relocation: boolean
   industries: string[]
   salary_from: string
+  hidden: HideableField[]
 }
 
 function emptyDraft(email: string): Draft {
@@ -52,6 +55,7 @@ function emptyDraft(email: string): Draft {
     relocation: false,
     industries: [],
     salary_from: '',
+    hidden: [],
   }
 }
 
@@ -71,6 +75,7 @@ function draftOf(profile: Profile): Draft {
     relocation: profile.relocation,
     industries: profile.industries.map((i) => i.code),
     salary_from: profile.salary_from.toString(),
+    hidden: profile.hidden,
   }
 }
 
@@ -82,6 +87,8 @@ function inputOf(draft: Draft): ProfileInput {
     experience_years: Number(draft.experience_years),
     city: draft.city.trim() || null,
     salary_from: Number(draft.salary_from),
+    // Пустой город скрывать нечего: «скрыто» не путается с «не заполнено».
+    hidden: draft.city.trim() ? draft.hidden : draft.hidden.filter((f) => f !== 'city'),
   }
 }
 
@@ -124,6 +131,21 @@ export function CandidateProfile() {
       ? draft.work_formats.filter((f) => f !== format)
       : [...draft.work_formats, format]
     change({ work_formats: chosen })
+  }
+
+  function toggleVisible(field: HideableField, visible: boolean) {
+    if (!draft) return
+    change({ hidden: visible ? draft.hidden.filter((f) => f !== field) : [...draft.hidden, field] })
+  }
+
+  function visibility(field: HideableField) {
+    return (
+      <VisibilityToggle
+        what={hideableWords[field]}
+        visible={!draft?.hidden.includes(field)}
+        onChange={(visible) => toggleVisible(field, visible)}
+      />
+    )
   }
 
   function toggleIndustry(code: string) {
@@ -201,6 +223,7 @@ export function CandidateProfile() {
           />
           <span className="hint">0 — меньше года</span>
         </label>
+        {visibility('experience_years')}
         <div className="field">
           Софт-скиллы
           <TagInput
@@ -227,8 +250,9 @@ export function CandidateProfile() {
         <h2>Контакты</h2>
         <p className="hint">
           Работодатель получит контакты, только когда вы примете его приглашение или откликнетесь
-          сами. До этого он видит обезличенную карточку: категорию, профиль навыков, стек, стаж,
-          формат работы и интересные сферы.
+          сами. До этого он видит обезличенную карточку: категорию, профиль навыков, формат работы
+          и то из стека, стажа, города, переезда и интересных сфер, что вы оставили видимым.
+          Скрытое не влияет на подбор и всегда есть в вашем PDF-профиле.
         </p>
         <div className="field-row">
           <label className="field">
@@ -276,6 +300,7 @@ export function CandidateProfile() {
             Из справочника технологий. В подборке стек весит немного: уровень по темам определяет
             тест.
           </span>
+          {visibility('stack')}
         </fieldset>
 
         <h2>Ожидания</h2>
@@ -315,6 +340,7 @@ export function CandidateProfile() {
             hint="Работодатель её не видит: по ней система оценивает, подойдёт ли вам его вилка"
           />
         </div>
+        {draft.city.trim() && visibility('city')}
         <label className="checkbox">
           <input
             type="checkbox"
@@ -323,6 +349,7 @@ export function CandidateProfile() {
           />
           Готов к переезду
         </label>
+        {visibility('relocation')}
         <fieldset className="plain">
           <legend>Интересные сферы бизнеса</legend>
           <div className="chips">
@@ -341,6 +368,7 @@ export function CandidateProfile() {
           <span className="hint">
             По желанию. На категорию не влияет — помогает понять, какие приглашения вам интереснее
           </span>
+          {visibility('industries')}
         </fieldset>
 
         {error && <p className="error">{error}</p>}
@@ -352,5 +380,23 @@ export function CandidateProfile() {
         </div>
       </form>
     </section>
+  )
+}
+
+/** Переключатель «видно работодателю»: до раскрытия скрытое поле в карточке не показывается. */
+function VisibilityToggle({
+  what,
+  visible,
+  onChange,
+}: {
+  what: string
+  visible: boolean
+  onChange: (visible: boolean) => void
+}) {
+  return (
+    <label className="checkbox visibility">
+      <input type="checkbox" checked={visible} onChange={(e) => onChange(e.target.checked)} />
+      {what.charAt(0).toUpperCase() + what.slice(1)} — видно работодателю до раскрытия
+    </label>
   )
 }

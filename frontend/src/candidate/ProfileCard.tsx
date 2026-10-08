@@ -3,7 +3,7 @@ import { Link } from 'react-router'
 import { api, errorMessage, type Profile } from '../api/client'
 import { workFormatWord } from '../employer/words'
 import { salaryWords } from '../components/salary'
-import { yearsWords } from './words'
+import { hideableFields, hideableWords, yearsWords } from './words'
 
 /** Профиль в кабинете: кратко, что заполнено, кто что видит, и стандартизированный PDF. */
 export function ProfileCard() {
@@ -44,6 +44,7 @@ export function ProfileCard() {
     profile.industries.length > 0 &&
       `интересные сферы: ${profile.industries.map((i) => i.name).join(', ')}`,
   ].filter(Boolean)
+  const shown = hideableFields.filter((f) => !profile.hidden.includes(f)).map((f) => hideableWords[f])
 
   return (
     <div className="card profile-card">
@@ -74,9 +75,12 @@ export function ProfileCard() {
         </ul>
       )}
       <p className="hint">
-        До принятия приглашения работодатель видит категорию, профиль навыков, стек, стаж, формат и
-        интересные сферы — без имени, контактов, ролей, софт-скиллов и «о себе». Ожидаемую зарплату
-        — {salaryWords(profile.salary_from)} — он не видит никогда.
+        До принятия приглашения работодатель видит категорию, профиль навыков, формат работы
+        {shown.length > 0 && ` и ${shown.join(', ')}`} — без имени, контактов, ролей, софт-скиллов и
+        «о себе»
+        {profile.hidden.length > 0 &&
+          `; скрыто вами: ${profile.hidden.map((f) => hideableWords[f]).join(', ')}`}
+        . Ожидаемую зарплату — {salaryWords(profile.salary_from)} — он не видит никогда.
       </p>
     </div>
   )

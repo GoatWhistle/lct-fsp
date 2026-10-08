@@ -25,6 +25,7 @@ from app.controller.fsp_schemas import FspAchievementOut, FspAnonymizedAchieveme
 from app.controller.path_schemas import CategoryOut, skill_profile_view
 from app.controller.profile_schemas import (
     CandidateCardOut,
+    CardSelfReportedOut,
     DisclosedOut,
     ProfileIn,
     ProfileOut,
@@ -139,7 +140,8 @@ def download_pdf(
 @employer_router.get(
     "/{candidate_id}",
     summary="Карточка кандидата",
-    description="Статус грейда, категория, профиль навыков и структурная часть самоописания. "
+    description="Статус грейда, категория, профиль навыков и структурная часть самоописания — "
+    "без полей, скрытых кандидатом, пока карточка обезличена. "
     "ФИО, контакты и свободный текст — только после принятия приглашения вашей компании; "
     "ожидаемой зарплаты нет никогда. Есть у кандидата с категорией или с заявленным грейдом.",
     responses=error_responses(errors.CandidateNotFound),
@@ -175,6 +177,7 @@ def _form(body: ProfileIn) -> domain.ProfileForm:
         relocation=body.relocation,
         industries=tuple(body.industries),
         expected_salary=body.salary_from,
+        hidden=frozenset(body.hidden),
     )
 
 
@@ -206,6 +209,26 @@ def _profile_out(card: domain.DisclosedCard) -> ProfileOut | None:
         soft_skills=list(disclosed.soft_skills),
         salary_from=salary,
         updated_at=profile.updated_at,
+        hidden=list(profile.hidden),
+    )
+
+
+def _card_self_reported_out(
+    self_reported: domain.SelfReported | domain.VisibleSelfReported,
+) -> CardSelfReportedOut:
+    """Самоописание карточки: у раскрытой — полностью, у обезличенной — без скрытого."""
+    if isinstance(self_reported, domain.SelfReported):
+        self_reported = domain.VisibleSelfReported.of(self_reported, frozenset())
+    refs = CatalogRef.model_validate
+    s = self_reported
+    return CardSelfReportedOut(
+        stack=[refs(t) for t in s.stack] if s.stack is not None else None,
+        experience_years=s.experience_years,
+        work_formats=list(s.work_formats),
+        city=s.city,
+        relocation=s.relocation,
+        industries=[refs(i) for i in s.industries] if s.industries is not None else None,
+        hidden=list(s.hidden),
     )
 
 
@@ -235,7 +258,7 @@ def _card_out(card: domain.AnonymizedCard | domain.DisclosedCard) -> CandidateCa
         category=CategoryOut.model_validate(card.category) if card.category else None,
         grade_status=GradeStatusOut.model_validate(card.grade_status),
         skill_profile=skill_profile_view(card.skill_profile) if card.skill_profile else None,
-        self_reported=_self_reported_out(card.self_reported) if card.self_reported else None,
+        self_reported=(_card_self_reported_out(card.self_reported) if card.self_reported else None),
         fsp_achievements=[FspAnonymizedAchievementOut.model_validate(a) for a in achievements],
         disclosed=disclosed,
         fsp_details=details,

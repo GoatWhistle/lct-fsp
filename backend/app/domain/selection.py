@@ -275,6 +275,21 @@ class AcceptanceFeatures:
     match_score: float
 
 
+# Признаки модели принятия — объявлены для теста на защищённые (§17): совпадают с полями
+# `AcceptanceFeatures`.
+ACCEPTANCE_FEATURES = (
+    "salary",
+    "expected_salary",
+    "work_formats",
+    "city",
+    "relocation",
+    "need_work_format",
+    "need_city",
+    "grade",
+    "match_score",
+)
+
+
 def acceptance_features(need: NeedSnapshot, scored: Scored) -> AcceptanceFeatures:
     expectations = scored.candidate.expectations
     return AcceptanceFeatures(

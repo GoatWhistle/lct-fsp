@@ -72,6 +72,11 @@ class Match:
     stack: StackFit
 
 
+# Признаки скора соответствия — входы `match_score`, объявлены для теста на защищённые (§17):
+# требования потребности, уровни кандидата по темам, стек потребности и самоописанный стек.
+MATCH_FEATURES = ("need", "levels", "need_stack", "candidate_stack")
+
+
 def match_score(
     need: Sequence[Requirement],
     levels: Mapping[str, Normal],

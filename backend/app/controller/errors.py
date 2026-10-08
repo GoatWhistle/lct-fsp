@@ -4,6 +4,7 @@
 вместе с кодами. Ошибка без своей строки в `STATUS` получает статус ближайшего предка.
 """
 
+from datetime import datetime
 from typing import Any
 
 from fastapi import FastAPI, Request
@@ -31,6 +32,9 @@ STATUS: dict[type[e.DomainError], int] = {
     e.GradeNotOffered: 409,
     e.NoTestInProgress: 409,
     e.ItemNotCurrent: 409,
+    e.GradeNotNext: 409,
+    e.GradeChangeTooEarly: 409,
+    e.NoLowerGrade: 409,
     e.ProfileNotFound: 404,
     e.CandidateNotFound: 404,
     e.CityRequired: 422,
@@ -45,6 +49,9 @@ class ErrorOut(BaseModel):
     code: str = Field(description="Машинный код ошибки", examples=["invalid_credentials"])
     message: str = Field(
         description="Текст для пользователя", examples=["Неверный email или пароль"]
+    )
+    available_at: datetime | None = Field(
+        default=None, description="Когда действие станет доступно — у ошибок правила ожидания"
     )
 
 
@@ -69,5 +76,10 @@ def error_responses(*errors: type[e.DomainError]) -> dict[int | str, dict[str, A
 def install_error_handlers(app: FastAPI) -> None:
     @app.exception_handler(e.DomainError)
     async def handle_domain_error(_: Request, exc: e.DomainError) -> JSONResponse:
-        body = ErrorOut(code=exc.code, message=exc.message)
-        return JSONResponse(status_code=status_of(type(exc)), content=body.model_dump())
+        body = ErrorOut(
+            code=exc.code, message=exc.message, available_at=getattr(exc, "available_at", None)
+        )
+        return JSONResponse(
+            status_code=status_of(type(exc)),
+            content=body.model_dump(mode="json", exclude_none=True),
+        )

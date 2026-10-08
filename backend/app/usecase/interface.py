@@ -17,6 +17,8 @@ from app.domain.adaptive import Blueprint, Choice, Option
 from app.domain.attempt import (
     AnsweredPresentation,
     Attempt,
+    AttemptPurpose,
+    CategoryChange,
     PathState,
     Presentation,
     Survey,
@@ -113,8 +115,14 @@ class AttemptRepository(AttemptReader, Protocol):
         grade_code: str,
         continues: Attempt | None,
         now: datetime,
+        purpose: AttemptPurpose = AttemptPurpose.determination,
     ) -> Attempt:
         """Новая попытка; `continues` — попытка, чью оценку продолжает дотест каскада."""
+        ...
+
+    def attempts(self, user_id: uuid.UUID) -> list[Attempt]:
+        """Все попытки кандидата по номеру — для истории и правила ожидания; предъявления
+        реализация может не загружать."""
         ...
 
     def add_presentation(
@@ -146,7 +154,20 @@ class AttemptRepository(AttemptReader, Protocol):
         ...
 
     def add_category(self, attempt: Attempt, now: datetime) -> None:
-        """Категория по присвоившей её попытке: специализация × грейд исхода."""
+        """Категория по присвоившей её попытке: специализация × грейд исхода. В журнал
+        категории — запись первичного определения."""
+        ...
+
+    def raise_category(self, attempt: Attempt, now: datetime) -> None:
+        """Грейд категории — по прошедшей попытке вверх; в журнал — смена вверх."""
+        ...
+
+    def lower_category(self, user_id: uuid.UUID, grade_code: str, now: datetime) -> None:
+        """Грейд категории ниже — по той же оценке, без попытки; в журнал — смена вниз."""
+        ...
+
+    def category_changes(self, user_id: uuid.UUID) -> list[CategoryChange]:
+        """Журнал категории кандидата по порядку записей."""
         ...
 
     def chain(self, attempt: Attempt) -> list[Attempt]:

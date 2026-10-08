@@ -1,4 +1,5 @@
 import type { CandidateCard } from '../api/client'
+import { fspResultWords } from '../candidate/fsp'
 import { levelWords, thetaWithError, yearsWords } from '../candidate/words'
 import { gradeStatusWords, workFormatWord } from './words'
 
@@ -72,9 +73,41 @@ export function CandidateCardView({ card }: { card: CandidateCard }) {
       ) : (
         <p className="muted">Профиль кандидат ещё не заполнил — есть только категория и профиль навыков.</p>
       )}
+      <FspAchievements card={card} />
       {!disclosed && (
         <p className="hint">Имя и контакты откроются, когда кандидат примет приглашение вашей компании.</p>
       )}
     </div>
+  )
+}
+
+/** Достижения ФСП — подтверждены, отдельно от самоописания: до принятия приглашения — тип
+ * результата, дисциплина и год, после — с мероприятием, местом и ролью в команде. */
+function FspAchievements({ card }: { card: CandidateCard }) {
+  if (card.fsp_details) {
+    if (card.fsp_details.length === 0) return <p className="muted">Нет истории ФСП — профиль построен по тесту.</p>
+    return (
+      <div>
+        <p>Подтверждено ФСП:</p>
+        <ul className="upcoming">
+          {card.fsp_details.map((a, i) => (
+            <li key={i}>
+              {a.date.slice(0, 4)} · {a.event} · {a.discipline.name} — {fspResultWords[a.result]}
+              {a.place !== null && `, ${a.place} место`}
+              {a.team_role && `, в команде — ${a.team_role.name}`}
+            </li>
+          ))}
+        </ul>
+      </div>
+    )
+  }
+  if (card.fsp_achievements.length === 0) {
+    return <p className="muted">Нет истории ФСП — профиль построен по тесту.</p>
+  }
+  return (
+    <p>
+      Подтверждено ФСП:{' '}
+      {card.fsp_achievements.map((a) => `${fspResultWords[a.result]} — ${a.discipline.name}, ${a.year}`).join('; ')}
+    </p>
   )
 }

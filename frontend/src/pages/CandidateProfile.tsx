@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react'
-import { Link, useNavigate } from 'react-router'
+import { Link, useNavigate, useSearchParams } from 'react-router'
 import {
   api,
   errorMessage,
@@ -10,6 +10,8 @@ import {
   type WorkFormat,
 } from '../api/client'
 import { useAuth } from '../auth/context'
+import { fspReturnError } from '../candidate/fsp'
+import { FspCard } from '../candidate/FspCard'
 import { SalaryInput } from '../components/SalaryInput'
 import { TagInput } from '../components/TagInput'
 import { TechnologyPicker } from '../components/TechnologyPicker'
@@ -87,6 +89,7 @@ function inputOf(draft: Draft): ProfileInput {
 export function CandidateProfile() {
   const email = useAuth().user?.email ?? ''
   const navigate = useNavigate()
+  const [params] = useSearchParams()
   const [technologies, setTechnologies] = useState<Technology[]>([])
   const [industries, setIndustries] = useState<Industry[]>([])
   const [draft, setDraft] = useState<Draft | null>(null)
@@ -155,6 +158,10 @@ export function CandidateProfile() {
         То, что вы рассказываете о себе сами. Категорию определяет только тест, а профиль помогает
         работодателю понять, кто вы, и собирается в PDF единого вида.
       </p>
+      <FspCard
+        notice={params.get('fsp') === 'linked' ? 'ФСП ID привязан, достижения добавлены в профиль' : null}
+        returnError={fspReturnError(params.get('fsp_error'))}
+      />
       <form onSubmit={submit} className="card form">
         <h2>О себе</h2>
         <label className="field">

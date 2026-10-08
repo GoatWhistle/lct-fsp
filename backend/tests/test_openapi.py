@@ -23,9 +23,10 @@ def operations(spec: dict[str, Any]) -> list[tuple[str, str, dict[str, Any]]]:
 
 
 def test_every_operation_has_summary_and_success_response(spec: dict[str, Any]) -> None:
+    """Успех — 2xx, у возврата браузера из ФСП ID — перенаправление на фронт."""
     for method, path, op in operations(spec):
         assert op.get("summary"), f"{method} {path}: нет summary"
-        assert any(code.startswith("2") for code in op["responses"]), f"{method} {path}"
+        assert any(code.startswith(("2", "3")) for code in op["responses"]), f"{method} {path}"
 
 
 def test_role_apis_document_401_and_403(spec: dict[str, Any]) -> None:

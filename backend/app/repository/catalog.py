@@ -12,6 +12,7 @@ from app.domain.catalog import (
     CatalogPart,
     CatalogPlan,
     CatalogRef,
+    FspDiscipline,
     Grade,
     Industry,
     Specialization,
@@ -20,7 +21,9 @@ from app.domain.catalog import (
 )
 from app.repository.orm import catalog as orm
 
-CatalogRow = orm.Grade | orm.Industry | orm.Specialization | orm.Topic | orm.Technology
+CatalogRow = (
+    orm.Grade | orm.Industry | orm.Specialization | orm.Topic | orm.Technology | orm.FspDiscipline
+)
 
 TABLES: dict[CatalogPart, type[CatalogRow]] = {
     CatalogPart.grades: orm.Grade,
@@ -28,6 +31,7 @@ TABLES: dict[CatalogPart, type[CatalogRow]] = {
     CatalogPart.specializations: orm.Specialization,
     CatalogPart.topics: orm.Topic,
     CatalogPart.technologies: orm.Technology,
+    CatalogPart.fsp_disciplines: orm.FspDiscipline,
 }
 
 
@@ -54,6 +58,10 @@ def grade_of(row: orm.Grade) -> Grade:
 
 def technology_of(row: orm.Technology) -> Technology:
     return Technology(row.code, row.name, tuple(t.code for t in row.topics))
+
+
+def fsp_discipline_of(row: orm.FspDiscipline) -> FspDiscipline:
+    return FspDiscipline(row.code, row.name, tuple(t.code for t in row.topics))
 
 
 class SqlCatalog:
@@ -95,6 +103,14 @@ class SqlCatalog:
         rows = self._session.scalars(query.order_by(orm.Technology.name))
         return [technology_of(t) for t in rows]
 
+    def fsp_disciplines(self) -> list[FspDiscipline]:
+        rows = self._session.scalars(
+            select(orm.FspDiscipline)
+            .options(selectinload(orm.FspDiscipline.topics))
+            .order_by(orm.FspDiscipline.position)
+        )
+        return [fsp_discipline_of(d) for d in rows]
+
     def codes(self) -> dict[CatalogPart, set[str]]:
         return {
             part: set(self._session.scalars(select(table.code))) for part, table in TABLES.items()
@@ -122,16 +138,26 @@ class SqlCatalog:
             CatalogPart.technologies: [
                 {"code": t.code, "name": t.name} for t in catalog.technologies
             ],
+            CatalogPart.fsp_disciplines: [
+                {"code": d.code, "name": d.name, "position": n}
+                for n, d in enumerate(catalog.fsp_disciplines)
+            ],
         }
         links = [
             {"technology_code": tech.code, "topic_code": topic}
             for tech in catalog.technologies
             for topic in tech.topics
         ]
+        discipline_links = [
+            {"discipline_code": discipline.code, "topic_code": topic}
+            for discipline in catalog.fsp_disciplines
+            for topic in discipline.topics
+        ]
 
         # Снимаем от зависимых к главным, вставляем — наоборот.
         db = self._session
         db.execute(delete(orm.technology_topics))
+        db.execute(delete(orm.fsp_discipline_topics))
         for part in reversed(CatalogPart):
             if removed := plan.removed.get(part):
                 table = TABLES[part]
@@ -144,3 +170,5 @@ class SqlCatalog:
                 db.execute(stmt.on_conflict_do_update(index_elements=["code"], set_=updated))
         if links:
             db.execute(insert(orm.technology_topics), links)
+        if discipline_links:
+            db.execute(insert(orm.fsp_discipline_topics), discipline_links)

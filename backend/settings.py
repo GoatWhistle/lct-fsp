@@ -16,8 +16,10 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 BACKEND_DIR = Path(__file__).resolve().parent
 MECHANICS_FILE = BACKEND_DIR / "config" / "mechanics.yaml"
-# Справочники: грейды, сферы бизнеса, специализации с темами, технологии.
+# Справочники: грейды, сферы бизнеса, специализации с темами, технологии, дисциплины ФСП.
 CATALOG_FILE = BACKEND_DIR / "config" / "catalog.yaml"
+# Заглушка реестра ФСП — синтетика, её и realm Keycloak генерирует `fsp_stub.py`.
+FSP_REGISTRY_FILE = BACKEND_DIR / "config" / "fsp_registry.json"
 # Матрица грейдов и документ для жюри, который генерируется из неё.
 GRADE_MATRIX_FILE = BACKEND_DIR / "config" / "grade_matrix.yaml"
 GRADE_MATRIX_DOC = BACKEND_DIR.parent / "docs" / "grade-matrix.md"
@@ -41,6 +43,21 @@ class Settings(BaseSettings):
 
     mechanics_file: Path = MECHANICS_FILE
     catalog_file: Path = CATALOG_FILE
+
+    # ФСП ID — OpenID Connect. Настоящий ФСП ID — смена этих значений, без правки кода.
+    # Публичный адрес realm: его видит браузер, он же `iss` в токенах.
+    fsp_id_issuer: str = "http://localhost:8080/realms/fsp-id"
+    # Адрес, по которому до ФСП ID ходит бэкенд, если он другой (в compose — имя сервиса).
+    fsp_id_server_url: str | None = None
+    fsp_id_client_id: str = "lct-platform"
+    fsp_id_client_secret: str = "dev-only-fsp-id-client-secret"
+    # Куда ФСП ID возвращает браузер; по умолчанию — callback бэкенда за адресом фронта.
+    fsp_id_redirect_uri: str | None = None
+    fsp_registry_path: Path = FSP_REGISTRY_FILE
+
+    @property
+    def fsp_id_callback(self) -> str:
+        return self.fsp_id_redirect_uri or f"{self.frontend_url}/api/auth/fsp/callback"
 
 
 class Mechanics(BaseModel):

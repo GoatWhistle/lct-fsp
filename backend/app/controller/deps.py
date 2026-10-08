@@ -21,6 +21,7 @@ from app.usecase.attempt import CandidatePath
 from app.usecase.calibration import AnswerCalibration
 from app.usecase.catalog import CatalogQueries
 from app.usecase.company import Companies
+from app.usecase.feedback import CandidateFeedback
 from app.usecase.fsp import FspAccounts
 from app.usecase.interface import (
     CandidateRepository,
@@ -146,6 +147,11 @@ def get_invitations(request: Request, uow: UnitOfWorkDep) -> Invitations:
     return invitations
 
 
+def get_feedback(request: Request, uow: UnitOfWorkDep) -> CandidateFeedback:
+    feedback: CandidateFeedback = request.app.state.feedback(uow)
+    return feedback
+
+
 def get_candidate_path(request: Request, uow: UnitOfWorkDep) -> CandidatePath:
     paths: CandidatePath = request.app.state.candidate_path(uow)
     return paths
@@ -181,6 +187,7 @@ CandidatePathDep = Annotated[CandidatePath, Depends(get_candidate_path)]
 AnswerCalibrationDep = Annotated[AnswerCalibration, Depends(get_answer_calibration)]
 CandidatesDep = Annotated[CandidateRepository, Depends(get_candidates)]
 InvitationsDep = Annotated[Invitations, Depends(get_invitations)]
+FeedbackDep = Annotated[CandidateFeedback, Depends(get_feedback)]
 InvitationReaderDep = Annotated[InvitationReader, Depends(get_invitation_reader)]
 
 _cookie_scheme = APIKeyCookie(

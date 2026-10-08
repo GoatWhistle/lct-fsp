@@ -852,6 +852,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/candidate/feedback": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Обратная связь по подборкам
+         * @description Только о себе: кандидат определяется по сессии. Агрегаты и подсказки по потребностям — когда кандидата включили подборки не меньше `feedback_min_companies` разных компаний.
+         */
+        get: operations["get_feedback_api_candidate_feedback_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/catalog/grades": {
         parameters: {
             query?: never;
@@ -947,6 +967,21 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /**
+         * ActionKind
+         * @enum {string}
+         */
+        ActionKind: "regular_task" | "topic_block" | "link_fsp";
+        /** ActionOut */
+        ActionOut: {
+            /** @description `regular_task` — ответить на регулярное задание по теме; `topic_block` — пройти блок по теме; `link_fsp` — привязать ФСП ID */
+            kind: components["schemas"]["ActionKind"];
+            /**
+             * Available
+             * @description Действие можно выполнить сейчас
+             */
+            available: boolean;
+        };
         /**
          * AnswerFormat
          * @enum {string}
@@ -1261,6 +1296,22 @@ export interface components {
              */
             available_at?: string | null;
         };
+        /** FeedbackOut */
+        FeedbackOut: {
+            /**
+             * Period Days
+             * @description Период, за который считаются подборки, в днях
+             */
+            period_days: number;
+            /**
+             * Enough
+             * @description Подборок достаточно: `false` — пока мало, агрегатов и подсказок по потребностям нет, только общая подсказка
+             */
+            enough: boolean;
+            placement: components["schemas"]["PlacementOut"] | null;
+            /** Hints */
+            hints: components["schemas"]["HintOut"][];
+        };
         /**
          * FspAchievementOut
          * @description Подтверждённое достижение ФСП — полностью: самому кандидату, в PDF и работодателю после
@@ -1441,6 +1492,24 @@ export interface components {
         HTTPValidationError: {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
+        };
+        /** HintOut */
+        HintOut: {
+            /** @description Тема; `null` — у привязки ФСП ID темы нет */
+            topic: components["schemas"]["CatalogRef"] | null;
+            action: components["schemas"]["ActionOut"];
+            /** @description `narrow` — сузить погрешность, `raise` — поднять уровень на полосу; `null` — подсказка без числа */
+            scenario: components["schemas"]["Scenario"] | null;
+            /**
+             * Gain
+             * @description Средний прирост скора соответствия по встреченным потребностям, 0–1
+             */
+            gain: number | null;
+            /**
+             * Places
+             * @description Средний выигрыш мест в подборках
+             */
+            places: number | null;
         };
         /**
          * HideableField
@@ -1938,6 +2007,24 @@ export interface components {
              */
             history: components["schemas"]["HistoryEntryOut"][];
         };
+        /** PlacementOut */
+        PlacementOut: {
+            /**
+             * Selections
+             * @description Подборок за период, в выдаче которых вы были
+             */
+            selections: number;
+            /**
+             * Median Position
+             * @description Медианное место в общей выдаче: сначала точные, затем «близкие»
+             */
+            median_position: number;
+            /**
+             * Exact Share
+             * @description Доля подборок, где вы были в точном блоке, 0–1
+             */
+            exact_share: number;
+        };
         /** ProfileIn */
         ProfileIn: {
             /**
@@ -2150,6 +2237,11 @@ export interface components {
          * @enum {string}
          */
         SalaryBasis: "gross";
+        /**
+         * Scenario
+         * @enum {string}
+         */
+        Scenario: "narrow" | "raise";
         /**
          * SelectionBlock
          * @enum {string}
@@ -5436,6 +5528,44 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_feedback_api_candidate_feedback_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FeedbackOut"];
+                };
+            };
+            /** @description `not_authenticated` — Войдите, чтобы продолжить */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description `wrong_role` — Раздел доступен другой роли */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
                 };
             };
         };

@@ -122,11 +122,15 @@ class RacingClock(FrozenClock):
 
 
 def test_concurrent_registration_of_same_email_is_rejected(
-    db_engine: Engine, settings: Settings, mechanics: Mechanics, outbox: Outbox
+    db_engine: Engine,
+    settings: Settings,
+    mechanics: Mechanics,
+    outbox: Outbox,
+    passwords: Argon2Passwords,
 ) -> None:
     """Адрес заняли параллельным запросом между проверкой и вставкой: ответ тот же, что при
     обычном повторе, письма нет."""
-    app = create_app(settings, mechanics, outbox, clock=RacingClock(db_engine))
+    app = create_app(settings, mechanics, outbox, clock=RacingClock(db_engine), passwords=passwords)
     with TestClient(app) as client:
         response = client.post(
             "/api/auth/register",

@@ -18,6 +18,8 @@ BACKEND_DIR = Path(__file__).resolve().parent
 MECHANICS_FILE = BACKEND_DIR / "config" / "mechanics.yaml"
 # Справочники: грейды, сферы бизнеса, специализации с темами, технологии, дисциплины ФСП.
 CATALOG_FILE = BACKEND_DIR / "config" / "catalog.yaml"
+# Словарь синонимов для разбора потребности из текста на правилах.
+SYNONYMS_FILE = BACKEND_DIR / "config" / "synonyms.yaml"
 # Заглушка реестра ФСП — синтетика, её и realm Keycloak генерирует `fsp_stub.py`.
 FSP_REGISTRY_FILE = BACKEND_DIR / "config" / "fsp_registry.json"
 # Матрица грейдов и документ для жюри, который генерируется из неё.
@@ -43,6 +45,12 @@ class Settings(BaseSettings):
 
     mechanics_file: Path = MECHANICS_FILE
     catalog_file: Path = CATALOG_FILE
+    synonyms_file: Path = SYNONYMS_FILE
+
+    # Разбор текста за портом `TextUnderstanding` (docs/adr/0002-text-understanding-port.md):
+    # реализация по имени и сколько ждать модель, прежде чем ответить правилами.
+    text_understanding: str = "rules"
+    text_understanding_timeout_seconds: float = Field(default=10.0, gt=0)
 
     # ФСП ID — OpenID Connect. Настоящий ФСП ID — смена этих значений, без правки кода.
     # Публичный адрес realm: его видит браузер, он же `iss` в токенах.
@@ -152,6 +160,7 @@ class Mechanics(BaseModel):
     need_importance_weights: dict[str, float]
     need_key_topic_min_technologies: int
     nearby_grade_distance: int
+    need_draft_confident: float = Field(ge=0, le=1)
 
     # Рынок
     invitation_weekly_budget: int

@@ -88,6 +88,7 @@ regular_task_discrimination: 1.0
 need_importance_weights: {key: 3, important: 2, nice: 1}
 need_key_topic_min_technologies: 2
 nearby_grade_distance: 1
+need_draft_confident: 0.8
 
 # Рынок
 invitation_weekly_budget: 20

@@ -3,8 +3,9 @@
 Прод (`main.py`) и стенд валидации (`validation/main.py`) только выбирают реализации портов и
 передают их сюда; сценарии собираются здесь одинаково для обоих. Сценарий живёт на единице
 работы: проводка отдаёт фабрики сценариев от неё, репозитории приходят фабриками от неё же.
-Сценарии механик (`build_usecases`) нужны обоим; сценарии кабинетов — учётки, ФСП ID, компании,
-потребностей, приглашений, справочников (`build_platform_usecases`) — только проду.
+Сценарии механик, подбора и разбора потребности из текста (`build_usecases`) нужны обоим;
+сценарии кабинетов — учётки, ФСП ID, компании, потребностей, приглашений, справочников
+(`build_platform_usecases`) — только проду.
 
 Пакет стенда отсюда не импортируется — это проверяет тест на импорты.
 """
@@ -47,10 +48,12 @@ from app.usecase.interface import (
     SelectionRepository,
     SessionTokens,
     SkillModel,
+    TextUnderstanding,
     UnitOfWork,
 )
 from app.usecase.invitation import Invitations
 from app.usecase.need import Needs
+from app.usecase.need_draft import NeedDrafts
 from app.usecase.selection import Selections
 from settings import Mechanics
 
@@ -90,6 +93,7 @@ class Repositories[U: UnitOfWork]:
     fsp: Callable[[U], FspEvidenceReader]
     calibration: Callable[[U], CalibrationRepository]
     needs: Callable[[U], NeedReader]
+    catalog: Callable[[U], CatalogRepository]
     pool: Callable[[U], CandidatePool]
     selections: Callable[[U], SelectionRepository]
 
@@ -102,6 +106,7 @@ class Usecases[U: UnitOfWork]:
     candidate_path: Callable[[U], CandidatePath]
     answer_calibration: Callable[[U], AnswerCalibration]
     selections: Callable[[U], Selections]
+    need_drafts: Callable[[U], NeedDrafts]
 
 
 def build_usecases[U: UnitOfWork](
@@ -114,6 +119,7 @@ def build_usecases[U: UnitOfWork](
     seeds: SeedSource,
     code_runner: CodeRunner,
     acceptance: AcceptanceModel,
+    text_understanding: TextUnderstanding,
 ) -> Usecases[U]:
     def calibration(uow: U) -> EloCalibration:
         return elo_calibration(repositories.calibration(uow), mechanics)
@@ -139,6 +145,7 @@ def build_usecases[U: UnitOfWork](
         return Selections(
             uow,
             repositories.needs(uow),
+            repositories.catalog(uow),
             repositories.pool(uow),
             repositories.selections(uow),
             acceptance,
@@ -147,7 +154,15 @@ def build_usecases[U: UnitOfWork](
             mechanics,
         )
 
-    return Usecases(calibration, candidate_path, answer_calibration, selections)
+    def need_drafts(uow: U) -> NeedDrafts:
+        return NeedDrafts(
+            uow,
+            repositories.catalog(uow),
+            text_understanding,
+            confident=mechanics.need_draft_confident,
+        )
+
+    return Usecases(calibration, candidate_path, answer_calibration, selections, need_drafts)
 
 
 @dataclass(frozen=True)

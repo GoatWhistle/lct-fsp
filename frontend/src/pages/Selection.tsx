@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
-import { Link, useNavigate, useParams } from 'react-router'
+import { Link, useLocation, useNavigate, useParams } from 'react-router'
 import {
   api,
   errorMessage,
@@ -50,6 +50,9 @@ export function Selection() {
 
 function SelectionView({ first }: { first: SelectionData }) {
   const navigate = useNavigate()
+  // Подборка по черновику из текста приходит с ним: вернуться к правке и построить новую.
+  const location = useLocation()
+  const fromDraft = (location.state as { draft?: unknown } | null)?.draft !== undefined
   const [entries, setEntries] = useState<SelectionEntry[]>(first.entries)
   const [loadingMore, setLoadingMore] = useState(false)
   const [rebuilding, setRebuilding] = useState(false)
@@ -107,6 +110,17 @@ function SelectionView({ first }: { first: SelectionData }) {
             </span>
             <h2 className="company-name">{need.title}</h2>
           </div>
+          {!first.need_id && fromDraft && (
+            <div className="actions">
+              <button
+                type="button"
+                className="button button-small"
+                onClick={() => navigate('/employer/needs/text', { state: location.state })}
+              >
+                Поправить и перестроить
+              </button>
+            </div>
+          )}
           {first.need_id && (
             <div className="actions">
               <Link to={`/employer/needs/${first.need_id}`} className="button button-small button-secondary">
@@ -133,7 +147,7 @@ function SelectionView({ first }: { first: SelectionData }) {
           потребность или профили кандидатов изменились.
           {first.need_id
             ? ' «Перестроить» создаёт новую подборку по текущим данным.'
-            : ' Потребность удалена — подборка осталась.'}
+            : ' Подборка не связана с сохранённой потребностью: построена по черновику или потребность удалена.'}
         </p>
       </div>
 

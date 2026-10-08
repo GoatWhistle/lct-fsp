@@ -9,6 +9,9 @@
   --accent-soft: #e8eefc;
   --error: #b42318;
   --success: #067647;
+  --warning: #dc6803;
+  --warning-soft: #fef0c7;
+  --warning-text: #93370d;
   --radius: 12px;
 
   font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
@@ -785,6 +788,23 @@ details summary {
     font-size: 0.8rem;
     padding: 0.35rem 0.25rem;
   }
+}
+
+/* Черновик потребности из текста: поле, которое стоит проверить. */
+.flagged {
+  border-left: 3px solid var(--warning);
+  padding-left: 0.75rem;
+}
+
+.draft-mark {
+  display: inline-block;
+  margin-left: 0.5rem;
+  padding: 0 0.4rem;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--warning-text);
+  background: var(--warning-soft);
 }
 
 .invitation-summary {

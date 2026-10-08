@@ -10,6 +10,9 @@ __pycache__/
 .mypy_cache/
 .ruff_cache/
 
+# Наборы стенда валидации D1/D2 — воспроизводятся по seed: python -m validation market
+backend/validation/data/market/
+
 # Node
 node_modules/
 frontend/dist/

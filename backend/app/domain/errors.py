@@ -187,6 +187,29 @@ class NoLowerGrade(DomainError):
     message = "Ниже вашего грейда грейдов нет"
 
 
+class AttemptInProgress(DomainError):
+    """Одна незавершённая попытка на кандидата: тест на грейд и блок по теме не идут вместе."""
+
+    code = "attempt_in_progress"
+    message = "Сначала закончите начатый тест или блок по теме"
+
+
+class TopicNotInCategory(DomainError):
+    code = "topic_not_in_category"
+    message = "Блок по теме — только по темам специализации вашей категории"
+
+
+class TopicBlockTooEarly(DomainError):
+    """Интервал блока по теме (mechanics.md, §6): дата, с которой можно, — в `available_at`."""
+
+    code = "topic_block_too_early"
+    message = "Блок по этой теме пока недоступен — по одной теме он проходится не чаще срока"
+
+    def __init__(self, available_at: datetime) -> None:
+        super().__init__()
+        self.available_at = available_at
+
+
 # Профиль кандидата.
 
 

@@ -10,16 +10,27 @@ type Props = {
   onDone: (path: CandidatePath) => void
 }
 
-/** Задание за заданием. Верен ли ответ, сервер не сообщает; пропустить задание нельзя. */
+/** Попытка ещё идёт: тест на шаге `test` или незавершённый блок по теме. */
+function inProgress(path: CandidatePath): boolean {
+  return path.stage === 'test' || path.topic_block !== null
+}
+
+/**
+ * Задание за заданием — у теста и у блока по теме. Верен ли ответ, сервер не сообщает; пропустить
+ * задание нельзя.
+ */
 export function TestStep({ onDone }: Props) {
   const [item, setItem] = useState<TestItem | null>(null)
   const [response, setResponse] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
+  const [stopped, setStopped] = useState(false)
 
   // Не загрузилось — старое задание с экрана убираем: на него уже ответили, повторная отправка
   // получила бы отказ.
   function show({ data, error }: Awaited<ReturnType<typeof fetchItem>>) {
+    // Попытка уже остановлена — например, у темы блока кончились задания: возвращаемся к пути.
+    if (error?.code === 'no_test_in_progress') setStopped(true)
     setItem(data ?? null)
     setResponse('')
     setError(data ? null : errorMessage(error))
@@ -34,6 +45,13 @@ export function TestStep({ onDone }: Props) {
     fetchItem().then(show)
   }, [])
 
+  useEffect(() => {
+    if (!stopped) return
+    api.GET('/api/candidate/path').then(({ data }) => {
+      if (data) onDone(data)
+    })
+  }, [stopped, onDone])
+
   async function submit(event: FormEvent) {
     event.preventDefault()
     if (!item) return
@@ -47,7 +65,7 @@ export function TestStep({ onDone }: Props) {
       setError(errorMessage(error))
       return
     }
-    if (data.stage === 'test') show(await fetchItem())
+    if (inProgress(data)) show(await fetchItem())
     else onDone(data)
     setSubmitting(false)
   }
@@ -70,11 +88,13 @@ export function TestStep({ onDone }: Props) {
     <form onSubmit={submit} className="card form">
       <div className="item-head">
         <span className="muted">
-          Задание {item.number} · не больше {item.max_items}
+          {item.topic_block
+            ? `Задание ${item.number} из ${item.max_items}`
+            : `Задание ${item.number} · не больше ${item.max_items}`}
         </span>
         <span className="tag">{item.topic.name}</span>
       </div>
-      {item.number === 1 && (
+      {item.number === 1 && !item.topic_block && (
         <p className="muted">
           Тест подбирает задания под ваш уровень и заканчивается, когда уровень определён с нужной
           точностью, — обычно раньше лимита.

@@ -27,7 +27,7 @@ from app.domain.attempt import AttemptOutcome, Stage
 from app.domain.bank import Family, Instance, families_for_topics, get_family
 from app.domain.calibration import CalibratedFamily, Parameters
 from app.domain.determination import grades_by_threshold
-from app.domain.selection import PoolCandidate
+from app.domain.selection import PoolCandidate, UnconfirmedCandidate
 from app.domain.skill import Normal, Observation, SkillEstimate, sigmoid
 from app.repository.memory.calibration import MemoryCalibrationRepository
 from app.repository.memory.unit_of_work import MemoryStore
@@ -227,15 +227,27 @@ class Market:
                 case _:
                     return Determination(user, None, run.overall)
 
-    def enlist(self, user: uuid.UUID) -> bool:
+    def enlist(
+        self, user: uuid.UUID, *, stack: frozenset[str] = frozenset(), claimed: str | None = None
+    ) -> bool:
         """Кандидат с категорией — в пул подборки стенда: категория и профиль навыков её
-        специализации, как их записал путь кандидата. Самоописания и ожиданий у синтетики нет.
-        Без категории в пул не попадает — False."""
+        специализации, как их записал путь кандидата, и самоописанный стек `stack`. Ожиданий у
+        синтетики нет. Без категории в пул не попадает — False; с заявкой `claimed` попадает в
+        нижний блок.
+
+        Последний сигнал профиля — «сейчас»: часы стенда шагают на попытку дальше ожидания смены
+        грейда, и возраст профиля в подборке был бы артефактом этого шага, а не свежестью."""
         stand = self.stand
         with stand.uow:
             category = stand.attempts.state(user).category
             profile = stand.attempts.profile(user, self.specialization)
             if category is None or profile is None:
+                if claimed is not None:
+                    stand.pool.add_unconfirmed(
+                        UnconfirmedCandidate(
+                            user, self.specialization, stand.catalog.grades[claimed], stack
+                        )
+                    )
                 return False
             stand.pool.add(
                 PoolCandidate(
@@ -247,8 +259,8 @@ class Market:
                         t.topic.code: Normal(t.level.theta, t.level.theta_sd)
                         for t in profile.topics
                     },
-                    stack=frozenset(),
-                    last_signal_at=profile.last_signal_at,
+                    stack=stack,
+                    last_signal_at=stand.clock.now(),
                     expectations=None,
                 )
             )

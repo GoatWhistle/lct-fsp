@@ -56,6 +56,8 @@ CALIBRATION_PARAMETERS = (
     "calibration_refit_difficulty_prior_sd",
     "calibration_refit_log_discrimination_prior_sd",
     "calibration_link_window_attempts",
+    "item_fit_groups",
+    "item_fit_rmsd_max",
 )
 
 

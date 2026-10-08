@@ -129,6 +129,8 @@ def elo_calibration(repository: CalibrationRepository, mechanics: Mechanics) -> 
             mechanics.calibration_refit_log_discrimination_prior_sd
         ),
         calibration_link_window_attempts=mechanics.calibration_link_window_attempts,
+        item_fit_groups=mechanics.item_fit_groups,
+        item_fit_rmsd_max=mechanics.item_fit_rmsd_max,
     )
 
 

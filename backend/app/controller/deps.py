@@ -24,9 +24,11 @@ from app.usecase.company import Companies
 from app.usecase.interface import (
     CandidateRepository,
     Clock,
+    InvitationReader,
     ProfilePdfRenderer,
     RequestUnitOfWork,
 )
+from app.usecase.invitation import Invitations
 from app.usecase.need import Needs
 from app.usecase.selection import Selections
 from settings import Mechanics
@@ -107,6 +109,11 @@ def get_selections(request: Request, uow: UnitOfWorkDep) -> Selections:
     return selections
 
 
+def get_invitations(request: Request, uow: UnitOfWorkDep) -> Invitations:
+    invitations: Invitations = request.app.state.invitations(uow)
+    return invitations
+
+
 def get_candidate_path(request: Request, uow: UnitOfWorkDep) -> CandidatePath:
     paths: CandidatePath = request.app.state.candidate_path(uow)
     return paths
@@ -124,6 +131,12 @@ def get_candidates(request: Request, uow: UnitOfWorkDep) -> CandidateRepository:
     return candidates
 
 
+def get_invitation_reader(request: Request, uow: UnitOfWorkDep) -> InvitationReader:
+    """Приглашения для правила раскрытия на единице работы запроса."""
+    reader: InvitationReader = request.app.state.invitation_repository(uow)
+    return reader
+
+
 AccountsDep = Annotated[Accounts, Depends(get_accounts)]
 CatalogQueriesDep = Annotated[CatalogQueries, Depends(get_catalog)]
 CompaniesDep = Annotated[Companies, Depends(get_companies)]
@@ -132,6 +145,8 @@ SelectionsDep = Annotated[Selections, Depends(get_selections)]
 CandidatePathDep = Annotated[CandidatePath, Depends(get_candidate_path)]
 AnswerCalibrationDep = Annotated[AnswerCalibration, Depends(get_answer_calibration)]
 CandidatesDep = Annotated[CandidateRepository, Depends(get_candidates)]
+InvitationsDep = Annotated[Invitations, Depends(get_invitations)]
+InvitationReaderDep = Annotated[InvitationReader, Depends(get_invitation_reader)]
 
 _cookie_scheme = APIKeyCookie(
     name=ACCESS_COOKIE,

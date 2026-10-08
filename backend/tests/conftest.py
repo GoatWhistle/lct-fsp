@@ -22,6 +22,8 @@ from sqlalchemy.engine import make_url
 from sqlalchemy.orm import Session
 
 from app.adapter.clock import FrozenClock
+from app.adapter.fsp_id import MemoryFspId
+from app.adapter.fsp_registry import MemoryFspRegistry
 from app.adapter.mail import MemoryMailer
 from app.adapter.seed import DerivedSeeds
 from app.domain.account import Role
@@ -149,6 +151,18 @@ def seeds() -> Seeds:
 
 
 @pytest.fixture
+def fsp_id() -> MemoryFspId:
+    """ФСП ID в памяти: тест выдаёт код за участника."""
+    return MemoryFspId()
+
+
+@pytest.fixture
+def fsp_registry() -> MemoryFspRegistry:
+    """Реестр ФСП в памяти: тест кладёт достижения и выключает реестр."""
+    return MemoryFspRegistry()
+
+
+@pytest.fixture
 def app(
     db_engine: Engine,
     settings: Settings,
@@ -156,8 +170,18 @@ def app(
     outbox: Outbox,
     clock: FrozenClock,
     seeds: Seeds,
+    fsp_id: MemoryFspId,
+    fsp_registry: MemoryFspRegistry,
 ) -> Iterator[FastAPI]:
-    app = create_app(settings, mechanics, outbox, clock=clock, seeds=seeds)
+    app = create_app(
+        settings,
+        mechanics,
+        outbox,
+        clock=clock,
+        seeds=seeds,
+        fsp_id=fsp_id,
+        fsp_registry=fsp_registry,
+    )
     yield app
     app.state.engine.dispose()
 

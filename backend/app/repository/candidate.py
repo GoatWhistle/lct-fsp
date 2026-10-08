@@ -13,7 +13,9 @@ from sqlalchemy.orm import Session
 from app.domain import candidate
 from app.domain.catalog import CatalogRef
 from app.domain.errors import UnknownIndustry, UnknownTechnology
+from app.domain.skill import SignalSource
 from app.domain.work import WorkFormat
+from app.repository.fsp import histories
 from app.repository.orm import (
     CandidateCategory,
     CandidateProfile,
@@ -123,9 +125,12 @@ class SqlCandidateRepository:
             .order_by(Industry.position)
         )
         skill_profiles = self._skill_profiles(ids)
+        fsp = histories(db, ids)
 
         result = {}
-        for candidate_id in categories.keys() | profiles.keys() | skill_profiles.keys():
+        for candidate_id in (
+            categories.keys() | profiles.keys() | skill_profiles.keys() | fsp.keys()
+        ):
             row = profiles.get(candidate_id)
             profile = (
                 _profile(row, stacks.get(candidate_id, ()), industries.get(candidate_id, ()))
@@ -138,6 +143,7 @@ class SqlCandidateRepository:
                 expected_salary=row.salary_from if row else None,
                 category=categories.get(candidate_id),
                 skill_profile=skill_profiles.get(candidate_id),
+                fsp=fsp.get(candidate_id),
             )
         return result
 
@@ -165,20 +171,21 @@ class SqlCandidateRepository:
             .join(CandidateCategory, in_category)
             .where(SkillProfile.user_id.in_(ids))
         ).all()
-        levels: dict[uuid.UUID, list[tuple[str, float, float]]] = defaultdict(list)
-        for user_id, code, theta, theta_sd in self.session.execute(
+        levels: dict[uuid.UUID, list[tuple[str, float, float, list[str]]]] = defaultdict(list)
+        for user_id, code, theta, theta_sd, sources in self.session.execute(
             select(
                 SkillProfile.user_id,
                 SkillProfileTopic.topic_code,
                 SkillProfileTopic.theta,
                 SkillProfileTopic.theta_sd,
+                SkillProfileTopic.sources,
             )
             .join(SkillProfileTopic, SkillProfileTopic.profile_id == SkillProfile.id)
             .join(CandidateCategory, in_category)
             .where(SkillProfile.user_id.in_(ids))
         ):
-            levels[user_id].append((code, theta, theta_sd))
-        codes = {code for rows in levels.values() for code, _, _ in rows}
+            levels[user_id].append((code, theta, theta_sd, sources))
+        codes = {code for rows in levels.values() for code, _, _, _ in rows}
         topics = {
             code: (position, CatalogRef(code, name))
             for code, name, position in self.session.execute(
@@ -189,8 +196,12 @@ class SqlCandidateRepository:
             user_id: candidate.SkillProfile(
                 overall=self._level(theta, theta_sd),
                 topics=tuple(
-                    candidate.TopicLevel(topics[code][1], self._level(t_theta, t_sd))
-                    for code, t_theta, t_sd in sorted(
+                    candidate.TopicLevel(
+                        topics[code][1],
+                        self._level(t_theta, t_sd),
+                        frozenset(SignalSource(source) for source in t_sources),
+                    )
+                    for code, t_theta, t_sd, t_sources in sorted(
                         levels[user_id], key=lambda row: topics[row[0]][0]
                     )
                 ),

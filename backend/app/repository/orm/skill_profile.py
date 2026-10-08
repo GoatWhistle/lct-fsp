@@ -5,7 +5,8 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import ForeignKey, UniqueConstraint
+from sqlalchemy import ForeignKey, String, UniqueConstraint
+from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.repository.database import Base
@@ -38,5 +39,8 @@ class SkillProfileTopic(Base):
     topic_code: Mapped[str] = mapped_column(ForeignKey("topics.code"), primary_key=True)
     theta: Mapped[float]
     theta_sd: Mapped[float]
+    # Уровни доверия, из которых есть наблюдения по теме (`SignalSource`): `fsp` — «подтверждено
+    # ФСП» в объяснении подборки.
+    sources: Mapped[list[str]] = mapped_column(ARRAY(String(16)), server_default="{}")
 
     topic: Mapped[Topic] = relationship(lazy="joined")

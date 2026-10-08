@@ -193,11 +193,12 @@ def test_usecase_lookalike_names_are_not_violations(tmp_path: Path) -> None:
     assert violations(plant(tmp_path, "usecase", source), USECASE) == []
 
 
-EXTERNAL = Rule(banned=("smtplib", "fpdf"))
+EXTERNAL = Rule(banned=("smtplib", "fpdf", "authlib", "joserfc", "httpx"))
 
 
 def test_mail_and_pdf_libraries_live_only_in_adapters() -> None:
-    """Почта и рендер PDF — за портами: SMTP и fpdf2 импортирует только `app.adapter`."""
+    """Почта, рендер PDF и ФСП ID — за портами: SMTP, fpdf2 и клиент OIDC импортирует только
+    `app.adapter`."""
     app_dir = BACKEND_DIR / "app"
     packages = [p for p in app_dir.iterdir() if (p / "__init__.py").is_file()]
     found = [v for p in sorted(packages) if p.name != "adapter" for v in violations(p, EXTERNAL)]

@@ -16,6 +16,7 @@ from pydantic import (
     field_validator,
 )
 
+from app.controller.fsp_schemas import FspAnonymizedAchievementOut
 from app.controller.path_schemas import CategoryOut, SkillProfileOut
 from app.controller.salary import SALARY_UNIT, Salary, SalaryBasisOut
 from app.controller.schemas import CatalogRef
@@ -158,4 +159,8 @@ class CandidateCardOut(BaseModel):
     skill_profile: SkillProfileOut | None = Field(description="Профиль навыков специализации")
     self_reported: SelfReportedOut | None = Field(
         description="Самоописание; `null` — кандидат ещё не заполнил профиль"
+    )
+    fsp_achievements: list[FspAnonymizedAchievementOut] = Field(
+        description="Достижения ФСП — подтверждены, отдельно от самоописания: тип результата, "
+        "дисциплина и год. Пусто — нет истории ФСП, это не штраф"
     )

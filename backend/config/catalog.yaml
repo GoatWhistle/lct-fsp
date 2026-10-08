@@ -124,3 +124,33 @@ technologies:
   - {code: ansible, name: Ansible, topics: [devops.iac]}
   - {code: prometheus, name: Prometheus, topics: [devops.observability]}
   - {code: grafana, name: Grafana, topics: [devops.observability]}
+
+# Дисциплины ФСП → темы, о которых говорит результат в дисциплине (mechanics.md, §11). Темы — любых
+# специализаций: в профиль идут темы его специализации, в командном зачёте с ролью — темы роли.
+# Дисциплины не ранжируются; дисциплина без тем — результат в ней только факт в профиле.
+fsp_disciplines:
+  - code: algorithmic
+    name: Алгоритмическое программирование
+    topics: [backend.algorithms, backend.programming, frontend.algorithms, frontend.javascript, data-ml.math, data-ml.python]
+  - code: product
+    name: Продуктовое программирование
+    topics:
+      - backend.api
+      - backend.databases
+      - backend.testing
+      - frontend.frameworks
+      - frontend.markup
+      - frontend.browser
+      - data-ml.ml
+      - data-ml.sql
+      - data-ml.mlops
+      - qa.theory
+      - qa.api
+      - qa.automation
+      - devops.containers
+      - devops.ci-cd
+  - code: security
+    name: Программирование систем информационной безопасности
+    topics: [backend.security, devops.linux, devops.scripting, qa.api]
+  - {code: robotics, name: Программирование робототехники, topics: []}
+  - {code: uav, name: Программирование беспилотных авиационных систем, topics: []}

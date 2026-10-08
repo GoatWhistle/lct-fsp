@@ -9,6 +9,7 @@ import {
 } from '../api/client'
 import { dateTimeWords, levelWords, percent, thetaWithError, yearsWords } from '../candidate/words'
 import { contributionWords, importanceWord, verdictWords, workFormatWord } from '../employer/words'
+import { fspResultWords } from '../candidate/fsp'
 
 const PAGE = 20
 
@@ -206,6 +207,7 @@ function EntryCard({ entry }: { entry: SelectionEntry }) {
                 ) : (
                   `${verdictWords[t.verdict]} (${percent(t.probability)})`
                 )}
+                {t.fsp_confirmed && <span className="tag fsp-tag">подтверждено ФСП</span>}
               </td>
               <td className="num">{contributionWords(t.contribution)}</td>
             </tr>
@@ -281,6 +283,16 @@ function CardDetails({ candidateId }: { candidateId: string }) {
             </>
           ) : (
             <p className="muted">Профиль кандидат ещё не заполнил — есть только категория и профиль навыков.</p>
+          )}
+          {card.fsp_achievements.length > 0 ? (
+            <p>
+              Подтверждено ФСП:{' '}
+              {card.fsp_achievements
+                .map((a) => `${fspResultWords[a.result]} — ${a.discipline.name}, ${a.year}`)
+                .join('; ')}
+            </p>
+          ) : (
+            <p className="muted">Нет истории ФСП — профиль построен по тесту.</p>
           )}
         </div>
       )}

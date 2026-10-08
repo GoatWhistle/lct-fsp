@@ -28,6 +28,7 @@ from app.domain.catalog import (
     Catalog,
     CatalogPart,
     CatalogPlan,
+    FspDiscipline,
     Grade,
     Industry,
     Specialization,
@@ -35,6 +36,13 @@ from app.domain.catalog import (
     Topic,
 )
 from app.domain.company import Company, CompanyForm
+from app.domain.fsp import (
+    FspAchievement,
+    FspAuthorization,
+    FspHistory,
+    FspIdentity,
+    FspSnapshot,
+)
 from app.domain.mail import Mail
 from app.domain.need import NeedRecord, NeedTerms
 from app.domain.selection import (
@@ -61,8 +69,11 @@ class SkillModel(Protocol):
         """Оценка без наблюдений — только по априорному."""
         ...
 
-    def estimate(self, prior: Prior, observations: Iterable[Observation]) -> SkillEstimate:
-        """Оценка по априорному и упорядоченным наблюдениям."""
+    def estimate(
+        self, prior: Prior, observations: Iterable[Observation], *, to_mode: bool = False
+    ) -> SkillEstimate:
+        """Оценка по априорному и упорядоченным наблюдениям. Оценка теста — шаг на наблюдение,
+        профиль навыков — `to_mode`: каждое наблюдение до сходимости моды (§3, §11)."""
         ...
 
 
@@ -90,6 +101,11 @@ class AttemptRepository(AttemptReader, Protocol):
 
     def specialization_topics(self, code: str) -> tuple[Topic, ...] | None:
         """Темы специализации в порядке справочника; None — специализации нет."""
+        ...
+
+    def profiled_specializations(self, user_id: uuid.UUID) -> list[str]:
+        """Специализации, по которым у кандидата есть профиль навыков, — их пересчитывает новый
+        сигнал вне теста."""
         ...
 
     def state(self, user_id: uuid.UUID) -> PathState:
@@ -462,6 +478,22 @@ class AccountRepository(Protocol):
 
     def by_email(self, email: str) -> Account | None: ...
 
+    def by_fsp_id(self, fsp_id: str) -> Account | None: ...
+
+    def add_fsp(self, email: str, fsp_id: str, now: datetime) -> Account:
+        """Учётка кандидата без пароля по входу через ФСП ID: адрес подтверждён в момент `now`.
+        Адрес занят — `EmailTaken`, ФСП ID занят — `FspIdTaken`, в том числе параллельным
+        запросом."""
+        ...
+
+    def link_fsp(self, user_id: uuid.UUID, fsp_id: str) -> Account:
+        """Привязывает ФСП ID; занят другой учёткой, в том числе параллельно, — `FspIdTaken`."""
+        ...
+
+    def unlink_fsp(self, user_id: uuid.UUID) -> Account:
+        """Освобождает ФСП ID учётки."""
+        ...
+
     def credentials(self, email: str) -> Credentials | None:
         """Учётка с хэшем пароля — для проверки входа."""
         ...
@@ -521,6 +553,63 @@ class CompanyRepository(Protocol):
     def save(self, user_id: uuid.UUID, form: CompanyForm, now: datetime) -> None:
         """Профиль работодателя — новый или поверх прежнего; сфера уже проверена."""
         ...
+
+
+class FspIdProvider(Protocol):
+    """ФСП ID — внешняя система входа, OpenID Connect: authorization code + PKCE. Сейчас —
+    локальный Keycloak, который изображает ФСП ID (`app.adapter.fsp_id`); настоящий ФСП ID — смена
+    адреса и ключей в настройках."""
+
+    def authorization_url(self, authorization: FspAuthorization) -> str:
+        """Куда отправить браузер за входом; ФСП ID не отвечает — `FspIdUnavailable`."""
+        ...
+
+    def identify(self, code: str, authorization: FspAuthorization) -> FspIdentity:
+        """Кто вошёл — по коду из callback: обмен кода и проверка ID-токена. ФСП ID не отвечает —
+        `FspIdUnavailable`, код или токен не принят — `FspIdRejected`."""
+        ...
+
+
+class FspRegistry(Protocol):
+    """Реестр ФСП — достижения по ФСП ID. Сейчас — файл-заглушка на синтетике
+    (`app.adapter.fsp_registry`); настоящий реестр — новый адаптер за этим портом."""
+
+    def achievements(self, fsp_id: str) -> list[FspAchievement]:
+        """Достижения участника; неизвестный ID — пусто. Реестр не отвечает —
+        `FspRegistryUnavailable`."""
+        ...
+
+
+class FspEvidenceReader(Protocol):
+    """Снимок достижений ФСП и справочник дисциплин — то, из чего профиль навыков строит
+    наблюдения ФСП. Сейчас — Postgres (`app.repository.fsp`) и in-memory
+    (`app.repository.memory.fsp`)."""
+
+    def snapshot(self, user_id: uuid.UUID) -> FspSnapshot | None:
+        """Последний снимок; `None` — реестр ни разу не ответил или ID не привязан."""
+        ...
+
+    def disciplines(self) -> dict[str, FspDiscipline]:
+        """Дисциплины ФСП по коду."""
+        ...
+
+
+class FspRepository(FspEvidenceReader, Protocol):
+    """Снимки достижений ФСП на запись. Пишет только внутри единицы работы и сам не фиксирует.
+    Сейчас — Postgres (`app.repository.fsp`)."""
+
+    def history(self, user_id: uuid.UUID) -> FspHistory | None:
+        """Снимок для показа — с названиями дисциплин и ролей; ID привязан, а снимка нет —
+        пустая история без даты; `None` — ФСП ID не привязан."""
+        ...
+
+    def save_snapshot(
+        self, user_id: uuid.UUID, achievements: Sequence[FspAchievement], now: datetime
+    ) -> None:
+        """Заменяет снимок целиком; `now` — момент получения."""
+        ...
+
+    def delete_snapshot(self, user_id: uuid.UUID) -> None: ...
 
 
 class CatalogRepository(Protocol):

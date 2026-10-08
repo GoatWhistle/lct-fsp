@@ -19,9 +19,11 @@ from app.domain.candidate import (
     Disclosed,
     DisclosedCard,
     EmployerViewer,
+    HideableField,
     Level,
     SelfReported,
     SkillProfile,
+    VisibleSelfReported,
     disclosure,
 )
 from app.domain.catalog import CatalogRef
@@ -107,7 +109,8 @@ def test_anonymized_card_has_no_hidden_fields_by_type() -> None:
         "year",
     }
     # Самоописание в карточке — только структурная часть, без раскрываемого.
-    assert not {f.name for f in dataclasses.fields(SelfReported)} & HIDDEN
+    assert not {f.name for f in dataclasses.fields(VisibleSelfReported)} & HIDDEN
+    assert SelfReported not in field_types(AnonymizedCard)
     assert Disclosed not in field_types(AnonymizedCard)
 
 
@@ -142,7 +145,15 @@ def test_own_card_without_profile() -> None:
 
 ANONYMIZED = AnonymizedCard(
     candidate_id=CANDIDATE.id,
-    self_reported=SELF_REPORTED,
+    self_reported=VisibleSelfReported(
+        stack=SELF_REPORTED.stack,
+        experience_years=4,
+        work_formats=(WorkFormat.remote,),
+        city="Казань",
+        relocation=True,
+        industries=(),
+        hidden=frozenset(),
+    ),
     category=CANDIDATE.category,
     skill_profile=CANDIDATE.skill_profile,
     grade_status=CANDIDATE.grade_status,
@@ -171,9 +182,6 @@ ANONYMIZED = AnonymizedCard(
             Access(invitation_accepted=True, applied=True, revoked=True),
             id="отзыв поверх приглашения и отклика",
         ),
-        # Согласие на публикацию само по себе не раскрывает: раскрытие — только приглашение
-        # или отклик.
-        pytest.param(EMPLOYER, Access(publication_consent=True), id="согласие без приглашения"),
     ],
 )
 def test_anonymized_unless_own_or_disclosed_to_employer(
@@ -216,4 +224,65 @@ def test_anonymized_card_without_profile() -> None:
 def test_no_access_is_the_default() -> None:
     assert Access() == NO_ACCESS
     assert not (NO_ACCESS.invitation_accepted or NO_ACCESS.applied or NO_ACCESS.revoked)
-    assert not NO_ACCESS.publication_consent
+    assert {f.name for f in dataclasses.fields(Access)} == {
+        "invitation_accepted",
+        "applied",
+        "revoked",
+    }
+
+
+def test_profile_hides_nothing_by_default() -> None:
+    assert PROFILE.hidden == frozenset()
+
+
+def test_hideable_fields_are_the_five_self_reported_ones() -> None:
+    # Форматы работы видны всегда: без них работодатель не поймёт, подходит ли кандидат вообще.
+    assert set(HideableField) == {
+        "stack",
+        "experience_years",
+        "city",
+        "relocation",
+        "industries",
+    }
+    assert {f.value for f in HideableField} < {f.name for f in dataclasses.fields(SelfReported)}
+
+
+@pytest.mark.parametrize("field", list(HideableField))
+def test_field_hidden_by_candidate_is_absent_from_anonymized_card(field: HideableField) -> None:
+    hiding = dataclasses.replace(
+        CANDIDATE, profile=dataclasses.replace(PROFILE, hidden=frozenset({field}))
+    )
+
+    card = disclosure(hiding, EMPLOYER, NO_ACCESS)
+
+    assert isinstance(card, AnonymizedCard)
+    assert card.self_reported is not None
+    assert getattr(card.self_reported, field.value) is None
+    assert card.self_reported.hidden == {field}
+    # Остальное видно как было.
+    for other in set(HideableField) - {field}:
+        assert getattr(card.self_reported, other.value) == getattr(SELF_REPORTED, other.value)
+    assert card.self_reported.work_formats == SELF_REPORTED.work_formats
+    assert (card.category, card.skill_profile) == (CANDIDATE.category, CANDIDATE.skill_profile)
+
+
+@pytest.mark.parametrize(
+    "viewer_access",
+    [
+        pytest.param((CandidateViewer(CANDIDATE.id), NO_ACCESS), id="сам кандидат"),
+        pytest.param((EMPLOYER, Access(invitation_accepted=True)), id="принятое приглашение"),
+        pytest.param((EMPLOYER, Access(applied=True)), id="отклик"),
+    ],
+)
+def test_disclosed_card_ignores_visibility_settings(
+    viewer_access: tuple[CandidateViewer | EmployerViewer, Access],
+) -> None:
+    viewer, access = viewer_access
+    hiding = dataclasses.replace(
+        CANDIDATE, profile=dataclasses.replace(PROFILE, hidden=frozenset(HideableField))
+    )
+
+    card = disclosure(hiding, viewer, access)
+
+    assert isinstance(card, DisclosedCard)
+    assert card.self_reported == SELF_REPORTED

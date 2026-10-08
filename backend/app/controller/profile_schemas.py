@@ -20,6 +20,7 @@ from app.controller.fsp_schemas import FspAchievementOut, FspAnonymizedAchieveme
 from app.controller.path_schemas import CategoryOut, SkillProfileOut
 from app.controller.salary import SALARY_UNIT, Salary, SalaryBasisOut
 from app.controller.schemas import CatalogRef, GradeStatusOut
+from app.domain.candidate import HideableField
 from app.domain.work import WorkFormat
 
 DISCLOSED = "Раскрывается работодателю только после принятия приглашения или отклика"
@@ -62,8 +63,7 @@ WorkFormats = Annotated[list[WorkFormat], AfterValidator(_canonical_formats)]
 
 
 class SelfReportedOut(BaseModel):
-    """Самоописание, которое видно в обезличенной карточке: низший уровень доверия, на
-    категорию не влияет. Только структурные поля — свободный текст до раскрытия скрыт."""
+    """Структурная часть самоописания: низший уровень доверия, на категорию не влияет."""
 
     stack: list[CatalogRef] = Field(description="По названию технологии")
     experience_years: int = Field(description="Стаж в ИТ, полных лет; 0 — меньше года")
@@ -75,7 +75,39 @@ class SelfReportedOut(BaseModel):
     )
 
 
+HIDDEN = (
+    "Поля самоописания, которые кандидат скрыл из обезличенной карточки: работодатель увидит их "
+    "только после принятия приглашения или отклика. На подбор и скор не влияет, в PDF-профиле "
+    "всё полностью. Пусто — видно всё"
+)
+
+
+def _canonical_hidden(values: list[HideableField]) -> list[HideableField]:
+    return [f for f in HideableField if f in values]
+
+
+HiddenFields = Annotated[list[HideableField], AfterValidator(_canonical_hidden)]
+
+
+class CardSelfReportedOut(BaseModel):
+    """Самоописание в карточке кандидата для работодателя. Поле, скрытое кандидатом, — `null`
+    и его имя в `hidden`; `null` без имени в `hidden` — не заполнено."""
+
+    stack: list[CatalogRef] | None = Field(description="По названию технологии")
+    experience_years: int | None = Field(description="Стаж в ИТ, полных лет; 0 — меньше года")
+    work_formats: list[WorkFormat] = Field(description="Допустимые форматы работы; видны всегда")
+    city: str | None = Field(description="Где кандидат живёт")
+    relocation: bool | None = Field(description="Готов к переезду")
+    industries: list[CatalogRef] | None = Field(
+        description="Интересные сферы бизнеса в порядке справочника; пусто — не указаны"
+    )
+    hidden: HiddenFields = Field(
+        description="Скрыто кандидатом до принятия приглашения или отклика; после — пусто"
+    )
+
+
 class ProfileOut(SelfReportedOut, SalaryBasisOut):
+    hidden: HiddenFields = Field(description=HIDDEN)
     full_name: str = Field(description=DISCLOSED)
     contact_email: str = Field(description=DISCLOSED)
     contact_phone: str | None = Field(description=DISCLOSED)
@@ -127,6 +159,7 @@ class ProfileIn(BaseModel):
         description="Интересные сферы бизнеса — коды из `/api/catalog/industries`; необязательно",
     )
     salary_from: Salary = Field(gt=0, description=f"Ожидаемая зарплата «от». {SALARY_UNIT}")
+    hidden: HiddenFields = Field(default_factory=list, description=HIDDEN)
 
     @field_validator("contact_email")
     @classmethod
@@ -172,8 +205,9 @@ class CandidateCardOut(BaseModel):
     )
     grade_status: GradeStatusOut
     skill_profile: SkillProfileOut | None = Field(description="Профиль навыков специализации")
-    self_reported: SelfReportedOut | None = Field(
-        description="Самоописание; `null` — кандидат ещё не заполнил профиль"
+    self_reported: CardSelfReportedOut | None = Field(
+        description="Самоописание без скрытого кандидатом; `null` — кандидат ещё не заполнил "
+        "профиль"
     )
     fsp_achievements: list[FspAnonymizedAchievementOut] = Field(
         description="Достижения ФСП — подтверждены, отдельно от самоописания: тип результата, "

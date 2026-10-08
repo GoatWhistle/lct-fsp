@@ -1,5 +1,16 @@
 // Уровень и вероятности человеческим языком: «уверенно middle», «между junior и middle».
-import type { Level } from '../api/client'
+import type { HideableField, Level } from '../api/client'
+
+/** Поля самоописания, которые кандидат может скрыть из обезличенной карточки, — в порядке анкеты. */
+export const hideableFields: HideableField[] = ['stack', 'experience_years', 'city', 'relocation', 'industries']
+
+export const hideableWords: Record<HideableField, string> = {
+  stack: 'стек',
+  experience_years: 'стаж',
+  city: 'город',
+  relocation: 'готовность к переезду',
+  industries: 'интересные сферы',
+}
 
 const named: Record<string, string> = { intern: 'стажёр' }
 const withWhom: Record<string, string> = { intern: 'стажёром' }

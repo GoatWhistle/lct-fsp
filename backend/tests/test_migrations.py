@@ -162,3 +162,51 @@ def test_old_selection_entries_get_grade_status_from_the_category_chain(blank_ur
             assert conn.execute(text("SELECT count(*) FROM selection_entries")).scalar() == 2
     finally:
         engine.dispose()
+
+
+BEFORE_HIDDEN_FIELDS = "a8f8302329cf"
+HIDDEN_FIELDS = "b7e2c4d91f3a"
+
+
+def test_existing_profiles_hide_nothing(blank_url: str) -> None:
+    cfg = alembic(blank_url)
+    command.upgrade(cfg, BEFORE_HIDDEN_FIELDS)
+    engine = create_db_engine(blank_url)
+    try:
+        user_id = uuid.uuid4()
+        insert(
+            engine,
+            "users",
+            id=user_id,
+            email="candidate@example.com",
+            password_hash="-",
+            role="candidate",
+            created_at=T0,
+        )
+        insert(
+            engine,
+            "candidate_profiles",
+            user_id=user_id,
+            full_name="Ёлкина Юлия",
+            contact_email="yulia@example.ru",
+            about="",
+            job_roles=[],
+            soft_skills=[],
+            experience_years=4,
+            work_formats=["remote"],
+            relocation=False,
+            salary_from=200_000,
+            updated_at=T0,
+        )
+
+        command.upgrade(cfg, HIDDEN_FIELDS)
+
+        with engine.connect() as conn:
+            hidden = conn.execute(text("SELECT hidden_fields FROM candidate_profiles")).scalar()
+        assert hidden == []
+
+        command.downgrade(cfg, BEFORE_HIDDEN_FIELDS)
+        with engine.connect() as conn:
+            assert conn.execute(text("SELECT count(*) FROM candidate_profiles")).scalar() == 1
+    finally:
+        engine.dispose()

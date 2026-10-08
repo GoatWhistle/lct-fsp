@@ -4,6 +4,7 @@
 """
 
 import io
+import json
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import timedelta
@@ -27,11 +28,15 @@ PROFILE = {
     "contact_phone": "+7 999 123-45-67",
     "telegram": "yolkina_qa",
     "about": "Пишу автотесты, люблю разбирать флаки",
-    "stack": ["pytest"],
+    # Selenium в потребности нет: в объяснении подборки его не будет, совпавший pytest — будет.
+    "stack": ["pytest", "selenium"],
     "job_roles": ["тимлид"],
     "experience_years": 4,
     "soft_skills": ["Наставничество"],
     "work_formats": ["remote"],
+    "city": "Казань",
+    "relocation": True,
+    "industries": ["healthcare"],
     "salary_from": 287_500,
 }
 
@@ -283,3 +288,148 @@ def test_employer_sees_candidate_disclosed_only_after_own_accepted_invitation(
     visible = {name for name, marker in SECRETS.items() if marker in text}
     expected = DISCLOSED_TO_EMPLOYER if (endpoint, state) == ("карточка", "принято") else NONE
     assert visible == expected
+
+
+# Видимость полей самоописания (§14): кандидат скрывает их из обезличенной карточки. Как искать
+# поле в ответе: строковые — по значению, которого нет ни в потребности, ни в объяснении
+# подборки; стаж и переезд — по объекту самоописания в JSON или по словам в PDF.
+HIDEABLE = ("stack", "experience_years", "city", "relocation", "industries")
+MARKERS = {"stack": "Selenium", "city": "Казань", "industries": "Медицина"}
+PDF_WORDS = MARKERS | {"experience_years": "Стаж в ИТ", "relocation": "готов к переезду"}
+
+
+def self_reported_objects(node: object) -> list[Json]:
+    """Объекты самоописания в JSON — у них и только у них есть стаж."""
+    if isinstance(node, list):
+        return [o for item in node for o in self_reported_objects(item)]
+    if not isinstance(node, dict):
+        return []
+    found = [node] if "experience_years" in node else []
+    return found + [o for value in node.values() for o in self_reported_objects(value)]
+
+
+def parsed(text: str) -> object:
+    try:
+        return json.loads(text)
+    except ValueError:
+        return None
+
+
+def shown(field: str, text: str, *, pdf: bool = False) -> bool:
+    if pdf:
+        return PDF_WORDS[field] in text
+    if field in MARKERS:
+        return MARKERS[field] in text
+    return any(o[field] is not None for o in self_reported_objects(parsed(text)))
+
+
+def hide(world: World, *fields: str) -> Json:
+    response = world.clients[Viewer.me].put(
+        "/api/candidate/profile", json=PROFILE | {"hidden": list(fields)}
+    )
+    assert response.status_code == 200, response.text
+    body: Json = response.json()
+    return body
+
+
+def card_text(world: World) -> str:
+    response = world.clients[Viewer.employer].get(f"/api/employer/candidates/{world.candidate_id}")
+    assert response.status_code == 200, response.text
+    return response.text
+
+
+def test_nothing_is_hidden_by_default(world: World) -> None:
+    own = world.clients[Viewer.me].get("/api/candidate/profile").json()
+    text = card_text(world)
+
+    assert own["hidden"] == []
+    assert json.loads(text)["self_reported"]["hidden"] == []
+    assert all(shown(field, text) for field in HIDEABLE)
+
+
+@pytest.mark.parametrize("endpoint", EMPLOYER_ENDPOINTS)
+@pytest.mark.parametrize("field", HIDEABLE)
+def test_hidden_field_does_not_reach_employer_before_disclosure(
+    world: World, field: str, endpoint: str
+) -> None:
+    hide(world, field)
+
+    code, text = ENDPOINTS[endpoint].call(world, Viewer.employer)
+
+    assert code < 300, text
+    assert not shown(field, text)
+    if endpoint == "карточка":
+        assert json.loads(text)["self_reported"]["hidden"] == [field]
+        assert all(shown(other, text) for other in HIDEABLE if other != field)
+
+
+@pytest.mark.parametrize("field", HIDEABLE)
+def test_hidden_field_is_disclosed_after_accepted_invitation(
+    world: World,
+    signed_in: Callable[[Role], TestClient],
+    clock: FrozenClock,
+    mechanics: Mechanics,
+    field: str,
+) -> None:
+    hide(world, *HIDEABLE)
+    other_employer = with_company(signed_in(Role.employer), "Другая компания")
+    bring_to("принято", world, other_employer, clock, timedelta(days=mechanics.invitation_ttl_days))
+
+    text = card_text(world)
+
+    assert shown(field, text)
+    assert json.loads(text)["self_reported"]["hidden"] == []
+
+
+@pytest.mark.parametrize("field", HIDEABLE)
+def test_candidate_sees_own_hidden_field_in_profile_and_pdf(world: World, field: str) -> None:
+    saved = hide(world, field)
+
+    assert saved["hidden"] == [field]
+    for endpoint in ("профиль", "PDF"):
+        e = ENDPOINTS[endpoint]
+        code, text = e.call(world, Viewer.me)
+        assert code == 200, text
+        assert shown(field, text, pdf=e.pdf), endpoint
+
+
+def test_hidden_fields_come_back_in_form_order_without_repeats(world: World) -> None:
+    saved = hide(world, "industries", "stack", "industries")
+
+    assert saved["hidden"] == ["stack", "industries"]
+
+
+@pytest.mark.parametrize("hidden", [["salary_from"], ["work_formats"], ["about"], ["nope"]])
+def test_unknown_hideable_field_is_rejected(world: World, hidden: list[str]) -> None:
+    response = world.clients[Viewer.me].put(
+        "/api/candidate/profile", json=PROFILE | {"hidden": hidden}
+    )
+
+    assert response.status_code == 422, response.text
+
+
+def test_selection_score_and_order_do_not_depend_on_visibility(
+    world: World, signed_in: Callable[[Role], TestClient], db_engine: Engine
+) -> None:
+    second = signed_in(Role.candidate)
+    second.put(
+        "/api/candidate/profile",
+        json=PROFILE | {"full_name": "Второй Кандидат", "stack": ["selenium"]},
+    ).raise_for_status()
+    grant_category(db_engine, second.get("/api/auth/me").json()["id"])
+    employer = world.clients[Viewer.employer]
+
+    def build() -> list[tuple[str, float, float]]:
+        response = employer.post(f"/api/employer/needs/{world.need_id}/selections")
+        assert response.status_code == 201, response.text
+        return [
+            (e["candidate_id"], e["match_score"], e["mutual_score"])
+            for e in response.json()["entries"]
+        ]
+
+    visible = build()
+    hide(world, *HIDEABLE)
+    hidden = build()
+
+    assert len(visible) == 2
+    assert hidden == visible

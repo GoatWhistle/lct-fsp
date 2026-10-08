@@ -52,6 +52,7 @@ from app.repository.calibration import SqlCalibrationRepository
 from app.repository.candidate import SqlCandidateRepository
 from app.repository.catalog import SqlCatalog
 from app.repository.company import SqlCompanies
+from app.repository.conversation import SqlMessages
 from app.repository.database import create_db_engine
 from app.repository.fsp import SqlFspRepository
 from app.repository.invitation import SqlInvitations
@@ -211,6 +212,7 @@ def create_app(
             fsp=lambda uow: SqlFspRepository(uow.session),
             candidates=candidate_repository,
             invitations=invitation_repository,
+            messages=lambda uow: SqlMessages(uow.session),
             selections=lambda uow: SqlSelections(uow.session),
             calibration=lambda uow: SqlCalibrationRepository(uow.session),
         ),
@@ -239,6 +241,7 @@ def create_app(
     app.state.fsp_accounts = platform.fsp_accounts
     app.state.frontend_url = settings.frontend_url
     app.state.invitations = platform.invitations
+    app.state.conversations = platform.conversations
     app.state.feedback = platform.feedback
 
     install_error_handlers(app)

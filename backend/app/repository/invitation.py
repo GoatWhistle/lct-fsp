@@ -58,6 +58,7 @@ class SqlInvitations:
         row.status = invitation.status
         row.viewed_at = invitation.viewed_at
         row.answered_at = invitation.answered_at
+        row.revoked_at = invitation.revoked_at
         self._session.flush()
 
     def by_candidate(self, candidate_id: uuid.UUID) -> list[Invitation]:
@@ -89,6 +90,7 @@ class SqlInvitations:
                 InvitationRow.employer_id == employer_id,
                 InvitationRow.candidate_id == candidate_id,
                 InvitationRow.status == InvitationStatus.accepted,
+                InvitationRow.revoked_at.is_(None),
             )
             .limit(1)
         )
@@ -118,4 +120,5 @@ def _invitation(row: InvitationRow) -> Invitation:
         sent_at=row.sent_at,
         viewed_at=row.viewed_at,
         answered_at=row.answered_at,
+        revoked_at=row.revoked_at,
     )

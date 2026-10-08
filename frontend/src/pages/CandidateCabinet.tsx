@@ -11,6 +11,7 @@ import { ProfileCard } from '../candidate/ProfileCard'
 import { SkillProfileView, TestResultView } from '../candidate/Results'
 import { SurveyStep } from '../candidate/SurveyStep'
 import { TestStep } from '../candidate/TestStep'
+import { Vacancies } from '../candidate/Vacancies'
 import { dateWords, levelWords } from '../candidate/words'
 import { useUnreadMessages } from '../invitation/unread'
 
@@ -83,7 +84,12 @@ export function CandidateCabinet() {
       </ol>
       <PathStep catalog={catalog} path={path} onChange={setPath} />
       {/* Во время теста — только тест; профиль заполняется до или после. */}
-      {path.stage !== 'test' && <ProfileCard />}
+      {path.stage !== 'test' && (
+        <>
+          <ProfileCard />
+          <Vacancies />
+        </>
+      )}
     </section>
   )
 }
@@ -204,6 +210,7 @@ function CategoryCabinet({ catalog, path, onChange }: StepProps) {
       )}
       <GradeChangeCard catalog={catalog} path={path} onChange={onChange} />
       <Inbox onRead={reload} />
+      <Vacancies />
       <FeedbackCard onStartBlock={onChange} />
       <ProfileCard />
       <div className="card">

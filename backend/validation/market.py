@@ -17,7 +17,7 @@
 import math
 import random
 import uuid
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import timedelta
 
@@ -37,7 +37,15 @@ from composition import elo_calibration, item_selector
 from settings import Mechanics
 from validation.main import Stand, build_stand
 from validation.metrics import pearson, rmse
-from validation.truth import CandidateTruth, Response, ResponseModel, guessing, respond
+from validation.truth import (
+    CandidateTruth,
+    Corruption,
+    Response,
+    ResponseModel,
+    corrupt,
+    guessing,
+    respond,
+)
 
 # Сиды наборов плана валидации: D1 — основной, D3 — настроечный.
 SEED = 20261005
@@ -71,6 +79,29 @@ def true_parameters(
             )
         )
     return truth
+
+
+def corrupted_families(
+    families: Sequence[Family], share: float, rng: random.Random
+) -> dict[str, Corruption]:
+    """Испорченные семейства M21: доля `share` неякорных, округлённая до чётного числа, —
+    поровну двух видов, по кругу тем и грейдов в случайном порядке."""
+    regular = [f for f in families if not f.anchor]
+    count = 2 * round(share * len(regular) / 2)
+    topics = sorted({f.topic for f in regular})
+    grades = sorted({f.grade for f in regular})
+    rng.shuffle(topics)
+    rng.shuffle(grades)
+    kinds = list(Corruption)
+    found: dict[str, Corruption] = {}
+    for i in range(count):
+        topic = topics[i % len(topics)]
+        free = [f for f in regular if f.topic == topic and f.code not in found]
+        if not free:
+            free = [f for f in regular if f.code not in found]
+        cell = [f for f in free if f.grade == grades[i % len(grades)]] or free
+        found[rng.choice(cell).code] = kinds[i % len(kinds)]
+    return found
 
 
 @dataclass(frozen=True)
@@ -158,6 +189,8 @@ class Market:
         # Модель ответа кандидатов с полной истиной — набора, из которого они; по умолчанию D1.
         self.response_model = response_model or ResponseModel()
         self._guess: dict[str, float] = {}
+        # Испорченные семейства M21 — скрытая истина: портят ответы кандидатов с полной истиной.
+        self.corrupted: dict[str, Corruption] = {}
         self.calibrate = True
         self._users = 0
 
@@ -196,7 +229,7 @@ class Market:
         else:
             first = get_family(family_code).instance(0, InProcessCodeRunner())
             guess = self._guess[family_code] = guessing(first, self.response_model)
-        return respond(
+        response = respond(
             truth,
             family_code,
             self._topics[family_code],
@@ -205,6 +238,10 @@ class Market:
             self.response_model,
             self.rng,
         )
+        corruption = self.corrupted.get(family_code)
+        if corruption is None:
+            return response
+        return corrupt(response, corruption, instance, self.rng)
 
     def attempt(self, candidate: Candidate, *, stand: Stand | None = None) -> Run:
         """Тест на заявленный грейд — одна попытка до остановки, без дотестов каскада.
@@ -341,6 +378,14 @@ class Market:
             for code, p in parameters.items():
                 row = self.stand.calibration.locked(code, p)
                 row.discrimination, row.difficulty = p.discrimination, p.difficulty
+                self.stand.calibration.save(row)
+
+    def rotate(self, codes: Iterable[str], in_rotation: bool) -> None:
+        """Вводит семейства в выдачу или выводит из неё — как ручная проверка банка."""
+        with self.stand.uow:
+            for code in codes:
+                row = self.stand.calibration.locked(code, self.expert(get_family(code).grade))
+                row.in_rotation = in_rotation
                 self.stand.calibration.save(row)
 
     def _enrol(self) -> uuid.UUID:

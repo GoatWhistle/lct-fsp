@@ -53,6 +53,9 @@ export type Side = components['schemas']['Side']
 export type GradeStatus = components['schemas']['GradeStatusOut']
 export type Feedback = components['schemas']['FeedbackOut']
 export type FeedbackHint = components['schemas']['HintOut']
+export type Vacancy = components['schemas']['VacancyOut']
+export type VacancyInput = components['schemas']['VacancyIn']
+export type Application = components['schemas']['ApplicationOut']
 
 export const api = createClient<paths>({ credentials: 'same-origin' })
 

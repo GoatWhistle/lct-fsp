@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { api, errorMessage, type CandidatePath } from '../api/client'
 import { Cabinet } from '../components/Cabinet'
 import { gradeName, useCatalog, type Catalog } from '../candidate/catalog'
+import { GradeChangeCard, HistoryView } from '../candidate/GradeChange'
 import { GradeStep } from '../candidate/GradeStep'
 import { ProfileCard } from '../candidate/ProfileCard'
 import { SkillProfileView, TestResultView } from '../candidate/Results'
@@ -34,7 +35,20 @@ export function CandidateCabinet() {
 
   if (error || failed) return <p className="error">{error ?? 'Не удалось загрузить справочники'}</p>
   if (!path || !catalog) return <p className="muted">Загрузка…</p>
-  if (path.stage === 'category') return <CategoryCabinet catalog={catalog} path={path} />
+  if (path.stage === 'category') return <CategoryCabinet catalog={catalog} path={path} onChange={setPath} />
+  // Попытка вверх идёт при категории: только тест, категория до итога прежняя.
+  if (path.stage === 'test' && path.category) {
+    return (
+      <section className="stack">
+        <h1>Попытка на {gradeName(catalog, path.attempt?.grade ?? '')}</h1>
+        <p className="lead">
+          Ваша категория — {path.category.specialization.name} · {path.category.grade.name}. Она
+          сменится, только если новый грейд подтвердится.
+        </p>
+        <TestStep onDone={setPath} />
+      </section>
+    )
+  }
 
   return (
     <section className="stack">
@@ -149,17 +163,11 @@ function OfferStep({ catalog, path, onChange }: StepProps) {
   )
 }
 
-function CategoryCabinet({ catalog, path }: { catalog: Catalog; path: CandidatePath }) {
+function CategoryCabinet({ catalog, path, onChange }: StepProps) {
   const category = path.category
   const hint = path.result?.grade_up_hint
   return (
-    <Cabinet
-      title="Кабинет кандидата"
-      upcoming={[
-        'Смена грейда и история тестов',
-        'Приглашения от работодателей',
-      ]}
-    >
+    <Cabinet title="Кабинет кандидата" upcoming={['Приглашения от работодателей']}>
       {category && (
         <div className="card">
           <span className="muted">Ваша категория</span>
@@ -176,9 +184,11 @@ function CategoryCabinet({ catalog, path }: { catalog: Catalog; path: CandidateP
           )}
         </div>
       )}
+      <GradeChangeCard catalog={catalog} path={path} onChange={onChange} />
       <ProfileCard />
       {path.result && <TestResultView catalog={catalog} result={path.result} />}
       {path.profile && <SkillProfileView profile={path.profile} />}
+      <HistoryView catalog={catalog} history={path.history} />
     </Cabinet>
   )
 }

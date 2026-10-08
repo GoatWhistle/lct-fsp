@@ -12,7 +12,16 @@ from sqlalchemy import distinct, func, select
 from sqlalchemy.orm import Session, selectinload
 
 from app.domain import candidate
-from app.domain.attempt import AnsweredPresentation, Attempt, PathState, Presentation, Survey
+from app.domain.attempt import (
+    AnsweredPresentation,
+    Attempt,
+    AttemptPurpose,
+    CategoryChange,
+    ChangeKind,
+    PathState,
+    Presentation,
+    Survey,
+)
 from app.domain.catalog import CatalogRef, Topic
 from app.domain.skill import Normal, SkillProfileLevels
 from app.repository import orm as models
@@ -57,7 +66,8 @@ def _presentation_of(row: models.Presentation) -> Presentation:
     )
 
 
-def _attempt_of(row: models.TestAttempt) -> Attempt:
+def _attempt_of(row: models.TestAttempt, *, presentations: bool = True) -> Attempt:
+    """`presentations=False` — без предъявлений: их отношение не загружается."""
     overall = None
     if row.overall_theta is not None and row.overall_theta_sd is not None:
         overall = Normal(row.overall_theta, row.overall_theta_sd)
@@ -70,12 +80,13 @@ def _attempt_of(row: models.TestAttempt) -> Attempt:
         grade_code=row.grade_code,
         continues_attempt_id=row.continues_attempt_id,
         started_at=row.started_at,
+        purpose=row.purpose,
         finished_at=row.finished_at,
         overall=overall,
         outcome=row.outcome,
         outcome_grade_code=row.outcome_grade_code,
         retest_after=row.retest_after,
-        presentations=[_presentation_of(p) for p in row.presentations],
+        presentations=[_presentation_of(p) for p in row.presentations] if presentations else [],
     )
 
 
@@ -181,6 +192,7 @@ class SqlAttemptRepository(SqlAttemptReader):
         grade_code: str,
         continues: Attempt | None,
         now: datetime,
+        purpose: AttemptPurpose = AttemptPurpose.determination,
     ) -> Attempt:
         row = models.TestAttempt(
             user_id=user_id,
@@ -190,10 +202,19 @@ class SqlAttemptRepository(SqlAttemptReader):
             grade_code=grade_code,
             continues_attempt_id=continues.id if continues else None,
             started_at=now,
+            purpose=purpose,
         )
         self.session.add(row)
         self.session.flush()
         return _attempt_of(row)
+
+    def attempts(self, user_id: uuid.UUID) -> list[Attempt]:
+        rows = self.session.scalars(
+            select(models.TestAttempt)
+            .where(models.TestAttempt.user_id == user_id)
+            .order_by(models.TestAttempt.number)
+        )
+        return [_attempt_of(row, presentations=False) for row in rows]
 
     def add_presentation(
         self,
@@ -261,6 +282,62 @@ class SqlAttemptRepository(SqlAttemptReader):
                 grade_code=attempt.outcome_grade_code,
                 attempt_id=attempt.id,
                 assigned_at=now,
+            )
+        )
+        self._log_change(
+            attempt.user_id,
+            attempt.specialization_code,
+            attempt.outcome_grade_code,
+            ChangeKind.determined,
+            attempt.id,
+            now,
+        )
+
+    def raise_category(self, attempt: Attempt, now: datetime) -> None:
+        assert attempt.outcome_grade_code is not None
+        row = self.session.get_one(models.CandidateCategory, attempt.user_id)
+        row.grade_code, row.attempt_id, row.assigned_at = (
+            attempt.outcome_grade_code,
+            attempt.id,
+            now,
+        )
+        self._log_change(
+            attempt.user_id, row.specialization_code, row.grade_code, ChangeKind.up, attempt.id, now
+        )
+
+    def lower_category(self, user_id: uuid.UUID, grade_code: str, now: datetime) -> None:
+        row = self.session.get_one(models.CandidateCategory, user_id)
+        row.grade_code, row.assigned_at = grade_code, now
+        self._log_change(
+            user_id, row.specialization_code, grade_code, ChangeKind.down, row.attempt_id, now
+        )
+
+    def category_changes(self, user_id: uuid.UUID) -> list[CategoryChange]:
+        rows = self.session.scalars(
+            select(models.CategoryChange)
+            .where(models.CategoryChange.user_id == user_id)
+            .order_by(models.CategoryChange.number)
+        )
+        return [CategoryChange(row.grade_code, row.kind, row.changed_at) for row in rows]
+
+    def _log_change(
+        self,
+        user_id: uuid.UUID,
+        specialization_code: str,
+        grade_code: str,
+        kind: ChangeKind,
+        attempt_id: uuid.UUID,
+        now: datetime,
+    ) -> None:
+        self.session.add(
+            models.CategoryChange(
+                user_id=user_id,
+                number=self._next_number(models.CategoryChange, user_id),
+                specialization_code=specialization_code,
+                grade_code=grade_code,
+                kind=kind,
+                attempt_id=attempt_id,
+                changed_at=now,
             )
         )
         self.session.flush()
@@ -387,7 +464,9 @@ class SqlAttemptRepository(SqlAttemptReader):
         return candidate.Level(theta, theta_sd, tuple(self._thresholds.items()), self._confidence)
 
     def _next_number(
-        self, model: type[models.Survey] | type[models.TestAttempt], user_id: uuid.UUID
+        self,
+        model: type[models.Survey] | type[models.TestAttempt] | type[models.CategoryChange],
+        user_id: uuid.UUID,
     ) -> int:
         """Следующий номер записи кандидата; гонку исключает блокировка `lock_candidate`."""
         last = self.session.scalar(select(func.max(model.number)).where(model.user_id == user_id))

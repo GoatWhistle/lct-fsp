@@ -120,7 +120,16 @@ def test_item_carries_no_answer(candidate: TestClient, seeds: Seeds) -> None:
 
     item = candidate.get(ITEM).json()
 
-    assert set(item) == {"id", "number", "max_items", "topic", "prompt", "code", "options"}
+    assert set(item) == {
+        "id",
+        "number",
+        "max_items",
+        "topic",
+        "prompt",
+        "code",
+        "answer_format",
+        "options",
+    }
     assert item["number"] == 1 and item["max_items"] == 30
     family, seed = presented(seeds, item)
     instance = family.instance(seed, RUNNER)

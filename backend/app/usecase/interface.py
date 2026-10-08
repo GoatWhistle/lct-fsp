@@ -21,7 +21,14 @@ from app.domain.attempt import (
     Presentation,
     Survey,
 )
-from app.domain.calibration import AnchorAnswer, CalibratedFamily, Link, Parameters, Response
+from app.domain.calibration import (
+    AnchorAnswer,
+    CalibratedFamily,
+    ExpertGap,
+    Link,
+    Parameters,
+    Response,
+)
 from app.domain.candidate import Candidate, ProfileForm, ProfileSheet
 from app.domain.candidate import SkillProfile as SkillProfileView
 from app.domain.catalog import (
@@ -234,7 +241,13 @@ class Calibration(Protocol):
         ...
 
     def refit_due(self, codes: Iterable[str], specialization: str, now: datetime) -> None:
-        """Пакетная переоценка семейств из `codes`, набравших ответы с итоговыми оценками."""
+        """Пакетная переоценка семейств из `codes`, набравших ответы с итоговыми оценками.
+        Опорная сложность легче экспертной больше допустимого — семейство выводится из выдачи."""
+        ...
+
+    def expert_gaps(self, families: Sequence[bank.Family]) -> dict[str, ExpertGap]:
+        """Семейства, чья опорная сложность разошлась с экспертной больше допустимого, в обе
+        стороны: легче — выведены из выдачи, тяжелее — в выдаче с пометкой."""
         ...
 
 

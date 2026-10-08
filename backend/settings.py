@@ -18,6 +18,9 @@ BACKEND_DIR = Path(__file__).resolve().parent
 MECHANICS_FILE = BACKEND_DIR / "config" / "mechanics.yaml"
 # Справочники: грейды, сферы бизнеса, специализации с темами, технологии.
 CATALOG_FILE = BACKEND_DIR / "config" / "catalog.yaml"
+# Матрица грейдов и документ для жюри, который генерируется из неё.
+GRADE_MATRIX_FILE = BACKEND_DIR / "config" / "grade_matrix.yaml"
+GRADE_MATRIX_DOC = BACKEND_DIR.parent / "docs" / "grade-matrix.md"
 
 
 class Settings(BaseSettings):
@@ -62,6 +65,8 @@ class Mechanics(BaseModel):
     expert_discrimination: float
     bank_min_families_per_topic: int
     bank_min_families_per_grade: int
+    bank_max_trace_share_per_topic: float = Field(ge=0, le=1)
+    bank_min_scenario_families_per_grade: int = Field(ge=0)
     anchor_families_per_topic: int
     family_answer_collision_max: float
     family_instance_difficulty_sd_max: float

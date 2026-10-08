@@ -10,6 +10,7 @@ import math
 from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import datetime
+from enum import StrEnum
 
 from app.domain.skill import Normal, sigmoid
 
@@ -214,7 +215,21 @@ def fit_link(
     return Link(shift, scale)
 
 
-def needs_review(reference: Parameters, start: Parameters, *, expert_gap: float) -> bool:
-    """Опорная сложность легче экспертной больше чем на `expert_gap`: утечка во время разогрева
-    или ошибка эксперта — семейство уходит из выдачи до ручной проверки."""
-    return start.difficulty - reference.difficulty > expert_gap
+class ExpertGap(StrEnum):
+    """Расхождение опорной сложности с экспертной больше `calibration_expert_gap_review`."""
+
+    # Легче экспертной: утечка во время разогрева или ошибка эксперта — семейство уходит из
+    # выдачи до ручной проверки.
+    EASIER = "easier"
+    # Тяжелее экспертной: эксперт недооценил задание или формулировка сбивает. Подыгрыша нет —
+    # семейство остаётся в выдаче, пометка идёт в отчёт покрытия банка.
+    HARDER = "harder"
+
+
+def expert_gap(reference: Parameters, start: Parameters, *, gap: float) -> ExpertGap | None:
+    """Сверка опорной сложности с экспертной в обе стороны."""
+    if start.difficulty - reference.difficulty > gap:
+        return ExpertGap.EASIER
+    if reference.difficulty - start.difficulty > gap:
+        return ExpertGap.HARDER
+    return None

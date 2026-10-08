@@ -1,20 +1,30 @@
 """Приглашения: работодатель отправляет кандидату предложение с вилкой, кандидат открывает его и
-принимает или отклоняет. Принятое приглашение раскрывает кандидата этой компании."""
+принимает или отклоняет. Принятое приглашение раскрывает кандидата этой компании, пока кандидат
+не отозвал доступ, и открывает переписку сторон."""
 
 import uuid
 
 from fastapi import APIRouter, status
 
-from app.controller.deps import ROLE_RESPONSES, CurrentUser, InvitationsDep, role_guard
+from app.controller.deps import (
+    ROLE_RESPONSES,
+    ConversationsDep,
+    CurrentUser,
+    InvitationsDep,
+    role_guard,
+)
 from app.controller.errors import error_responses
 from app.controller.invitation_schemas import (
     InvitationBudgetOut,
     InvitationIn,
     InvitationOut,
+    MessageIn,
+    MessageOut,
     SentInvitationsOut,
 )
 from app.domain import errors
 from app.domain.account import Role
+from app.domain.conversation import Message, Side
 from app.domain.invitation import Invitation, InvitationTerms
 from app.domain.work import SalaryRange
 from app.usecase.invitation import Invitations
@@ -38,6 +48,7 @@ ANSWER_ERRORS = (
     errors.InvitationTransitionNotAllowed,
     errors.InvitationExpired,
 )
+CONVERSATION_ERRORS = (errors.InvitationNotFound, errors.InvitationNotAccepted)
 
 
 @employer_router.post(
@@ -63,7 +74,7 @@ def send_invitation(
         salary=SalaryRange(body.salary_from, body.salary_to),
         contact=body.contact,
     )
-    return _out(invitations, invitations.send(user.id, body.candidate_id, terms))
+    return _out(invitations, invitations.send(user.id, body.candidate_id, terms), {})
 
 
 @employer_router.get(
@@ -71,8 +82,11 @@ def send_invitation(
     summary="Отправленные приглашения и бюджет недели",
     description="Только приглашения своей компании, новые сверху.",
 )
-def list_sent(user: CurrentUser, invitations: InvitationsDep) -> SentInvitationsOut:
+def list_sent(
+    user: CurrentUser, invitations: InvitationsDep, conversations: ConversationsDep
+) -> SentInvitationsOut:
     sent = invitations.sent(user.id)
+    unread = conversations.unread(Side.employer, user.id)
     budget = sent.budget
     return SentInvitationsOut(
         budget=InvitationBudgetOut(
@@ -81,7 +95,7 @@ def list_sent(user: CurrentUser, invitations: InvitationsDep) -> SentInvitations
             remaining=budget.remaining,
             resets_at=budget.resets_at,
         ),
-        invitations=[_out(invitations, i) for i in sent.invitations],
+        invitations=[_out(invitations, i, unread) for i in sent.invitations],
     )
 
 
@@ -91,14 +105,47 @@ def list_sent(user: CurrentUser, invitations: InvitationsDep) -> SentInvitations
     responses=error_responses(errors.InvitationNotFound),
 )
 def get_sent(
-    invitation_id: uuid.UUID, user: CurrentUser, invitations: InvitationsDep
+    invitation_id: uuid.UUID,
+    user: CurrentUser,
+    invitations: InvitationsDep,
+    conversations: ConversationsDep,
 ) -> InvitationOut:
-    return _out(invitations, invitations.sent_one(user.id, invitation_id))
+    unread = conversations.unread(Side.employer, user.id)
+    return _out(invitations, invitations.sent_one(user.id, invitation_id), unread)
+
+
+@employer_router.get(
+    "/{invitation_id}/messages",
+    summary="Переписка с кандидатом",
+    description="Только в принятом приглашении, старые сверху. Открытие отмечает сообщения "
+    "кандидата прочитанными.",
+    responses=error_responses(*CONVERSATION_ERRORS),
+)
+def employer_messages(
+    invitation_id: uuid.UUID, user: CurrentUser, conversations: ConversationsDep
+) -> list[MessageOut]:
+    return [_message(m) for m in conversations.open(Side.employer, user.id, invitation_id)]
+
+
+@employer_router.post(
+    "/{invitation_id}/messages",
+    status_code=status.HTTP_201_CREATED,
+    summary="Написать кандидату",
+    description="Только текст и только в принятом приглашении — и после отзыва доступа.",
+    responses=error_responses(*CONVERSATION_ERRORS, errors.InvalidMessageText),
+)
+def employer_send(
+    invitation_id: uuid.UUID, body: MessageIn, user: CurrentUser, conversations: ConversationsDep
+) -> MessageOut:
+    return _message(conversations.send(Side.employer, user.id, invitation_id, body.text))
 
 
 @candidate_router.get("", summary="Входящие приглашения", description="Новые сверху.")
-def list_inbox(user: CurrentUser, invitations: InvitationsDep) -> list[InvitationOut]:
-    return [_out(invitations, i) for i in invitations.inbox(user.id)]
+def list_inbox(
+    user: CurrentUser, invitations: InvitationsDep, conversations: ConversationsDep
+) -> list[InvitationOut]:
+    unread = conversations.unread(Side.candidate, user.id)
+    return [_out(invitations, i, unread) for i in invitations.inbox(user.id)]
 
 
 @candidate_router.post(
@@ -108,9 +155,13 @@ def list_inbox(user: CurrentUser, invitations: InvitationsDep) -> list[Invitatio
     responses=error_responses(errors.InvitationNotFound),
 )
 def view_invitation(
-    invitation_id: uuid.UUID, user: CurrentUser, invitations: InvitationsDep
+    invitation_id: uuid.UUID,
+    user: CurrentUser,
+    invitations: InvitationsDep,
+    conversations: ConversationsDep,
 ) -> InvitationOut:
-    return _out(invitations, invitations.view(user.id, invitation_id))
+    unread = conversations.unread(Side.candidate, user.id)
+    return _out(invitations, invitations.view(user.id, invitation_id), unread)
 
 
 @candidate_router.post(
@@ -120,9 +171,13 @@ def view_invitation(
     responses=error_responses(*ANSWER_ERRORS),
 )
 def accept_invitation(
-    invitation_id: uuid.UUID, user: CurrentUser, invitations: InvitationsDep
+    invitation_id: uuid.UUID,
+    user: CurrentUser,
+    invitations: InvitationsDep,
+    conversations: ConversationsDep,
 ) -> InvitationOut:
-    return _out(invitations, invitations.answer(user.id, invitation_id, accept=True))
+    unread = conversations.unread(Side.candidate, user.id)
+    return _out(invitations, invitations.answer(user.id, invitation_id, accept=True), unread)
 
 
 @candidate_router.post(
@@ -131,12 +186,73 @@ def accept_invitation(
     responses=error_responses(*ANSWER_ERRORS),
 )
 def decline_invitation(
-    invitation_id: uuid.UUID, user: CurrentUser, invitations: InvitationsDep
+    invitation_id: uuid.UUID,
+    user: CurrentUser,
+    invitations: InvitationsDep,
+    conversations: ConversationsDep,
 ) -> InvitationOut:
-    return _out(invitations, invitations.answer(user.id, invitation_id, accept=False))
+    unread = conversations.unread(Side.candidate, user.id)
+    return _out(invitations, invitations.answer(user.id, invitation_id, accept=False), unread)
 
 
-def _out(invitations: Invitations, invitation: Invitation) -> InvitationOut:
+@candidate_router.post(
+    "/{invitation_id}/revoke",
+    summary="Отозвать доступ к своим данным",
+    description="Компания снова видит обезличенную карточку; переписка продолжается. Вернуть "
+    "доступ нельзя — только принять новое приглашение компании. Повторный отзыв ничего не "
+    "меняет.",
+    responses=error_responses(errors.InvitationNotFound, errors.InvitationNotAccepted),
+)
+def revoke_access(
+    invitation_id: uuid.UUID,
+    user: CurrentUser,
+    invitations: InvitationsDep,
+    conversations: ConversationsDep,
+) -> InvitationOut:
+    unread = conversations.unread(Side.candidate, user.id)
+    return _out(invitations, invitations.revoke(user.id, invitation_id), unread)
+
+
+@candidate_router.get(
+    "/{invitation_id}/messages",
+    summary="Переписка с компанией",
+    description="Только в принятом приглашении, старые сверху. Открытие отмечает сообщения "
+    "компании прочитанными.",
+    responses=error_responses(*CONVERSATION_ERRORS),
+)
+def candidate_messages(
+    invitation_id: uuid.UUID, user: CurrentUser, conversations: ConversationsDep
+) -> list[MessageOut]:
+    return [_message(m) for m in conversations.open(Side.candidate, user.id, invitation_id)]
+
+
+@candidate_router.post(
+    "/{invitation_id}/messages",
+    status_code=status.HTTP_201_CREATED,
+    summary="Написать компании",
+    description="Только текст и только в принятом приглашении; текст не фильтруется — что "
+    "писать, решаете вы.",
+    responses=error_responses(*CONVERSATION_ERRORS, errors.InvalidMessageText),
+)
+def candidate_send(
+    invitation_id: uuid.UUID, body: MessageIn, user: CurrentUser, conversations: ConversationsDep
+) -> MessageOut:
+    return _message(conversations.send(Side.candidate, user.id, invitation_id, body.text))
+
+
+def _message(message: Message) -> MessageOut:
+    return MessageOut(
+        id=message.id,
+        author=message.author,
+        text=message.text,
+        sent_at=message.sent_at,
+        read_at=message.read_at,
+    )
+
+
+def _out(
+    invitations: Invitations, invitation: Invitation, unread: dict[uuid.UUID, int]
+) -> InvitationOut:
     terms = invitation.terms
     return InvitationOut(
         id=invitation.id,
@@ -151,4 +267,6 @@ def _out(invitations: Invitations, invitation: Invitation) -> InvitationOut:
         viewed_at=invitation.viewed_at,
         answered_at=invitation.answered_at,
         expires_at=invitation.expires_at(invitations.ttl),
+        revoked_at=invitation.revoked_at,
+        unread_messages=unread.get(invitation.id, 0),
     )

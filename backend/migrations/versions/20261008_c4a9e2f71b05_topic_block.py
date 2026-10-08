@@ -4,7 +4,7 @@
 меняет. Тема хранится у попытки — по ней считается интервал блока.
 
 Revision ID: c4a9e2f71b05
-Revises: b7e2c4d91f3a
+Revises: c4a7e91d2b60
 Create Date: 2026-10-08 18:00:00.000000
 
 """
@@ -15,7 +15,7 @@ import sqlalchemy as sa
 from alembic import op
 
 revision: str = "c4a9e2f71b05"
-down_revision: str | Sequence[str] | None = "b7e2c4d91f3a"
+down_revision: str | Sequence[str] | None = "c4a7e91d2b60"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 

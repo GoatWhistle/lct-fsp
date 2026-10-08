@@ -27,6 +27,8 @@ from app.adapter.password import Argon2Passwords
 from app.adapter.profile_pdf import FpdfProfileRenderer
 from app.adapter.seed import SecureSeeds
 from app.adapter.session import JwtSessions
+from app.adapter.text_llama import LlamaCompletion
+from app.adapter.text_model import Completion
 from app.adapter.text_rules import RulesTextUnderstanding, load_synonyms
 from app.controller.auth import router as auth_router
 from app.controller.cabinets import candidate_router, employer_router
@@ -40,6 +42,7 @@ from app.controller.fsp import router as fsp_auth_router
 from app.controller.invitation import candidate_router as inbox_router
 from app.controller.invitation import employer_router as invitations_router
 from app.controller.need import router as needs_router
+from app.controller.need import search_router as candidate_search_router
 from app.controller.need import selections_router
 from app.controller.path import router as path_router
 from app.controller.profile import employer_router as candidates_router
@@ -52,6 +55,7 @@ from app.repository.calibration import SqlCalibrationRepository
 from app.repository.candidate import SqlCandidateRepository
 from app.repository.catalog import SqlCatalog
 from app.repository.company import SqlCompanies
+from app.repository.conversation import SqlMessages
 from app.repository.database import create_db_engine
 from app.repository.fsp import SqlFspRepository
 from app.repository.invitation import SqlInvitations
@@ -80,6 +84,8 @@ from composition import (
     build_usecases,
     catalog_sync,
     item_selector,
+    model_understanding,
+    named_completion,
 )
 from settings import Mechanics, Settings
 
@@ -97,13 +103,20 @@ ISO 8601 с `Z`.
 
 
 def text_understanding(settings: Settings) -> TextUnderstanding:
-    """Разбор текста по имени из настроек. Сейчас реализация одна — правила; модельному адаптеру
-    достанется таймаут `text_understanding_timeout_seconds`, после которого отвечают правила."""
+    """Разбор текста по имени из настроек: `rules` — правила, `llama` — `llama-server` с откатом
+    на правила по сбою и таймауту `text_understanding_timeout_seconds`; другое имя — модель,
+    которую сборка находит по имени (`composition.named_completion`)."""
+    synonyms = load_synonyms(settings.synonyms_file)
+    timeout = settings.text_understanding_timeout_seconds
+    complete: Completion
     match settings.text_understanding:
         case "rules":
-            return RulesTextUnderstanding(load_synonyms(settings.synonyms_file))
+            return RulesTextUnderstanding(synonyms)
+        case "llama":
+            complete = LlamaCompletion(settings.llama_url, settings.llama_model, timeout)
         case name:
-            raise ValueError(f"неизвестный разбор текста {name!r}: есть только rules")
+            complete = named_completion(name, timeout)
+    return model_understanding(complete, synonyms, timeout=timeout)
 
 
 def create_app(
@@ -211,6 +224,7 @@ def create_app(
             fsp=lambda uow: SqlFspRepository(uow.session),
             candidates=candidate_repository,
             invitations=invitation_repository,
+            messages=lambda uow: SqlMessages(uow.session),
             selections=lambda uow: SqlSelections(uow.session),
             calibration=lambda uow: SqlCalibrationRepository(uow.session),
         ),
@@ -239,6 +253,7 @@ def create_app(
     app.state.fsp_accounts = platform.fsp_accounts
     app.state.frontend_url = settings.frontend_url
     app.state.invitations = platform.invitations
+    app.state.conversations = platform.conversations
     app.state.feedback = platform.feedback
 
     install_error_handlers(app)
@@ -252,6 +267,7 @@ def create_app(
     app.include_router(company_router)
     app.include_router(needs_router)
     app.include_router(selections_router)
+    app.include_router(candidate_search_router)
     app.include_router(candidates_router)
     app.include_router(employer_tasks_router)
     app.include_router(candidate_tasks_router)

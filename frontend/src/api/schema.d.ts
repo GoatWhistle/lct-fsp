@@ -565,11 +565,89 @@ export interface paths {
         };
         /**
          * Подборка
-         * @description Выдача на момент построения — та же при каждом открытии, даже если потребность или профили кандидатов с тех пор изменились.
+         * @description Выдача на момент построения — та же при каждом открытии, даже если потребность или профили кандидатов с тех пор изменились, — через последние применённые фильтры.
          */
         get: operations["get_selection_api_employer_selections__selection_id__get"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/employer/selections/{selection_id}/filters": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Уточнить подборку фильтрами
+         * @description Заменяет фильтры подборки и отдаёт выдачу через них. Выдача только сужается: места, ранги, скоры и объяснения — сохранённые, порядок — исходный. Пустой объект — сброс к исходной выдаче. Сохранённая выдача не меняется.
+         */
+        put: operations["refine_selection_api_employer_selections__selection_id__filters_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/employer/selections/{selection_id}/shortlist": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Шортлист подборки */
+        get: operations["get_shortlist_api_employer_selections__selection_id__shortlist_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/employer/selections/{selection_id}/shortlist/{candidate_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Добавить в шортлист
+         * @description Только кандидата из выдачи этой подборки; повтор ничего не меняет.
+         */
+        put: operations["add_to_shortlist_api_employer_selections__selection_id__shortlist__candidate_id__put"];
+        post?: never;
+        /** Убрать из шортлиста */
+        delete: operations["remove_from_shortlist_api_employer_selections__selection_id__shortlist__candidate_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/employer/candidates/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Поиск по банку кандидатов
+         * @description Без потребности, по всей базе: кандидаты с категорией — по уверенности, что общий уровень не ниже порога грейда категории; с заявленным неподтверждённым грейдом — ниже всех подтверждённых. Карточки обезличены. Ничего не сохраняется.
+         */
+        post: operations["search_candidates_api_employer_candidates_search_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -795,6 +873,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/employer/invitations/{invitation_id}/messages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Переписка с кандидатом
+         * @description Только в принятом приглашении, старые сверху. Открытие отмечает сообщения кандидата прочитанными.
+         */
+        get: operations["employer_messages_api_employer_invitations__invitation_id__messages_get"];
+        put?: never;
+        /**
+         * Написать кандидату
+         * @description Только текст и только в принятом приглашении — и после отзыва доступа.
+         */
+        post: operations["employer_send_api_employer_invitations__invitation_id__messages_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/candidate/invitations": {
         parameters: {
             query?: never;
@@ -866,6 +968,50 @@ export interface paths {
         put?: never;
         /** Отклонить приглашение */
         post: operations["decline_invitation_api_candidate_invitations__invitation_id__decline_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/candidate/invitations/{invitation_id}/revoke": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Отозвать доступ к своим данным
+         * @description Компания снова видит обезличенную карточку; переписка продолжается. Вернуть доступ нельзя — только принять новое приглашение компании. Повторный отзыв ничего не меняет.
+         */
+        post: operations["revoke_access_api_candidate_invitations__invitation_id__revoke_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/candidate/invitations/{invitation_id}/messages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Переписка с компанией
+         * @description Только в принятом приглашении, старые сверху. Открытие отмечает сообщения компании прочитанными.
+         */
+        get: operations["candidate_messages_api_candidate_invitations__invitation_id__messages_get"];
+        put?: never;
+        /**
+         * Написать компании
+         * @description Только текст и только в принятом приглашении; текст не фильтруется — что писать, решаете вы.
+         */
+        post: operations["candidate_send_api_candidate_invitations__invitation_id__messages_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1101,6 +1247,11 @@ export interface components {
         /** CabinetOut */
         CabinetOut: {
             user: components["schemas"]["UserOut"];
+            /**
+             * Unread Messages
+             * @description Непрочитанные сообщения другой стороны во всех переписках; почты нет — счётчик обновляется при запросе
+             */
+            unread_messages: number;
         };
         /**
          * CandidateCardOut
@@ -1133,6 +1284,87 @@ export interface components {
              * @description Достижения ФСП полностью — с мероприятием, местом и ролью в команде: только после принятия приглашения вашей компании; `null` — карточка обезличена
              */
             fsp_details: components["schemas"]["FspAchievementOut"][] | null;
+        };
+        /**
+         * CandidateFiltersIn
+         * @description Фильтры кандидатов — одни для поиска по банку и уточнения подборки. Все необязательны,
+         *     вместе — пересечение условий; пустой объект не сужает ничего.
+         */
+        CandidateFiltersIn: {
+            /**
+             * Specialization
+             * @description Код специализации: категории, без неё — заявленного грейда
+             */
+            specialization?: string | null;
+            /**
+             * Grade
+             * @description Код грейда, по которому кандидат в выдаче: категории, без неё — заявленный
+             */
+            grade?: string | null;
+            /** @description Категория по тесту — неподтверждённый грейд её не даёт */
+            category?: components["schemas"]["CategoryFilterIn"] | null;
+            /**
+             * Stack
+             * @description Коды технологий: в самоописанном стеке есть хотя бы одна
+             */
+            stack?: string[];
+            /**
+             * Fsp Confirmed
+             * @description Только с подтверждёнными достижениями ФСП
+             * @default false
+             */
+            fsp_confirmed: boolean;
+            /**
+             * Confident
+             * @description Только с уверенным уровнем: погрешность общего уровня профиля не выше `search_confident_sd`. Без категории профиля нет — не проходит
+             * @default false
+             */
+            confident: boolean;
+            /**
+             * Grade Status
+             * @description Статус грейда — любой из перечисленных
+             */
+            grade_status?: components["schemas"]["GradeStatusKind"][];
+        };
+        /**
+         * CandidateFiltersOut
+         * @description Применённые фильтры — те же поля, что на входе.
+         */
+        CandidateFiltersOut: {
+            /**
+             * Specialization
+             * @description Код специализации: категории, без неё — заявленного грейда
+             */
+            specialization?: string | null;
+            /**
+             * Grade
+             * @description Код грейда, по которому кандидат в выдаче: категории, без неё — заявленный
+             */
+            grade?: string | null;
+            /** @description Категория по тесту — неподтверждённый грейд её не даёт */
+            category?: components["schemas"]["CategoryFilterIn"] | null;
+            /**
+             * Stack
+             * @description Коды технологий: в самоописанном стеке есть хотя бы одна
+             */
+            stack?: string[];
+            /**
+             * Fsp Confirmed
+             * @description Только с подтверждёнными достижениями ФСП
+             * @default false
+             */
+            fsp_confirmed: boolean;
+            /**
+             * Confident
+             * @description Только с уверенным уровнем: погрешность общего уровня профиля не выше `search_confident_sd`. Без категории профиля нет — не проходит
+             * @default false
+             */
+            confident: boolean;
+            /**
+             * Grade Status
+             * @description Статус грейда — любой из перечисленных
+             */
+            grade_status?: components["schemas"]["GradeStatusKind"][];
         };
         /**
          * CardSelfReportedOut
@@ -1215,6 +1447,19 @@ export interface components {
              * @description Кандидат уже ответил — второй ответ не принимается
              */
             answered: boolean;
+        };
+        /** CategoryFilterIn */
+        CategoryFilterIn: {
+            /**
+             * Specialization
+             * @description Код специализации
+             */
+            specialization: string;
+            /**
+             * Grade
+             * @description Код грейда
+             */
+            grade: string;
         };
         /** CategoryOut */
         CategoryOut: {
@@ -1680,6 +1925,16 @@ export interface components {
              * @description До какого момента можно ответить
              */
             expires_at: string;
+            /**
+             * Revoked At
+             * @description Когда кандидат отозвал доступ: карточка снова обезличена, переписка идёт
+             */
+            revoked_at: string | null;
+            /**
+             * Unread Messages
+             * @description Непрочитанные сообщения другой стороны
+             */
+            unread_messages: number;
             /** @description Все суммы платформы — до вычета НДФЛ (`gross`) */
             readonly salary_basis: components["schemas"]["SalaryBasis"];
         };
@@ -1762,6 +2017,36 @@ export interface components {
             email: string;
             /** Password */
             password: string;
+        };
+        /** MessageIn */
+        MessageIn: {
+            /**
+             * Text
+             * @description Только текст; пустой или длиннее предела — 422
+             */
+            text: string;
+        };
+        /** MessageOut */
+        MessageOut: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** @description Чья сторона написала */
+            author: components["schemas"]["Side"];
+            /** Text */
+            text: string;
+            /**
+             * Sent At
+             * Format: date-time
+             */
+            sent_at: string;
+            /**
+             * Read At
+             * @description Когда прочитала другая сторона
+             */
+            read_at: string | null;
         };
         /**
          * NeedDraftOut
@@ -2275,6 +2560,70 @@ export interface components {
          */
         Scenario: "narrow" | "raise";
         /**
+         * SearchHitOut
+         * @description Кандидат в поиске — обезличенно, как в подборке. Карточка —
+         *     `GET /api/employer/candidates/{candidate_id}`.
+         */
+        SearchHitOut: {
+            /**
+             * Candidate Id
+             * Format: uuid
+             */
+            candidate_id: string;
+            /**
+             * Position
+             * @description Место в выдаче с 1: сначала с категорией, затем — с неподтверждённым грейдом
+             */
+            position: number;
+            /**
+             * Specialization
+             * @description Код специализации категории, без неё — заявленного грейда
+             */
+            specialization: string;
+            grade_status: components["schemas"]["GradeStatusOut"];
+            /**
+             * Theta
+             * @description Общий уровень по профилю навыков на «сейчас»; `null` — категории нет, профиля навыков тоже
+             */
+            theta: number | null;
+            /**
+             * Theta Sd
+             * @description Погрешность общего уровня
+             */
+            theta_sd: number | null;
+            /**
+             * Grade Probability
+             * @description P(общий уровень ≥ порог грейда категории) — по ней порядок; `null` — категории нет
+             */
+            grade_probability: number | null;
+            /**
+             * Fsp Confirmed
+             * @description Есть подтверждённые достижения ФСП
+             */
+            fsp_confirmed: boolean;
+        };
+        /** SearchOut */
+        SearchOut: {
+            filters: components["schemas"]["CandidateFiltersOut"];
+            /**
+             * Total
+             * @description Найдено всего
+             */
+            total: number;
+            /**
+             * Unconfirmed Total
+             * @description Из них — с неподтверждённым грейдом
+             */
+            unconfirmed_total: number;
+            /** Offset */
+            offset: number;
+            /**
+             * Entries
+             * @description Страница выдачи с места `offset + 1`
+             */
+            entries: components["schemas"]["SearchHitOut"][];
+        };
+        /**
          * SelectionBlock
          * @enum {string}
          */
@@ -2379,9 +2728,31 @@ export interface components {
             stack_cap: number;
             /** Offset */
             offset: number;
+            /** @description Последние применённые фильтры: открытие подборки отдаёт выдачу через них */
+            filters: components["schemas"]["CandidateFiltersOut"];
+            /**
+             * Filtered Exact Total
+             * @description Точных после фильтров
+             */
+            filtered_exact_total: number;
+            /**
+             * Filtered Nearby Total
+             * @description Близких после фильтров
+             */
+            filtered_nearby_total: number;
+            /**
+             * Filtered Unconfirmed Total
+             * @description Нижнего блока после фильтров
+             */
+            filtered_unconfirmed_total: number;
+            /**
+             * Shortlist
+             * @description Шортлист в порядке выдачи — от фильтров не зависит
+             */
+            shortlist: string[];
             /**
              * Entries
-             * @description Страница общей выдачи с места `offset + 1`
+             * @description Страница выдачи после фильтров с `offset + 1`-й строки; места и ранги — исходные, без фильтров — вся выдача
              */
             entries: components["schemas"]["SelectionEntryOut"][];
         };
@@ -2434,6 +2805,24 @@ export interface components {
              */
             invitations: components["schemas"]["InvitationOut"][];
         };
+        /** ShortlistOut */
+        ShortlistOut: {
+            /**
+             * Selection Id
+             * Format: uuid
+             */
+            selection_id: string;
+            /**
+             * Entries
+             * @description Отмеченные кандидаты в порядке выдачи, без фильтров подборки
+             */
+            entries: components["schemas"]["SelectionEntryOut"][];
+        };
+        /**
+         * Side
+         * @enum {string}
+         */
+        Side: "candidate" | "employer";
         /**
          * SignalSource
          * @description Уровень доверия, из которого пришло наблюдение (§11). Проверочный блок встанет рядом.
@@ -4627,6 +5016,313 @@ export interface operations {
             };
         };
     };
+    refine_selection_api_employer_selections__selection_id__filters_put: {
+        parameters: {
+            query?: {
+                /** @description Сколько мест выдачи пропустить */
+                offset?: number;
+                /** @description Сколько кандидатов вернуть */
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                selection_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CandidateFiltersIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SelectionOut"];
+                };
+            };
+            /** @description `not_authenticated` — Войдите, чтобы продолжить */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description `wrong_role` — Раздел доступен другой роли */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description `selection_not_found` — Подборка не найдена */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_shortlist_api_employer_selections__selection_id__shortlist_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                selection_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ShortlistOut"];
+                };
+            };
+            /** @description `not_authenticated` — Войдите, чтобы продолжить */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description `wrong_role` — Раздел доступен другой роли */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description `selection_not_found` — Подборка не найдена */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    add_to_shortlist_api_employer_selections__selection_id__shortlist__candidate_id__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                selection_id: string;
+                candidate_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ShortlistOut"];
+                };
+            };
+            /** @description `not_authenticated` — Войдите, чтобы продолжить */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description `wrong_role` — Раздел доступен другой роли */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /**
+             * @description `selection_not_found` — Подборка не найдена
+             *
+             *     `not_in_selection` — Кандидата нет в выдаче подборки
+             */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    remove_from_shortlist_api_employer_selections__selection_id__shortlist__candidate_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                selection_id: string;
+                candidate_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ShortlistOut"];
+                };
+            };
+            /** @description `not_authenticated` — Войдите, чтобы продолжить */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description `wrong_role` — Раздел доступен другой роли */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /**
+             * @description `selection_not_found` — Подборка не найдена
+             *
+             *     `not_in_selection` — Кандидата нет в выдаче подборки
+             */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    search_candidates_api_employer_candidates_search_post: {
+        parameters: {
+            query?: {
+                /** @description Сколько мест выдачи пропустить */
+                offset?: number;
+                /** @description Сколько кандидатов вернуть */
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CandidateFiltersIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SearchOut"];
+                };
+            };
+            /** @description `not_authenticated` — Войдите, чтобы продолжить */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description `wrong_role` — Раздел доступен другой роли */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     get_candidate_card_api_employer_candidates__candidate_id__get: {
         parameters: {
             query?: never;
@@ -5415,6 +6111,144 @@ export interface operations {
             };
         };
     };
+    employer_messages_api_employer_invitations__invitation_id__messages_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                invitation_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageOut"][];
+                };
+            };
+            /** @description `not_authenticated` — Войдите, чтобы продолжить */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description `wrong_role` — Раздел доступен другой роли */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description `invitation_not_found` — Приглашение не найдено */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description `invitation_not_accepted` — Переписка и отзыв доступа — только в принятом приглашении */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    employer_send_api_employer_invitations__invitation_id__messages_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                invitation_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MessageIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageOut"];
+                };
+            };
+            /** @description `not_authenticated` — Войдите, чтобы продолжить */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description `wrong_role` — Раздел доступен другой роли */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description `invitation_not_found` — Приглашение не найдено */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description `invitation_not_accepted` — Переписка и отзыв доступа — только в принятом приглашении */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description `invalid_message_text` — Сообщение пустое или слишком длинное */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
     list_inbox_api_candidate_invitations_get: {
         parameters: {
             query?: never;
@@ -5649,6 +6483,211 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    revoke_access_api_candidate_invitations__invitation_id__revoke_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                invitation_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InvitationOut"];
+                };
+            };
+            /** @description `not_authenticated` — Войдите, чтобы продолжить */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description `wrong_role` — Раздел доступен другой роли */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description `invitation_not_found` — Приглашение не найдено */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description `invitation_not_accepted` — Переписка и отзыв доступа — только в принятом приглашении */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    candidate_messages_api_candidate_invitations__invitation_id__messages_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                invitation_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageOut"][];
+                };
+            };
+            /** @description `not_authenticated` — Войдите, чтобы продолжить */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description `wrong_role` — Раздел доступен другой роли */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description `invitation_not_found` — Приглашение не найдено */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description `invitation_not_accepted` — Переписка и отзыв доступа — только в принятом приглашении */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    candidate_send_api_candidate_invitations__invitation_id__messages_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                invitation_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MessageIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageOut"];
+                };
+            };
+            /** @description `not_authenticated` — Войдите, чтобы продолжить */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description `wrong_role` — Раздел доступен другой роли */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description `invitation_not_found` — Приглашение не найдено */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description `invitation_not_accepted` — Переписка и отзыв доступа — только в принятом приглашении */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description `invalid_message_text` — Сообщение пустое или слишком длинное */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
                 };
             };
         };

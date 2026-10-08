@@ -15,7 +15,17 @@ import uuid
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import CheckConstraint, Column, Enum, ForeignKey, String, Table, UniqueConstraint
+from sqlalchemy import (
+    CheckConstraint,
+    Column,
+    Enum,
+    ForeignKey,
+    ForeignKeyConstraint,
+    String,
+    Table,
+    UniqueConstraint,
+    Uuid,
+)
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -112,6 +122,9 @@ class Selection(Base):
     # λ на момент построения — потолок вклада самоописания.
     stack_cap: Mapped[float]
     created_at: Mapped[datetime]
+    # Последние применённые фильтры — `CandidateFilters`, формат — кодеки
+    # `app.repository.selection`. Пусто — исходная выдача.
+    filters: Mapped[dict[str, Any]] = mapped_column(JSONB, server_default="{}")
 
 
 class SelectionEntry(Base):
@@ -166,3 +179,17 @@ class SelectionEntry(Base):
     explanation: Mapped[dict[str, Any]] = mapped_column(JSONB)
     # Последний сигнал профиля старше `profile_stale_days`.
     stale: Mapped[bool]
+
+
+# Шортлист подборки — кандидаты её выдачи: строка выдачи уходит — уходит и отметка.
+selection_shortlist = Table(
+    "selection_shortlist",
+    Base.metadata,
+    Column("selection_id", Uuid, primary_key=True),
+    Column("candidate_id", Uuid, primary_key=True),
+    ForeignKeyConstraint(
+        ["selection_id", "candidate_id"],
+        ["selection_entries.selection_id", "selection_entries.candidate_id"],
+        ondelete="CASCADE",
+    ),
+)

@@ -55,6 +55,7 @@ STATUS: dict[type[e.DomainError], int] = {
     e.TopicNotInSpecialization: 422,
     e.InvalidSalaryRange: 422,
     e.SelectionNotFound: 404,
+    e.NotInSelection: 404,
     e.CompanyRequired: 409,
     e.TaskNotFound: 404,
     e.TaskTopicsCount: 422,
@@ -72,6 +73,8 @@ STATUS: dict[type[e.DomainError], int] = {
     e.InvitationExpired: 409,
     e.InvitationAlreadyOpen: 409,
     e.InvitationBudgetExhausted: 409,
+    e.InvitationNotAccepted: 409,
+    e.InvalidMessageText: 422,
 }
 
 

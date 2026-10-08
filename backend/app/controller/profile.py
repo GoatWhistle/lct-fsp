@@ -19,6 +19,7 @@ from app.controller.deps import (
     role_guard,
 )
 from app.controller.errors import error_responses
+from app.controller.fsp_schemas import FspAnonymizedAchievementOut
 from app.controller.path_schemas import CategoryOut, skill_profile_view
 from app.controller.profile_schemas import (
     CandidateCardOut,
@@ -30,6 +31,7 @@ from app.controller.schemas import CatalogRef
 from app.domain import candidate as domain
 from app.domain import errors
 from app.domain.account import Role
+from app.domain.fsp import anonymized
 from app.usecase import candidate as usecase
 
 PROFILE_ERRORS = (errors.UnknownTechnology, errors.UnknownIndustry, errors.CityRequired)
@@ -185,10 +187,16 @@ def _profile_out(card: domain.DisclosedCard) -> ProfileOut | None:
 
 def _card_out(card: domain.AnonymizedCard | domain.DisclosedCard) -> CandidateCardOut:
     """Карточка для работодателя. Раскрытой части в схеме ответа пока нет: раскрывать нечем —
-    ни приглашений, ни откликов ещё не существует."""
+    ни приглашений, ни откликов ещё не существует; достижения ФСП — обезличенно."""
+    achievements = (
+        card.fsp_achievements
+        if isinstance(card, domain.AnonymizedCard)
+        else [anonymized(a) for a in card.fsp_achievements]
+    )
     return CandidateCardOut(
         id=card.candidate_id,
         category=CategoryOut.model_validate(card.category),
         skill_profile=skill_profile_view(card.skill_profile) if card.skill_profile else None,
         self_reported=_self_reported_out(card.self_reported) if card.self_reported else None,
+        fsp_achievements=[FspAnonymizedAchievementOut.model_validate(a) for a in achievements],
     )

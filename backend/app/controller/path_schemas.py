@@ -10,6 +10,7 @@ from app.controller.schemas import CatalogRef
 from app.domain import candidate
 from app.domain.attempt import Stage
 from app.domain.candidate import Level
+from app.domain.skill import SignalSource
 
 
 class _Out(BaseModel):
@@ -70,6 +71,10 @@ class TestResultOut(BaseModel):
 class TopicLevelOut(BaseModel):
     topic: CatalogRef
     level: LevelOut
+    sources: list[SignalSource] = Field(
+        description="Из каких сигналов сложился уровень: `fsp` — результаты ФСП, `test` — "
+        "адаптивный тест; пусто — данных по теме нет"
+    )
 
 
 class SkillProfileOut(BaseModel):
@@ -94,7 +99,11 @@ def skill_profile_view(profile: candidate.SkillProfile) -> SkillProfileOut:
     return SkillProfileOut(
         overall=level_view(profile.overall),
         topics=[
-            TopicLevelOut(topic=CatalogRef.model_validate(t.topic), level=level_view(t.level))
+            TopicLevelOut(
+                topic=CatalogRef.model_validate(t.topic),
+                level=level_view(t.level),
+                sources=sorted(t.sources),
+            )
             for t in profile.topics
         ],
         updated_at=profile.updated_at,

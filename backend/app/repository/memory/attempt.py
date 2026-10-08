@@ -266,7 +266,11 @@ class MemoryAttemptRepository:
         return candidate.SkillProfile(
             overall=self._level(levels.overall),
             topics=tuple(
-                candidate.TopicLevel(CatalogRef(t.code, t.name), self._level(levels.topics[t.code]))
+                candidate.TopicLevel(
+                    CatalogRef(t.code, t.name),
+                    self._level(levels.topics[t.code]),
+                    levels.sources.get(t.code, frozenset()),
+                )
                 for t in topics
                 if t.code in levels.topics
             ),
@@ -282,6 +286,10 @@ class MemoryAttemptRepository:
         now: datetime,
     ) -> None:
         self._store.collection("profiles")[(user_id, specialization_code)] = (levels, now)
+
+    def profiled_specializations(self, user_id: uuid.UUID) -> list[str]:
+        profiles: dict[tuple[uuid.UUID, str], object] = self._store.collection("profiles")  # type: ignore[assignment]
+        return sorted(specialization for owner, specialization in profiles if owner == user_id)
 
     def _attempts(self) -> dict[uuid.UUID, Attempt]:
         attempts: dict[uuid.UUID, Attempt] = self._store.collection("attempts")  # type: ignore[assignment]

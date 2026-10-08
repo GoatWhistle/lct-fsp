@@ -20,6 +20,8 @@ from app.adapter.acceptance import NoAcceptanceModel
 from app.adapter.catalog_file import YamlCatalog
 from app.adapter.clock import SystemClock
 from app.adapter.code_runner import InProcessCodeRunner
+from app.adapter.fsp_id import OidcFspId
+from app.adapter.fsp_registry import FileFspRegistry
 from app.adapter.mail import SmtpMailer
 from app.adapter.password import Argon2Passwords
 from app.adapter.profile_pdf import FpdfProfileRenderer
@@ -31,6 +33,8 @@ from app.controller.catalog import router as catalog_router
 from app.controller.company import router as company_router
 from app.controller.deps import SessionCookie
 from app.controller.errors import install_error_handlers
+from app.controller.fsp import candidate_router as fsp_router
+from app.controller.fsp import router as fsp_auth_router
 from app.controller.need import router as needs_router
 from app.controller.need import selections_router
 from app.controller.path import router as path_router
@@ -43,6 +47,7 @@ from app.repository.candidate import SqlCandidateRepository
 from app.repository.catalog import SqlCatalog
 from app.repository.company import SqlCompanies
 from app.repository.database import create_db_engine
+from app.repository.fsp import SqlFspRepository
 from app.repository.need import SqlNeeds
 from app.repository.selection import SqlCandidatePool, SqlSelections
 from app.repository.unit_of_work import SqlUnitOfWork
@@ -51,6 +56,8 @@ from app.usecase.interface import (
     AcceptanceModel,
     CandidateRepository,
     Clock,
+    FspIdProvider,
+    FspRegistry,
     Mailer,
     PasswordHasher,
     ProfilePdfRenderer,
@@ -90,6 +97,8 @@ def create_app(
     skill_model: SkillModel | None = None,
     acceptance: AcceptanceModel | None = None,
     passwords: PasswordHasher | None = None,
+    fsp_id: FspIdProvider | None = None,
+    fsp_registry: FspRegistry | None = None,
 ) -> FastAPI:
     settings = settings or Settings()
     mechanics = mechanics or Mechanics.from_yaml(settings.mechanics_file)
@@ -139,6 +148,7 @@ def create_app(
             attempts=lambda uow: SqlAttemptRepository(
                 uow.session, mechanics.grade_thresholds, mechanics.grade_confidence
             ),
+            fsp=lambda uow: SqlFspRepository(uow.session),
             calibration=lambda uow: SqlCalibrationRepository(uow.session),
             needs=lambda uow: SqlNeeds(uow.session),
             pool=lambda uow: SqlCandidatePool(uow.session),
@@ -163,6 +173,10 @@ def create_app(
             companies=lambda uow: SqlCompanies(uow.session),
             needs=lambda uow: SqlNeeds(uow.session),
             catalog=lambda uow: SqlCatalog(uow.session),
+            attempts=lambda uow: SqlAttemptRepository(
+                uow.session, mechanics.grade_thresholds, mechanics.grade_confidence
+            ),
+            fsp=lambda uow: SqlFspRepository(uow.session),
         ),
         mechanics=mechanics,
         passwords=passwords or Argon2Passwords(),
@@ -170,14 +184,28 @@ def create_app(
         mailer=mailer or SmtpMailer(settings.smtp_host, settings.smtp_port, settings.mail_from),
         clock=clock,
         links=VerificationLinks(settings.frontend_url, settings.email_token_ttl_hours),
+        skill_model=skill_model,
+        fsp_id=fsp_id
+        or OidcFspId(
+            issuer=settings.fsp_id_issuer,
+            server_url=settings.fsp_id_server_url,
+            client_id=settings.fsp_id_client_id,
+            client_secret=settings.fsp_id_client_secret,
+            redirect_uri=settings.fsp_id_callback,
+        ),
+        fsp_registry=fsp_registry or FileFspRegistry(settings.fsp_registry_path),
     )
     app.state.accounts = platform.accounts
     app.state.companies = platform.companies
     app.state.needs = platform.needs
     app.state.catalog = platform.catalog
+    app.state.fsp_accounts = platform.fsp_accounts
+    app.state.frontend_url = settings.frontend_url
 
     install_error_handlers(app)
     app.include_router(auth_router)
+    app.include_router(fsp_auth_router)
+    app.include_router(fsp_router)
     app.include_router(candidate_router)
     app.include_router(path_router)
     app.include_router(profile_router)

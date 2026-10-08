@@ -32,7 +32,7 @@ from app.domain.selection import (
     Summary,
     TopicExplanation,
 )
-from app.domain.skill import Normal
+from app.domain.skill import Normal, SignalSource
 from app.domain.work import SalaryBasis, SalaryRange, WorkFormat
 from app.repository.orm.attempt import CandidateCategory
 from app.repository.orm.candidate import CandidateProfile, candidate_technologies
@@ -65,6 +65,7 @@ class SqlCandidatePool:
                 SkillProfileTopic.topic_code,
                 SkillProfileTopic.theta,
                 SkillProfileTopic.theta_sd,
+                SkillProfileTopic.sources,
             )
             .join(GradeRow, GradeRow.code == CandidateCategory.grade_code)
             .join(
@@ -80,11 +81,15 @@ class SqlCandidatePool:
 
         grades: dict[uuid.UUID, tuple[Grade, datetime | None]] = {}
         topics: dict[uuid.UUID, dict[str, Normal]] = {}
-        for user_id, code, name, rank, last_signal_at, topic, theta, theta_sd in levels:
+        fsp_topics: dict[uuid.UUID, set[str]] = {}
+        for user_id, code, name, rank, last_signal_at, topic, theta, theta_sd, sources in levels:
             if user_id not in grades:
                 grades[user_id] = (Grade(code, name, rank), last_signal_at)
                 topics[user_id] = {}
+                fsp_topics[user_id] = set()
             topics[user_id][topic] = Normal(theta, theta_sd)
+            if SignalSource.fsp in sources:
+                fsp_topics[user_id].add(topic)
 
         stacks = self._stacks(reach, technologies)
         expectations = self._expectations(reach)
@@ -97,6 +102,7 @@ class SqlCandidatePool:
                 stack=frozenset(stacks.get(user_id, ())),
                 last_signal_at=last_signal_at,
                 expectations=expectations.get(user_id),
+                fsp_topics=frozenset(fsp_topics[user_id]),
             )
             for user_id, (grade, last_signal_at) in grades.items()
         ]
@@ -303,6 +309,7 @@ def explanation_json(explanation: Explanation) -> Json:
                 "contribution": float(t.contribution),
                 "verdict": t.verdict.value,
                 "low_data": t.low_data,
+                "fsp_confirmed": t.fsp_confirmed,
             }
             for t in explanation.topics
         ],
@@ -326,6 +333,7 @@ def explanation_of(data: Json) -> Explanation:
                 contribution=float(t["contribution"]),
                 verdict=Verdict(t["verdict"]),
                 low_data=t["low_data"],
+                fsp_confirmed=t["fsp_confirmed"],
             )
             for t in data["topics"]
         ),

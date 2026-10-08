@@ -21,6 +21,7 @@ from app.usecase.attempt import CandidatePath
 from app.usecase.calibration import AnswerCalibration
 from app.usecase.catalog import CatalogQueries
 from app.usecase.company import Companies
+from app.usecase.fsp import FspAccounts
 from app.usecase.interface import (
     CandidateRepository,
     Clock,
@@ -75,16 +76,28 @@ def get_clock(request: Request) -> Clock:
     return clock
 
 
+def get_frontend_url(request: Request) -> str:
+    """Адрес фронта — куда бэкенд возвращает браузер после ФСП ID."""
+    url: str = request.app.state.frontend_url
+    return url
+
+
 MechanicsDep = Annotated[Mechanics, Depends(get_mechanics)]
 SessionCookieDep = Annotated[SessionCookie, Depends(get_session_cookie)]
 ProfilePdfRendererDep = Annotated[ProfilePdfRenderer, Depends(get_profile_pdf_renderer)]
 ClockDep = Annotated[Clock, Depends(get_clock)]
+FrontendUrlDep = Annotated[str, Depends(get_frontend_url)]
 
 
 def get_accounts(request: Request, uow: UnitOfWorkDep) -> Accounts:
     """Сценарии учётки на единице работы запроса."""
     accounts: Accounts = request.app.state.accounts(uow)
     return accounts
+
+
+def get_fsp_accounts(request: Request, uow: UnitOfWorkDep) -> FspAccounts:
+    fsp_accounts: FspAccounts = request.app.state.fsp_accounts(uow)
+    return fsp_accounts
 
 
 def get_catalog(request: Request, uow: UnitOfWorkDep) -> CatalogQueries:
@@ -125,6 +138,7 @@ def get_candidates(request: Request, uow: UnitOfWorkDep) -> CandidateRepository:
 
 
 AccountsDep = Annotated[Accounts, Depends(get_accounts)]
+FspAccountsDep = Annotated[FspAccounts, Depends(get_fsp_accounts)]
 CatalogQueriesDep = Annotated[CatalogQueries, Depends(get_catalog)]
 CompaniesDep = Annotated[Companies, Depends(get_companies)]
 NeedsDep = Annotated[Needs, Depends(get_needs)]
@@ -148,6 +162,19 @@ def get_current_user(
 
 
 CurrentUser = Annotated[Account, Depends(get_current_user)]
+
+
+def get_optional_user(
+    accounts: AccountsDep, access_token: Annotated[str | None, Depends(_cookie_scheme)]
+) -> Account | None:
+    """Пользователь, если вошёл; аноним — `None`."""
+    try:
+        return accounts.session_account(access_token)
+    except NotAuthenticated:
+        return None
+
+
+OptionalUser = Annotated[Account | None, Depends(get_optional_user)]
 
 AUTH_RESPONSES = error_responses(NotAuthenticated)
 

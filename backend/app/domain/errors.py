@@ -53,6 +53,61 @@ class EmailNotVerified(DomainError):
     message = "Адрес не подтверждён. Откройте ссылку из письма или запросите новое"
 
 
+# ФСП ID и достижения ФСП.
+
+
+class FspIdUnavailable(DomainError):
+    code = "fsp_id_unavailable"
+    message = "ФСП ID сейчас недоступен — попробуйте позже или войдите по email"
+
+
+class FspIdRejected(DomainError):
+    code = "fsp_id_rejected"
+    message = "Вход через ФСП ID не завершён — попробуйте ещё раз"
+
+
+class FspAuthorizationInvalid(DomainError):
+    code = "fsp_authorization_invalid"
+    message = "Сеанс входа через ФСП ID устарел — начните заново"
+
+
+class FspEmailUnverified(DomainError):
+    code = "fsp_email_unverified"
+    message = "В ФСП ID нет подтверждённого email — подтвердите его в ФСП ID или войдите по email"
+
+
+class FspEmailTaken(DomainError):
+    code = "fsp_email_taken"
+    message = (
+        "Учётка с этим email уже есть — войдите по email и привяжите ФСП ID в профиле кандидата"
+    )
+
+
+class FspIdTaken(DomainError):
+    code = "fsp_id_taken"
+    message = "Этот ФСП ID уже привязан к другой учётке"
+
+
+class FspAlreadyLinked(DomainError):
+    code = "fsp_already_linked"
+    message = "К учётке уже привязан другой ФСП ID — сначала отвяжите его"
+
+
+class FspNotLinked(DomainError):
+    code = "fsp_not_linked"
+    message = "ФСП ID не привязан"
+
+
+class FspUnlinkForbidden(DomainError):
+    code = "fsp_unlink_forbidden"
+    message = "Учётка создана через ФСП ID и входит только через него — отвязать ID нельзя"
+
+
+class FspRegistryUnavailable(DomainError):
+    code = "fsp_registry_unavailable"
+    message = "Реестр ФСП сейчас недоступен — показаны последние полученные достижения"
+
+
 # Справочники.
 
 

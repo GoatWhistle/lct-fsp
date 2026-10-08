@@ -1,7 +1,7 @@
 """Команды стенда: замеры на синтетическом рынке и отчёты таблицами Markdown.
 
-- `report` — сравнение адаптивного теста с фиксированным бланком и сходимость калибровки по всем
-  специализациям;
+- `report` — прогон D1 и D2 по сидам плана и отчёт `docs/validation-report.md`
+  (`validation.report`);
 - `report_honesty` — честность погрешности уровня и стабильность грейда при повторе на прогретом
   банке D1;
 - `tune_inflation` — подбор поправки погрешности `level_sd_inflation` на настроечном наборе D3
@@ -35,9 +35,7 @@ from validation.market import (
     TUNING_SEED,
     WARM_RESPONSES,
     Market,
-    calibration_quality,
     market,
-    mean_responses,
     true_grade,
     warm,
 )
@@ -45,6 +43,8 @@ from validation.metrics import cohen_kappa, median, pearson
 from validation.parsing import LabeledText, load_labeled, parsing_table, run_parsing
 from validation.population import DATASETS, Generator, write
 from validation.recorded import Recording, Replay, record
+from validation.report import REPORT, collect, write_report
+from validation.simulate import Scale
 
 # Набор D5 — тексты вакансий с разметкой; формат — validation/data/need_texts.md.
 DATA_DIR = Path(__file__).resolve().parent / "data"
@@ -215,86 +215,6 @@ def tune_inflation(mechanics: Mechanics, candidates: int) -> float:
     return chosen
 
 
-def _compare(m: Market, candidates: int) -> str:
-    """Те же кандидаты проходят адаптивный тест и два фиксированных бланка без лимита заданий:
-    медиана числа заданий до σ̄ ≤ `test_stop_sd`, доля дошедших за `test_max_items`, средняя σ̄
-    на длине 20, честность погрешности адаптивного на остановке — sd((θ̂ − θ*) / σ̂).
-
-    Без лимита и ровно 20 заданий — варианты стенда на том же банке: лимит заданий и порог
-    остановки — числа механик, остальное — те же сценарии."""
-    limit = m.mechanics.test_max_items
-    bank = len(m.families)
-    unlimited = m.stand.variant(m.mechanics.model_copy(update={"test_max_items": bank}))
-    twenty = m.stand.variant(
-        m.mechanics.model_copy(update={"test_max_items": 20, "test_stop_sd": 0.0})
-    )
-    target = m.mechanics.test_stop_sd
-    runs: dict[str, list[int]] = {"adaptive": [], "common": [], "claimed": []}
-    at_20: dict[str, list[float]] = {"adaptive": [], "common": []}
-    z = []
-    for _ in range(candidates):
-        c = m.candidate()
-        adaptive = m.attempt(c, stand=unlimited)
-        common = m.fixed(c, bank, target=0.0)
-        claimed = m.fixed(c, bank)
-        for name, run in (("adaptive", adaptive), ("common", common), ("claimed", claimed)):
-            runs[name].append(m.items_to(run, target) or bank + 1)
-        z.append((adaptive.overall.mean - m.overall(c)) / adaptive.overall.sd)
-        at_20["common"].append(m.sd_after(common, 20))
-    for _ in range(candidates):
-        at_20["adaptive"].append(m.attempt(m.candidate(), stand=twenty).overall.sd)
-
-    def cell(name: str) -> str:
-        ns = runs[name]
-        within = sum(n <= limit for n in ns) / len(ns)
-        return f"{median(ns):4.1f} ({within:.2f})"
-
-    ratio = median(runs["adaptive"]) / median(runs["common"])
-    spread = statistics.pstdev(z)
-    mean_20 = {k: sum(v) / len(v) for k, v in at_20.items()}
-    return (
-        f"{cell('adaptive')} | {cell('common')} | {cell('claimed')} | {ratio:.2f} | "
-        f"{mean_20['adaptive']:.3f} / {mean_20['common']:.3f} | {spread:.2f}"
-    )
-
-
-def report(mechanics: Mechanics) -> None:
-    specializations = [s.code for s in load_catalog(CATALOG_FILE).specializations]
-    checkpoints = (50, 100, 200, 500)
-
-    print("Калибровка: r(b̂, b*) / RMSE(b̂, b*) при среднем числе ответов на семейство")
-    print("| Специализация | " + " | ".join(str(n) for n in checkpoints) + " | RMSE b₀ |")
-    print("|---" * (len(checkpoints) + 2) + "|")
-    warmed: dict[str, Market] = {}
-    for code in specializations:
-        m = market(code, mechanics)
-        cells = []
-        for n in checkpoints:
-            while mean_responses(m) < n:
-                m.attempt(m.candidate())
-            r, error, start = calibration_quality(m)
-            cells.append(f"{r:.3f} / {error:.3f}")
-        print(f"| {code} | " + " | ".join(cells) + f" | {start:.3f} |", flush=True)
-        warmed[code] = m
-
-    header = (
-        "| Специализация | Адаптивный | Общий бланк | Бланк по заявке | Адаптивный / общий | "
-        "σ̄ на 20: адаптивный / общий | sd(z) адаптивного |"
-    )
-    cold = {code: market(code, mechanics) for code in specializations}
-    for title, markets in (
-        ("Холодный банк — экспертные параметры", cold),
-        ("Прогретый банк — после калибровки выше", warmed),
-    ):
-        print(f"\n{title}: медиана заданий до σ̄ ≤ test_stop_sd (доля дошедших за лимит)")
-        print(header)
-        print("|---" * 7 + "|")
-        for code in specializations:
-            m = markets[code]
-            m.calibrate = False
-            print(f"| {code} | {_compare(m, 300)} |", flush=True)
-
-
 def recording_path(dataset: Path, model: str) -> Path:
     return RECORDED_DIR / f"{dataset.stem}.{model}.json"
 
@@ -398,7 +318,9 @@ def write_market(
 
 def main() -> None:
     parser = argparse.ArgumentParser(prog="python -m validation")
-    parser.add_argument("command", nargs="?", choices=("honesty", "tune", "parsing", "market"))
+    parser.add_argument(
+        "command", nargs="?", choices=("report", "honesty", "tune", "parsing", "market")
+    )
     parser.add_argument(
         "--seed", type=int, default=None, help="сид для honesty и market, по умолчанию плановый"
     )
@@ -406,11 +328,21 @@ def main() -> None:
         "--candidates",
         type=int,
         default=None,
-        help="кандидатов: для honesty и tune — тестов (1500), для market — на специализацию (600)",
+        help="кандидатов: для honesty и tune — тестов (1500), для market и report — на "
+        "специализацию (600)",
     )
     parser.add_argument("--set", choices=sorted(DATASETS), default="d1", help="набор для market")
     parser.add_argument("--out", type=Path, default=MARKET_DIR, help="каталог наборов market")
-    parser.add_argument("--pairs", type=int, default=1500)
+    parser.add_argument(
+        "--pairs", type=int, default=None, help="пар повтора: honesty — 1500, report — 200"
+    )
+    parser.add_argument(
+        "--warm", type=int, default=None, help="report: ответов на семейство в прогреве (500)"
+    )
+    parser.add_argument(
+        "--compare", type=int, default=None, help="report: кандидатов сравнения M13 (300)"
+    )
+    parser.add_argument("--report", type=Path, default=REPORT, help="report: куда писать отчёт")
     parser.add_argument(
         "--model",
         help="для parsing: модель разбора по имени, как TEXT_UNDERSTANDING; без него — правила",
@@ -445,7 +377,7 @@ def main() -> None:
                 mechanics,
                 SEED if args.seed is None else args.seed,
                 1500 if args.candidates is None else args.candidates,
-                args.pairs,
+                1500 if args.pairs is None else args.pairs,
             )
         case "tune":
             tune_inflation(mechanics, 1500 if args.candidates is None else args.candidates)
@@ -460,4 +392,17 @@ def main() -> None:
         case "market":
             write_market(mechanics, args.set, args.seed, args.candidates, args.out)
         case _:
-            report(mechanics)
+            scale = Scale(
+                **{
+                    k: v
+                    for k, v in (
+                        ("pairs", args.pairs),
+                        ("warm", args.warm),
+                        ("compare", args.compare),
+                        ("candidates", args.candidates),
+                    )
+                    if v is not None
+                }
+            )
+            write_report(collect(mechanics, scale), args.report)
+            print(f"отчёт → {args.report}")

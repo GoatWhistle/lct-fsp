@@ -54,7 +54,7 @@ from app.repository.orm import Need as NeedRow
 from app.repository.orm import Technology as TechnologyRow
 from app.repository.selection import SqlCandidatePool, SqlSelections
 from app.repository.unit_of_work import SqlUnitOfWork
-from app.usecase.interface import AcceptanceModel
+from app.usecase.interface import AcceptanceModel, SelectionRepository, UnitOfWork
 from app.usecase.selection import Selections
 from settings import CATALOG_FILE, Mechanics
 
@@ -150,6 +150,8 @@ class Harness:
 
     employer: uuid.UUID
     selections: Selections
+    repository: SelectionRepository
+    uow: UnitOfWork
     clock: FrozenClock
 
     def need(self, seed: NeedSeed | None = None, *, owner: uuid.UUID | None = None) -> uuid.UUID:
@@ -180,12 +182,14 @@ class MemoryHarness(Harness):
         self.pool = MemoryCandidatePool(store)
         self.clock = FrozenClock(T0)
         self.employer = uuid.uuid4()
+        self.uow = MemoryUnitOfWork(store)
+        self.repository = MemorySelections(store)
         self.selections = Selections(
-            MemoryUnitOfWork(store),
+            self.uow,
             self.needs,
             MemoryCatalog(store),
             self.pool,
-            MemorySelections(store),
+            self.repository,
             acceptance,
             irt,
             self.clock,
@@ -239,17 +243,20 @@ class MemoryHarness(Harness):
 
 
 class PostgresHarness(Harness):
+    uow: SqlUnitOfWork
+
     def __init__(self, engine: Engine, acceptance: AcceptanceModel, mechanics: Mechanics) -> None:
         self.engine = engine
         self.uow = SqlUnitOfWork(Session(engine))
         session = self.uow.session
         self.clock = FrozenClock(T0)
+        self.repository = SqlSelections(session)
         self.selections = Selections(
             self.uow,
             SqlNeeds(session),
             SqlCatalog(session),
             SqlCandidatePool(session),
-            SqlSelections(session),
+            self.repository,
             acceptance,
             irt,
             self.clock,
@@ -902,3 +909,61 @@ def test_open_reproduces_the_bottom_block_and_its_total(make: Callable[..., Harn
     assert [e.block for e in page.entries] == [SelectionBlock.exact, SelectionBlock.unconfirmed]
     assert page.totals == built.totals == summary.totals
     assert built.totals[SelectionBlock.unconfirmed] == 3
+
+
+# Подборки по кандидату — для обратной связи (§15).
+
+
+def test_selections_with_candidate_give_place_block_and_same_block_neighbors(
+    make: Callable[..., Harness],
+) -> None:
+    h = make()
+    me, peer, far = h.candidates(
+        [
+            CandidateSeed(levels={t: (0.6, 0.4) for t in QA_TOPICS}),
+            CandidateSeed(levels={t: (1.2, 0.3) for t in QA_TOPICS}),
+            CandidateSeed(grade="senior"),
+        ]
+    )
+    stranger = h.candidate(CandidateSeed(specialization="backend"))
+    need = h.need()
+    page = h.selections.build(h.employer, need, limit=20)
+    scores = {e.candidate_id: e.match_score for e in page.entries}
+    position = {e.candidate_id: e.position for e in page.entries}
+
+    with h.uow:
+        (found,) = h.repository.with_candidate(me, T0)
+        assert h.repository.with_candidate(stranger, T0) == []
+
+    assert found.selection_id == page.selection.id
+    assert found.owner == h.employer
+    assert found.need_id == need
+    assert found.need == page.selection.need
+    assert found.stack_cap == page.selection.stack_cap
+    assert found.created_at == page.selection.created_at
+    assert (found.position, found.block) == (position[me], SelectionBlock.exact)
+    # Только тот же блок: кандидат senior — в «близких».
+    assert far in scores
+    assert found.neighbors == (scores[peer],)
+
+
+def test_selections_with_candidate_are_within_window_and_by_time(
+    make: Callable[..., Harness],
+) -> None:
+    h = make()
+    me = h.candidate(CandidateSeed())
+    other = h.user()
+    old = h.selections.build(h.employer, h.need(), limit=20).selection
+    h.clock.shift(timedelta(days=10))
+    first = h.selections.build(other, h.need(owner=other), limit=20).selection
+    h.clock.shift(timedelta(minutes=1))
+    second = h.selections.build(h.employer, h.need(), limit=20).selection
+
+    with h.uow:
+        found = h.repository.with_candidate(me, T0 + timedelta(days=1))
+
+    assert old.id not in {s.selection_id for s in found}
+    assert [(s.selection_id, s.owner) for s in found] == [
+        (first.id, other),
+        (second.id, h.employer),
+    ]

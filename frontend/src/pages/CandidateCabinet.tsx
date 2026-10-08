@@ -3,6 +3,7 @@ import { Link } from 'react-router'
 import { api, errorMessage, type CandidatePath } from '../api/client'
 import { Cabinet } from '../components/Cabinet'
 import { gradeName, useCatalog, type Catalog } from '../candidate/catalog'
+import { FeedbackCard } from '../candidate/FeedbackCard'
 import { GradeChangeCard, HistoryView } from '../candidate/GradeChange'
 import { GradeStep } from '../candidate/GradeStep'
 import { Inbox } from '../candidate/Inbox'
@@ -188,6 +189,7 @@ function CategoryCabinet({ catalog, path, onChange }: StepProps) {
       )}
       <GradeChangeCard catalog={catalog} path={path} onChange={onChange} />
       <Inbox />
+      <FeedbackCard />
       <ProfileCard />
       <div className="card">
         <div className="section-head">

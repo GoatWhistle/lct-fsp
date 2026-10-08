@@ -7,8 +7,10 @@
 import dataclasses
 import uuid
 from collections.abc import Collection, Sequence
+from datetime import datetime
 
 from app.domain.errors import NeedNotFound, SelectionNotFound
+from app.domain.feedback import CandidateSelection
 from app.domain.selection import (
     Need,
     Page,
@@ -107,3 +109,30 @@ class MemorySelections:
             for selection, entries in stored
             if selection.user_id == user_id and need_id in (None, selection.need_id)
         ][:limit]
+
+    def with_candidate(self, candidate_id: uuid.UUID, since: datetime) -> list[CandidateSelection]:
+        found = []
+        for selection, entries in self._store.collection("selections").values():
+            own = next((e for e in entries if e.candidate_id == candidate_id), None)
+            if own is None or selection.created_at < since:
+                continue
+            found.append(
+                CandidateSelection(
+                    selection_id=selection.id,
+                    owner=selection.user_id,
+                    need_id=selection.need_id,
+                    need=selection.need,
+                    stack_cap=selection.stack_cap,
+                    created_at=selection.created_at,
+                    position=own.position,
+                    block=own.block,
+                    neighbors=tuple(
+                        e.match_score
+                        for e in entries
+                        if e.block is own.block
+                        and e.candidate_id != candidate_id
+                        and e.match_score is not None
+                    ),
+                )
+            )
+        return sorted(found, key=lambda s: (s.created_at, s.selection_id.int))

@@ -79,18 +79,23 @@ def fsp_evidence(
     )
 
 
-def refresh_skill_profile(
+@dataclasses.dataclass(frozen=True)
+class _Signals:
+    # Наблюдения всех сигналов по времени.
+    observations: list[Observation]
+    # Темы, по которым в профиль вошли ответы на регулярные задания.
+    regular_task_topics: frozenset[str]
+
+
+def _signals(
     attempts: AttemptReader,
     tasks: RegularTaskReader,
-    model: SkillModel,
     mechanics: Mechanics,
     user_id: uuid.UUID,
     specialization_code: str,
     topics: Sequence[str],
-    fsp: FspEvidence | None = None,
-) -> SkillProfileLevels:
-    """Профиль по всем сигналам кандидата на специализацию — тест, регулярные задания и ФСП по
-    времени; сохраняет его вызывающий."""
+    fsp: FspEvidence | None,
+) -> _Signals:
     tests = [
         p.observation(mechanics.trust_weight_test)
         for p in attempts.answered(user_id, specialization_code)
@@ -116,7 +121,44 @@ def refresh_skill_profile(
         else []
     )
     # Слияние устойчиво: ответы теста одного момента сохраняют порядок попытки.
-    observations = list(heapq.merge(achievements, tests, *by_task, key=_moment))
+    return _Signals(
+        list(heapq.merge(achievements, tests, *by_task, key=_moment)),
+        frozenset(
+            o.topic for a, group in zip(answered, by_task, strict=True) if a.confirms for o in group
+        ),
+    )
+
+
+def profile_observations(
+    attempts: AttemptReader,
+    tasks: RegularTaskReader,
+    mechanics: Mechanics,
+    user_id: uuid.UUID,
+    specialization_code: str,
+    topics: Sequence[str],
+    fsp: FspEvidence | None = None,
+) -> list[Observation]:
+    """Наблюдения профиля навыков по всем сигналам кандидата на специализацию — по времени, как
+    их берёт `refresh_skill_profile`."""
+    return _signals(
+        attempts, tasks, mechanics, user_id, specialization_code, topics, fsp
+    ).observations
+
+
+def refresh_skill_profile(
+    attempts: AttemptReader,
+    tasks: RegularTaskReader,
+    model: SkillModel,
+    mechanics: Mechanics,
+    user_id: uuid.UUID,
+    specialization_code: str,
+    topics: Sequence[str],
+    fsp: FspEvidence | None = None,
+) -> SkillProfileLevels:
+    """Профиль по всем сигналам кандидата на специализацию — тест, регулярные задания и ФСП по
+    времени; сохраняет его вызывающий."""
+    signals = _signals(attempts, tasks, mechanics, user_id, specialization_code, topics, fsp)
+    observations = signals.observations
     result = model.estimate(profile_prior(topics, mechanics), observations, to_mode=True)
     sources: defaultdict[str, set[SignalSource]] = defaultdict(set)
     for o in observations:
@@ -126,9 +168,7 @@ def refresh_skill_profile(
         topics={topic: result.topic(topic) for topic in topics},
         observations=len(observations),
         last_signal_at=_moment(observations[-1]) if observations else None,
-        regular_task_topics=frozenset(
-            o.topic for a, group in zip(answered, by_task, strict=True) if a.confirms for o in group
-        ),
+        regular_task_topics=signals.regular_task_topics,
         sources={topic: frozenset(found) for topic, found in sources.items()},
     )
 

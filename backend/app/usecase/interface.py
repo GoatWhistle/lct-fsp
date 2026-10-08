@@ -45,6 +45,7 @@ from app.domain.catalog import (
     Topic,
 )
 from app.domain.company import Company, CompanyForm
+from app.domain.feedback import CandidateSelection
 from app.domain.fsp import (
     FspAchievement,
     FspAuthorization,
@@ -600,6 +601,12 @@ class SelectionRepository(Protocol):
         self, user_id: uuid.UUID, need_id: uuid.UUID | None, *, limit: int
     ) -> list[Summary]:
         """Подборки работодателя, новые сверху; `need_id` — только по этой потребности."""
+        ...
+
+    def with_candidate(self, candidate_id: uuid.UUID, since: datetime) -> list[CandidateSelection]:
+        """Подборки с `created_at` не раньше `since`, в выдаче которых есть кандидат, — по
+        времени построения: его место и блок, снимок потребности и сохранённые скоры остальных
+        кандидатов того же блока. Для обратной связи кандидату (mechanics.md, §15)."""
         ...
 
 

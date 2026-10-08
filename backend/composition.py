@@ -5,7 +5,7 @@
 работы: проводка отдаёт фабрики сценариев от неё, репозитории приходят фабриками от неё же.
 Сценарии механик, подбора и разбора потребности из текста (`build_usecases`) нужны обоим;
 сценарии кабинетов — учётки, ФСП ID, компании, потребностей, приглашений, справочников,
-регулярных заданий (`build_platform_usecases`) — только проду.
+регулярных заданий, обратной связи кандидату (`build_platform_usecases`) — только проду.
 
 Пакет стенда отсюда не импортируется — это проверяет тест на импорты.
 """
@@ -21,6 +21,7 @@ from app.usecase.attempt import CandidatePath
 from app.usecase.calibration import AnswerCalibration
 from app.usecase.catalog import CatalogQueries, CatalogSync
 from app.usecase.company import Companies
+from app.usecase.feedback import CandidateFeedback
 from app.usecase.fsp import FspAccounts
 from app.usecase.interface import (
     AcceptanceModel,
@@ -195,6 +196,8 @@ class PlatformRepositories[U: UnitOfWork]:
     fsp: Callable[[U], FspRepository]
     candidates: Callable[[U], CandidateRepository]
     invitations: Callable[[U], InvitationRepository]
+    selections: Callable[[U], SelectionRepository]
+    calibration: Callable[[U], CalibrationRepository]
 
 
 @dataclass(frozen=True)
@@ -208,6 +211,7 @@ class PlatformUsecases[U: UnitOfWork]:
     regular_tasks: Callable[[U], RegularTasks]
     fsp_accounts: Callable[[U], FspAccounts]
     invitations: Callable[[U], Invitations]
+    feedback: Callable[[U], CandidateFeedback]
 
 
 def build_platform_usecases[U: UnitOfWork](
@@ -289,8 +293,22 @@ def build_platform_usecases[U: UnitOfWork](
             ttl_days=mechanics.invitation_ttl_days,
         )
 
+    def feedback(uow: U) -> CandidateFeedback:
+        return CandidateFeedback(
+            uow,
+            repositories.candidates(uow),
+            repositories.selections(uow),
+            repositories.attempts(uow),
+            repositories.regular_tasks(uow),
+            repositories.fsp(uow),
+            elo_calibration(repositories.calibration(uow), mechanics),
+            skill_model,
+            clock,
+            mechanics,
+        )
+
     return PlatformUsecases(
-        accounts, companies, needs, catalog, regular_tasks, fsp_accounts, invitations
+        accounts, companies, needs, catalog, regular_tasks, fsp_accounts, invitations, feedback
     )
 
 

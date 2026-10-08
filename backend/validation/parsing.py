@@ -42,7 +42,8 @@ FIELD_NAMES = {
 
 
 class LabeledText(BaseModel):
-    """Текст с разметкой человеком; значения — коды справочника. Чего в тексте нет — `null`."""
+    """Текст с разметкой; `checked_by` — чья она. Значения — коды справочника, чего в тексте
+    нет — `null`."""
 
     model_config = ConfigDict(extra="forbid", frozen=True)
 

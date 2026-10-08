@@ -357,6 +357,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/candidate/profile/resume": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Разобрать резюме из PDF
+         * @description Тело — PDF как есть (`Content-Type: application/pdf`). Ответ — черновик анкеты «система поняла так»: ФИО, контакты, стек из справочника, роли, стаж, софт-скиллы и подсказка грейда. Скрытый текст PDF — белый, прозрачный, крошечный, за краем страницы — в разбор не идёт. Разбор локальный, наружу файл не уходит; ни файл, ни черновик не сохраняются — профиль меняет только `PUT /api/candidate/profile`.
+         */
+        post: operations["parse_resume_api_candidate_profile_resume_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/candidate/profile/grade-hint": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Подсказка грейда
+         * @description По стажу и ролям сохранённого профиля — для шага выбора грейда. Грейд не выбирает и на категорию не влияет. `null` — профиль не заполнен.
+         */
+        get: operations["get_grade_hint_api_candidate_profile_grade_hint_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/candidate/profile/pdf": {
         parameters: {
             query?: never;
@@ -1427,6 +1467,19 @@ export interface components {
              */
             divergences: components["schemas"]["FspDivergenceOut"][];
         };
+        /**
+         * GradeHintOut
+         * @description Подсказка грейда по стажу и ролям. Только подсказка: грейд выбирает кандидат, категорию
+         *     определяет тест.
+         */
+        GradeHintOut: {
+            /** @description Младший из грейдов по стажу и по ролям */
+            grade: components["schemas"]["CatalogRef"];
+            /** @description Грейд по стажу; `null` — стажа нет */
+            by_experience: components["schemas"]["CatalogRef"] | null;
+            /** @description Грейд, названный в ролях; `null` — не назван */
+            by_roles: components["schemas"]["CatalogRef"] | null;
+        };
         /** GradeIn */
         GradeIn: {
             /**
@@ -1493,6 +1546,13 @@ export interface components {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
         };
+        /**
+         * HideableField
+         * @description Поля самоописания, которые кандидат может скрыть из обезличенной карточки (§14). Форматы
+         *     работы, категория и профиль навыков видны всегда.
+         * @enum {string}
+         */
+        HideableField: "stack" | "experience_years" | "city" | "relocation" | "industries";
         /** HintOut */
         HintOut: {
             /** @description Тема; `null` — у привязки ФСП ID темы нет */
@@ -1511,13 +1571,6 @@ export interface components {
              */
             places: number | null;
         };
-        /**
-         * HideableField
-         * @description Поля самоописания, которые кандидат может скрыть из обезличенной карточки (§14). Форматы
-         *     работы, категория и профиль навыков видны всегда.
-         * @enum {string}
-         */
-        HideableField: "stack" | "experience_years" | "city" | "relocation" | "industries";
         /**
          * HistoryEntryOut
          * @description Строка истории: остановленная попытка (`attempt`) или переход вниз (`step_down`).
@@ -2226,6 +2279,64 @@ export interface components {
              */
             email: string;
         };
+        /**
+         * ResumeDraftOut
+         * @description Черновик анкеты «система поняла так» из резюме. Ничего не сохранено: кандидат правит
+         *     поля и сохраняет профиль (`PUT /api/candidate/profile`). Ожиданий — формата, города,
+         *     зарплаты — в черновике нет: их кандидат указывает сам.
+         */
+        ResumeDraftOut: {
+            /** Full Name */
+            full_name: string | null;
+            /** Contact Email */
+            contact_email: string | null;
+            /** Contact Phone */
+            contact_phone: string | null;
+            /**
+             * Telegram
+             * @description Имя пользователя без «@»
+             */
+            telegram: string | null;
+            /**
+             * Stack
+             * @description Только технологии справочника, в его порядке
+             */
+            stack: components["schemas"]["CatalogRef"][];
+            /**
+             * Job Roles
+             * @description Названия ролей из словаря, а не фразы резюме
+             */
+            job_roles: string[];
+            /**
+             * Experience Years
+             * @description Полных лет; `null` — не найден
+             */
+            experience_years: number | null;
+            /**
+             * Soft Skills
+             * @description Названия из словаря, а не фразы резюме
+             */
+            soft_skills: string[];
+            /**
+             * Confidence
+             * @description Уверенность по распознанным полям в [0, 1]; `null` — разбор её не считает. Нераспознанных полей здесь нет
+             */
+            confidence: {
+                [key: string]: number | null;
+            };
+            /**
+             * Uncertain
+             * @description Распознанные поля с уверенностью ниже `resume_draft_confident` — проверьте их
+             */
+            uncertain: components["schemas"]["ResumeField"][];
+            /** @description Подсказка грейда по стажу и ролям черновика — для шага выбора грейда */
+            grade_hint: components["schemas"]["GradeHintOut"] | null;
+        };
+        /**
+         * ResumeField
+         * @enum {string}
+         */
+        ResumeField: "full_name" | "contact_email" | "contact_phone" | "telegram" | "stack" | "job_roles" | "experience_years" | "soft_skills";
         /**
          * Role
          * @enum {string}
@@ -3684,6 +3795,108 @@ export interface operations {
              *     `city_required` — Укажите город — для офиса и гибрида он обязателен
              */
             422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    parse_resume_api_candidate_profile_resume_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/pdf": string;
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResumeDraftOut"];
+                };
+            };
+            /** @description `not_authenticated` — Войдите, чтобы продолжить */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description `wrong_role` — Раздел доступен другой роли */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description `resume_too_large` — Резюме слишком большое — сохраните PDF покороче или без картинок, лимиты — под кнопкой загрузки */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /**
+             * @description `resume_unreadable` — Не получилось прочитать файл как PDF — сохраните резюме в PDF заново
+             *
+             *     `resume_without_text` — В PDF нет текста, который можно прочитать: похоже на скан. Загрузите PDF, сохранённый из редактора, или заполните профиль вручную
+             */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    get_grade_hint_api_candidate_profile_grade_hint_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GradeHintOut"] | null;
+                };
+            };
+            /** @description `not_authenticated` — Войдите, чтобы продолжить */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description `wrong_role` — Раздел доступен другой роли */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };

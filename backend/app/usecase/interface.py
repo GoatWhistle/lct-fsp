@@ -7,7 +7,7 @@
 import random
 import uuid
 from collections.abc import Collection, Iterable, Mapping, Sequence
-from datetime import datetime
+from datetime import date, datetime
 from types import TracebackType
 from typing import Protocol, Self
 
@@ -65,6 +65,7 @@ from app.domain.regular_task import (
     TaskAnswer,
     TaskTerms,
 )
+from app.domain.resume_draft import ResumeDraft
 from app.domain.selection import (
     AcceptanceFeatures,
     Need,
@@ -843,14 +844,33 @@ class TextUnderstanding(Protocol):
     значениями справочника. Сейчас — правила и словарь синонимов (`app.adapter.text_rules`).
 
     Порт ничего не оценивает и наружу не ходит: модель — локальные веса или сервис в compose.
-    Вывод сценарий проверяет сам (`app.domain.need_draft.checked`), поэтому адаптер может
-    ошибиться, но не вывести значение за справочник. Разбор резюме станет второй операцией.
+    Вывод сценарий проверяет сам (`app.domain.need_draft.checked`,
+    `app.domain.resume_draft.checked_resume`), поэтому адаптер может ошибиться, но не вывести
+    значение за справочник.
     """
 
     def need(self, text: str, catalog: Catalog) -> NeedDraft | OutOfCatalog:
         """Потребность, которую работодатель написал как есть, — очищенный текст. `catalog` —
         справочник, в пределах которого отвечать."""
         ...
+
+    def resume(self, text: str, catalog: Catalog, today: date) -> ResumeDraft:
+        """Резюме кандидата — видимый текст PDF после очистки. `today` — для стажа по датам
+        «по настоящее время»."""
+        ...
+
+
+class ResumeText(Protocol):
+    """Видимый текст резюме из PDF (mechanics.md, §16). Сейчас — `pypdf` с отбрасыванием
+    скрытого текста (`app.adapter.resume_pdf`). Наружу не ходит.
+
+    Скрытое — белый и почти белый текст, невидимый режим отрисовки, прозрачный, нулевого и
+    крошечного кегля, за пределами страницы — в текст не попадает: адаптер разбора его не видит.
+    Битый файл — `ResumeUnreadable`, страниц больше лимита — `ResumeTooLarge`, без видимого
+    текстового слоя (скан) — `ResumeWithoutText`.
+    """
+
+    def visible_text(self, pdf: bytes) -> str: ...
 
 
 class CatalogSource(Protocol):

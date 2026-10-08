@@ -4,9 +4,10 @@
 """
 
 import uuid
+from typing import Annotated
 from urllib.parse import quote
 
-from fastapi import APIRouter, Response
+from fastapi import APIRouter, Depends, Request, Response
 
 from app.controller.deps import (
     ROLE_RESPONSES,
@@ -17,6 +18,7 @@ from app.controller.deps import (
     MechanicsDep,
     ProfileFreshnessDep,
     ProfilePdfRendererDep,
+    ResumeDraftsDep,
     UnitOfWorkDep,
     role_guard,
 )
@@ -27,8 +29,10 @@ from app.controller.profile_schemas import (
     CandidateCardOut,
     CardSelfReportedOut,
     DisclosedOut,
+    GradeHintOut,
     ProfileIn,
     ProfileOut,
+    ResumeDraftOut,
     SelfReportedOut,
 )
 from app.controller.schemas import CatalogRef, GradeStatusOut
@@ -36,6 +40,7 @@ from app.domain import candidate as domain
 from app.domain import errors
 from app.domain.account import Role
 from app.domain.fsp import anonymized
+from app.domain.resume_draft import CheckedResumeDraft, GradeHint
 from app.usecase import candidate as usecase
 
 PROFILE_ERRORS = (errors.UnknownTechnology, errors.UnknownIndustry, errors.CityRequired)
@@ -89,6 +94,54 @@ def save_profile(
     out = _profile_out(card)
     assert out is not None, "анкета только что сохранена"
     return out
+
+
+async def resume_body(request: Request, mechanics: MechanicsDep) -> bytes:
+    """Тело запроса не больше лимита: больше — ошибка, не дочитывая файл в память."""
+    declared = request.headers.get("content-length", "")
+    if declared.isdigit() and int(declared) > mechanics.resume_max_bytes:
+        raise errors.ResumeTooLarge()
+    body = bytearray()
+    async for chunk in request.stream():
+        body += chunk
+        if len(body) > mechanics.resume_max_bytes:
+            raise errors.ResumeTooLarge()
+    return bytes(body)
+
+
+@router.post(
+    "/resume",
+    summary="Разобрать резюме из PDF",
+    description="Тело — PDF как есть (`Content-Type: application/pdf`). Ответ — черновик анкеты "
+    "«система поняла так»: ФИО, контакты, стек из справочника, роли, стаж, софт-скиллы и "
+    "подсказка грейда. Скрытый текст PDF — белый, прозрачный, крошечный, за краем страницы — в "
+    "разбор не идёт. Разбор локальный, наружу файл не уходит; ни файл, ни черновик не "
+    "сохраняются — профиль меняет только `PUT /api/candidate/profile`.",
+    openapi_extra={
+        "requestBody": {
+            "required": True,
+            "content": {"application/pdf": {"schema": {"type": "string", "format": "binary"}}},
+        }
+    },
+    responses=error_responses(
+        errors.ResumeTooLarge, errors.ResumeUnreadable, errors.ResumeWithoutText
+    ),
+)
+def parse_resume(
+    pdf: Annotated[bytes, Depends(resume_body)], drafts: ResumeDraftsDep
+) -> ResumeDraftOut:
+    return _resume_out(drafts.parse(pdf))
+
+
+@router.get(
+    "/grade-hint",
+    summary="Подсказка грейда",
+    description="По стажу и ролям сохранённого профиля — для шага выбора грейда. Грейд не "
+    "выбирает и на категорию не влияет. `null` — профиль не заполнен.",
+)
+def get_grade_hint(user: CurrentUser, drafts: ResumeDraftsDep) -> GradeHintOut | None:
+    hint = drafts.grade_hint(user.id)
+    return _grade_hint_out(hint) if hint else None
 
 
 @router.get(
@@ -178,6 +231,31 @@ def _form(body: ProfileIn) -> domain.ProfileForm:
         industries=tuple(body.industries),
         expected_salary=body.salary_from,
         hidden=frozenset(body.hidden),
+    )
+
+
+def _grade_hint_out(hint: GradeHint) -> GradeHintOut:
+    refs = CatalogRef.model_validate
+    return GradeHintOut(
+        grade=refs(hint.grade),
+        by_experience=refs(hint.by_experience) if hint.by_experience else None,
+        by_roles=refs(hint.by_roles) if hint.by_roles else None,
+    )
+
+
+def _resume_out(draft: CheckedResumeDraft) -> ResumeDraftOut:
+    return ResumeDraftOut(
+        full_name=draft.full_name,
+        contact_email=draft.contact_email,
+        contact_phone=draft.contact_phone,
+        telegram=draft.telegram,
+        stack=[CatalogRef.model_validate(t) for t in draft.stack],
+        job_roles=list(draft.job_roles),
+        experience_years=draft.experience_years,
+        soft_skills=list(draft.soft_skills),
+        confidence=dict(draft.confidence),
+        uncertain=sorted(draft.uncertain),
+        grade_hint=_grade_hint_out(draft.grade_hint) if draft.grade_hint else None,
     )
 
 

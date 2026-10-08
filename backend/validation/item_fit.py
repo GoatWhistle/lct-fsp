@@ -64,7 +64,12 @@ def collect(job: tuple[GeneratorParams, str, Mechanics, int, float]) -> list[Fit
     """Прогрев банка специализации с испорченными семействами — задача пула процессов."""
     params, code, mechanics, warm, share = job
     quiet = mechanics.model_copy(
-        update={"item_fit_rmsd_max": math.inf, "calibration_expert_gap_review": math.inf}
+        update={
+            "item_fit_rmsd_max": math.inf,
+            "item_fit_discrimination_min": 0.0,
+            "item_fit_ceiling_gain_max": math.inf,
+            "calibration_expert_gap_review": math.inf,
+        }
     )
     m = Market(code, quiet, params.seed, params.response)
     generator = Generator(params, quiet, catalog())
@@ -233,7 +238,9 @@ class Rates:
 
     @property
     def min_tpr(self) -> float:
-        return min(share(x) for x in self.tpr.values())
+        """По видам порчи, где есть семейства; без испорченных — 0: ловить нечего, и выбирать по
+        такому прогону нельзя."""
+        return min((share(x) for x in self.tpr.values() if x[1]), default=0.0)
 
     @property
     def max_fpr(self) -> float:

@@ -342,8 +342,9 @@ def retired_after_refit(
 
 
 def test_ceiling_gain_is_small_for_2pl_and_large_for_level_independent_answers() -> None:
-    """У 2PL потолок не нужен — перевес около нуля и не меньше нуля: единица среди потолков. Ответ,
-    не зависящий от уровня, модель с потолком объясняет без штрафа на a — перевес большой."""
+    """У 2PL потолок не нужен — перевес около нуля и не меньше нуля: потолок 1 — сама переоценённая
+    2PL. Ответ, не зависящий от уровня, модель с потолком объясняет без штрафа на a — перевес
+    большой."""
     start = expert("middle", MECHANICS)
     rng = random.Random(22)
     ceilings_grid = ceilings(MECHANICS.item_fit_ceiling_min, MECHANICS.item_fit_ceiling_step)
@@ -363,7 +364,7 @@ def test_ceiling_gain_is_small_for_2pl_and_large_for_level_independent_answers()
     flat = gain(m21_responses(start, 500, rng, kind=Corruption.flat, center=start.difficulty))
 
     assert ceilings_grid[0] == MECHANICS.item_fit_ceiling_min
-    assert ceilings_grid[-1] == 1.0
+    assert ceilings_grid[-1] < 1
     assert 0 <= fair < MECHANICS.item_fit_ceiling_gain_max
     assert flat > 3 * MECHANICS.item_fit_ceiling_gain_max
 

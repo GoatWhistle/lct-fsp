@@ -148,9 +148,10 @@ def refit(
             s = sigmoid(a * c * gap)
             p = ceiling * s
             d_b, d_l = -a * c, a * c**3 * gap
-            # ∂P/∂z = d s (1 − s); вес ответа — ∂P/∂z / P(1 − P), при d = 1 — единица.
+            # ∂P/∂z = d s (1 − s); вес ответа — ∂P/∂z / P(1 − P). При d = 1 он ровно единица и
+            # не теряет ответ, где сигмоида насытилась до 0 или 1.
             slope = ceiling * s * (1 - s)
-            weight = slope / (p * (1 - p)) if 0 < p < 1 else 0.0
+            weight = 1.0 if ceiling == 1 else slope / (p * (1 - p)) if 0 < p < 1 else 0.0
             residual = (float(r.correct) - p) * weight
             grad_b += residual * d_b
             grad_l += residual * d_l
@@ -161,9 +162,11 @@ def refit(
         det = h_bb * h_ll - h_bl**2
         step_b = (h_ll * grad_b - h_bl * grad_l) / det
         step_l = (h_bb * grad_l - h_bl * grad_b) / det
-        # Шаги ограничены: на первых итерациях скоринг может перескочить.
-        step_b = max(-1.0, min(1.0, step_b))
+        # Шаг по ln a ограничен: на первых итерациях скоринг может перескочить. У модели с
+        # потолком — и по b: плоские ответы она объясняет при b → −∞, и шаг туда неограничен.
         step_l = max(-0.5, min(0.5, step_l))
+        if ceiling < 1:
+            step_b = max(-1.0, min(1.0, step_b))
         b, log_a = b + step_b, log_a + step_l
         if abs(step_b) < 1e-7 and abs(step_l) < 1e-7:
             break
@@ -192,10 +195,9 @@ def log_posterior(
 
 
 def ceilings(minimum: float, step: float) -> list[float]:
-    """Потолки модели, с которой проверка согласия сравнивает 2PL: от `minimum` до единицы с шагом
-    `step`; единица — сама 2PL."""
-    count = round((1 - minimum) / step)
-    return [*(round(minimum + i * step, 6) for i in range(count)), 1.0]
+    """Потолки модели, с которой проверка согласия сравнивает 2PL: от `minimum` с шагом `step`,
+    ниже единицы — единица и есть сама 2PL."""
+    return [round(minimum + i * step, 6) for i in range(round((1 - minimum) / step))]
 
 
 def ceiling_gain(
@@ -214,7 +216,7 @@ def ceiling_gain(
     У модели с потолком та же свобода, что у переоценки, плюс d, поэтому переоценка не может
     спрятать порчу другими (a, b): ответ, не зависящий от уровня, — потолок около ½ при b → −∞
     без штрафа на a, неверный эталон у части экземпляров — потолок ниже единицы. Перевес не
-    меньше нуля, когда среди `ceilings` есть единица.
+    меньше нуля: d = 1 — сама `fitted`.
     """
     sd_b, sd_log_a = difficulty_prior_sd, log_discrimination_prior_sd
 
@@ -228,20 +230,23 @@ def ceiling_gain(
             ceiling=ceiling,
         )
 
-    best = max(
-        posterior(
-            refit(
-                responses,
-                start,
-                difficulty_prior_sd=sd_b,
-                log_discrimination_prior_sd=sd_log_a,
-                ceiling=d,
-            ),
-            d,
-        )
-        for d in ceilings
-    )
     base = posterior(fitted, 1.0)
+    best = max(
+        base,
+        *(
+            posterior(
+                refit(
+                    responses,
+                    start,
+                    difficulty_prior_sd=sd_b,
+                    log_discrimination_prior_sd=sd_log_a,
+                    ceiling=d,
+                ),
+                d,
+            )
+            for d in ceilings
+        ),
+    )
     return best - base
 
 

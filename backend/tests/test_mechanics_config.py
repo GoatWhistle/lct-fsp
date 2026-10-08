@@ -58,6 +58,10 @@ CALIBRATION_PARAMETERS = (
     "calibration_link_window_attempts",
     "item_fit_groups",
     "item_fit_rmsd_max",
+    "item_fit_discrimination_min",
+    "item_fit_ceiling_gain_max",
+    "item_fit_ceiling_min",
+    "item_fit_ceiling_step",
 )
 
 

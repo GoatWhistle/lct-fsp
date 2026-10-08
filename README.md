@@ -163,6 +163,8 @@ docker compose run --rm --build tests
   прогретом банке D1 (`--seed`, `--candidates`, `--pairs`);
 - `uv run python -m validation tune` — подбор поправки погрешности `level_sd_inflation` на
   настроечном наборе D3;
+- `uv run python -m validation fit` — подбор проверки согласия семейства с моделью `item_fit_*`
+  на D3: пять гипотез на банке с испорченными семействами (`--seed`, `--warm`), около часа;
 - `uv run python -m validation parsing` — M21, точность разбора потребности из текста по полям на
   размеченном наборе D5 (`--dataset` — другой файл того же формата,
   `validation/data/need_texts.md`); `--model <имя>` — разбор моделью из записи её ответов, без

@@ -52,9 +52,10 @@ class Link:
 class CalibratedFamily:
     """Состояние калибровки семейства — то, что лежит в репозитории калибровки.
 
-    До первого ответа записи нет: параметры — экспертные из банка. `in_rotation` — семейство в
-    выдаче; из выдачи его выводит переоценка, когда опорная сложность легче экспертной больше
-    допустимого.
+    До первого ответа записи нет: параметры — экспертные из банка. `in_rotation` — семейство не
+    снято на ручную проверку: снимает переоценка, когда опорная сложность легче экспертной больше
+    допустимого. `drift` — статистика CUSUM детектора дрейфа (§8); превысила порог — семейство
+    скомпрометировано с `compromised_at` и тоже выходит из выдачи.
     """
 
     family_code: str
@@ -64,10 +65,21 @@ class CalibratedFamily:
     reference: Parameters | None = None
     refitted_at: datetime | None = None
     in_rotation: bool = True
+    drift: float = 0.0
+    compromised_at: datetime | None = None
 
     @property
     def parameters(self) -> Parameters:
         return Parameters(self.discrimination, self.difficulty)
+
+    @property
+    def is_compromised(self) -> bool:
+        return self.compromised_at is not None
+
+    @property
+    def issued(self) -> bool:
+        """Семейство в выдаче: не снято на проверку и не скомпрометировано."""
+        return self.in_rotation and not self.is_compromised
 
 
 @dataclass(frozen=True)

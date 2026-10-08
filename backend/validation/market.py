@@ -365,7 +365,7 @@ class Market:
                 correct = reply.correct
             response = item.instance.answer if correct else WRONG
             answered = paths.answer(user, presentation_id=item.presentation_id, response=response)
-            assert answered.answer.correct == correct, item.family_code
+            assert answered.answer is not None and answered.answer.correct == correct
             if self.calibrate:
                 calibrations.calibrate(answered.answer)
             view = answered.view

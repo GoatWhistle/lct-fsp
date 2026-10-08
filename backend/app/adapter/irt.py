@@ -47,6 +47,12 @@ class Estimate:
         var = self.cov[0][0] + 2 * self.cov[0][j] + self.cov[j][j]
         return Normal(mean, self.sd_inflation * math.sqrt(var))
 
+    def covariance(self, topic: str, other: str) -> float:
+        """Ковариация уровней двух тем с поправкой погрешности: κ² h_tᵀ Σ h_u."""
+        j, k = self._index(topic), self._index(other)
+        c = self.cov
+        return self.sd_inflation**2 * (c[0][0] + c[0][k] + c[j][0] + c[j][k])
+
     def overall(self) -> Normal:
         """Общий уровень θ̄ = Σ w_t θ_t ~ N(gᵀμ, κ² gᵀΣg), g = e_s + Σ w_t e_t."""
         g = (1.0, *self.weights)

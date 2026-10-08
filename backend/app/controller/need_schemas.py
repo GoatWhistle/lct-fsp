@@ -202,6 +202,10 @@ class TopicFitOut(BaseModel):
     fsp_confirmed: bool = Field(
         description="Уровень подтверждён результатом ФСП — к формулировке «подтверждено ФСП»"
     )
+    verification_confirmed: bool = Field(
+        description="Уровень категории подтверждён проверочным блоком, и его задания были по "
+        "теме — к формулировке «подтверждено проверочным блоком»"
+    )
 
 
 class StackFitOut(BaseModel):

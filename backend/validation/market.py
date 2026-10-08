@@ -228,12 +228,17 @@ class Market:
                     return Determination(user, None, run.overall)
 
     def enlist(
-        self, user: uuid.UUID, *, stack: frozenset[str] = frozenset(), claimed: str | None = None
+        self,
+        user: uuid.UUID,
+        *,
+        stack: frozenset[str] = frozenset(),
+        claimed: str | None = None,
+        as_id: uuid.UUID | None = None,
     ) -> bool:
         """Кандидат с категорией — в пул подборки стенда: категория и профиль навыков её
         специализации, как их записал путь кандидата, и самоописанный стек `stack`. Ожиданий у
         синтетики нет. Без категории в пул не попадает — False; с заявкой `claimed` попадает в
-        нижний блок.
+        нижний блок. `as_id` — двойник: те же категория и профиль под другим id в пуле.
 
         Последний сигнал профиля — «сейчас»: часы стенда шагают на попытку дальше ожидания смены
         грейда, и возраст профиля в подборке был бы артефактом этого шага, а не свежестью."""
@@ -245,13 +250,13 @@ class Market:
                 if claimed is not None:
                     stand.pool.add_unconfirmed(
                         UnconfirmedCandidate(
-                            user, self.specialization, stand.catalog.grades[claimed], stack
+                            as_id or user, self.specialization, stand.catalog.grades[claimed], stack
                         )
                     )
                 return False
             stand.pool.add(
                 PoolCandidate(
-                    candidate_id=user,
+                    candidate_id=as_id or user,
                     specialization=self.specialization,
                     grade=stand.catalog.grades[category.grade.code],
                     overall=Normal(profile.overall.theta, profile.overall.theta_sd),

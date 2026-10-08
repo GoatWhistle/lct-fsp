@@ -31,6 +31,13 @@ dev = [
     "testcontainers[postgres]>=4.15.0",
     "types-pyyaml>=6.0.12.20260906",
 ]
+# Стенд валидации, B2: эмбеддинги локально. Не в группе по умолчанию — в образы не идёт.
+validation = [
+    "huggingface-hub>=0.30",
+    "numpy>=2.0",
+    "onnxruntime>=1.20",
+    "tokenizers>=0.21",
+]
 
 [tool.pytest.ini_options]
 # Тесты моделей, которые собираются только по имени, лежат рядом с ними.
@@ -62,5 +69,5 @@ plugins = ["pydantic.mypy"]
 exclude = ["migrations/"]
 
 [[tool.mypy.overrides]]
-module = ["testcontainers.*", "authlib.*"]
+module = ["testcontainers.*", "authlib.*", "onnxruntime.*"]
 ignore_missing_imports = true

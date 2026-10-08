@@ -201,6 +201,23 @@ CANDIDATE_FORMATS = (
     ((WorkFormat.office, WorkFormat.hybrid, WorkFormat.remote), 0.2),
 )
 NEED_FORMATS = ((WorkFormat.remote, 0.4), (WorkFormat.hybrid, 0.4), (WorkFormat.office, 0.2))
+# Личные данные резюме — только для базовых линий по тексту и двойников M5: оценка и подбор их не
+# видят. Имена и вузы — оценка команды, частые имена и фамилии и известные вузы.
+MALE_NAMES = ("Александр", "Дмитрий", "Максим", "Иван", "Артём", "Никита", "Михаил", "Егор")
+FEMALE_NAMES = ("Анна", "Мария", "Елена", "Дарья", "Анастасия", "Екатерина", "Полина", "Ольга")
+# Мужская форма; женская — с «а» на конце.
+SURNAMES = ("Иванов", "Смирнов", "Кузнецов", "Попов", "Соколов", "Лебедев", "Козлов", "Новиков")
+LEADING_UNIVERSITIES = ("МГУ имени М. В. Ломоносова", "МФТИ", "НИУ ВШЭ", "Университет ИТМО")
+REGIONAL_UNIVERSITIES = (
+    "Курганский государственный университет",
+    "Вятский государственный университет",
+    "Череповецкий государственный университет",
+    "Тувинский государственный университет",
+)
+# Возраст — 21 год плюс стаж плюс сдвиг группы: младшие — 0–3 года, старшие — 14–18 лет. Граница
+# групп — `OLDER_FROM`.
+AGE_SHIFT = {False: (0, 3), True: (14, 18)}
+OLDER_FROM = 35
 EXPERIENCE_YEARS = {
     None: (0, 0),
     "intern": (0, 1),
@@ -292,6 +309,58 @@ D2 = replace(
 DATASETS = {p.name: p for p in (D1, D2)}
 
 
+class Gender(enum.StrEnum):
+    male = "male"
+    female = "female"
+
+
+@dataclass(frozen=True)
+class Person:
+    """Защищённые признаки в резюме: пол — по имени, возраст и вуз."""
+
+    name: str
+    gender: Gender
+    age: int
+    university: str
+
+    @property
+    def older(self) -> bool:
+        return self.age >= OLDER_FROM
+
+    @property
+    def leading(self) -> bool:
+        return self.university in LEADING_UNIVERSITIES
+
+
+def person(rng: random.Random, experience: int) -> Person:
+    """Пол, возраст и вуз независимо друг от друга и от истины."""
+    gender = Gender.female if rng.random() < 0.5 else Gender.male
+    older = rng.random() < 0.5
+    leading = rng.random() < 0.5
+    return _person(rng, experience, gender, older, leading, rng.randrange(len(SURNAMES)))
+
+
+def opposite(p: Person, experience: int, rng: random.Random) -> Person:
+    """Двойник M5: другой пол, другая группа возраста и вуза; фамилия та же."""
+    surname = next(i for i, s in enumerate(SURNAMES) if p.name.endswith((s, s + "а")))
+    gender = Gender.male if p.gender == Gender.female else Gender.female
+    return _person(rng, experience, gender, not p.older, not p.leading, surname)
+
+
+def _person(
+    rng: random.Random, experience: int, gender: Gender, older: bool, leading: bool, surname: int
+) -> Person:
+    names = FEMALE_NAMES if gender == Gender.female else MALE_NAMES
+    last = SURNAMES[surname] + ("а" if gender == Gender.female else "")
+    low, high = AGE_SHIFT[older]
+    return Person(
+        f"{rng.choice(names)} {last}",
+        gender,
+        21 + experience + rng.randint(low, high),
+        rng.choice(LEADING_UNIVERSITIES if leading else REGIONAL_UNIVERSITIES),
+    )
+
+
 @dataclass(frozen=True)
 class ObservedCandidate:
     """Что о кандидате видит платформа: опрос и заявка, самоописание, ответы с временем."""
@@ -309,6 +378,8 @@ class ObservedCandidate:
     fsp_sub: str | None
     # Семейство банка специализации → ответ на его экземпляр.
     answers: dict[str, Response]
+    # Личные данные резюме (M5): оценка и подбор их не видят.
+    person: Person
 
 
 @dataclass(frozen=True)
@@ -429,10 +500,12 @@ class Generator:
         registry: dict[str, list[dict[str, Any]]] = {}
         for code in self.catalog.specializations:
             truth_rng, seen_rng = self.rng(f"candidates:{code}"), self.rng(f"observed:{code}")
+            # Личные данные — свой поток: остальное наблюдаемое от них не сдвигается.
+            person_rng = self.rng(f"person:{code}")
             own_needs = [n for n in needs if n.form.specialization == code]
             for persona in self.personas(truth_rng):
                 truth = self.truth(code, persona, truth_rng)
-                seen, achievements = self.observe(truth, own_needs, families, seen_rng)
+                seen, achievements = self.observe(truth, own_needs, families, seen_rng, person_rng)
                 truths.append(truth)
                 observed.append(seen)
                 if truth.fsp_sub is not None:
@@ -568,9 +641,10 @@ class Generator:
         needs: Sequence[SyntheticNeed],
         families: Mapping[str, Parameters],
         rng: random.Random,
+        person_rng: random.Random,
     ) -> tuple[ObservedCandidate, list[dict[str, Any]]]:
         """Наблюдаемое из истины: самоописание, ответы на экземпляр каждого семейства и
-        достижения ФСП."""
+        достижения ФСП; личные данные — из `person_rng`, от истины не зависят."""
         stack, about = self.self_description(truth, needs, rng)
         low, high = EXPERIENCE_YEARS[truth.grade]
         answers = {
@@ -586,19 +660,21 @@ class Generator:
             for f in self.bank[truth.specialization]
         }
         achievements = self.achievements(truth, rng) if truth.fsp_sub else []
+        experience = rng.randint(low, high)
         seen = ObservedCandidate(
             id=truth.id,
             specialization=truth.specialization,
             claimed=truth.claimed,
             stack=stack,
             about=about,
-            experience_years=rng.randint(low, high),
+            experience_years=experience,
             expected_salary=truth.expected_salary,
             work_formats=truth.work_formats,
             city=truth.city,
             relocation=truth.relocation,
             fsp_sub=truth.fsp_sub,
             answers=answers,
+            person=person(person_rng, experience),
         )
         return seen, achievements
 
@@ -786,6 +862,10 @@ def observed_json(o: ObservedCandidate) -> dict[str, Any]:
         "city": o.city,
         "relocation": o.relocation,
         "fsp_sub": o.fsp_sub,
+        "name": o.person.name,
+        "gender": o.person.gender.value,
+        "age": o.person.age,
+        "university": o.person.university,
         # Семейство → [верно, секунды].
         "answers": {k: [int(r.correct), round(r.seconds, 1)] for k, r in o.answers.items()},
     }

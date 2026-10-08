@@ -27,6 +27,7 @@ from tests.candidate_path import (
     ITEM,
     PATH,
     RUNNER,
+    WRONG,
     answer_items,
     everything,
     nothing,
@@ -125,13 +126,14 @@ def test_item_carries_no_answer(candidate: TestClient, seeds: Seeds) -> None:
         "id",
         "number",
         "max_items",
+        "topic_block",
         "topic",
         "prompt",
         "code",
         "answer_format",
         "options",
     }
-    assert item["number"] == 1 and item["max_items"] == 30
+    assert item["number"] == 1 and item["max_items"] == 30 and item["topic_block"] is False
     family, seed = presented(seeds, item)
     instance = family.instance(seed, RUNNER)
     assert item["prompt"] == instance.prompt
@@ -749,3 +751,70 @@ def test_step_down_needs_a_category(candidate: TestClient) -> None:
         "code": "path_step_unavailable",
         "message": "Этот шаг сейчас недоступен — обновите страницу",
     }
+
+
+def answer_block(c: TestClient, seeds: Seeds, correct: Callable[[Family], bool]) -> Json:
+    """Отвечает на задания блока по теме до его конца."""
+    path: Json = c.get(PATH).json()
+    while path["topic_block"] is not None:
+        item = c.get(ITEM).json()
+        assert item["topic_block"] is True, item
+        family, seed = presented(seeds, item)
+        response = family.instance(seed, RUNNER).answer if correct(family) else WRONG
+        answered = c.post(
+            f"{ITEM}/answer", json={"presentation_id": item["id"], "response": response}
+        )
+        assert answered.status_code == 200, answered.text
+        path = answered.json()
+    return path
+
+
+def test_topic_block_through_api(
+    seeds: Seeds, candidate: TestClient, db_engine: Engine, clock: FrozenClock, mechanics: Mechanics
+) -> None:
+    """Блок по теме (§6): ровно `topic_block_items` заданий темы, профиль по теме меняется,
+    категория и история — нет; повтор раньше интервала — 409 с датой, когда можно."""
+    early = candidate.post(f"{PATH}/topic-block", json={"topic": "qa.api"})
+    assert early.status_code == 409 and early.json()["code"] == "category_required"
+    take_survey(candidate)
+    start(candidate, "junior")
+    before = answer_items(candidate, seeds, everything)
+    level = {t["topic"]["code"]: t["level"] for t in before["profile"]["topics"]}["qa.api"]
+    wrong = candidate.post(f"{PATH}/topic-block", json={"topic": "backend.api"})
+    assert wrong.status_code == 422 and wrong.json()["code"] == "topic_not_in_category"
+
+    started = candidate.post(f"{PATH}/topic-block", json={"topic": "qa.api"})
+    assert started.status_code == 200, started.text
+    block = started.json()["topic_block"]
+    assert block == {
+        "topic": {"code": "qa.api", "name": "Тестирование API"},
+        "answered": 0,
+        "items": mechanics.topic_block_items,
+    }
+    up = candidate.post(f"{PATH}/attempts", json={"grade": "middle"})
+    assert up.status_code == 409 and up.json()["code"] == "attempt_in_progress"
+    item = candidate.get(ITEM).json()
+    assert (item["max_items"], item["topic"]["code"]) == (mechanics.topic_block_items, "qa.api")
+
+    path = answer_block(candidate, seeds, nothing)
+    after = {t["topic"]["code"]: t["level"] for t in path["profile"]["topics"]}["qa.api"]
+    assert after != level
+    assert (path["stage"], path["category"], path["history"]) == (
+        before["stage"],
+        before["category"],
+        before["history"],
+    )
+    assert category_rows(db_engine) == [("qa", "junior")]
+    with db_engine.connect() as conn:
+        rows = conn.execute(
+            text(
+                "SELECT p.topic_code FROM presentations p JOIN test_attempts a "
+                "ON a.id = p.attempt_id WHERE a.purpose = 'topic_block'"
+            )
+        ).scalars()
+        assert list(rows) == ["qa.api"] * mechanics.topic_block_items
+
+    again = candidate.post(f"{PATH}/topic-block", json={"topic": "qa.api"})
+    assert again.status_code == 409 and again.json()["code"] == "topic_block_too_early"
+    allowed = clock.now() + timedelta(days=mechanics.topic_block_interval_days)
+    assert datetime.fromisoformat(again.json()["available_at"]) == allowed

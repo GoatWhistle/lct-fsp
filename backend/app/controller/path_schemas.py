@@ -31,6 +31,10 @@ class AttemptIn(BaseModel):
     )
 
 
+class TopicBlockIn(BaseModel):
+    topic: str = Field(description="Код темы из специализации категории")
+
+
 class AnswerIn(BaseModel):
     presentation_id: uuid.UUID = Field(description="`id` задания из `GET /api/candidate/path/item`")
     response: str = Field(min_length=1, max_length=500)
@@ -123,6 +127,12 @@ class AttemptProgressOut(BaseModel):
     )
 
 
+class TopicBlockOut(BaseModel):
+    topic: CatalogRef
+    answered: int
+    items: int = Field(description="Заданий в блоке — ровно столько, без досрочной остановки")
+
+
 class CategoryOut(_Out):
     specialization: CatalogRef
     grade: CatalogRef
@@ -176,6 +186,9 @@ class PathOut(BaseModel):
     history: list[HistoryEntryOut] = Field(
         description="Попытки и переходы по времени — на шаге `category`"
     )
+    topic_block: TopicBlockOut | None = Field(
+        description="Незавершённый блок по теме: задания и ответы — те же `item`, что у теста"
+    )
 
 
 class OptionOut(BaseModel):
@@ -187,8 +200,10 @@ class ItemOut(BaseModel):
     id: uuid.UUID
     number: int = Field(description="Номер задания в попытке, с 1")
     max_items: int = Field(
-        description="Лимит заданий попытки; длина адаптивного теста заранее неизвестна"
+        description="Лимит заданий попытки: у теста длина заранее неизвестна, у блока по теме "
+        "заданий ровно столько"
     )
+    topic_block: bool = Field(description="Задание блока по теме, а не теста")
     topic: CatalogRef
     prompt: str
     code: str | None = Field(description="Листинг, таблица или граф к условию — моноширинно")

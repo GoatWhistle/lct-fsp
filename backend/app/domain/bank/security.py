@@ -3,6 +3,7 @@
 import random
 
 from app.domain.bank.family import Instance, rounded
+from app.domain.bank.runner import CodeRunner
 from app.domain.bank.sql import CUSTOMERS, render, run_sql
 
 ALPHABETS = [
@@ -13,7 +14,7 @@ ALPHABETS = [
 ]
 
 
-def password_space(rng: random.Random) -> Instance:
+def password_space(rng: random.Random, runner: CodeRunner) -> Instance:
     alphabet, size = rng.choice(ALPHABETS)
     length = rng.randint(4, 10)
     known = rng.randint(0, 2)
@@ -30,7 +31,7 @@ def password_space(rng: random.Random) -> Instance:
     return Instance(prompt, str(size ** (length - known)), params)
 
 
-def sql_injection(rng: random.Random) -> Instance:
+def sql_injection(rng: random.Random, runner: CodeRunner) -> Instance:
     names = rng.sample(CUSTOMERS, rng.randint(4, 6))
     rows = [
         (i + 1, name, rng.choice(["admin", "user"]), int(rng.random() < 0.75))
@@ -47,7 +48,9 @@ def sql_injection(rng: random.Random) -> Instance:
         ]
     )
     schema = {"users": (("id", "name", "role", "active"), rows)}
-    count = run_sql(schema, f"SELECT COUNT(*) FROM users WHERE name = '{payload}' AND active = 1")
+    count = run_sql(
+        runner, schema, f"SELECT COUNT(*) FROM users WHERE name = '{payload}' AND active = 1"
+    )
     code = (
         "def find(name):\n"
         '    sql = "SELECT * FROM users WHERE name = \'" + name + "\' AND active = 1"\n'
@@ -58,7 +61,7 @@ def sql_injection(rng: random.Random) -> Instance:
     return Instance(prompt, count, {"users": rows, "payload": payload}, code=code)
 
 
-def token_bucket(rng: random.Random) -> Instance:
+def token_bucket(rng: random.Random, runner: CodeRunner) -> Instance:
     capacity, refill = rng.randint(2, 5), rng.randint(1, 2)
     moments = sorted(rng.choices(range(0, 6), k=rng.randint(9, 13)))
     tokens, second, rejected = capacity, 0, 0
@@ -80,7 +83,7 @@ def token_bucket(rng: random.Random) -> Instance:
     return Instance(prompt, str(rejected), params)
 
 
-def jwt_validity(rng: random.Random) -> Instance:
+def jwt_validity(rng: random.Random, runner: CodeRunner) -> Instance:
     now, leeway = rng.randint(1000, 9000), rng.choice([0, 30, 60])
     # (alg, подпись верна, nbf, exp)
     tokens = [
@@ -109,7 +112,7 @@ def jwt_validity(rng: random.Random) -> Instance:
     return Instance(prompt, str(accepted), params, code=code)
 
 
-def html_escape(rng: random.Random) -> Instance:
+def html_escape(rng: random.Random, runner: CodeRunner) -> Instance:
     import html
 
     parts = [
@@ -125,7 +128,7 @@ def html_escape(rng: random.Random) -> Instance:
     return Instance(prompt, html.escape(text), {"text": text}, code=code)
 
 
-def injection_rows(rng: random.Random) -> Instance:
+def injection_rows(rng: random.Random, runner: CodeRunner) -> Instance:
     names = rng.sample(CUSTOMERS, rng.randint(6, 8))
     # id вразброс: иначе совпадающие наборы строк дают одинаковые ответы у разных экземпляров.
     ids = sorted(rng.sample(range(1, 100), len(names)))
@@ -147,18 +150,8 @@ def injection_rows(rng: random.Random) -> Instance:
         ]
     )
     schema = {"users": (("id", "name", "role", "active"), rows)}
-    import sqlite3
-    from contextlib import closing
-
-    with closing(sqlite3.connect(":memory:")) as db:
-        db.execute("CREATE TABLE users (id, name, role, active)")
-        db.executemany("INSERT INTO users VALUES (?, ?, ?, ?)", rows)
-        found = [
-            str(r[0])
-            for r in db.execute(
-                f"SELECT id FROM users WHERE name = '{payload}' AND active = 1 ORDER BY id"
-            )
-        ]
+    query = f"SELECT id FROM users WHERE name = '{payload}' AND active = 1 ORDER BY id"
+    found = [str(r[0]) for r in runner.sql(schema, query)]
     code = (
         "def find(name):\n"
         '    sql = "SELECT id FROM users WHERE name = \'" + name + "\' '
@@ -170,11 +163,10 @@ def injection_rows(rng: random.Random) -> Instance:
         f"Пользователь ввёл в поле имени: {payload}\nКакие id вернёт find? Ответ — числа через "
         "пробел по возрастанию; если ни одной строки — 0."
     )
-    _ = schema
     return Instance(prompt, " ".join(found) or "0", {"users": rows, "payload": payload}, code=code)
 
 
-def cookie_sending(rng: random.Random) -> Instance:
+def cookie_sending(rng: random.Random, runner: CodeRunner) -> Instance:
     path = rng.choice(["/", "/app", "/api"])
     secure = rng.random() < 0.5
     samesite = rng.choice(["Strict", "Lax", "None"])
@@ -214,7 +206,7 @@ def cookie_sending(rng: random.Random) -> Instance:
     return Instance(prompt, " ".join(answers), params, code="\n".join(requests))
 
 
-def hash_cost(rng: random.Random) -> Instance:
+def hash_cost(rng: random.Random, runner: CodeRunner) -> Instance:
     base_cost, base_ms = rng.randint(8, 10), rng.choice([20, 40, 60, 80, 100])
     cost = base_cost + rng.randint(1, 4)
     guesses = rng.choice([1000, 5000, 10000, 50000])
@@ -231,7 +223,7 @@ def hash_cost(rng: random.Random) -> Instance:
     return Instance(prompt, f"{ms} {rounded(hours, 1)}", params)
 
 
-def password_policy(rng: random.Random) -> Instance:
+def password_policy(rng: random.Random, runner: CodeRunner) -> Instance:
     min_len = rng.randint(8, 12)
     candidates = []
     for _ in range(6):
@@ -265,7 +257,7 @@ def password_policy(rng: random.Random) -> Instance:
     )
 
 
-def bucket_statuses(rng: random.Random) -> Instance:
+def bucket_statuses(rng: random.Random, runner: CodeRunner) -> Instance:
     capacity, refill = rng.randint(2, 4), rng.randint(1, 2)
     moments = sorted(rng.choices(range(0, 6), k=rng.randint(9, 11)))
     tokens, second, codes = capacity, 0, []
@@ -296,7 +288,7 @@ ROLE_PERMISSIONS = {
 }
 
 
-def rbac_decisions(rng: random.Random) -> Instance:
+def rbac_decisions(rng: random.Random, runner: CodeRunner) -> Instance:
     # admin разрешает всё — даём его редко, иначе ответ почти всегда «да».
     pool = ["viewer", "editor", "auditor"] * 3 + ["admin"]
     users = {
@@ -325,7 +317,7 @@ def rbac_decisions(rng: random.Random) -> Instance:
     return Instance(prompt, " ".join(answers), params, code="\n".join(requests))
 
 
-def replay_window(rng: random.Random) -> Instance:
+def replay_window(rng: random.Random, runner: CodeRunner) -> Instance:
     window = rng.choice([30, 60, 120])
     now0 = rng.randint(1000, 9000)
     seen: set[str] = set()
@@ -354,7 +346,7 @@ def replay_window(rng: random.Random) -> Instance:
     )
 
 
-def path_traversal(rng: random.Random) -> Instance:
+def path_traversal(rng: random.Random, runner: CodeRunner) -> Instance:
     import posixpath
 
     base = "/srv/files"
@@ -386,7 +378,7 @@ def path_traversal(rng: random.Random) -> Instance:
     return Instance(prompt, " ".join(map(str, escaped)) or "0", {"inputs": inputs}, code=code)
 
 
-def jwt_checks(rng: random.Random) -> Instance:
+def jwt_checks(rng: random.Random, runner: CodeRunner) -> Instance:
     now, leeway = rng.randint(1000, 9000), rng.choice([0, 30, 60])
     tokens = [
         (
@@ -415,7 +407,7 @@ def jwt_checks(rng: random.Random) -> Instance:
     return Instance(prompt, " ".join(map(str, accepted)) or "0", params, code=code)
 
 
-def timing_compare(rng: random.Random) -> Instance:
+def timing_compare(rng: random.Random, runner: CodeRunner) -> Instance:
     secret = "".join(rng.choice("0123456789abcdef") for _ in range(6))
     guesses = []
     for _ in range(4):

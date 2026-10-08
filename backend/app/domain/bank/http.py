@@ -3,6 +3,7 @@
 import random
 
 from app.domain.bank.family import Instance
+from app.domain.bank.runner import CodeRunner
 
 ENTITIES = ["заказ", "счёт", "отчёт", "профиль", "товар", "платёж"]
 
@@ -22,7 +23,7 @@ STATUS_CASES = [
 ]
 
 
-def status_code(rng: random.Random) -> Instance:
+def status_code(rng: random.Random, runner: CodeRunner) -> Instance:
     case, code = rng.choice(STATUS_CASES)
     situation = case.format(entity=rng.choice(ENTITIES), id=rng.randint(10, 9999))
     prompt = (
@@ -32,7 +33,7 @@ def status_code(rng: random.Random) -> Instance:
     return Instance(prompt, str(code), {"situation": situation})
 
 
-def idempotency(rng: random.Random) -> Instance:
+def idempotency(rng: random.Random, runner: CodeRunner) -> Instance:
     existing, repeats = rng.randint(3, 40), rng.randint(2, 5)
     order_id = rng.randint(100, 999)
     requests = [
@@ -52,7 +53,7 @@ def idempotency(rng: random.Random) -> Instance:
     return Instance(prompt, str(total), params)
 
 
-def pagination(rng: random.Random) -> Instance:
+def pagination(rng: random.Random, runner: CodeRunner) -> Instance:
     total, per_page = rng.randint(30, 200), rng.choice([10, 20, 25, 50])
     pages = -(-total // per_page)
     page = rng.randint(max(1, pages - 2), pages + 1)
@@ -66,7 +67,7 @@ def pagination(rng: random.Random) -> Instance:
     return Instance(prompt, str(last), {"total": total, "per_page": per_page, "page": page})
 
 
-def cache_max_age(rng: random.Random) -> Instance:
+def cache_max_age(rng: random.Random, runner: CodeRunner) -> Instance:
     max_age = rng.choice([30, 60, 90, 120])
     moments = sorted(rng.sample(range(5, 7 * max_age), rng.randint(6, 10)))
     if max_age not in moments:  # ровно на границе свежести — ловушка
@@ -84,7 +85,7 @@ def cache_max_age(rng: random.Random) -> Instance:
     return Instance(prompt, str(to_server), {"max_age": max_age, "moments": moments})
 
 
-def offset_drift(rng: random.Random) -> Instance:
+def offset_drift(rng: random.Random, runner: CodeRunner) -> Instance:
     total, limit = rng.randint(25, 60), rng.choice([5, 10])
     deleted_at_page = rng.randint(1, 2)
     # Удалённые до текущего offset сдвигают выдачу, удалённые дальше — нет.
@@ -109,7 +110,7 @@ def offset_drift(rng: random.Random) -> Instance:
     return Instance(prompt, str(missed), params)
 
 
-def status_codes(rng: random.Random) -> Instance:
+def status_codes(rng: random.Random, runner: CodeRunner) -> Instance:
     cases = rng.sample(STATUS_CASES, 4)
     lines = [
         f"{i}. " + case.format(entity=rng.choice(ENTITIES), id=rng.randint(10, 9999))
@@ -137,7 +138,7 @@ METHOD_CASES = [
 ENTITY_PATHS = ["order", "invoice", "report", "user", "item", "payment"]
 
 
-def safe_methods(rng: random.Random) -> Instance:
+def safe_methods(rng: random.Random, runner: CodeRunner) -> Instance:
     cases = [rng.choice(METHOD_CASES) for _ in range(6)]
     lines = [
         f"{i}. " + text.format(entity=rng.choice(ENTITY_PATHS), id=rng.randint(1, 999))
@@ -152,7 +153,7 @@ def safe_methods(rng: random.Random) -> Instance:
     return Instance(prompt, " ".join(letters), {"requests": lines}, code="\n".join(lines))
 
 
-def page_bounds(rng: random.Random) -> Instance:
+def page_bounds(rng: random.Random, runner: CodeRunner) -> Instance:
     total, per_page = rng.randint(30, 400), rng.choice([10, 20, 25, 50])
     pages = -(-total // per_page)
     page = rng.randint(max(1, pages - 3), pages)
@@ -170,7 +171,7 @@ def page_bounds(rng: random.Random) -> Instance:
 SIMPLE_TYPES = ["text/plain", "application/x-www-form-urlencoded", "multipart/form-data"]
 
 
-def cors_preflight(rng: random.Random) -> Instance:
+def cors_preflight(rng: random.Random, runner: CodeRunner) -> Instance:
     requests, answers = [], []
     for i in range(1, 7):
         method = rng.choice(["GET", "POST", "PUT", "DELETE", "PATCH", "GET", "POST"])
@@ -197,7 +198,7 @@ def cors_preflight(rng: random.Random) -> Instance:
     return Instance(prompt, " ".join(answers), {"requests": requests}, code="\n".join(requests))
 
 
-def retry_backoff(rng: random.Random) -> Instance:
+def retry_backoff(rng: random.Random, runner: CodeRunner) -> Instance:
     base, factor = rng.choice([0.5, 1, 2]), rng.choice([2, 3])
     cap, attempt = rng.choice([10, 20, 30, 60]), rng.randint(4, 7)
     timeout = rng.choice([1, 2, 5])
@@ -215,7 +216,7 @@ def retry_backoff(rng: random.Random) -> Instance:
     return Instance(prompt, f"{moment:g}", params)
 
 
-def etag_conditional(rng: random.Random) -> Instance:
+def etag_conditional(rng: random.Random, runner: CodeRunner) -> Instance:
     version, cached, events, codes = 1, None, [], []
     for i in range(1, 8):
         if i > 1 and rng.random() < 0.35:
@@ -237,7 +238,7 @@ def etag_conditional(rng: random.Random) -> Instance:
     return Instance(prompt, " ".join(map(str, codes)), {"events": events}, code="\n".join(events))
 
 
-def cache_revalidation(rng: random.Random) -> Instance:
+def cache_revalidation(rng: random.Random, runner: CodeRunner) -> Instance:
     max_age = rng.choice([30, 60, 90, 120])
     moments = sorted(rng.sample(range(5, 7 * max_age), rng.randint(6, 9)))
     if max_age not in moments:  # ровно на границе свежести — ловушка
@@ -257,7 +258,7 @@ def cache_revalidation(rng: random.Random) -> Instance:
     return Instance(prompt, answer, {"max_age": max_age, "moments": moments})
 
 
-def fixed_window(rng: random.Random) -> Instance:
+def fixed_window(rng: random.Random, runner: CodeRunner) -> Instance:
     limit, window = rng.randint(2, 4), rng.choice([10, 30, 60])
     moments = sorted(rng.sample(range(0, 3 * window), rng.randint(8, 10)))
     counts: dict[int, int] = {}
@@ -277,7 +278,7 @@ def fixed_window(rng: random.Random) -> Instance:
     )
 
 
-def optimistic_locking(rng: random.Random) -> Instance:
+def optimistic_locking(rng: random.Random, runner: CodeRunner) -> Instance:
     version = 1
     lines, codes = [], []
     clients = {"A": version, "B": version}
@@ -306,7 +307,7 @@ def optimistic_locking(rng: random.Random) -> Instance:
     )
 
 
-def offset_drift_missed(rng: random.Random) -> Instance:
+def offset_drift_missed(rng: random.Random, runner: CodeRunner) -> Instance:
     limit = rng.choice([5, 10, 20])
     pages_before = rng.randint(1, 3)
     total = limit * (pages_before + rng.randint(2, 4))
@@ -335,7 +336,7 @@ def offset_drift_missed(rng: random.Random) -> Instance:
     return Instance(prompt, " ".join(map(str, missed)) or "0", params)
 
 
-def timeout_budget(rng: random.Random) -> Instance:
+def timeout_budget(rng: random.Random, runner: CodeRunner) -> Instance:
     gateway = rng.randint(4, 24) / 2
     service_timeout, retries = rng.choice([1, 2, 3]), rng.randint(1, 3)
     backoff = rng.choice([0.2, 0.5, 1])

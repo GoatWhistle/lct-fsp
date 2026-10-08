@@ -4,9 +4,10 @@ import heapq
 import random
 
 from app.domain.bank.family import Instance, rounded
+from app.domain.bank.runner import CodeRunner
 
 
-def pool_rounds(rng: random.Random) -> Instance:
+def pool_rounds(rng: random.Random, runner: CodeRunner) -> Instance:
     tasks, workers, seconds = rng.randint(5, 40), rng.randint(2, 8), rng.randint(2, 9)
     prompt = (
         f"{tasks} независимых задач, каждая выполняется ровно {seconds} с и не ждёт ввода-вывода. "
@@ -17,7 +18,7 @@ def pool_rounds(rng: random.Random) -> Instance:
     return Instance(prompt, str(answer), {"tasks": tasks, "workers": workers, "seconds": seconds})
 
 
-def asyncio_gather(rng: random.Random) -> Instance:
+def asyncio_gather(rng: random.Random, runner: CodeRunner) -> Instance:
     lines, total = [], 0
     for _ in range(rng.randint(2, 3)):
         if rng.random() < 0.6:
@@ -34,7 +35,7 @@ def asyncio_gather(rng: random.Random) -> Instance:
     return Instance(prompt, str(total), {"lines": lines}, code=code)
 
 
-def pool_makespan(rng: random.Random) -> Instance:
+def pool_makespan(rng: random.Random, runner: CodeRunner) -> Instance:
     workers = rng.randint(2, 3)
     durations = [rng.randint(1, 9) for _ in range(rng.randint(6, 8))]
     free_at = [0] * workers
@@ -50,7 +51,7 @@ def pool_makespan(rng: random.Random) -> Instance:
     return Instance(prompt, str(max(free_at)), params)
 
 
-def lost_update(rng: random.Random) -> Instance:
+def lost_update(rng: random.Random, runner: CodeRunner) -> Instance:
     threads = ["A", "B", "C"][: rng.randint(2, 3)]
     per_thread = 2
     start = rng.randint(0, 20)
@@ -77,7 +78,7 @@ def lost_update(rng: random.Random) -> Instance:
     return Instance(prompt, str(counter), {"start": start, "schedule": schedule}, code=code)
 
 
-def threads_join(rng: random.Random) -> Instance:
+def threads_join(rng: random.Random, runner: CodeRunner) -> Instance:
     delays = [rng.randint(1, 25) for _ in range(rng.randint(3, 4))]
     joined_inside = rng.random() < 0.5
     body = (
@@ -99,7 +100,7 @@ def threads_join(rng: random.Random) -> Instance:
     )
 
 
-def gather_total(rng: random.Random) -> Instance:
+def gather_total(rng: random.Random, runner: CodeRunner) -> Instance:
     lines, total = [], 0
     for _ in range(rng.randint(2, 4)):
         if rng.random() < 0.6:
@@ -116,7 +117,7 @@ def gather_total(rng: random.Random) -> Instance:
     return Instance(prompt, str(total), {"lines": lines}, code=code)
 
 
-def event_loop_order(rng: random.Random) -> Instance:
+def event_loop_order(rng: random.Random, runner: CodeRunner) -> Instance:
     names = rng.sample("ABCDEFGH", 3)
     delays = [rng.choice([0, 1, 2, 3]) for _ in names]
     steps = [rng.randint(1, 2) for _ in names]
@@ -148,7 +149,7 @@ def event_loop_order(rng: random.Random) -> Instance:
     return Instance(prompt, " ".join(e[2] for e in order), params, code=code)
 
 
-def producer_consumer(rng: random.Random) -> Instance:
+def producer_consumer(rng: random.Random, runner: CodeRunner) -> Instance:
     produce = [rng.randint(1, 8) for _ in range(rng.randint(5, 7))]
     consume = rng.randint(1, 7)
     made, consumer_free = 0, 0
@@ -165,7 +166,7 @@ def producer_consumer(rng: random.Random) -> Instance:
     return Instance(prompt, str(consumer_free), params)
 
 
-def amdahl(rng: random.Random) -> Instance:
+def amdahl(rng: random.Random, runner: CodeRunner) -> Instance:
     parallel = rng.choice(range(50, 100, 5))
     cores = rng.choice([2, 4, 8, 16, 32])
     speedup = 1 / ((1 - parallel / 100) + parallel / 100 / cores)
@@ -177,7 +178,7 @@ def amdahl(rng: random.Random) -> Instance:
     return Instance(prompt, f"{rounded(speedup, 2)}", {"parallel": parallel, "cores": cores})
 
 
-def makespan(rng: random.Random) -> Instance:
+def makespan(rng: random.Random, runner: CodeRunner) -> Instance:
     workers = rng.randint(2, 4)
     durations = [rng.randint(1, 15) for _ in range(rng.randint(6, 9))]
     free_at = [0] * workers
@@ -193,7 +194,7 @@ def makespan(rng: random.Random) -> Instance:
     return Instance(prompt, str(max(free_at)), params)
 
 
-def as_completed_order(rng: random.Random) -> Instance:
+def as_completed_order(rng: random.Random, runner: CodeRunner) -> Instance:
     workers = rng.randint(2, 3)
     names = rng.sample("ABCDEFGH", rng.randint(5, 6))
     durations = [rng.randint(1, 9) for _ in names]
@@ -221,7 +222,7 @@ def as_completed_order(rng: random.Random) -> Instance:
     return Instance(prompt, order, params, code=code)
 
 
-def deadlock_cycle(rng: random.Random) -> Instance:
+def deadlock_cycle(rng: random.Random, runner: CodeRunner) -> Instance:
     procs = rng.sample("PQRSTUVW", 6)
     resources = rng.sample("abcdefgh", 6)
     holds = dict(zip(procs, resources, strict=True))
@@ -244,7 +245,7 @@ def deadlock_cycle(rng: random.Random) -> Instance:
     return Instance(prompt, "".join(sorted(cycle)), params, code="\n".join(lines))
 
 
-def semaphore_timeline(rng: random.Random) -> Instance:
+def semaphore_timeline(rng: random.Random, runner: CodeRunner) -> Instance:
     limit = rng.randint(2, 3)
     arrivals = sorted(rng.sample(range(0, 12), rng.randint(5, 6)))
     durations = [rng.randint(2, 7) for _ in arrivals]
@@ -271,7 +272,7 @@ def semaphore_timeline(rng: random.Random) -> Instance:
     return Instance(prompt, " ".join(map(str, starts)), params, code="\n".join(lines))
 
 
-def lost_update_wide(rng: random.Random) -> Instance:
+def lost_update_wide(rng: random.Random, runner: CodeRunner) -> Instance:
     threads = ["A", "B", "C"][: rng.randint(2, 3)]
     per_thread = rng.randint(2, 3)
     start = rng.randint(0, 50)
@@ -300,7 +301,7 @@ def lost_update_wide(rng: random.Random) -> Instance:
     return Instance(prompt, str(counter), params, code=code)
 
 
-def cas_retries(rng: random.Random) -> Instance:
+def cas_retries(rng: random.Random, runner: CodeRunner) -> Instance:
     threads = rng.sample("ABC", rng.randint(2, 3))
     start = rng.randint(0, 40)
     # Каждый поток делает read и cas; cas неудачен, если значение сменилось после его read, —

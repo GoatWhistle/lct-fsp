@@ -1,8 +1,9 @@
 """Семейство заданий — шаблон, генератор параметров и проверка ответа кодом (mechanics.md, §5).
 
 Экземпляр полностью задан seed: генератор получает `random.Random(seed)` и возвращает условие,
-параметры и эталон. Эталон вычисляется исполнением кода и живёт только на бэкенде — на фронт
-уходят условие, листинг и варианты.
+параметры и эталон. Эталон вычисляется исполнением кода — через исполнитель `CodeRunner`, он
+приходит в генератор значением, как seed, — и живёт только на бэкенде: на фронт уходят условие,
+листинг и варианты.
 
 Генератор семейства не меняется: по seed из предъявления экземпляр восстанавливается при
 проверке ответа, на тех же экземплярах стоит калибровка. Другой генератор — новое семейство со
@@ -16,6 +17,8 @@ from dataclasses import dataclass, field
 from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
 from typing import Any
 
+from app.domain.bank.runner import CodeRunner
+
 
 @dataclass(frozen=True)
 class Instance:
@@ -27,7 +30,7 @@ class Instance:
     options: tuple[str, ...] = field(default=())
 
 
-Generator = Callable[[random.Random], Instance]
+Generator = Callable[[random.Random, CodeRunner], Instance]
 
 
 @dataclass(frozen=True)
@@ -40,8 +43,8 @@ class Family:
     # Якорное семейство: параметры заморожены на экспертных, держат начало и масштаб шкалы (§7).
     anchor: bool = False
 
-    def instance(self, seed: int) -> Instance:
-        return self.generate(random.Random(seed))
+    def instance(self, seed: int, runner: CodeRunner) -> Instance:
+        return self.generate(random.Random(seed), runner)
 
     def check(self, instance: Instance, response: str) -> bool:
         return same_answer(response, instance.answer)

@@ -6,6 +6,7 @@ import math
 import random
 
 from app.domain.bank.family import Instance
+from app.domain.bank.runner import CodeRunner
 
 _RESOURCES = [
     'aws_instance.web["a"]',
@@ -21,7 +22,7 @@ _RESOURCES = [
 ]
 
 
-def plan_symbols(rng: random.Random) -> Instance:
+def plan_symbols(rng: random.Random, runner: CodeRunner) -> Instance:
     rows = []
     for address in rng.sample(_RESOURCES, rng.randint(5, 8)):
         symbol = "<=" if address.startswith("data.") else rng.choice(["+", "~", "-", "-/+", "+/-"])
@@ -37,7 +38,7 @@ def plan_symbols(rng: random.Random) -> Instance:
     return Instance(prompt, f"{add} {change} {destroy}", {"rows": rows}, code="\n".join(lines))
 
 
-def resource_count(rng: random.Random) -> Instance:
+def resource_count(rng: random.Random, runner: CodeRunner) -> Instance:
     web = rng.randint(1, 5)
     zones = rng.sample(["a", "b", "c", "d"], rng.randint(2, 4))
     buckets = rng.choices(["app", "audit", "billing"], k=rng.randint(3, 5))
@@ -81,7 +82,7 @@ _VALUES = {
 }
 
 
-def var_precedence(rng: random.Random) -> Instance:
+def var_precedence(rng: random.Random, runner: CodeRunner) -> Instance:
     names = list(_VALUES)
     pools = {name: rng.sample(_VALUES[name], 7) for name in names}
     # Источники от слабого к сильному; у CLI порядок флагов задан командой.
@@ -137,7 +138,7 @@ def var_precedence(rng: random.Random) -> Instance:
     )
 
 
-def cidrsubnet(rng: random.Random) -> Instance:
+def cidrsubnet(rng: random.Random, runner: CodeRunner) -> Instance:
     base = ipaddress.IPv4Network(
         f"10.{rng.randint(0, 255)}.0.0/{rng.choice([16, 16, 20])}", strict=False
     )
@@ -164,7 +165,7 @@ def cidrsubnet(rng: random.Random) -> Instance:
     return Instance(prompt, " ".join(results), {"calls": calls}, code="\n".join(calls))
 
 
-def count_vs_for_each(rng: random.Random) -> Instance:
+def count_vs_for_each(rng: random.Random, runner: CodeRunner) -> Instance:
     pool = ["alpha", "beta", "gamma", "delta", "omega", "sigma", "kappa", "theta", "zeta"]
     names = rng.sample(pool, rng.randint(4, 7))
     replace = rng.random() < 0.5
@@ -215,7 +216,7 @@ def count_vs_for_each(rng: random.Random) -> Instance:
     )
 
 
-def tf_expressions(rng: random.Random) -> Instance:
+def tf_expressions(rng: random.Random, runner: CodeRunner) -> Instance:
     services = rng.sample(["api", "web", "db", "cache", "queue", "auth"], rng.randint(3, 5))
     sizes = {s: rng.randint(1, 9) for s in services}
     threshold = rng.randint(2, max(sizes.values()))
@@ -243,7 +244,7 @@ def tf_expressions(rng: random.Random) -> Instance:
     return Instance(prompt, answer, params, code=code)
 
 
-def moved_refactor(rng: random.Random) -> Instance:
+def moved_refactor(rng: random.Random, runner: CodeRunner) -> Instance:
     web = rng.randint(2, 8)
     module_size = rng.randint(2, 12)
     steps = rng.sample(
@@ -322,7 +323,7 @@ _TASKS = [
 ]
 
 
-def ansible_idempotency(rng: random.Random) -> Instance:
+def ansible_idempotency(rng: random.Random, runner: CodeRunner) -> Instance:
     tasks = [_TASKS[0], *rng.sample(_TASKS[1:], rng.randint(4, 8))]
     notifying = {i for i in range(len(tasks)) if rng.random() < 0.35}
     first = sum(1 for _, changed, _ in tasks if changed)
@@ -347,7 +348,7 @@ def ansible_idempotency(rng: random.Random) -> Instance:
     )
 
 
-def loop_when(rng: random.Random) -> Instance:
+def loop_when(rng: random.Random, runner: CodeRunner) -> Instance:
     names = rng.sample(["anna", "oleg", "ira", "max", "lev", "zoya", "egor"], rng.randint(5, 7))
     users = []
     for name in names:
@@ -383,7 +384,7 @@ def loop_when(rng: random.Random) -> Instance:
     return Instance(prompt, f"{skipped} {changed} {ok}", {"users": users}, code="\n".join(lines))
 
 
-def ansible_serial(rng: random.Random) -> Instance:
+def ansible_serial(rng: random.Random, runner: CodeRunner) -> Instance:
     hosts = rng.randint(6, 20)
     forks = rng.choice([2, 3, 5, 10])
     durations = [rng.randint(1, 9) * 10 for _ in range(rng.randint(2, 4))]
@@ -428,7 +429,7 @@ _ANSIBLE_SOURCES = [
 ]
 
 
-def ansible_vars(rng: random.Random) -> Instance:
+def ansible_vars(rng: random.Random, runner: CodeRunner) -> Instance:
     names = ["app_port", "log_level", "workers"]
     pools: dict[str, list[object]] = {
         "app_port": rng.sample(range(8000, 8100), 7),

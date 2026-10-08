@@ -6,11 +6,12 @@
 import random
 
 from app.domain.bank.family import Instance, rounded
+from app.domain.bank.runner import CodeRunner
 
 PX_PROMPT = "Ответ — числа в пикселях через пробел, без «px»."
 
 
-def box_width(rng: random.Random) -> Instance:
+def box_width(rng: random.Random, runner: CodeRunner) -> Instance:
     boxes = []
     widths = []
     for name in ("first", "second"):
@@ -30,7 +31,7 @@ def box_width(rng: random.Random) -> Instance:
     return Instance(prompt, " ".join(map(str, widths)), {"boxes": boxes}, code="\n".join(boxes))
 
 
-def rem_em(rng: random.Random) -> Instance:
+def rem_em(rng: random.Random, runner: CodeRunner) -> Instance:
     root = rng.choice([10, 12, 14, 16, 18, 20])
     outer = rng.choice([1.25, 1.5, 2, 0.75])
     inner = rng.choice([1.5, 2, 0.5, 0.8])
@@ -82,7 +83,7 @@ def _selector(rng: random.Random) -> tuple[str, tuple[int, int, int]]:
     return rng.choice([" ", " > "]).join(parts), (ids, classes, tags)
 
 
-def specificity(rng: random.Random) -> Instance:
+def specificity(rng: random.Random, runner: CodeRunner) -> Instance:
     selectors = [_selector(rng) for _ in range(3)]
     lines = [f"{i}. {s}" for i, (s, _) in enumerate(selectors, 1)]
     prompt = (
@@ -94,7 +95,7 @@ def specificity(rng: random.Random) -> Instance:
     return Instance(prompt, answer, {"selectors": [s for s, _ in selectors]}, code="\n".join(lines))
 
 
-def flex_grow(rng: random.Random) -> Instance:
+def flex_grow(rng: random.Random, runner: CodeRunner) -> Instance:
     items = [(rng.randrange(40, 160, 10), rng.randint(0, 3)) for _ in range(3)]
     gap = rng.choice([0, 10, 20])
     container = sum(b for b, _ in items) + 2 * gap + rng.randrange(40, 600, 10)
@@ -117,7 +118,7 @@ def flex_grow(rng: random.Random) -> Instance:
     )
 
 
-def nth_child(rng: random.Random) -> Instance:
+def nth_child(rng: random.Random, runner: CodeRunner) -> Instance:
     count = rng.randint(8, 12)
     a, b = rng.choice(
         [
@@ -162,7 +163,7 @@ def nth_child(rng: random.Random) -> Instance:
     return Instance(prompt, " ".join(map(str, matched)), params)
 
 
-def margin_collapse(rng: random.Random) -> Instance:
+def margin_collapse(rng: random.Random, runner: CodeRunner) -> Instance:
     pairs = []
     gaps = []
     for _ in range(2):
@@ -183,7 +184,7 @@ def margin_collapse(rng: random.Random) -> Instance:
     return Instance(prompt, " ".join(map(str, gaps)), {"pairs": pairs}, code=code)
 
 
-def flex_shrink(rng: random.Random) -> Instance:
+def flex_shrink(rng: random.Random, runner: CodeRunner) -> Instance:
     container = rng.randrange(300, 600, 20)
     items = [(rng.randrange(150, 350, 10), rng.randint(1, 3)) for _ in range(3)]
     overflow = sum(b for b, _ in items) - container
@@ -203,7 +204,7 @@ def flex_shrink(rng: random.Random) -> Instance:
     return Instance(prompt, answer, {"container": container, "items": items}, code=code)
 
 
-def grid_fr(rng: random.Random) -> Instance:
+def grid_fr(rng: random.Random, runner: CodeRunner) -> Instance:
     width = rng.randrange(600, 1400, 20)
     fixed = rng.randrange(80, 240, 20)
     fr = [rng.randint(1, 3), rng.randint(1, 3)]
@@ -224,7 +225,7 @@ def grid_fr(rng: random.Random) -> Instance:
     )
 
 
-def media_queries(rng: random.Random) -> Instance:
+def media_queries(rng: random.Random, runner: CodeRunner) -> Instance:
     base = rng.randint(12, 16)
     rules = [("", base)]
     for _ in range(3):
@@ -256,7 +257,7 @@ def media_queries(rng: random.Random) -> Instance:
     )
 
 
-def sibling_selectors(rng: random.Random) -> Instance:
+def sibling_selectors(rng: random.Random, runner: CodeRunner) -> Instance:
     matched: list[int] = []
     while not matched:
         tags = [rng.choice(["p", "p", "div", "span", "h2"]) for _ in range(11)]
@@ -280,7 +281,7 @@ def sibling_selectors(rng: random.Random) -> Instance:
     return Instance(prompt, " ".join(map(str, matched)), params, code=html)
 
 
-def absolute_position(rng: random.Random) -> Instance:
+def absolute_position(rng: random.Random, runner: CodeRunner) -> Instance:
     outer = (rng.randrange(0, 200, 10), rng.randrange(0, 200, 10))
     middle = (rng.randrange(10, 100, 10), rng.randrange(10, 100, 10))
     positioned = rng.choice(["relative", "static"])
@@ -306,7 +307,7 @@ def absolute_position(rng: random.Random) -> Instance:
     return Instance(prompt, f"{top} {left}", params, code=code)
 
 
-def percent_padding(rng: random.Random) -> Instance:
+def percent_padding(rng: random.Random, runner: CodeRunner) -> Instance:
     width = rng.randrange(300, 1200, 20)
     height = rng.randrange(100, 600, 20)
     ratio = rng.choice([25, 50, 56.25, 75, 100])

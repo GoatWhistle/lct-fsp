@@ -34,6 +34,7 @@ from app.domain.attempt import (
     stage_of,
     test_result,
 )
+from app.domain.bank.runner import CodeRunner
 from app.domain.determination import Assign, Offer, decide
 from app.domain.errors import (
     GradeNotOffered,
@@ -104,6 +105,7 @@ class CandidatePath:
         skill_model: SkillModel,
         clock: Clock,
         seeds: SeedSource,
+        runner: CodeRunner,
         mechanics: Mechanics,
     ) -> None:
         self._uow = uow
@@ -113,6 +115,7 @@ class CandidatePath:
         self._skill_model = skill_model
         self._clock = clock
         self._seeds = seeds
+        self._runner = runner
         self._mechanics = mechanics
         # Априорное специализации — от тем и конфига: на запрос считается один раз.
         self._priors: dict[str, Prior] = {}
@@ -186,7 +189,9 @@ class CandidatePath:
                     f"тема {presentation.topic_code} не в справочнике специализации "
                     f"{attempt.specialization_code}"
                 )
-            instance = bank.get_family(presentation.family_code).instance(presentation.seed)
+            instance = bank.get_family(presentation.family_code).instance(
+                presentation.seed, self._runner
+            )
             return Item(
                 presentation.id,
                 presentation.position + 1,
@@ -210,7 +215,7 @@ class CandidatePath:
             if presentation is None or presentation.id != presentation_id:
                 raise ItemNotCurrent()
             family = bank.get_family(presentation.family_code)
-            correct = family.check(family.instance(presentation.seed), response)
+            correct = family.check(family.instance(presentation.seed, self._runner), response)
             presentation.response = response
             presentation.correct = correct
             presentation.answered_at = now
@@ -251,9 +256,7 @@ class CandidatePath:
         threshold = self._mechanics.grade_thresholds[attempt.grade_code]
         selection = self._skill_model.estimate(selection_prior(prior, threshold), observations)
         shown_here = attempt.shown()
-        params = self._calibration.current(
-            [f for f in _bank(prior) if f.code not in shown_here]
-        )
+        params = self._calibration.current([f for f in _bank(prior) if f.code not in shown_here])
         window, shown = self._attempts.exposure(
             attempt.specialization_code, attempt.id, self._mechanics.exposure_window_attempts
         )
@@ -289,7 +292,7 @@ class CandidatePath:
                 window,
             )
         seed = self._seeds.seed()
-        instance = bank.get_family(option.code).instance(seed)
+        instance = bank.get_family(option.code).instance(seed, self._runner)
         before = self._skill_model.estimate(prior, observations).topic(option.topic)
         return self._attempts.add_presentation(
             attempt,
@@ -340,9 +343,7 @@ class CandidatePath:
                 attempt.outcome, attempt.outcome_grade_code = AttemptOutcome.offered, grade
             case _:
                 attempt.outcome = AttemptOutcome.no_category
-                attempt.retest_after = now + timedelta(
-                    days=self._mechanics.no_category_retest_days
-                )
+                attempt.retest_after = now + timedelta(days=self._mechanics.no_category_retest_days)
         self._attempts.finish_attempt(attempt)
         self._attempts.save_rest_levels([answered[i] for i in mine])
         if attempt.outcome == AttemptOutcome.assigned:

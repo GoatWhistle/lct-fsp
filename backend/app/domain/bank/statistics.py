@@ -7,9 +7,10 @@ from fractions import Fraction
 from itertools import product
 
 from app.domain.bank.family import Instance, rounded
+from app.domain.bank.runner import CodeRunner
 
 
-def mean_median(rng: random.Random) -> Instance:
+def mean_median(rng: random.Random, runner: CodeRunner) -> Instance:
     values = [rng.randint(1, 99) for _ in range(rng.randint(6, 9))]
     ordered = sorted(values)
     n = len(values)
@@ -22,7 +23,7 @@ def mean_median(rng: random.Random) -> Instance:
     return Instance(prompt, f"{rounded(mean, 1)} {rounded(median, 1)}", {"values": values})
 
 
-def dice_sum(rng: random.Random) -> Instance:
+def dice_sum(rng: random.Random, runner: CodeRunner) -> Instance:
     sides = rng.choice([4, 6, 8])
     dice = rng.randint(2, 3)
     target = rng.randint(dice + 1, dice * sides - 1)
@@ -45,7 +46,7 @@ def dice_sum(rng: random.Random) -> Instance:
     )
 
 
-def conditional_table(rng: random.Random) -> Instance:
+def conditional_table(rng: random.Random, runner: CodeRunner) -> Instance:
     a, b, c, d = (rng.randint(5, 80) for _ in range(4))
     code = (
         "              купил   не купил\n"
@@ -66,7 +67,7 @@ def conditional_table(rng: random.Random) -> Instance:
     )
 
 
-def variance_std(rng: random.Random) -> Instance:
+def variance_std(rng: random.Random, runner: CodeRunner) -> Instance:
     values = [rng.randint(1, 30) for _ in range(rng.randint(5, 7))]
     sample = rng.random() < 0.5
     mean = sum(values) / len(values)
@@ -84,7 +85,7 @@ def variance_std(rng: random.Random) -> Instance:
     )
 
 
-def combinatorics(rng: random.Random) -> Instance:
+def combinatorics(rng: random.Random, runner: CodeRunner) -> Instance:
     n = rng.randint(6, 15)
     k = rng.randint(2, min(5, n - 1))
     prompt = (
@@ -94,7 +95,7 @@ def combinatorics(rng: random.Random) -> Instance:
     return Instance(prompt, f"{math.comb(n, k)} {math.perm(n, k)}", {"n": n, "k": k})
 
 
-def expected_value(rng: random.Random) -> Instance:
+def expected_value(rng: random.Random, runner: CodeRunner) -> Instance:
     outcomes = [(rng.randint(-50, 200), rng.randint(1, 9)) for _ in range(3)]
     total = sum(w for _, w in outcomes)
     ev = sum(v * w for v, w in outcomes) / total
@@ -106,7 +107,7 @@ def expected_value(rng: random.Random) -> Instance:
     return Instance(prompt, f"{rounded(ev, 2)}", {"outcomes": outcomes}, code="\n".join(lines))
 
 
-def bayes(rng: random.Random) -> Instance:
+def bayes(rng: random.Random, runner: CodeRunner) -> Instance:
     prevalence = rng.choice([0.5, 1, 2, 5, 10])
     sensitivity = rng.choice([80, 90, 95, 99])
     specificity = rng.choice([85, 90, 95, 99])
@@ -123,7 +124,7 @@ def bayes(rng: random.Random) -> Instance:
     return Instance(prompt, f"{rounded(posterior, 3)}", params)
 
 
-def binomial(rng: random.Random) -> Instance:
+def binomial(rng: random.Random, runner: CodeRunner) -> Instance:
     n = rng.randint(5, 15)
     p = rng.choice([0.1, 0.2, 0.3, 0.4, 0.5])
     k = rng.randint(0, min(n, 6))
@@ -141,7 +142,7 @@ def binomial(rng: random.Random) -> Instance:
     return Instance(prompt, f"{rounded(value, 3)}", {"n": n, "p": p, "k": k, "at_least": at_least})
 
 
-def z_score(rng: random.Random) -> Instance:
+def z_score(rng: random.Random, runner: CodeRunner) -> Instance:
     mean = rng.randrange(50, 500, 10)
     sd = rng.randrange(5, 60, 5)
     x = mean + rng.randint(-25, 25) * sd // 10
@@ -157,7 +158,7 @@ def z_score(rng: random.Random) -> Instance:
     )
 
 
-def pearson(rng: random.Random) -> Instance:
+def pearson(rng: random.Random, runner: CodeRunner) -> Instance:
     xs = [rng.randint(1, 20) for _ in range(5)]
     slope = rng.choice([-2, -1, 1, 2, 3])
     ys = [slope * x + rng.randint(-8, 8) for x in xs]
@@ -172,7 +173,7 @@ def pearson(rng: random.Random) -> Instance:
     return Instance(prompt, f"{rounded(r, 2)}", {"xs": xs, "ys": ys}, code="\n".join(lines))
 
 
-def matrix_product(rng: random.Random) -> Instance:
+def matrix_product(rng: random.Random, runner: CodeRunner) -> Instance:
     a = [[rng.randint(-3, 5) for _ in range(3)] for _ in range(2)]
     b = [[rng.randint(-3, 5) for _ in range(2)] for _ in range(3)]
     c = [[sum(a[i][k] * b[k][j] for k in range(3)) for j in range(2)] for i in range(2)]
@@ -184,7 +185,7 @@ def matrix_product(rng: random.Random) -> Instance:
     return Instance(prompt, answer, {"a": a, "b": b}, code=code)
 
 
-def gradient_step(rng: random.Random) -> Instance:
+def gradient_step(rng: random.Random, runner: CodeRunner) -> Instance:
     points = [(rng.randint(0, 5), rng.randint(-5, 15)) for _ in range(3)]
     w, b = rng.randint(-2, 3), rng.randint(-3, 3)
     lr = rng.choice([0.01, 0.05, 0.1])

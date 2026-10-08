@@ -9,11 +9,12 @@ import random
 from typing import Any
 
 from app.domain.bank.family import Instance
+from app.domain.bank.runner import CodeRunner
 
 PROMPT = "Ответ — значения через пробел по порядку."
 
 
-def state_batching(rng: random.Random) -> Instance:
+def state_batching(rng: random.Random, runner: CodeRunner) -> Instance:
     plain, functional = rng.randint(1, 3), rng.randint(0, 3)
     step = rng.randint(1, 5)
     clicks = rng.randint(1, 4)
@@ -41,7 +42,7 @@ def state_batching(rng: random.Random) -> Instance:
     )
 
 
-def list_render(rng: random.Random) -> Instance:
+def list_render(rng: random.Random, runner: CodeRunner) -> Instance:
     items: list[dict[str, Any]] = [
         {
             "id": i,
@@ -81,7 +82,7 @@ def list_render(rng: random.Random) -> Instance:
     return Instance(prompt, answer, {"items": items, "limit": limit, "desc": sort_desc}, code=code)
 
 
-def reducer_actions(rng: random.Random) -> Instance:
+def reducer_actions(rng: random.Random, runner: CodeRunner) -> Instance:
     state = {"count": rng.randint(0, 30), "step": rng.randint(1, 4)}
     initial = (
         "const [state, dispatch] = useReducer(reducer, "
@@ -119,7 +120,7 @@ def reducer_actions(rng: random.Random) -> Instance:
     return Instance(prompt, f"{state['count']} {state['step']}", {"actions": actions}, code=code)
 
 
-def memo_rerenders(rng: random.Random) -> Instance:
+def memo_rerenders(rng: random.Random, runner: CodeRunner) -> Instance:
     # Родитель App с состоянием; дети — memo или нет, получают проп-примитив, объект или колбэк.
     children = []
     for name in rng.sample(["Header", "Sidebar", "List", "Footer", "Badge", "Chart"], 4):
@@ -167,7 +168,7 @@ def memo_rerenders(rng: random.Random) -> Instance:
     return Instance(prompt, " ".join(rerender) or "0", params, code="\n".join(lines))
 
 
-def effect_runs(rng: random.Random) -> Instance:
+def effect_runs(rng: random.Random, runner: CodeRunner) -> Instance:
     renders = []
     a = b = 0
     for _ in range(rng.randint(5, 8)):
@@ -208,7 +209,7 @@ def effect_runs(rng: random.Random) -> Instance:
     return Instance(prompt, answer, {"renders": renders}, code=code)
 
 
-def immutable_update(rng: random.Random) -> Instance:
+def immutable_update(rng: random.Random, runner: CodeRunner) -> Instance:
     qty, price, city = (
         rng.randint(1, 60),
         rng.randint(10, 99),
@@ -238,7 +239,7 @@ def immutable_update(rng: random.Random) -> Instance:
     return Instance(prompt, answer, {"qty": qty, "new_qty": new_qty, "mutate": mutate}, code=code)
 
 
-def use_memo_recompute(rng: random.Random) -> Instance:
+def use_memo_recompute(rng: random.Random, runner: CodeRunner) -> Instance:
     renders = []
     items, sort, query = 0, "asc", "a"
     for _ in range(rng.randint(6, 10)):
@@ -266,7 +267,7 @@ def use_memo_recompute(rng: random.Random) -> Instance:
     return Instance(prompt, " ".join(map(str, filtered_at)), {"renders": renders}, code=code)
 
 
-def key_remount(rng: random.Random) -> Instance:
+def key_remount(rng: random.Random, runner: CodeRunner) -> Instance:
     ids = rng.sample(range(10, 99), 5)
     typed = {i: rng.choice(["кот", "дом", "лес", "сад", "мир", "сок", "лук"]) for i in ids}
     removed = rng.randrange(0, 4)
@@ -296,7 +297,7 @@ def key_remount(rng: random.Random) -> Instance:
     return Instance(prompt, " ".join(shown), params, code=code)
 
 
-def context_consumers(rng: random.Random) -> Instance:
+def context_consumers(rng: random.Random, runner: CodeRunner) -> Instance:
     tree = [("Layout", rng.random() < 0.5, False)] + [
         (name, rng.random() < 0.5, rng.random() < 0.5)
         for name in ("Menu", "Profile", "Cart", "Search", "Footer")
@@ -334,7 +335,7 @@ def context_consumers(rng: random.Random) -> Instance:
     return Instance(prompt, " ".join(rerender) or "0", params, code="\n".join(lines))
 
 
-def stale_closure(rng: random.Random) -> Instance:
+def stale_closure(rng: random.Random, runner: CodeRunner) -> Instance:
     ticks = rng.randint(2, 9)
     step = rng.randint(1, 5)
     start = rng.randint(0, 20)
@@ -360,7 +361,7 @@ def stale_closure(rng: random.Random) -> Instance:
     )
 
 
-def keyed_diff(rng: random.Random) -> Instance:
+def keyed_diff(rng: random.Random, runner: CodeRunner) -> Instance:
     old = rng.sample("ABCDEFGH", 8)
     new = [k for k in old if rng.random() < 0.75]
     added = [k for k in "IJKLMN" if rng.random() < 0.35][:3]
@@ -395,7 +396,7 @@ def keyed_diff(rng: random.Random) -> Instance:
     return Instance(prompt, answer, {"old": old, "new": new})
 
 
-def batched_renders(rng: random.Random) -> Instance:
+def batched_renders(rng: random.Random, runner: CodeRunner) -> Instance:
     legacy = rng.random() < 0.4
     handlers = []
     for _ in range(5):

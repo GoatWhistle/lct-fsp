@@ -1,6 +1,6 @@
 import type { CandidateCard } from '../api/client'
 import { fspResultWords } from '../candidate/fsp'
-import { levelWords, thetaWithError, yearsWords } from '../candidate/words'
+import { hideableWords, levelWords, thetaWithError, yearsWords } from '../candidate/words'
 import { gradeStatusWords, workFormatWord } from './words'
 
 /**
@@ -55,12 +55,19 @@ export function CandidateCardView({ card }: { card: CandidateCard }) {
       {self ? (
         <>
           <p className="muted">
-            Стаж в ИТ — {yearsWords(self.experience_years)} ·{' '}
-            {self.work_formats.map((f) => workFormatWord(f).toLowerCase()).join(', ')}
-            {self.city && ` · ${self.city}${self.relocation ? ', готов к переезду' : ''}`}
-            {self.industries.length > 0 && ` · интересные сферы: ${self.industries.map((i) => i.name).join(', ')}`}
+            {[
+              self.experience_years !== null && `Стаж в ИТ — ${yearsWords(self.experience_years)}`,
+              self.work_formats.map((f) => workFormatWord(f).toLowerCase()).join(', '),
+              self.city,
+              self.relocation && 'готов к переезду',
+              self.industries &&
+                self.industries.length > 0 &&
+                `интересные сферы: ${self.industries.map((i) => i.name).join(', ')}`,
+            ]
+              .filter(Boolean)
+              .join(' · ')}
           </p>
-          {self.stack.length > 0 && (
+          {self.stack && self.stack.length > 0 && (
             <ul className="chips">
               {self.stack.map((t) => (
                 <li key={t.code} className="chip">
@@ -68,6 +75,11 @@ export function CandidateCardView({ card }: { card: CandidateCard }) {
                 </li>
               ))}
             </ul>
+          )}
+          {self.hidden.length > 0 && (
+            <p className="hint">
+              Скрыто кандидатом до принятия приглашения: {self.hidden.map((f) => hideableWords[f]).join(', ')}.
+            </p>
           )}
         </>
       ) : (

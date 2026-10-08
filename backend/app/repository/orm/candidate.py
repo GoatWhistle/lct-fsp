@@ -16,6 +16,7 @@ from datetime import datetime
 from sqlalchemy import ARRAY, CheckConstraint, Column, ForeignKey, String, Table
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
+from app.domain.candidate import HideableField
 from app.repository.database import Base
 from app.repository.orm.catalog import Industry, Technology
 
@@ -52,6 +53,10 @@ class CandidateProfile(Base):
             "AND work_formats <@ ARRAY['office', 'hybrid', 'remote']::varchar[]",
             name="work_formats",
         ),
+        CheckConstraint(
+            f"hidden_fields <@ ARRAY[{', '.join(repr(f.value) for f in HideableField)}]::varchar[]",
+            name="hidden_fields",
+        ),
     )
 
     user_id: Mapped[uuid.UUID] = mapped_column(
@@ -74,6 +79,9 @@ class CandidateProfile(Base):
     work_formats: Mapped[list[str]] = mapped_column(ARRAY(String(16)))
     city: Mapped[str | None] = mapped_column(String(100))
     relocation: Mapped[bool]
+    # Поля самоописания, скрытые кандидатом из обезличенной карточки, — значения
+    # `HideableField`; пусто — видно всё.
+    hidden_fields: Mapped[list[str]] = mapped_column(ARRAY(String(32)), server_default="{}")
 
     # Ожидаемая зарплата «от», рубли в месяц до вычета НДФЛ. Работодателю не показывается.
     salary_from: Mapped[int]

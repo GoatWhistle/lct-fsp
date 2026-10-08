@@ -65,6 +65,7 @@ class SqlCandidateRepository:
             "work_formats": [f.value for f in form.work_formats],
             "city": form.city,
             "relocation": form.relocation,
+            "hidden_fields": sorted(f.value for f in form.hidden),
             "salary_from": form.expected_salary,
             "updated_at": now,
         }
@@ -321,6 +322,7 @@ _PROFILE_COLUMNS = (
     CandidateProfile.work_formats,
     CandidateProfile.city,
     CandidateProfile.relocation,
+    CandidateProfile.hidden_fields,
     CandidateProfile.salary_from,
     CandidateProfile.updated_at,
 )
@@ -348,4 +350,5 @@ def _profile(
             industries=tuple(industries),
         ),
         updated_at=row.updated_at,
+        hidden=frozenset(candidate.HideableField(f) for f in row.hidden_fields),
     )

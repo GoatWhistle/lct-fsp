@@ -565,7 +565,7 @@ export interface paths {
         };
         /**
          * Карточка кандидата
-         * @description Статус грейда, категория, профиль навыков и структурная часть самоописания. ФИО, контакты и свободный текст — только после принятия приглашения вашей компании; ожидаемой зарплаты нет никогда. Есть у кандидата с категорией или с заявленным грейдом.
+         * @description Статус грейда, категория, профиль навыков и структурная часть самоописания — без полей, скрытых кандидатом, пока карточка обезличена. ФИО, контакты и свободный текст — только после принятия приглашения вашей компании; ожидаемой зарплаты нет никогда. Есть у кандидата с категорией или с заявленным грейдом.
          */
         get: operations["get_candidate_card_api_employer_candidates__candidate_id__get"];
         put?: never;
@@ -1059,8 +1059,8 @@ export interface components {
             grade_status: components["schemas"]["GradeStatusOut"];
             /** @description Профиль навыков специализации */
             skill_profile: components["schemas"]["SkillProfileOut"] | null;
-            /** @description Самоописание; `null` — кандидат ещё не заполнил профиль */
-            self_reported: components["schemas"]["SelfReportedOut"] | null;
+            /** @description Самоописание без скрытого кандидатом; `null` — кандидат ещё не заполнил профиль */
+            self_reported: components["schemas"]["CardSelfReportedOut"] | null;
             /**
              * Fsp Achievements
              * @description Достижения ФСП — подтверждены, отдельно от самоописания: тип результата, дисциплина и год. Пусто — нет истории ФСП, это не штраф
@@ -1073,6 +1073,48 @@ export interface components {
              * @description Достижения ФСП полностью — с мероприятием, местом и ролью в команде: только после принятия приглашения вашей компании; `null` — карточка обезличена
              */
             fsp_details: components["schemas"]["FspAchievementOut"][] | null;
+        };
+        /**
+         * CardSelfReportedOut
+         * @description Самоописание в карточке кандидата для работодателя. Поле, скрытое кандидатом, — `null`
+         *     и его имя в `hidden`; `null` без имени в `hidden` — не заполнено.
+         */
+        CardSelfReportedOut: {
+            /**
+             * Stack
+             * @description По названию технологии
+             */
+            stack: components["schemas"]["CatalogRef"][] | null;
+            /**
+             * Experience Years
+             * @description Стаж в ИТ, полных лет; 0 — меньше года
+             */
+            experience_years: number | null;
+            /**
+             * Work Formats
+             * @description Допустимые форматы работы; видны всегда
+             */
+            work_formats: components["schemas"]["WorkFormat"][];
+            /**
+             * City
+             * @description Где кандидат живёт
+             */
+            city: string | null;
+            /**
+             * Relocation
+             * @description Готов к переезду
+             */
+            relocation: boolean | null;
+            /**
+             * Industries
+             * @description Интересные сферы бизнеса в порядке справочника; пусто — не указаны
+             */
+            industries: components["schemas"]["CatalogRef"][] | null;
+            /**
+             * Hidden
+             * @description Скрыто кандидатом до принятия приглашения или отклика; после — пусто
+             */
+            hidden: components["schemas"]["HideableField"][];
         };
         /** CatalogRef */
         CatalogRef: {
@@ -1400,6 +1442,13 @@ export interface components {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
         };
+        /**
+         * HideableField
+         * @description Поля самоописания, которые кандидат может скрыть из обезличенной карточки (§14). Форматы
+         *     работы, категория и профиль навыков видны всегда.
+         * @enum {string}
+         */
+        HideableField: "stack" | "experience_years" | "city" | "relocation" | "industries";
         /**
          * HistoryEntryOut
          * @description Строка истории: остановленная попытка (`attempt`) или переход вниз (`step_down`).
@@ -1956,6 +2005,11 @@ export interface components {
              * @description Ожидаемая зарплата «от». Рубли в месяц до вычета НДФЛ (гросс)
              */
             salary_from: number;
+            /**
+             * Hidden
+             * @description Поля самоописания, которые кандидат скрыл из обезличенной карточки: работодатель увидит их только после принятия приглашения или отклика. На подбор и скор не влияет, в PDF-профиле всё полностью. Пусто — видно всё
+             */
+            hidden?: components["schemas"]["HideableField"][];
         };
         /** ProfileOut */
         ProfileOut: {
@@ -1989,6 +2043,11 @@ export interface components {
              * @description Интересные сферы бизнеса в порядке справочника; пусто — не указаны
              */
             industries: components["schemas"]["CatalogRef"][];
+            /**
+             * Hidden
+             * @description Поля самоописания, которые кандидат скрыл из обезличенной карточки: работодатель увидит их только после принятия приглашения или отклика. На подбор и скор не влияет, в PDF-профиле всё полностью. Пусто — видно всё
+             */
+            hidden: components["schemas"]["HideableField"][];
             /**
              * Full Name
              * @description Раскрывается работодателю только после принятия приглашения или отклика
@@ -2241,43 +2300,6 @@ export interface components {
              * Format: date-time
              */
             created_at: string;
-        };
-        /**
-         * SelfReportedOut
-         * @description Самоописание, которое видно в обезличенной карточке: низший уровень доверия, на
-         *     категорию не влияет. Только структурные поля — свободный текст до раскрытия скрыт.
-         */
-        SelfReportedOut: {
-            /**
-             * Stack
-             * @description По названию технологии
-             */
-            stack: components["schemas"]["CatalogRef"][];
-            /**
-             * Experience Years
-             * @description Стаж в ИТ, полных лет; 0 — меньше года
-             */
-            experience_years: number;
-            /**
-             * Work Formats
-             * @description Допустимые форматы работы
-             */
-            work_formats: components["schemas"]["WorkFormat"][];
-            /**
-             * City
-             * @description Где кандидат живёт
-             */
-            city: string | null;
-            /**
-             * Relocation
-             * @description Готов к переезду
-             */
-            relocation: boolean;
-            /**
-             * Industries
-             * @description Интересные сферы бизнеса в порядке справочника; пусто — не указаны
-             */
-            industries: components["schemas"]["CatalogRef"][];
         };
         /** SentInvitationsOut */
         SentInvitationsOut: {

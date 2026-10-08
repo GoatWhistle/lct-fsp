@@ -621,6 +621,29 @@ h2 {
   accent-color: var(--accent);
 }
 
+.modal {
+  max-width: min(640px, calc(100vw - 2rem));
+  max-height: calc(100vh - 2rem);
+  padding: 1.5rem;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.modal::backdrop {
+  background: rgb(20 23 31 / 0.45);
+}
+
+.modal h2 {
+  margin-top: 0;
+}
+
+.checkbox.visibility {
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+
 .narrow-field {
   max-width: 220px;
 }

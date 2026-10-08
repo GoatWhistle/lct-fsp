@@ -39,6 +39,19 @@ class Observation:
     source: SignalSource = SignalSource.test
 
 
+# Признаки оценки уровня — поля наблюдения, объявлены для теста на защищённые (§17): модель
+# видит ответы на задания и их параметры, а не того, кто отвечал.
+SKILL_MODEL_FEATURES = (
+    "topic",
+    "correct",
+    "discrimination",
+    "difficulty",
+    "weight",
+    "at",
+    "source",
+)
+
+
 @dataclass(frozen=True)
 class Normal:
     mean: float

@@ -1,5 +1,6 @@
 """Сценарии приглашений (mechanics.md, §14): работодатель отправляет и видит отправленные с
-остатком бюджета, кандидат видит входящие, открывает их и отвечает.
+остатком бюджета, кандидат видит входящие, открывает их, отвечает и отзывает доступ по
+принятому.
 
 Чужое приглашение для зрителя не существует — `InvitationNotFound`, а не отказ в доступе: так не
 раскрывается, что такое есть. Статус на момент чтения выводит домен (`Invitation.at`), поэтому
@@ -16,10 +17,12 @@ from app.domain.errors import CandidateNotFound, CompanyProfileRequired, Invitat
 from app.domain.invitation import (
     Invitation,
     InvitationBudget,
+    InvitationStatus,
     InvitationTerms,
     answered,
     budget_week,
     check_can_send,
+    revoked,
     viewed,
 )
 from app.usecase.interface import (
@@ -114,6 +117,22 @@ class Invitations:
             now = self._clock.now()
             result = answered(self._own(candidate_id, invitation_id, now), accept=accept, now=now)
             self._invitations.save(result)
+            return result
+
+    def revoke(self, candidate_id: uuid.UUID, invitation_id: uuid.UUID) -> Invitation:
+        """Отозвать доступ компании по принятому приглашению; повторно — ничего не меняет, по
+        неприятому — `InvitationNotAccepted`. Отзыв закрывает и другие принятые приглашения той же
+        компании этому кандидату: иначе любое из них раскрывало бы данные дальше."""
+        with self._uow:
+            now = self._clock.now()
+            result = revoked(self._own(candidate_id, invitation_id, now), now)
+            for other in self._invitations.by_candidate(candidate_id):
+                if (
+                    other.employer_id == result.employer_id
+                    and other.status is InvitationStatus.accepted
+                    and not other.is_revoked
+                ):
+                    self._invitations.save(revoked(other, now))
             return result
 
     def _own(self, candidate_id: uuid.UUID, invitation_id: uuid.UUID, now: datetime) -> Invitation:

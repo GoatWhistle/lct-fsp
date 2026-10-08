@@ -24,6 +24,7 @@ from app.usecase.attempt import CandidatePath
 from app.usecase.calibration import AnswerCalibration
 from app.usecase.catalog import CatalogQueries, CatalogSync
 from app.usecase.company import Companies
+from app.usecase.conversation import Conversations
 from app.usecase.feedback import CandidateFeedback
 from app.usecase.fsp import FspAccounts
 from app.usecase.interface import (
@@ -45,6 +46,7 @@ from app.usecase.interface import (
     InvitationRepository,
     ItemSelector,
     Mailer,
+    MessageRepository,
     NeedReader,
     NeedRepository,
     PasswordHasher,
@@ -233,6 +235,7 @@ class PlatformRepositories[U: UnitOfWork]:
     fsp: Callable[[U], FspRepository]
     candidates: Callable[[U], CandidateRepository]
     invitations: Callable[[U], InvitationRepository]
+    messages: Callable[[U], MessageRepository]
     selections: Callable[[U], SelectionRepository]
     calibration: Callable[[U], CalibrationRepository]
 
@@ -248,6 +251,7 @@ class PlatformUsecases[U: UnitOfWork]:
     regular_tasks: Callable[[U], RegularTasks]
     fsp_accounts: Callable[[U], FspAccounts]
     invitations: Callable[[U], Invitations]
+    conversations: Callable[[U], Conversations]
     feedback: Callable[[U], CandidateFeedback]
 
 
@@ -330,6 +334,15 @@ def build_platform_usecases[U: UnitOfWork](
             ttl_days=mechanics.invitation_ttl_days,
         )
 
+    def conversations(uow: U) -> Conversations:
+        return Conversations(
+            uow,
+            repositories.invitations(uow),
+            repositories.messages(uow),
+            clock,
+            max_length=mechanics.message_max_length,
+        )
+
     def feedback(uow: U) -> CandidateFeedback:
         return CandidateFeedback(
             uow,
@@ -345,7 +358,15 @@ def build_platform_usecases[U: UnitOfWork](
         )
 
     return PlatformUsecases(
-        accounts, companies, needs, catalog, regular_tasks, fsp_accounts, invitations, feedback
+        accounts,
+        companies,
+        needs,
+        catalog,
+        regular_tasks,
+        fsp_accounts,
+        invitations,
+        conversations,
+        feedback,
     )
 
 

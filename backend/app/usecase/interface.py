@@ -45,6 +45,7 @@ from app.domain.catalog import (
     Topic,
 )
 from app.domain.company import Company, CompanyForm
+from app.domain.conversation import Message, Side
 from app.domain.feedback import CandidateSelection
 from app.domain.fsp import (
     FspAchievement,
@@ -756,7 +757,7 @@ class InvitationReader(Protocol):
     """Чтение приглашений для правила раскрытия. Сейчас — Postgres (`app.repository.invitation`)."""
 
     def accepted(self, employer_id: uuid.UUID, candidate_id: uuid.UUID) -> bool:
-        """Есть ли у компании принятое приглашение этому кандидату."""
+        """Есть ли у компании принятое и не отозванное приглашение этому кандидату."""
         ...
 
 
@@ -786,7 +787,7 @@ class InvitationRepository(InvitationReader, Protocol):
         ...
 
     def save(self, invitation: Invitation) -> None:
-        """Записывает статус, время просмотра и ответа; истёкшее не записывается."""
+        """Записывает статус, время просмотра, ответа и отзыва; истёкшее не записывается."""
         ...
 
     def by_candidate(self, candidate_id: uuid.UUID) -> list[Invitation]: ...
@@ -799,6 +800,28 @@ class InvitationRepository(InvitationReader, Protocol):
 
     def sent_since(self, employer_id: uuid.UUID, since: datetime) -> int:
         """Сколько приглашений компания отправила с момента `since`, в любом статусе."""
+        ...
+
+
+class MessageRepository(Protocol):
+    """Сообщения переписки в приглашениях. Пишет только внутри единицы работы и сам не фиксирует.
+    Сейчас — Postgres (`app.repository.conversation`)."""
+
+    def add(self, invitation_id: uuid.UUID, author: Side, text: str, now: datetime) -> Message:
+        """Новое непрочитанное сообщение; `now` — время отправки."""
+        ...
+
+    def by_invitation(self, invitation_id: uuid.UUID) -> list[Message]:
+        """Переписка приглашения в порядке записи — старые сверху."""
+        ...
+
+    def mark_read(self, invitation_id: uuid.UUID, reader: Side, now: datetime) -> None:
+        """Сообщения другой стороны в приглашении, ещё не прочитанные, — прочитаны в `now`."""
+        ...
+
+    def unread(self, reader: Side, user_id: uuid.UUID) -> dict[uuid.UUID, int]:
+        """Непрочитанные сообщения другой стороны по приглашениям, где пользователь `user_id` —
+        сторона `reader`; приглашения без непрочитанного не попадают."""
         ...
 
 

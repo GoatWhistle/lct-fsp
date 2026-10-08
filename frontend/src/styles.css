@@ -866,3 +866,44 @@ details summary {
 .invitation-card.unread {
   border-color: var(--accent);
 }
+
+.conversation {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  border-top: 1px solid var(--border);
+  padding-top: 0.75rem;
+}
+
+.conversation h3 {
+  margin: 0;
+}
+
+.messages {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  max-height: 24rem;
+  overflow-y: auto;
+}
+
+.message {
+  max-width: 85%;
+  padding: 0.4rem 0.75rem;
+  border-radius: 8px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+}
+
+.message.mine {
+  align-self: flex-end;
+  background: var(--accent-soft);
+  border-color: transparent;
+}
+
+.message p {
+  margin: 0.15rem 0 0;
+}

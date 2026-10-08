@@ -213,8 +213,9 @@ def test_table_covers_every_endpoint_and_viewer() -> None:
 
 
 # Раскрытие работодателю по приглашениям (§14): каждый эндпоинт работодателя × состояние
-# приглашений этому кандидату. Раскрывает только принятое приглашение этой же компании, и
-# ожидаемой зарплаты нет и тогда; раскрытое отдаёт одна карточка.
+# приглашений этому кандидату. Раскрывает только принятое и не отозванное приглашение этой же
+# компании, и ожидаемой зарплаты нет и тогда; раскрытое отдаёт одна карточка. После отзыва
+# раскрывает только новое принятое приглашение.
 INVITATION_STATES = (
     "нет приглашения",
     "отправлено",
@@ -223,7 +224,10 @@ INVITATION_STATES = (
     "истекло",
     "принято другой компанией",
     "принято",
+    "принято и отозвано",
+    "отозвано, принято новое",
 )
+DISCLOSING = ("принято", "отозвано, принято новое")
 DISCLOSED_TO_EMPLOYER = ALL - {"зарплата"}
 
 
@@ -270,6 +274,15 @@ def bring_to(
             act(invite(other_employer), "accept")
         case "принято":
             act(invite(employer), "accept")
+        case "принято и отозвано":
+            invitation_id = invite(employer)
+            act(invitation_id, "accept")
+            act(invitation_id, "revoke")
+        case "отозвано, принято новое":
+            invitation_id = invite(employer)
+            act(invitation_id, "accept")
+            act(invitation_id, "revoke")
+            act(invite(employer), "accept")
         case _:
             raise AssertionError(state)
 
@@ -291,7 +304,7 @@ def test_employer_sees_candidate_disclosed_only_after_own_accepted_invitation(
 
     assert code < 300, text
     visible = {name for name, marker in SECRETS.items() if marker in text}
-    expected = DISCLOSED_TO_EMPLOYER if (endpoint, state) == ("карточка", "принято") else NONE
+    expected = DISCLOSED_TO_EMPLOYER if endpoint == "карточка" and state in DISCLOSING else NONE
     assert visible == expected
 
 

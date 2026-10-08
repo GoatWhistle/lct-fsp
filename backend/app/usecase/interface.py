@@ -37,6 +37,14 @@ from app.domain.catalog import (
 from app.domain.company import Company, CompanyForm
 from app.domain.mail import Mail
 from app.domain.need import NeedRecord, NeedTerms
+from app.domain.regular_task import (
+    AnsweredTask,
+    CatalogFilter,
+    OwnAnswer,
+    RegularTask,
+    TaskAnswer,
+    TaskTerms,
+)
 from app.domain.selection import (
     AcceptanceFeatures,
     Need,
@@ -62,7 +70,15 @@ class SkillModel(Protocol):
         ...
 
     def estimate(self, prior: Prior, observations: Iterable[Observation]) -> SkillEstimate:
-        """Оценка по априорному и упорядоченным наблюдениям."""
+        """Оценка по априорному и упорядоченным наблюдениям — на момент последнего из них. С
+        затуханием в априорном (`decay_sd_per_year`) между наблюдениями растёт погрешность."""
+        ...
+
+    def advance(
+        self, prior: Prior, levels: SkillProfileLevels, now: datetime
+    ) -> SkillProfileLevels:
+        """Сохранённый профиль, посчитанный на момент последнего сигнала, — на момент `now`:
+        без новых сигналов погрешность растёт (mechanics.md, §11, «Свежесть»)."""
         ...
 
 
@@ -75,6 +91,77 @@ class AttemptReader(Protocol):
     ) -> Sequence[AnsweredPresentation]:
         """Отвеченные предъявления кандидата по специализации во всех попытках — в порядке
         ответа: по номеру попытки, внутри неё — по позиции."""
+        ...
+
+
+class RegularTaskReader(Protocol):
+    """Чтение ответов на регулярные задания — для профиля навыков. Сейчас — Postgres
+    (`app.repository.regular_task`) и in-memory (`app.repository.memory.regular_task`)."""
+
+    def answered(self, user_id: uuid.UUID, specialization_code: str) -> Sequence[AnsweredTask]:
+        """Ответы кандидата на задания специализации — и снятых тоже: их наблюдения остаются в
+        профиле. По времени ответа."""
+        ...
+
+
+class RegularTaskRepository(RegularTaskReader, Protocol):
+    """Регулярные задания работодателей и ответы кандидатов (mechanics.md, §11). Пишет только
+    внутри единицы работы и сам не фиксирует."""
+
+    def add(self, author_id: uuid.UUID, terms: TaskTerms, now: datetime) -> RegularTask: ...
+
+    def get(self, task_id: uuid.UUID, *, lock: bool = False) -> RegularTask | None:
+        """Задание по id — любого автора, и снятое тоже. `lock` — блокировка до конца единицы
+        работы: правка и первый ответ не проходят одновременно."""
+        ...
+
+    def replace(self, task_id: uuid.UUID, terms: TaskTerms, now: datetime) -> None:
+        """Заменяет условие задания целиком; без ответов — это проверил сценарий."""
+        ...
+
+    def withdraw(self, task_id: uuid.UUID, now: datetime) -> None:
+        """Снимает задание из каталога; повторное снятие момент не меняет."""
+        ...
+
+    def by_author(self, author_id: uuid.UUID) -> list[RegularTask]:
+        """Задания работодателя, новые сверху, и снятые тоже."""
+        ...
+
+    def catalog(self, specialization_code: str, filters: CatalogFilter) -> list[RegularTask]:
+        """Активные задания специализации всех грейдов; порядок задаёт домен."""
+        ...
+
+    def answer(self, task_id: uuid.UUID, candidate_id: uuid.UUID) -> TaskAnswer | None:
+        """Ответ кандидата на задание — один или ни одного."""
+        ...
+
+    def add_answer(
+        self,
+        task_id: uuid.UUID,
+        candidate_id: uuid.UUID,
+        response: str,
+        correct: bool | None,
+        now: datetime,
+    ) -> TaskAnswer:
+        """Новый ответ; второй ответ того же кандидата — `TaskAlreadyAnswered`."""
+        ...
+
+    def answers(self, task_id: uuid.UUID) -> list[TaskAnswer]:
+        """Ответы на задание по времени ответа."""
+        ...
+
+    def get_answer(self, answer_id: uuid.UUID) -> TaskAnswer | None: ...
+
+    def answered_task_ids(self, candidate_id: uuid.UUID) -> set[uuid.UUID]:
+        """Задания, на которые кандидат уже ответил."""
+        ...
+
+    def own_answers(self, candidate_id: uuid.UUID) -> list[OwnAnswer]:
+        """Ответы кандидата с заданиями, новые сверху."""
+        ...
+
+    def grade(self, answer_id: uuid.UUID, rubric: int, now: datetime) -> TaskAnswer:
+        """Оценка ответа по рубрике; что оценивать можно, проверил сценарий."""
         ...
 
 

@@ -148,3 +148,64 @@ class InvalidSalaryRange(DomainError):
 class SelectionNotFound(DomainError):
     code = "selection_not_found"
     message = "Подборка не найдена"
+
+
+# Компания.
+
+
+class CompanyRequired(DomainError):
+    code = "company_required"
+    message = "Сначала заполните профиль компании"
+
+
+# Регулярные задания.
+
+
+class TaskNotFound(DomainError):
+    code = "task_not_found"
+    message = "Задание не найдено — возможно, его сняли"
+
+
+class TaskTopicsCount(DomainError):
+    code = "task_topics_count"
+    message = "Отметьте от одной до трёх тем"
+
+
+class TaskTopicNotInSpecialization(DomainError):
+    code = "task_topic_not_in_specialization"
+    message = "Темы задания — только из тем его специализации"
+
+
+class ReferenceAnswerMismatch(DomainError):
+    code = "reference_answer_mismatch"
+    message = "Эталон нужен заданию с эталоном и не нужен открытому"
+
+
+class TaskLocked(DomainError):
+    code = "task_locked"
+    message = "На задание уже ответили или его сняли — править его нельзя"
+
+
+class CategoryRequired(DomainError):
+    code = "category_required"
+    message = "Задания открываются после теста — сначала получите категорию"
+
+
+class TaskAlreadyAnswered(DomainError):
+    code = "task_already_answered"
+    message = "Вы уже ответили на это задание"
+
+
+class TaskAnswerNotFound(DomainError):
+    code = "task_answer_not_found"
+    message = "Ответ не найден"
+
+
+class TaskNotGradable(DomainError):
+    code = "task_not_gradable"
+    message = "Ответ на задание с эталоном проверяет система"
+
+
+class AnswerAlreadyGraded(DomainError):
+    code = "answer_already_graded"
+    message = "Ответ уже оценён"

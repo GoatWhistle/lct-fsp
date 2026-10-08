@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { Link } from 'react-router'
 import { api, errorMessage, type CandidatePath } from '../api/client'
 import { Cabinet } from '../components/Cabinet'
 import { gradeName, useCatalog, type Catalog } from '../candidate/catalog'
@@ -177,6 +178,19 @@ function CategoryCabinet({ catalog, path }: { catalog: Catalog; path: CandidateP
         </div>
       )}
       <ProfileCard />
+      <div className="card">
+        <div className="section-head">
+          <h2>Регулярные задания</h2>
+          <Link to="/candidate/tasks" className="button button-small">
+            Открыть каталог
+          </Link>
+        </div>
+        <p>
+          Задачи работодателей по вашей специализации: ответы уточняют профиль навыков и
+          показывают, что уровень недавно подтверждён. Без новых сигналов уверенность в профиле со
+          временем падает.
+        </p>
+      </div>
       {path.result && <TestResultView catalog={catalog} result={path.result} />}
       {path.profile && <SkillProfileView profile={path.profile} />}
     </Cabinet>

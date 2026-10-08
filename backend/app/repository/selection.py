@@ -62,9 +62,12 @@ class SqlCandidatePool:
                 GradeRow.name,
                 GradeRow.rank,
                 SkillProfile.last_signal_at,
+                SkillProfile.overall_theta,
+                SkillProfile.overall_theta_sd,
                 SkillProfileTopic.topic_code,
                 SkillProfileTopic.theta,
                 SkillProfileTopic.theta_sd,
+                SkillProfileTopic.regular_task,
             )
             .join(GradeRow, GradeRow.code == CandidateCategory.grade_code)
             .join(
@@ -78,13 +81,32 @@ class SqlCandidatePool:
             .where(*reach)
         ).all()
 
-        grades: dict[uuid.UUID, tuple[Grade, datetime | None]] = {}
+        heads: dict[uuid.UUID, tuple[Grade, datetime | None, Normal]] = {}
         topics: dict[uuid.UUID, dict[str, Normal]] = {}
-        for user_id, code, name, rank, last_signal_at, topic, theta, theta_sd in levels:
-            if user_id not in grades:
-                grades[user_id] = (Grade(code, name, rank), last_signal_at)
-                topics[user_id] = {}
+        confirmed: dict[uuid.UUID, set[str]] = {}
+        for (
+            user_id,
+            code,
+            name,
+            rank,
+            last_signal_at,
+            overall,
+            overall_sd,
+            topic,
+            theta,
+            theta_sd,
+            regular_task,
+        ) in levels:
+            if user_id not in heads:
+                heads[user_id] = (
+                    Grade(code, name, rank),
+                    last_signal_at,
+                    Normal(overall, overall_sd),
+                )
+                topics[user_id], confirmed[user_id] = {}, set()
             topics[user_id][topic] = Normal(theta, theta_sd)
+            if regular_task:
+                confirmed[user_id].add(topic)
 
         stacks = self._stacks(reach, technologies)
         expectations = self._expectations(reach)
@@ -93,12 +115,14 @@ class SqlCandidatePool:
                 candidate_id=user_id,
                 specialization=specialization,
                 grade=grade,
+                overall=overall,
                 levels=topics[user_id],
                 stack=frozenset(stacks.get(user_id, ())),
                 last_signal_at=last_signal_at,
                 expectations=expectations.get(user_id),
+                regular_task_topics=frozenset(confirmed[user_id]),
             )
-            for user_id, (grade, last_signal_at) in grades.items()
+            for user_id, (grade, last_signal_at, overall) in heads.items()
         ]
 
     def _stacks(
@@ -303,6 +327,7 @@ def explanation_json(explanation: Explanation) -> Json:
                 "contribution": float(t.contribution),
                 "verdict": t.verdict.value,
                 "low_data": t.low_data,
+                "regular_task": t.regular_task,
             }
             for t in explanation.topics
         ],
@@ -326,6 +351,7 @@ def explanation_of(data: Json) -> Explanation:
                 contribution=float(t["contribution"]),
                 verdict=Verdict(t["verdict"]),
                 low_data=t["low_data"],
+                regular_task=t["regular_task"],
             )
             for t in data["topics"]
         ),

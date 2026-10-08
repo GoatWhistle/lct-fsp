@@ -4,12 +4,13 @@ import itertools
 import math
 import random
 from dataclasses import replace
+from datetime import UTC, datetime, timedelta
 
 import pytest
 
 from app.adapter import irt
 from app.adapter.irt import estimate
-from app.domain.skill import LevelBand, Normal, Observation, Prior, level_band
+from app.domain.skill import LevelBand, Normal, Observation, Prior, SkillProfileLevels, level_band
 from app.usecase.interface import SkillModel
 
 TOPICS = ("sql", "api", "algorithms", "testing")
@@ -183,3 +184,102 @@ def test_irt_module_is_the_skill_model_port() -> None:
     assert model.initial(prior()) == irt.initial(prior())
     assert model.estimate(prior(), observations) == estimate(prior(), observations)
     assert model.estimate(prior(), observations).topic("sql").mean > 0
+    saved = SkillProfileLevels(Normal(0, 1), {"sql": Normal(0, 1)}, 1, None)
+    assert model.advance(prior(), saved, datetime(2026, 1, 1, tzinfo=UTC)) == saved
+
+
+# Свежесть (§11): шум Q Δt по общей части уровня между наблюдениями и доворот до «сейчас».
+
+T0 = datetime(2026, 1, 1, tzinfo=UTC)
+YEAR = timedelta(days=365.25)
+
+
+def decaying(sd_per_year: float = 0.4, inflation: float = 1.0) -> Prior:
+    return replace(prior(), decay_sd_per_year=sd_per_year, sd_inflation=inflation)
+
+
+def at(observation: Observation, moment: datetime) -> Observation:
+    return replace(observation, at=moment)
+
+
+def test_without_decay_time_between_observations_changes_nothing() -> None:
+    timed = [at(item("sql", True), T0), at(item("api", False), T0 + 3 * YEAR)]
+
+    assert estimate(prior(), timed) == estimate(prior(), [item("sql", True), item("api", False)])
+
+
+def test_gap_between_observations_widens_uncertainty_by_decay_variance() -> None:
+    """Год без сигналов прибавляет к дисперсии уровня каждой темы и общего уровня sd_год²."""
+    first = [at(item(t, True), T0) for t in TOPICS for _ in range(3)]
+    before = estimate(decaying(0.4, inflation=1.2), first)
+    after = irt.diffuse(before, decaying(0.4, inflation=1.2), YEAR)
+
+    for topic in TOPICS:
+        assert after.topic(topic).mean == before.topic(topic).mean
+        assert after.topic(topic).sd ** 2 == pytest.approx(before.topic(topic).sd ** 2 + 0.16)
+    assert after.overall().sd ** 2 == pytest.approx(before.overall().sd ** 2 + 0.16)
+
+
+def test_decay_is_applied_between_timed_observations_in_estimate() -> None:
+    early = [at(item("sql", True), T0)] * 4
+    late = at(item("api", True), T0 + 2 * YEAR)
+    same_day = at(item("api", True), T0)
+
+    spread = estimate(decaying(), [*early, late])
+    together = estimate(decaying(), [*early, same_day])
+
+    assert spread.topic("sql").sd > together.topic("sql").sd
+
+
+def test_decay_never_exceeds_prior_uncertainty() -> None:
+    observed = estimate(decaying(), [at(item("sql", True), T0)] * 6)
+    initial = estimate(decaying(), [])
+
+    far = irt.diffuse(observed, decaying(), 100 * YEAR)
+
+    for topic in TOPICS:
+        assert far.topic(topic).sd <= initial.topic(topic).sd + 1e-12
+    assert far.overall().sd <= initial.overall().sd + 1e-12
+    assert far.topic("sql").sd > observed.topic("sql").sd
+
+
+def test_advance_of_saved_profile_equals_estimate_diffused_to_now() -> None:
+    """Сохранённый профиль — на момент последнего сигнала; доворот по его уровням до «сейчас» даёт
+    то же, что оценка с затуханием до «сейчас»."""
+    model = decaying(0.4, inflation=1.15)
+    rng = random.Random(9)
+    observations = [at(o, T0 + timedelta(days=10 * i)) for i, o in enumerate(random_items(rng, 12))]
+    last = observations[-1].at
+    assert last is not None
+    result = estimate(model, observations)
+    saved = SkillProfileLevels(
+        overall=result.overall(),
+        topics={t: result.topic(t) for t in TOPICS},
+        observations=len(observations),
+        last_signal_at=last,
+    )
+
+    for gap in (timedelta(0), YEAR / 2, 3 * YEAR, 50 * YEAR):
+        advanced = irt.advance(model, saved, last + gap)
+        diffused = irt.diffuse(result, model, gap)
+        assert advanced.overall.mean == saved.overall.mean
+        assert advanced.overall.sd == pytest.approx(diffused.overall().sd)
+        for topic in TOPICS:
+            assert advanced.topics[topic].sd == pytest.approx(diffused.topic(topic).sd)
+        assert (advanced.observations, advanced.last_signal_at) == (12, last)
+
+
+def test_advance_without_signals_or_decay_keeps_profile() -> None:
+    result = estimate(decaying(), [])
+    empty = SkillProfileLevels(result.overall(), {t: result.topic(t) for t in TOPICS}, 0, None)
+    saved = replace(empty, observations=1, last_signal_at=T0)
+
+    assert irt.advance(decaying(), empty, T0 + YEAR) == empty
+    assert irt.advance(prior(), saved, T0 + YEAR) == saved
+    # Часы позади сигнала — затухания нет, а не «отрицательное».
+    assert irt.advance(decaying(), saved, T0 - YEAR) == saved
+
+
+def test_decaying_estimate_needs_moments_of_observations() -> None:
+    with pytest.raises(ValueError, match="момент"):
+        estimate(decaying(), [at(item("sql", True), T0), item("api", True)])

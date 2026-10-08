@@ -38,5 +38,7 @@ class SkillProfileTopic(Base):
     topic_code: Mapped[str] = mapped_column(ForeignKey("topics.code"), primary_key=True)
     theta: Mapped[float]
     theta_sd: Mapped[float]
+    # В уровень вошли ответы на регулярные задания — источник уверенности в объяснении подборки.
+    regular_task: Mapped[bool] = mapped_column(default=False, server_default="false")
 
     topic: Mapped[Topic] = relationship(lazy="joined")

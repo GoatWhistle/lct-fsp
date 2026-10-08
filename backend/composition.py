@@ -4,7 +4,7 @@
 передают их сюда; сценарии собираются здесь одинаково для обоих. Сценарий живёт на единице
 работы: проводка отдаёт фабрики сценариев от неё, репозитории приходят фабриками от неё же.
 Сценарии механик (`build_usecases`) нужны обоим; сценарии кабинетов — учётки, компании,
-потребностей, справочников (`build_platform_usecases`) — только проду.
+потребностей, справочников, регулярных заданий (`build_platform_usecases`) — только проду.
 
 Пакет стенда отсюда не импортируется — это проверяет тест на импорты.
 """
@@ -36,6 +36,8 @@ from app.usecase.interface import (
     NeedReader,
     NeedRepository,
     PasswordHasher,
+    RegularTaskReader,
+    RegularTaskRepository,
     SeedSource,
     SelectionRepository,
     SessionTokens,
@@ -43,7 +45,9 @@ from app.usecase.interface import (
     UnitOfWork,
 )
 from app.usecase.need import Needs
+from app.usecase.regular_task import RegularTasks
 from app.usecase.selection import Selections
+from app.usecase.skill_profile import ProfileFreshness
 from settings import Mechanics
 
 
@@ -79,6 +83,7 @@ class Repositories[U: UnitOfWork]:
     """Фабрики репозиториев от единицы работы: репозиторий пишет в её транзакцию."""
 
     attempts: Callable[[U], AttemptRepository]
+    regular_tasks: Callable[[U], RegularTaskReader]
     calibration: Callable[[U], CalibrationRepository]
     needs: Callable[[U], NeedReader]
     pool: Callable[[U], CandidatePool]
@@ -87,12 +92,14 @@ class Repositories[U: UnitOfWork]:
 
 @dataclass(frozen=True)
 class Usecases[U: UnitOfWork]:
-    """Фабрики сценариев от единицы работы."""
+    """Фабрики сценариев от единицы работы и доворот профиля навыков до «сейчас» — он единицы
+    работы не требует."""
 
     calibration: Callable[[U], EloCalibration]
     candidate_path: Callable[[U], CandidatePath]
     answer_calibration: Callable[[U], AnswerCalibration]
     selections: Callable[[U], Selections]
+    freshness: ProfileFreshness
 
 
 def build_usecases[U: UnitOfWork](
@@ -113,6 +120,7 @@ def build_usecases[U: UnitOfWork](
         return CandidatePath(
             uow,
             repositories.attempts(uow),
+            repositories.regular_tasks(uow),
             calibration(uow),
             selector,
             skill_model,
@@ -132,12 +140,19 @@ def build_usecases[U: UnitOfWork](
             repositories.pool(uow),
             repositories.selections(uow),
             acceptance,
+            skill_model,
             clock,
             seeds,
             mechanics,
         )
 
-    return Usecases(calibration, candidate_path, answer_calibration, selections)
+    return Usecases(
+        calibration,
+        candidate_path,
+        answer_calibration,
+        selections,
+        ProfileFreshness(skill_model, mechanics),
+    )
 
 
 @dataclass(frozen=True)
@@ -149,6 +164,8 @@ class PlatformRepositories[U: UnitOfWork]:
     companies: Callable[[U], CompanyRepository]
     needs: Callable[[U], NeedRepository]
     catalog: Callable[[U], CatalogRepository]
+    regular_tasks: Callable[[U], RegularTaskRepository]
+    attempts: Callable[[U], AttemptRepository]
 
 
 @dataclass(frozen=True)
@@ -159,6 +176,7 @@ class PlatformUsecases[U: UnitOfWork]:
     companies: Callable[[U], Companies]
     needs: Callable[[U], Needs]
     catalog: Callable[[U], CatalogQueries]
+    regular_tasks: Callable[[U], RegularTasks]
 
 
 def build_platform_usecases[U: UnitOfWork](
@@ -170,6 +188,7 @@ def build_platform_usecases[U: UnitOfWork](
     mailer: Mailer,
     clock: Clock,
     links: VerificationLinks,
+    skill_model: SkillModel,
 ) -> PlatformUsecases[U]:
     def accounts(uow: U) -> Accounts:
         return Accounts(
@@ -198,7 +217,19 @@ def build_platform_usecases[U: UnitOfWork](
     def catalog(uow: U) -> CatalogQueries:
         return CatalogQueries(uow, repositories.catalog(uow))
 
-    return PlatformUsecases(accounts, companies, needs, catalog)
+    def regular_tasks(uow: U) -> RegularTasks:
+        return RegularTasks(
+            uow,
+            repositories.regular_tasks(uow),
+            repositories.attempts(uow),
+            repositories.catalog(uow),
+            repositories.companies(uow),
+            skill_model,
+            clock,
+            mechanics,
+        )
+
+    return PlatformUsecases(accounts, companies, needs, catalog, regular_tasks)
 
 
 def catalog_sync[U: UnitOfWork](

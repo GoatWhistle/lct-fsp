@@ -18,6 +18,7 @@ from app.adapter.seed import DerivedSeeds
 from app.domain.catalog import Grade, Specialization, Technology
 from app.repository.memory.attempt import MemoryAttemptRepository
 from app.repository.memory.calibration import MemoryCalibrationRepository
+from app.repository.memory.regular_task import MemoryRegularTasks
 from app.repository.memory.selection import MemoryCandidatePool, MemoryNeeds, MemorySelections
 from app.repository.memory.unit_of_work import MemoryStore, MemoryUnitOfWork
 from app.usecase.attempt import CandidatePath
@@ -130,6 +131,7 @@ def build_stand(
     usecases = build_usecases(
         Repositories[MemoryUnitOfWork](
             attempts=lambda uow: _attempts(uow.store, known, mechanics),
+            regular_tasks=lambda uow: MemoryRegularTasks(uow.store),
             calibration=lambda uow: MemoryCalibrationRepository(uow.store),
             needs=lambda uow: MemoryNeeds(uow.store),
             pool=lambda uow: MemoryCandidatePool(uow.store),

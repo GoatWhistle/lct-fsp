@@ -27,6 +27,12 @@ export type SelectionSummary = components['schemas']['SelectionSummaryOut']
 export type SelectionEntry = components['schemas']['SelectionEntryOut']
 export type Verdict = components['schemas']['Verdict']
 export type CandidateCard = components['schemas']['CandidateCardOut']
+export type RegularTask = components['schemas']['TaskOut']
+export type TaskInput = components['schemas']['TaskIn']
+export type TaskKind = components['schemas']['TaskKind']
+export type CatalogTask = components['schemas']['CatalogTaskOut']
+export type OwnAnswer = components['schemas']['OwnAnswerOut']
+export type AuthorAnswer = components['schemas']['AuthorAnswerOut']
 
 export const api = createClient<paths>({ credentials: 'same-origin' })
 

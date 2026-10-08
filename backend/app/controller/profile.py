@@ -11,6 +11,7 @@ from fastapi import APIRouter, Depends, Request, Response
 
 from app.controller.deps import (
     ROLE_RESPONSES,
+    ApplicationReaderDep,
     CandidatesDep,
     ClockDep,
     CurrentUser,
@@ -195,8 +196,10 @@ def download_pdf(
     summary="Карточка кандидата",
     description="Статус грейда, категория, профиль навыков и структурная часть самоописания — "
     "без полей, скрытых кандидатом, пока карточка обезличена. "
-    "ФИО, контакты и свободный текст — только после принятия приглашения вашей компании; "
-    "ожидаемой зарплаты нет никогда. Есть у кандидата с категорией или с заявленным грейдом.",
+    "ФИО, контакты и свободный текст — только после принятия приглашения вашей компании или "
+    "отклика на её вакансию, пока кандидат не отозвал доступ; ожидаемой зарплаты нет никогда. "
+    "Есть у кандидата с категорией или с заявленным грейдом и у откликнувшегося на вашу "
+    "вакансию.",
     responses=error_responses(errors.CandidateNotFound),
 )
 def get_candidate_card(
@@ -205,11 +208,12 @@ def get_candidate_card(
     uow: UnitOfWorkDep,
     candidates: CandidatesDep,
     invitations: InvitationReaderDep,
+    applications: ApplicationReaderDep,
     clock: ClockDep,
     freshness: ProfileFreshnessDep,
 ) -> CandidateCardOut:
     card = usecase.employer_card(
-        uow, candidates, invitations, user.id, candidate_id, clock, freshness
+        uow, candidates, invitations, applications, user.id, candidate_id, clock, freshness
     )
     return _card_out(card)
 
@@ -334,7 +338,9 @@ def _card_out(card: domain.AnonymizedCard | domain.DisclosedCard) -> CandidateCa
     return CandidateCardOut(
         id=card.candidate_id,
         category=CategoryOut.model_validate(card.category) if card.category else None,
-        grade_status=GradeStatusOut.model_validate(card.grade_status),
+        grade_status=GradeStatusOut.model_validate(card.grade_status)
+        if card.grade_status
+        else None,
         skill_profile=skill_profile_view(card.skill_profile) if card.skill_profile else None,
         self_reported=(_card_self_reported_out(card.self_reported) if card.self_reported else None),
         fsp_achievements=[FspAnonymizedAchievementOut.model_validate(a) for a in achievements],

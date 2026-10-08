@@ -313,6 +313,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/candidate/path/verification": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Начать проверочный блок
+         * @description Короткий блок на время из невиданных заданий тех же тем. Нужен, когда результат попытки ждёт его: совпал с основным тестом — категория присваивается или повышается с пометкой «уровень подтверждён», расхождение — категория прежняя, причина числами в `verification.last`. Без отложенного результата — добровольно, чтобы подтвердить уровень категории. Срок — `verification_time_limit_minutes` по часам сервера; повтор — не раньше `verification_retest_days` от старта прошлого блока. Задания — через `/item`.
+         */
+        post: operations["start_verification_api_candidate_path_verification_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/candidate/path/item": {
         parameters: {
             query?: never;
@@ -344,7 +364,7 @@ export interface paths {
         put?: never;
         /**
          * Ответ на текущее задание
-         * @description Ответ проверяет бэкенд; верен ли он, не сообщается. Тест адаптивный: попытка останавливается, когда уровень определён с нужной точностью или задания кончились, — тогда возвращается её итог.
+         * @description Ответ проверяет бэкенд; верен ли он, не сообщается. Тест адаптивный: попытка останавливается, когда уровень определён с нужной точностью или задания кончились, — тогда возвращается её итог. Ответ проверочного блока после срока не засчитывается: блок останавливается. Счётчики событий пишутся, только если на попытку дано согласие.
          */
         post: operations["answer_item_api_candidate_path_item_answer_post"];
         delete?: never;
@@ -1208,6 +1228,18 @@ export interface components {
             presentation_id: string;
             /** Response */
             response: string;
+            /**
+             * Paste Events
+             * @description Вставок из буфера за время задания — пишется, только если кандидат дал согласие на попытку, иначе отбрасывается
+             * @default 0
+             */
+            paste_events: number;
+            /**
+             * Focus Losses
+             * @description Уходов со вкладки за время задания — на тех же условиях
+             * @default 0
+             */
+            focus_losses: number;
         };
         /**
          * AnswerStatus
@@ -1218,16 +1250,22 @@ export interface components {
         AttemptIn: {
             /**
              * Grade
-             * @description Код грейда: заявленный, предложенный для дотеста или, при категории, следующий выше
+             * @description Код грейда: заявленный, предложенный для дотеста или, при категории, следующий выше; на шаге `verification` — грейд ниже отложенного результата
              */
             grade: string;
+            /**
+             * Focus Consent
+             * @description Согласие на счётчики вставок и уходов со вкладки в этой попытке — только как сигнал для проверочного блока. Без согласия тест проходится так же
+             * @default false
+             */
+            focus_consent: boolean;
         };
         /**
          * AttemptOutcome
          * @description Чем закончилась попытка (mechanics.md, §4).
          * @enum {string}
          */
-        AttemptOutcome: "assigned" | "offered" | "no_category" | "not_passed";
+        AttemptOutcome: "assigned" | "offered" | "no_category" | "not_passed" | "verification" | "confirmed" | "mismatch";
         /** AttemptProgressOut */
         AttemptProgressOut: {
             /** Grade */
@@ -1245,7 +1283,7 @@ export interface components {
          * @description Зачем попытка (mechanics.md, §4).
          * @enum {string}
          */
-        AttemptPurpose: "determination" | "grade_up" | "topic_block";
+        AttemptPurpose: "determination" | "grade_up" | "topic_block" | "verification";
         /**
          * AuthorAnswerOut
          * @description Ответ на задание для его автора — обезличенно: без ФИО, контактов и профиля.
@@ -1510,6 +1548,11 @@ export interface components {
              * Format: date-time
              */
             assigned_at: string;
+            /**
+             * Verified At
+             * @description Уровень подтверждён проверочным блоком — с этого момента; `null` — нет
+             */
+            verified_at: string | null;
         };
         /** CompanyIn */
         CompanyIn: {
@@ -1861,7 +1904,7 @@ export interface components {
             purpose: components["schemas"]["AttemptPurpose"] | null;
             /** @description Уровень по оценке попытки */
             overall: components["schemas"]["LevelOut"] | null;
-            /** @description `assigned` — грейд присвоен; `offered` — предложен дотест; `no_category` — категории нет; `not_passed` — попытка вверх не прошла, категория прежняя */
+            /** @description `assigned` — грейд присвоен; `offered` — предложен дотест; `no_category` — категории нет; `not_passed` — попытка вверх не прошла, категория прежняя; `verification` — результат ждёт проверочного блока */
             outcome: components["schemas"]["AttemptOutcome"] | null;
             /**
              * Outcome Grade
@@ -2018,6 +2061,21 @@ export interface components {
              * @description Задание блока по теме, а не теста
              */
             topic_block: boolean;
+            /**
+             * Verification
+             * @description Задание проверочного блока
+             */
+            verification: boolean;
+            /**
+             * Deadline
+             * @description Срок проверочного блока по часам сервера
+             */
+            deadline: string | null;
+            /**
+             * Focus Consent
+             * @description Кандидат согласился на счётчики событий в этой попытке: без согласия их не собирают и не присылают
+             */
+            focus_consent: boolean;
             topic: components["schemas"]["CatalogRef"];
             /** Prompt */
             prompt: string;
@@ -2349,7 +2407,7 @@ export interface components {
         };
         /** PathOut */
         PathOut: {
-            /** @description `survey` — опрос; `grade` — выбор грейда; `test` — идёт тест; `offer` — предложен дотест на `offer_grade`; `category` — категория присвоена; `no_category` — без категории до `retest_after` */
+            /** @description `survey` — опрос; `grade` — выбор грейда; `test` — идёт тест; `offer` — предложен дотест на `offer_grade`; `category` — категория присвоена; `no_category` — без категории до `retest_after`; `verification` — результат ждёт проверочного блока */
             stage: components["schemas"]["Stage"];
             survey: components["schemas"]["SurveyOut"] | null;
             /** @description Ход теста на шаге `test` */
@@ -2376,6 +2434,8 @@ export interface components {
             history: components["schemas"]["HistoryEntryOut"][];
             /** @description Незавершённый блок по теме: задания и ответы — те же `item`, что у теста */
             topic_block: components["schemas"]["TopicBlockOut"] | null;
+            /** @description Проверочный блок на шагах `verification` и `category`: результат ждёт его, он идёт или его можно пройти добровольно */
+            verification: components["schemas"]["VerificationOut"] | null;
         };
         /** PlacementOut */
         PlacementOut: {
@@ -2936,10 +2996,10 @@ export interface components {
         Side: "candidate" | "employer";
         /**
          * SignalSource
-         * @description Уровень доверия, из которого пришло наблюдение (§11). Проверочный блок встанет рядом.
+         * @description Уровень доверия, из которого пришло наблюдение (§11).
          * @enum {string}
          */
-        SignalSource: "fsp" | "test" | "regular_task";
+        SignalSource: "fsp" | "verification" | "test" | "regular_task";
         /**
          * SkillProfileOut
          * @description Профиль навыков: уровень и погрешность по темам из всех сигналов — так его видит подбор.
@@ -2998,7 +3058,7 @@ export interface components {
          * Stage
          * @enum {string}
          */
-        Stage: "survey" | "grade" | "test" | "offer" | "category" | "no_category";
+        Stage: "survey" | "grade" | "test" | "offer" | "category" | "no_category" | "verification";
         /** SurveyIn */
         SurveyIn: {
             /**
@@ -3210,6 +3270,11 @@ export interface components {
              * @description Уровень подтверждён результатом ФСП — к формулировке «подтверждено ФСП»
              */
             fsp_confirmed: boolean;
+            /**
+             * Verification Confirmed
+             * @description Уровень категории подтверждён проверочным блоком, и его задания были по теме — к формулировке «подтверждено проверочным блоком»
+             */
+            verification_confirmed: boolean;
         };
         /**
          * TopicImportance
@@ -3301,6 +3366,67 @@ export interface components {
          * @enum {string}
          */
         Verdict: "confidently_above" | "likely_above" | "likely_below" | "below";
+        /**
+         * VerificationOut
+         * @description Проверочный блок: короткий блок на время из невиданных заданий тех же тем.
+         */
+        VerificationOut: {
+            /**
+             * Grade
+             * @description Грейд результата, который ждёт блока; `null` — добровольный блок, чтобы подтвердить уровень категории
+             */
+            grade: string | null;
+            /**
+             * Available At
+             * @description С какого момента можно начать блок; `null` — можно сейчас
+             */
+            available_at: string | null;
+            /** @description Идущий блок */
+            progress: components["schemas"]["VerificationProgressOut"] | null;
+            /** @description Итог последнего блока */
+            last: components["schemas"]["VerificationResultOut"] | null;
+        };
+        /** VerificationProgressOut */
+        VerificationProgressOut: {
+            /** Answered */
+            answered: number;
+            /**
+             * Items
+             * @description Заданий в блоке
+             */
+            items: number;
+            /**
+             * Deadline
+             * Format: date-time
+             * @description Срок по часам сервера: неотвеченное к нему считается неверным
+             */
+            deadline: string;
+        };
+        /**
+         * VerificationResultOut
+         * @description Итог последнего блока — причина расхождения числами.
+         */
+        VerificationResultOut: {
+            /** Confirmed */
+            confirmed: boolean;
+            /**
+             * Expected
+             * @description Ожидалось верных по основному тесту
+             */
+            expected: number;
+            /**
+             * Correct
+             * @description Получено верных
+             */
+            correct: number;
+            /** Items */
+            items: number;
+            /**
+             * At
+             * Format: date-time
+             */
+            at: string;
+        };
         /** VerifyEmailIn */
         VerifyEmailIn: {
             /**
@@ -3969,6 +4095,8 @@ export interface operations {
              *     `grade_change_too_early` — Попытка на этот грейд пока недоступна — грейд меняется не чаще установленного срока
              *
              *     `attempt_in_progress` — Сначала закончите начатый тест или блок по теме
+             *
+             *     `verification_pending` — Сначала пройдите проверочный блок — результат прошлой попытки ждёт его
              */
             409: {
                 headers: {
@@ -4099,6 +4227,59 @@ export interface operations {
             };
             /** @description `topic_not_in_category` — Блок по теме — только по темам специализации вашей категории */
             422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    start_verification_api_candidate_path_verification_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PathOut"];
+                };
+            };
+            /** @description `not_authenticated` — Войдите, чтобы продолжить */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description `wrong_role` — Раздел доступен другой роли */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /**
+             * @description `verification_unavailable` — Проверочный блок сейчас не нужен
+             *
+             *     `verification_too_early` — Повторный проверочный блок пока недоступен
+             *
+             *     `attempt_in_progress` — Сначала закончите начатый тест или блок по теме
+             */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };

@@ -264,6 +264,10 @@ class ItemOut(BaseModel):
     topic_block: bool = Field(description="Задание блока по теме, а не теста")
     verification: bool = Field(description="Задание проверочного блока")
     deadline: datetime | None = Field(description="Срок проверочного блока по часам сервера")
+    focus_consent: bool = Field(
+        description="Кандидат согласился на счётчики событий в этой попытке: без согласия их не "
+        "собирают и не присылают"
+    )
     topic: CatalogRef
     prompt: str
     code: str | None = Field(description="Листинг, таблица или граф к условию — моноширинно")

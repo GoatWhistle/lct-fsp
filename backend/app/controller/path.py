@@ -174,6 +174,7 @@ def get_item(user: CurrentUser, paths: CandidatePathDep) -> ItemOut:
         topic_block=item.topic_block,
         verification=item.verification,
         deadline=item.deadline,
+        focus_consent=item.focus_consent,
         topic=CatalogRef.model_validate(item.topic),
         prompt=item.instance.prompt,
         code=item.instance.code,

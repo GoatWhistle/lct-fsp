@@ -444,6 +444,7 @@ class CandidatePath:
             topic_block=block,
             verification=verification,
             deadline=attempt.deadline,
+            focus_consent=attempt.focus_consent,
         )
 
     def answer(

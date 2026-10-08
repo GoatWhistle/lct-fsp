@@ -11,6 +11,8 @@ import { ProfileCard } from '../candidate/ProfileCard'
 import { SkillProfileView, TestResultView } from '../candidate/Results'
 import { SurveyStep } from '../candidate/SurveyStep'
 import { TestStep } from '../candidate/TestStep'
+import { VerificationCard } from '../candidate/Verification'
+import { FocusConsent } from '../candidate/protection'
 import { dateWords, levelWords } from '../candidate/words'
 import { useUnreadMessages } from '../invitation/unread'
 
@@ -20,6 +22,7 @@ const stepOf: Record<CandidatePath['stage'], number> = {
   grade: 1,
   test: 2,
   offer: 2,
+  verification: 2,
   no_category: 3,
   category: 3,
 }
@@ -39,6 +42,10 @@ export function CandidateCabinet() {
 
   if (error || failed) return <p className="error">{error ?? 'Не удалось загрузить справочники'}</p>
   if (!path || !catalog) return <p className="muted">Загрузка…</p>
+  // Проверочный блок идёт на время: только его задания.
+  if (path.verification?.progress) {
+    return <VerificationCard catalog={catalog} path={path} onChange={setPath} />
+  }
   // Блок по теме идёт при категории: только задания, профиль обновится по итогу.
   if (path.topic_block) {
     return (
@@ -124,6 +131,14 @@ function PathStep({ catalog, path, onChange }: StepProps) {
       return <TestStep onDone={done} />
     case 'offer':
       return <OfferStep catalog={catalog} path={path} onChange={done} />
+    case 'verification':
+      return (
+        <>
+          <VerificationCard catalog={catalog} path={path} onChange={done} />
+          <LowerGradeStep catalog={catalog} path={path} onChange={done} />
+          {path.result && <TestResultView catalog={catalog} result={path.result} />}
+        </>
+      )
     case 'no_category':
       return (
         <>
@@ -148,13 +163,16 @@ function PathStep({ catalog, path, onChange }: StepProps) {
 function OfferStep({ catalog, path, onChange }: StepProps) {
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
+  const [consent, setConsent] = useState(false)
   const offer = path.offer_grade ?? ''
   const tried = path.result?.grade ?? ''
 
   async function proceed() {
     setSubmitting(true)
     setError(null)
-    const { data, error } = await api.POST('/api/candidate/path/attempts', { body: { grade: offer } })
+    const { data, error } = await api.POST('/api/candidate/path/attempts', {
+      body: { grade: offer, focus_consent: consent },
+    })
     setSubmitting(false)
     if (data) onChange(data)
     else setError(errorMessage(error))
@@ -168,6 +186,7 @@ function OfferStep({ catalog, path, onChange }: StepProps) {
           Продолжите на {gradeName(catalog, offer)}: прошлые ответы засчитаются, добавим несколько
           заданий проще. Если хватит и их, сразу получите категорию.
         </p>
+        <FocusConsent checked={consent} onChange={setConsent} />
         {error && <p className="error">{error}</p>}
         <div className="actions">
           <button type="button" className="button" disabled={submitting} onClick={proceed}>
@@ -177,6 +196,44 @@ function OfferStep({ catalog, path, onChange }: StepProps) {
       </div>
       {path.result && <TestResultView catalog={catalog} result={path.result} />}
     </>
+  )
+}
+
+/**
+ * Результат ждёт проверочного блока, а пройти его сейчас не хочется или блок разошёлся с тестом:
+ * можно начать тест на грейд ниже с чистого листа — его результат снова проверяется по общему
+ * правилу.
+ */
+function LowerGradeStep({ catalog, path, onChange }: StepProps) {
+  const [error, setError] = useState<string | null>(null)
+  const [submitting, setSubmitting] = useState(false)
+  const pending = path.verification?.grade ?? ''
+  const index = catalog.grades.findIndex((g) => g.code === pending)
+  const lower = index > 0 ? catalog.grades[index - 1] : null
+  if (!lower) return null
+
+  async function start() {
+    if (!lower) return
+    setSubmitting(true)
+    setError(null)
+    const { data, error } = await api.POST('/api/candidate/path/attempts', {
+      body: { grade: lower.code, focus_consent: false },
+    })
+    setSubmitting(false)
+    if (data) onChange(data)
+    else setError(errorMessage(error))
+  }
+
+  return (
+    <div className="card form">
+      <p>Или начните тест на {lower.name} — новое измерение с чистого листа.</p>
+      {error && <p className="error">{error}</p>}
+      <div className="actions">
+        <button type="button" className="button button-secondary" disabled={submitting} onClick={start}>
+          Тест на {lower.name}
+        </button>
+      </div>
+    </div>
   )
 }
 
@@ -197,11 +254,13 @@ function CategoryCabinet({ catalog, path, onChange }: StepProps) {
               Уровень по тесту — <strong>{levelWords(path.result.overall.band)}</strong>.
             </p>
           )}
+          {category.verified_at && <p className="success">Уровень подтверждён проверочным блоком.</p>}
           {hint && (
             <p className="success">Похоже, вам по силам и {gradeName(catalog, hint)} — стоит попробовать грейд выше.</p>
           )}
         </div>
       )}
+      <VerificationCard catalog={catalog} path={path} onChange={onChange} />
       <GradeChangeCard catalog={catalog} path={path} onChange={onChange} />
       <Inbox onRead={reload} />
       <FeedbackCard onStartBlock={onChange} />

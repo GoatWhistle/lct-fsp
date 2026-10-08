@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { api, errorCode, errorMessage, type CandidatePath, type HistoryEntry } from '../api/client'
 import { gradeName, type Catalog } from './catalog'
+import { FocusConsent } from './protection'
 import { dateTimeWords, dateWords, levelWords, thetaWithError } from './words'
 
 type Props = { catalog: Catalog; path: CandidatePath; onChange: (path: CandidatePath) => void }
@@ -21,6 +22,7 @@ function failure(error: unknown): string {
 export function GradeChangeCard({ catalog, path, onChange }: Props) {
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
+  const [consent, setConsent] = useState(false)
   const up = path.grade_up
   const down = path.grade_down
 
@@ -37,7 +39,7 @@ export function GradeChangeCard({ catalog, path, onChange }: Props) {
 
   function goUp() {
     if (!up) return
-    act(() => api.POST('/api/candidate/path/attempts', { body: { grade: up.grade } }))
+    act(() => api.POST('/api/candidate/path/attempts', { body: { grade: up.grade, focus_consent: consent } }))
   }
 
   function goDown() {
@@ -61,6 +63,7 @@ export function GradeChangeCard({ catalog, path, onChange }: Props) {
           {up.available_at && (
             <p className="hint">Попытка вверх станет доступна {dateTimeWords(up.available_at)}.</p>
           )}
+          <FocusConsent checked={consent} onChange={setConsent} />
         </>
       )}
       {error && <p className="error">{error}</p>}
@@ -100,6 +103,8 @@ function outcomeWords(catalog: Catalog, entry: HistoryEntry): string {
       return 'Категория не присвоена'
     case 'not_passed':
       return 'Не подтвердился — категория прежняя'
+    case 'verification':
+      return `Ждёт проверочного блока на ${grade(entry.outcome_grade)}`
     default:
       return ''
   }

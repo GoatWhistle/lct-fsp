@@ -14,8 +14,11 @@ stop=$(<"$root/.claude/git-hooks/stopwords")
 files_re='CLAUDE\.md|AGENTS\.md|PROMPT-|TASK-[a-z<]|\.claude/|\.agents/'
 # Внутренняя кухня работы с агентами: гайды-промпты и скилы.
 trace_re='task-guide-prompt|[Сс]килл?(ы|а|ов|ам|ами|ах|у|ом|е)?\b'
-# В содержимом вендоры LLM (OpenAI, Anthropic…) — законная часть продукта; ищем только агентов.
-agent_re='claude|codex|copilot|cursor[- ]?(ai|agent)|co-authored-by'
+# В содержимом вендоры и модели LLM (OpenAI, Anthropic, Claude Sonnet…) — законная часть
+# продукта и стенда; ищем только агентов.
+agent_re='claude[- ]?code|claude\.md|codex|copilot|cursor[- ]?(ai|agent)|co-authored-by'
+# Адаптеры внешних API для демо на защите в сдачу не идут: в репо — только локальная модель.
+demo_dir='backend/app/adapter/demo/'
 
 [[ ! -e $out ]] || { echo "уже существует: $out" >&2; exit 1; }
 
@@ -82,7 +85,7 @@ RULES
 
 echo "== переписываю историю"
 uvx git-filter-repo --force --quiet --invert-paths --replace-text "$replace" \
-  --path .claude/ --path CLAUDE.md --path AGENTS.md --path .agents/ \
+  --path .claude/ --path CLAUDE.md --path AGENTS.md --path .agents/ --path "$demo_dir" \
   --path-glob '*PROMPT-*.md' --path-glob '*TASK-*.md' \
   --message-callback "$callback"
 
@@ -105,6 +108,9 @@ if git grep -l 'scrub:start' $(git rev-list --all) -- . | grep .; then
 fi
 if git rev-list --all | xargs -n1 git ls-tree -r --name-only | sort -u | grep -E "$files_re"; then
   echo "!! файлы агентов в истории" >&2; bad=1
+fi
+if git rev-list --all | xargs -n1 git ls-tree -r --name-only | sort -u | grep -F "$demo_dir"; then
+  echo "!! демо-адаптеры в истории" >&2; bad=1
 fi
 (( bad == 0 )) || { echo "чистка не прошла: $out" >&2; exit 1; }
 

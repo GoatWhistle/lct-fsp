@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Добавленные строки не должны упоминать ИИ-агентов. Не проверяем: файлы, которые вырезаются
-# из истории перед сдачей (scrub-history.sh), их строки в .gitignore, блоки между
-# `scrub:start` / `scrub:end` (тоже вырезаются) и чужие материалы задачи.
+# из истории перед сдачей (scrub-history.sh) — файлы агентов и демо-адаптеры, — их строки
+# в .gitignore, блоки между `scrub:start` / `scrub:end` (тоже вырезаются) и чужие материалы задачи.
 set -euo pipefail
 
 here=$(dirname "$0")
@@ -11,7 +11,7 @@ stop=$(<"$here/stopwords")
 added=$(git diff --cached -U0 --no-color --diff-filter=ACMR -- . \
     ':(exclude).claude/**' ':(exclude)CLAUDE.md' ':(exclude)AGENTS.md' \
     ':(exclude,glob)**/PROMPT-*' ':(exclude,glob)**/TASK-*' ':(exclude).agents/**' \
-    ':(exclude).gitignore' \
+    ':(exclude).gitignore' ':(exclude)backend/app/adapter/demo/**' \
   | awk '/^\+\+\+ /{f=substr($0,7); next}
          /^@@/{split($3,a,","); n=substr(a[1],2)+0; next}
          /^\+/{print f"\t"n"\t"substr($0,2); n++}')

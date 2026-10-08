@@ -6,6 +6,7 @@ import json
 import socket
 import threading
 from collections.abc import Iterator
+from datetime import date
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any
 from urllib.parse import urlparse
@@ -190,3 +191,15 @@ def test_any_model_failure_answers_by_rules() -> None:
     )
 
     assert understanding.need(TEXT, CATALOG) == RulesTextUnderstanding(SYNONYMS).need(TEXT, CATALOG)
+
+
+def test_resume_is_parsed_by_rules_without_asking_the_model(llama: FakeLlama) -> None:
+    """Резюме модель ещё не разбирает (lct-91): обёртка отвечает правилами и в модель не
+    ходит."""
+    understanding = text_understanding(Settings(text_understanding="llama", llama_url=llama.url))
+    resume = "Иванова Мария Сергеевна\nmaria@example.ru\nPython, pytest"
+
+    draft = understanding.resume(resume, CATALOG, date(2026, 10, 8))
+
+    assert draft == RulesTextUnderstanding(SYNONYMS).resume(resume, CATALOG, date(2026, 10, 8))
+    assert llama.bodies == []

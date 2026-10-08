@@ -3,6 +3,7 @@
 после правки, недоверие к адаптеру и права."""
 
 from collections.abc import Callable, Iterator
+from datetime import date
 from typing import Any
 
 import pytest
@@ -15,6 +16,7 @@ from app.adapter.text_rules import RulesTextUnderstanding, load_synonyms
 from app.domain.account import Role
 from app.domain.catalog import Catalog
 from app.domain.need_draft import DraftField, NeedDraft, OutOfCatalog
+from app.domain.resume_draft import ResumeDraft
 from app.domain.work import WorkFormat
 from main import create_app
 from settings import SYNONYMS_FILE, Mechanics, Settings
@@ -37,6 +39,9 @@ class Understanding:
 
     def need(self, text: str, catalog: Catalog) -> NeedDraft | OutOfCatalog:
         return self.answer if self.answer is not None else self.rules.need(text, catalog)
+
+    def resume(self, text: str, catalog: Catalog, today: date) -> ResumeDraft:
+        return self.rules.resume(text, catalog, today)
 
 
 @pytest.fixture

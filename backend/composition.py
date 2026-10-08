@@ -19,6 +19,7 @@ from app.adapter.calibration import EloCalibration
 from app.adapter.text_model import Completion, ModelTextUnderstanding, WithFallback
 from app.adapter.text_rules import RulesTextUnderstanding, Synonyms
 from app.domain.bank.runner import CodeRunner
+from app.domain.resume_draft import GradeHintRule
 from app.usecase.account import Accounts, VerificationLinks
 from app.usecase.attempt import CandidatePath
 from app.usecase.calibration import AnswerCalibration
@@ -52,6 +53,7 @@ from app.usecase.interface import (
     PasswordHasher,
     RegularTaskReader,
     RegularTaskRepository,
+    ResumeText,
     SeedSource,
     SelectionRepository,
     SessionTokens,
@@ -63,6 +65,7 @@ from app.usecase.invitation import Invitations
 from app.usecase.need import Needs
 from app.usecase.need_draft import NeedDrafts
 from app.usecase.regular_task import RegularTasks
+from app.usecase.resume_draft import ResumeDrafts
 from app.usecase.selection import Selections
 from app.usecase.skill_profile import ProfileFreshness
 from settings import Mechanics
@@ -253,6 +256,7 @@ class PlatformUsecases[U: UnitOfWork]:
     invitations: Callable[[U], Invitations]
     conversations: Callable[[U], Conversations]
     feedback: Callable[[U], CandidateFeedback]
+    resume_drafts: Callable[[U], ResumeDrafts]
 
 
 def build_platform_usecases[U: UnitOfWork](
@@ -267,6 +271,9 @@ def build_platform_usecases[U: UnitOfWork](
     skill_model: SkillModel,
     fsp_id: FspIdProvider,
     fsp_registry: FspRegistry,
+    resume_text: ResumeText,
+    text_understanding: TextUnderstanding,
+    grade_hints: GradeHintRule,
 ) -> PlatformUsecases[U]:
     def accounts(uow: U) -> Accounts:
         return Accounts(
@@ -357,6 +364,19 @@ def build_platform_usecases[U: UnitOfWork](
             mechanics,
         )
 
+    def resume_drafts(uow: U) -> ResumeDrafts:
+        return ResumeDrafts(
+            uow,
+            repositories.catalog(uow),
+            repositories.candidates(uow),
+            resume_text,
+            text_understanding,
+            clock,
+            rule=grade_hints,
+            max_bytes=mechanics.resume_max_bytes,
+            confident=mechanics.resume_draft_confident,
+        )
+
     return PlatformUsecases(
         accounts,
         companies,
@@ -367,6 +387,7 @@ def build_platform_usecases[U: UnitOfWork](
         invitations,
         conversations,
         feedback,
+        resume_drafts,
     )
 
 

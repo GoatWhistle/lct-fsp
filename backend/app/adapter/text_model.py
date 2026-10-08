@@ -18,10 +18,12 @@ from collections.abc import Mapping, Sequence
 from concurrent.futures import ThreadPoolExecutor
 from concurrent.futures import TimeoutError as FutureTimeout
 from dataclasses import dataclass
+from datetime import date
 from typing import Any, Protocol
 
 from app.domain.catalog import Catalog
 from app.domain.need_draft import NeedDraft, OutOfCatalog
+from app.domain.resume_draft import ResumeDraft
 from app.domain.work import WorkFormat
 from app.usecase.interface import TextUnderstanding
 
@@ -179,6 +181,11 @@ class ModelTextUnderstanding:
         request = need_request(text, catalog, self._cities, self._experience)
         return read_answer(self._complete(request))
 
+    def resume(self, text: str, catalog: Catalog, today: date) -> ResumeDraft:
+        """Резюме модель пока не разбирает (lct-91): сбой — и `WithFallback` отвечает
+        правилами."""
+        raise ModelError("разбор резюме моделью ещё не подключён")
+
 
 class WithFallback:
     """Модель, а когда она не ответила за `timeout` секунд или ответила сбоем — любым, не только
@@ -203,3 +210,8 @@ class WithFallback:
         except Exception as e:
             log.warning("модель не ответила: %r — разбор правилами", e)
         return self._fallback.need(text, catalog)
+
+    def resume(self, text: str, catalog: Catalog, today: date) -> ResumeDraft:
+        """Резюме — сразу правилами, без похода в модель: её операции разбора резюме ещё нет
+        (lct-91), и ждать отказа незачем."""
+        return self._fallback.resume(text, catalog, today)

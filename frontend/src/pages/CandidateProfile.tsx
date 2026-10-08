@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from 'react'
+import { useEffect, useState, type ChangeEvent, type FormEvent, type ReactNode } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router'
 import {
   api,
@@ -7,6 +7,8 @@ import {
   type Industry,
   type Profile,
   type ProfileInput,
+  type ResumeDraft,
+  type ResumeField,
   type Technology,
   type WorkFormat,
 } from '../api/client'
@@ -92,6 +94,23 @@ function inputOf(draft: Draft): ProfileInput {
   }
 }
 
+/** Что из черновика резюме ложится в форму: распознанное заменяет поле, остальное остаётся как было. */
+function withResume(draft: Draft, parsed: ResumeDraft): Draft {
+  return {
+    ...draft,
+    full_name: parsed.full_name ?? draft.full_name,
+    contact_email: parsed.contact_email ?? draft.contact_email,
+    contact_phone: parsed.contact_phone ?? draft.contact_phone,
+    telegram: parsed.telegram ? `@${parsed.telegram}` : draft.telegram,
+    stack: parsed.stack.length ? parsed.stack.map((t) => t.code) : draft.stack,
+    job_roles: parsed.job_roles.length ? parsed.job_roles : draft.job_roles,
+    experience_years: parsed.experience_years?.toString() ?? draft.experience_years,
+    soft_skills: parsed.soft_skills.length ? parsed.soft_skills : draft.soft_skills,
+  }
+}
+
+type ResumeMarks = { filled: ResumeField[]; uncertain: ResumeField[]; hint: ResumeDraft['grade_hint'] }
+
 /** Профиль кандидата: кто он, контакты, стек и ожидания. Категорию он не меняет — её определяет только тест. */
 export function CandidateProfile() {
   const email = useAuth().user?.email ?? ''
@@ -102,6 +121,9 @@ export function CandidateProfile() {
   const [draft, setDraft] = useState<Draft | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
+  const [resume, setResume] = useState<ResumeMarks | null>(null)
+  const [resumeError, setResumeError] = useState<string | null>(null)
+  const [parsing, setParsing] = useState(false)
 
   useEffect(() => {
     Promise.all([
@@ -123,6 +145,47 @@ export function CandidateProfile() {
 
   function change(changes: Partial<Draft>) {
     setDraft((current) => (current ? { ...current, ...changes } : current))
+    // Поле, которое кандидат поправил, больше не подсвечивается.
+    setResume((current) =>
+      current
+        ? { ...current, uncertain: current.uncertain.filter((f) => !(f in changes)) }
+        : current,
+    )
+  }
+
+  async function parseResume(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0]
+    event.target.value = ''
+    if (!file) return
+    setParsing(true)
+    setResumeError(null)
+    const { data, error } = await api.POST('/api/candidate/profile/resume', {
+      // Тело — сам файл как есть: его отдаёт bodySerializer.
+      body: '',
+      bodySerializer: () => file,
+      headers: { 'Content-Type': 'application/pdf' },
+    })
+    setParsing(false)
+    if (!data) {
+      setResumeError(errorMessage(error))
+      return
+    }
+    setDraft((current) => (current ? withResume(current, data) : current))
+    setResume({
+      filled: Object.keys(data.confidence) as ResumeField[],
+      uncertain: data.uncertain,
+      hint: data.grade_hint,
+    })
+  }
+
+  function mark(field: ResumeField): ReactNode {
+    return resume?.uncertain.includes(field) ? (
+      <span className="draft-mark">Проверьте: система не уверена</span>
+    ) : null
+  }
+
+  function flagClass(field: ResumeField, base: string): string {
+    return resume?.uncertain.includes(field) ? `${base} flagged` : base
   }
 
   function toggleFormat(format: WorkFormat) {
@@ -184,10 +247,43 @@ export function CandidateProfile() {
         notice={params.get('fsp') === 'linked' ? 'ФСП ID привязан, достижения добавлены в профиль' : null}
         returnError={fspReturnError(params.get('fsp_error'))}
       />
+      <div className="card form">
+        <h2>Заполнить по резюме</h2>
+        <label className="field">
+          PDF резюме
+          <input type="file" accept="application/pdf,.pdf" disabled={parsing} onChange={parseResume} />
+          <span className="hint">
+            PDF с текстом до 5 МБ и 10 страниц. Разбор идёт на сервере платформы, файл никуда не
+            отправляется и не сохраняется. Текст, которого не видно на странице, система не читает.
+          </span>
+        </label>
+        {parsing && <p className="muted">Разбираем…</p>}
+        {resumeError && <p className="error">{resumeError}</p>}
+        {resume && (
+          <div className="stack">
+            <p>
+              <strong>Система поняла так.</strong>{' '}
+              {resume.filled.length
+                ? 'Распознанное подставлено в форму ниже, выделенное проверьте. Ничего не сохранено, пока вы не нажмёте «Сохранить».'
+                : 'В резюме не нашлось полей профиля — заполните форму вручную.'}
+            </p>
+            <p className="hint">
+              Резюме — ваше самоописание: в подборке весит только стек и немного. Категорию определяет
+              только тест.
+            </p>
+            {resume.hint && (
+              <p className="hint">
+                По стажу и ролям подходит грейд {resume.hint.grade.name}. Это подсказка для шага выбора
+                грейда — выбираете вы, проверяет тест.
+              </p>
+            )}
+          </div>
+        )}
+      </div>
       <form onSubmit={submit} className="card form">
         <h2>О себе</h2>
-        <label className="field">
-          ФИО
+        <label className={flagClass('full_name', 'field')}>
+          <span>ФИО {mark('full_name')}</span>
           <input
             required
             maxLength={200}
@@ -197,8 +293,8 @@ export function CandidateProfile() {
           />
           <span className="hint">{DISCLOSED}</span>
         </label>
-        <div className="field">
-          Роли
+        <div className={flagClass('job_roles', 'field')}>
+          <span>Роли {mark('job_roles')}</span>
           <TagInput
             label="Добавить роль"
             tags={draft.job_roles}
@@ -209,8 +305,8 @@ export function CandidateProfile() {
           />
           <span className="hint">Кем работали или хотите работать. {DISCLOSED}</span>
         </div>
-        <label className="field narrow-field">
-          Стаж в ИТ, полных лет
+        <label className={flagClass('experience_years', 'field narrow-field')}>
+          <span>Стаж в ИТ, полных лет {mark('experience_years')}</span>
           <input
             type="number"
             required
@@ -224,8 +320,8 @@ export function CandidateProfile() {
           <span className="hint">0 — меньше года</span>
         </label>
         {visibility('experience_years')}
-        <div className="field">
-          Софт-скиллы
+        <div className={flagClass('soft_skills', 'field')}>
+          <span>Софт-скиллы {mark('soft_skills')}</span>
           <TagInput
             label="Добавить софт-скилл"
             tags={draft.soft_skills}
@@ -255,8 +351,8 @@ export function CandidateProfile() {
           Скрытое не влияет на подбор и всегда есть в вашем PDF-профиле.
         </p>
         <div className="field-row">
-          <label className="field">
-            Email для связи
+          <label className={flagClass('contact_email', 'field')}>
+            <span>Email для связи {mark('contact_email')}</span>
             <input
               type="email"
               required
@@ -265,8 +361,8 @@ export function CandidateProfile() {
               onChange={(e) => change({ contact_email: e.target.value })}
             />
           </label>
-          <label className="field">
-            Телефон
+          <label className={flagClass('contact_phone', 'field')}>
+            <span>Телефон {mark('contact_phone')}</span>
             <input
               type="tel"
               maxLength={32}
@@ -276,8 +372,8 @@ export function CandidateProfile() {
             />
           </label>
         </div>
-        <label className="field">
-          Telegram
+        <label className={flagClass('telegram', 'field')}>
+          <span>Telegram {mark('telegram')}</span>
           <input
             maxLength={64}
             placeholder="@username"
@@ -289,8 +385,9 @@ export function CandidateProfile() {
         </label>
 
         <h2>Стек</h2>
-        <fieldset className="plain">
+        <fieldset className={flagClass('stack', 'plain')}>
           <legend className="visually-hidden">Технологии стека</legend>
+          {mark('stack')}
           <TechnologyPicker
             technologies={technologies}
             selected={draft.stack}

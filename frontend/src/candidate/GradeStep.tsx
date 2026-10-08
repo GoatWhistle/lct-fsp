@@ -1,5 +1,5 @@
-import { useState, type FormEvent } from 'react'
-import { api, errorMessage, type CandidatePath } from '../api/client'
+import { useEffect, useState, type FormEvent } from 'react'
+import { api, errorMessage, type CandidatePath, type GradeHint } from '../api/client'
 import { type Catalog } from './catalog'
 
 const hints: Record<string, string> = {
@@ -21,7 +21,23 @@ export function GradeStep({ catalog, survey, onDone, onChangeSurvey }: Props) {
   const [grade, setGrade] = useState(catalog.grades[1]?.code ?? catalog.grades[0]?.code ?? '')
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
+  const [hint, setHint] = useState<GradeHint | null>(null)
   const chosen = catalog.grades.find((g) => g.code === grade)
+
+  // Подсказка только показывается: выбранный грейд она не меняет.
+  // Без подсказки шаг работает как раньше: ошибка запроса её просто не показывает.
+  useEffect(() => {
+    let stale = false
+    api
+      .GET('/api/candidate/profile/grade-hint')
+      .then(({ data }) => {
+        if (!stale) setHint(data ?? null)
+      })
+      .catch(() => {})
+    return () => {
+      stale = true
+    }
+  }, [])
 
   async function submit(event: FormEvent) {
     event.preventDefault()
@@ -42,6 +58,14 @@ export function GradeStep({ catalog, survey, onDone, onChangeSurvey }: Props) {
           Изменить
         </button>
       </p>
+      {hint && (
+        <p className="hint">
+          Подсказка по профилю: {hint.grade.name}
+          {hint.by_experience && ` — по стажу ${hint.by_experience.name}`}
+          {hint.by_roles && `${hint.by_experience ? ',' : ' —'} по ролям ${hint.by_roles.name}`}. Это
+          только подсказка: грейд выбираете вы, категорию определяет тест.
+        </p>
+      )}
       <fieldset className="choice-grid">
         <legend>На какой грейд вы претендуете?</legend>
         {catalog.grades.map((g) => (
@@ -55,6 +79,7 @@ export function GradeStep({ catalog, survey, onDone, onChangeSurvey }: Props) {
             />
             <strong>{g.name}</strong>
             <span className="muted">{hints[g.code]}</span>
+            {hint?.grade.code === g.code && <span className="draft-mark">подсказка</span>}
           </label>
         ))}
       </fieldset>

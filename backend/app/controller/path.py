@@ -1,5 +1,5 @@
-"""Путь кандидата к категории: опрос → грейд → тест → категория. Путь обязательный — пока
-категории нет, кабинет кандидата показывает его шаг.
+"""Путь кандидата к категории: опрос → грейд → тест → категория, затем смена грейда. Путь
+обязательный — пока категории нет, кабинет кандидата показывает его шаг.
 
 Правил здесь нет: контроллер вызывает сценарии `app.usecase.attempt` и переводит доменные
 представления в схемы API. После ответа он сразу запускает калибровку
@@ -25,6 +25,8 @@ from app.controller.path_schemas import (
     AttemptProgressOut,
     CategoryOut,
     GradeProbabilityOut,
+    GradeUpOut,
+    HistoryEntryOut,
     ItemOut,
     OptionOut,
     PathOut,
@@ -37,7 +39,7 @@ from app.controller.path_schemas import (
 from app.controller.schemas import CatalogRef
 from app.domain import errors
 from app.domain.account import Role
-from app.domain.attempt import PathView, TestResult
+from app.domain.attempt import HistoryEntry, PathView, TestResult
 from settings import Mechanics
 
 log = logging.getLogger(__name__)
@@ -78,14 +80,33 @@ def submit_survey(
     "/attempts",
     summary="Начать тест на грейд",
     description="На шаге `grade` — тест на заявленный грейд. На шаге `offer` — дотест на "
-    "предложенный грейд: он продолжает оценку прошлых ответов.",
-    responses=error_responses(errors.StepUnavailable, errors.GradeNotOffered, errors.UnknownGrade),
+    "предложенный грейд: он продолжает оценку прошлых ответов. На шаге `category` — попытка на "
+    "следующий грейд с чистого листа: категория меняется, только если грейд подтверждён. "
+    "Раньше срока по правилу ожидания попытка не начинается — ошибка несёт `available_at`.",
+    responses=error_responses(
+        errors.StepUnavailable,
+        errors.GradeNotOffered,
+        errors.GradeNotNext,
+        errors.GradeChangeTooEarly,
+        errors.UnknownGrade,
+    ),
 )
 def start_attempt(
     body: AttemptIn, user: CurrentUser, paths: CandidatePathDep, mechanics: MechanicsDep
 ) -> PathOut:
     view = paths.start_attempt(user.id, grade=body.grade)
     return _path_out(view, mechanics)
+
+
+@router.post(
+    "/step-down",
+    summary="Перейти на грейд ниже",
+    description="Без теста и без ожидания: уверенность для младшего грейда уже набрана той же "
+    "оценкой. Это смена категории — обратно вверх только тестом, после срока ожидания.",
+    responses=error_responses(errors.StepUnavailable, errors.NoLowerGrade),
+)
+def step_down(user: CurrentUser, paths: CandidatePathDep, mechanics: MechanicsDep) -> PathOut:
+    return _path_out(paths.step_down(user.id), mechanics)
 
 
 @router.get(
@@ -150,6 +171,25 @@ def _path_out(view: PathView, mechanics: Mechanics) -> PathOut:
         category=CategoryOut.model_validate(view.category) if view.category else None,
         result=_result_out(view.result) if view.result else None,
         profile=skill_profile_view(view.profile) if view.profile else None,
+        grade_up=(
+            GradeUpOut(grade=view.grade_up.grade, available_at=view.grade_up.available_at)
+            if view.grade_up
+            else None
+        ),
+        grade_down=view.grade_down,
+        history=[_history_out(entry) for entry in view.history],
+    )
+
+
+def _history_out(entry: HistoryEntry) -> HistoryEntryOut:
+    return HistoryEntryOut(
+        at=entry.at,
+        event=entry.event,
+        grade=entry.grade,
+        purpose=entry.purpose,
+        overall=level_view(entry.overall) if entry.overall else None,
+        outcome=entry.outcome,
+        outcome_grade=entry.outcome_grade,
     )
 
 

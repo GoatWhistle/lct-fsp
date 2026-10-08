@@ -264,9 +264,29 @@ export interface paths {
         put?: never;
         /**
          * Начать тест на грейд
-         * @description На шаге `grade` — тест на заявленный грейд. На шаге `offer` — дотест на предложенный грейд: он продолжает оценку прошлых ответов.
+         * @description На шаге `grade` — тест на заявленный грейд. На шаге `offer` — дотест на предложенный грейд: он продолжает оценку прошлых ответов. На шаге `category` — попытка на следующий грейд с чистого листа: категория меняется, только если грейд подтверждён. Раньше срока по правилу ожидания попытка не начинается — ошибка несёт `available_at`.
          */
         post: operations["start_attempt_api_candidate_path_attempts_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/candidate/path/step-down": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Перейти на грейд ниже
+         * @description Без теста и без ожидания: уверенность для младшего грейда уже набрана той же оценкой. Это смена категории — обратно вверх только тестом, после срока ожидания.
+         */
+        post: operations["step_down_api_candidate_path_step_down_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -789,10 +809,16 @@ export interface components {
         AttemptIn: {
             /**
              * Grade
-             * @description Код грейда: заявленный или предложенный для дотеста
+             * @description Код грейда: заявленный, предложенный для дотеста или, при категории, следующий выше
              */
             grade: string;
         };
+        /**
+         * AttemptOutcome
+         * @description Чем закончилась попытка (mechanics.md, §4).
+         * @enum {string}
+         */
+        AttemptOutcome: "assigned" | "offered" | "no_category" | "not_passed";
         /** AttemptProgressOut */
         AttemptProgressOut: {
             /** Grade */
@@ -805,6 +831,12 @@ export interface components {
              */
             max_items: number;
         };
+        /**
+         * AttemptPurpose
+         * @description Зачем попытка (mechanics.md, §4).
+         * @enum {string}
+         */
+        AttemptPurpose: "determination" | "grade_up";
         /** CabinetOut */
         CabinetOut: {
             user: components["schemas"]["UserOut"];
@@ -947,6 +979,11 @@ export interface components {
              * @example Неверный email или пароль
              */
             message: string;
+            /**
+             * Available At
+             * @description Когда действие станет доступно — у ошибок правила ожидания
+             */
+            available_at?: string | null;
         };
         /**
          * FspAchievementOut
@@ -1103,11 +1140,57 @@ export interface components {
             /** @description Грейд категории; `null` — категории нет */
             confirmed: components["schemas"]["CatalogRef"] | null;
         };
+        /** GradeUpOut */
+        GradeUpOut: {
+            /**
+             * Grade
+             * @description Грейд попытки вверх — следующий после грейда категории
+             */
+            grade: string;
+            /**
+             * Available At
+             * @description С какого момента можно начать попытку; `null` — можно сейчас
+             */
+            available_at: string | null;
+        };
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
         };
+        /**
+         * HistoryEntryOut
+         * @description Строка истории: остановленная попытка (`attempt`) или переход вниз (`step_down`).
+         */
+        HistoryEntryOut: {
+            /**
+             * At
+             * Format: date-time
+             */
+            at: string;
+            event: components["schemas"]["HistoryEvent"];
+            /**
+             * Grade
+             * @description У попытки — её грейд, у перехода — грейд после него
+             */
+            grade: string;
+            /** @description `determination` — первичное определение с каскадом, `grade_up` — попытка вверх; у перехода — `null` */
+            purpose: components["schemas"]["AttemptPurpose"] | null;
+            /** @description Уровень по оценке попытки */
+            overall: components["schemas"]["LevelOut"] | null;
+            /** @description `assigned` — грейд присвоен; `offered` — предложен дотест; `no_category` — категории нет; `not_passed` — попытка вверх не прошла, категория прежняя */
+            outcome: components["schemas"]["AttemptOutcome"] | null;
+            /**
+             * Outcome Grade
+             * @description Присвоенный или предложенный грейд
+             */
+            outcome_grade: string | null;
+        };
+        /**
+         * HistoryEvent
+         * @enum {string}
+         */
+        HistoryEvent: "attempt" | "step_down";
         /** IndustryOut */
         IndustryOut: {
             /** Code */
@@ -1535,6 +1618,18 @@ export interface components {
             /** @description На шагах `offer`, `category`, `no_category` */
             result: components["schemas"]["TestResultOut"] | null;
             profile: components["schemas"]["SkillProfileOut"] | null;
+            /** @description Попытка на грейд выше — на шаге `category`, если грейд не старший */
+            grade_up: components["schemas"]["GradeUpOut"] | null;
+            /**
+             * Grade Down
+             * @description Грейд для перехода вниз без теста — на шаге `category`, если грейд не младший
+             */
+            grade_down: string | null;
+            /**
+             * History
+             * @description Попытки и переходы по времени — на шаге `category`
+             */
+            history: components["schemas"]["HistoryEntryOut"][];
         };
         /** ProfileIn */
         ProfileIn: {
@@ -2852,6 +2947,10 @@ export interface operations {
              * @description `path_step_unavailable` — Этот шаг сейчас недоступен — обновите страницу
              *
              *     `grade_not_offered` — Продолжить можно только на предложенном грейде
+             *
+             *     `grade_not_next` — Попытка вверх — только на следующий грейд после вашего
+             *
+             *     `grade_change_too_early` — Попытка на этот грейд пока недоступна — грейд меняется не чаще установленного срока
              */
             409: {
                 headers: {
@@ -2863,6 +2962,57 @@ export interface operations {
             };
             /** @description `unknown_grade` — Такого грейда нет в справочнике */
             422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    step_down_api_candidate_path_step_down_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PathOut"];
+                };
+            };
+            /** @description `not_authenticated` — Войдите, чтобы продолжить */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description `wrong_role` — Раздел доступен другой роли */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /**
+             * @description `path_step_unavailable` — Этот шаг сейчас недоступен — обновите страницу
+             *
+             *     `no_lower_grade` — Ниже вашего грейда грейдов нет
+             */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };

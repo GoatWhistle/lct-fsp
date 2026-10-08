@@ -66,7 +66,9 @@ BARE_SNAPSHOT_JSON = (
 
 EXPLANATION = Explanation(
     topics=(
-        TopicExplanation("qa.api", 1.0, 0.4, 0.9, 0.6, Verdict.confidently_above, False, True),
+        TopicExplanation(
+            "qa.api", 1.0, 0.4, 0.9, 0.6, Verdict.confidently_above, False, fsp_confirmed=True
+        ),
     ),
     stack=StackExplanation(("pytest",), 1.0, 0.15),
 )

@@ -1,4 +1,5 @@
-"""Сценарии подборки (mechanics.md, §12–13): построить по потребности, открыть, список.
+"""Сценарии подборки (mechanics.md, §12–13): построить по потребности или черновику, открыть,
+список.
 
 Перестроение — тот же сценарий «построить» по потребности подборки: каждый вызов — новая
 подборка. Время, соль ничьих и P(принятия) приходят через порты, фиксирует единица работы.
@@ -8,7 +9,9 @@ import math
 import uuid
 from datetime import timedelta
 
+from app.domain.need import NeedForm, need_content
 from app.domain.selection import (
+    NeedContent,
     Page,
     SelectionDraft,
     SelectionRules,
@@ -23,6 +26,7 @@ from app.domain.skill import Normal
 from app.usecase.interface import (
     AcceptanceModel,
     CandidatePool,
+    CatalogRepository,
     Clock,
     NeedReader,
     SeedSource,
@@ -30,6 +34,7 @@ from app.usecase.interface import (
     SkillModel,
     UnitOfWork,
 )
+from app.usecase.need import terms_of
 from app.usecase.skill_profile import ProfileFreshness
 from settings import Mechanics
 
@@ -51,6 +56,7 @@ class Selections:
         self,
         uow: UnitOfWork,
         needs: NeedReader,
+        catalog: CatalogRepository,
         pool: CandidatePool,
         selections: SelectionRepository,
         acceptance: AcceptanceModel,
@@ -61,6 +67,7 @@ class Selections:
     ) -> None:
         self._uow = uow
         self._needs = needs
+        self._catalog = catalog
         self._pool = pool
         self._selections = selections
         self._acceptance = acceptance
@@ -73,47 +80,58 @@ class Selections:
     def build(self, user_id: uuid.UUID, need_id: uuid.UUID, *, limit: int) -> Page:
         """Строит подборку по текущей потребности и профилям навыков на «сейчас» и сохраняет её;
         отдаёт первую страницу. Тот же seed на тех же входах даёт ту же выдачу."""
-        mechanics, rules = self._mechanics, self._rules
         with self._uow:
-            now = self._clock.now()
-            need = self._needs.get(user_id, need_id)
-            snapshot = need_snapshot(
-                need,
-                requirement=mechanics.grade_thresholds[need.grade.code],
-                importance_weights=mechanics.need_importance_weights,
-                key_min_technologies=mechanics.need_key_topic_min_technologies,
+            return self._build(user_id, need_id, self._needs.get(user_id, need_id), limit)
+
+    def build_draft(self, user_id: uuid.UUID, form: NeedForm, *, limit: int) -> Page:
+        """Подборка по черновику потребности до сохранения — форма после правки человеком. Та же
+        выдача, что у сохранённой потребности с теми же полями; подборка не ссылается на
+        потребность. Правка черновика и новый вызов — новая подборка, прежняя остаётся."""
+        with self._uow:
+            need = need_content(terms_of(form, self._catalog), self._clock.now())
+            return self._build(user_id, None, need, limit)
+
+    def _build(
+        self, user_id: uuid.UUID, need_id: uuid.UUID | None, need: NeedContent, limit: int
+    ) -> Page:
+        mechanics, rules = self._mechanics, self._rules
+        snapshot = need_snapshot(
+            need,
+            requirement=mechanics.grade_thresholds[need.grade.code],
+            importance_weights=mechanics.need_importance_weights,
+            key_min_technologies=mechanics.need_key_topic_min_technologies,
+        )
+        now = self._clock.now()
+        pool = [
+            self._freshness.pool(member, now)
+            for member in self._pool.in_reach(
+                need.specialization.code,
+                need.grade.rank,
+                rules.nearby_grade_distance,
+                [t.code for t in need.stack],
             )
-            pool = [
-                self._freshness.pool(member, now)
-                for member in self._pool.in_reach(
-                    need.specialization.code,
-                    need.grade.rank,
-                    rules.nearby_grade_distance,
-                    [t.code for t in need.stack],
-                )
-            ]
-            scored = score(snapshot, need.grade.rank, pool, rules)
-            showcased = showcase(
-                snapshot,
-                self._pool.unconfirmed(
-                    need.specialization.code, need.grade.code, [t.code for t in need.stack]
-                ),
-            )
-            acceptance = self._acceptance.predict(
-                [acceptance_features(snapshot, item) for item in scored]
-            )
-            now = self._clock.now()
-            entries = arrange(
-                scored,
-                acceptance,
-                showcased=showcased,
-                salt=self._seeds.seed(),
-                now=now,
-                rules=rules,
-            )
-            draft = SelectionDraft(user_id, need.id, snapshot, rules.stack_cap, now)
-            selection = self._selections.add(draft, entries)
-            return self._selections.page(user_id, selection.id, offset=0, limit=limit)
+        ]
+        scored = score(snapshot, need.grade.rank, pool, rules)
+        showcased = showcase(
+            snapshot,
+            self._pool.unconfirmed(
+                need.specialization.code, need.grade.code, [t.code for t in need.stack]
+            ),
+        )
+        acceptance = self._acceptance.predict(
+            [acceptance_features(snapshot, item) for item in scored]
+        )
+        entries = arrange(
+            scored,
+            acceptance,
+            showcased=showcased,
+            salt=self._seeds.seed(),
+            now=now,
+            rules=rules,
+        )
+        draft = SelectionDraft(user_id, need_id, snapshot, rules.stack_cap, now)
+        selection = self._selections.add(draft, entries)
+        return self._selections.page(user_id, selection.id, offset=0, limit=limit)
 
     def open(self, user_id: uuid.UUID, selection_id: uuid.UUID, *, offset: int, limit: int) -> Page:
         """Сохранённая выдача — та же при каждом открытии; чужая подборка — `SelectionNotFound`."""

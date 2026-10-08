@@ -31,6 +31,7 @@ from app.usecase.interface import (
 )
 from app.usecase.invitation import Invitations
 from app.usecase.need import Needs
+from app.usecase.need_draft import NeedDrafts
 from app.usecase.regular_task import RegularTasks
 from app.usecase.selection import Selections
 from app.usecase.skill_profile import ProfileFreshness
@@ -135,6 +136,11 @@ def get_selections(request: Request, uow: UnitOfWorkDep) -> Selections:
     return selections
 
 
+def get_need_drafts(request: Request, uow: UnitOfWorkDep) -> NeedDrafts:
+    drafts: NeedDrafts = request.app.state.need_drafts(uow)
+    return drafts
+
+
 def get_invitations(request: Request, uow: UnitOfWorkDep) -> Invitations:
     invitations: Invitations = request.app.state.invitations(uow)
     return invitations
@@ -170,6 +176,7 @@ CompaniesDep = Annotated[Companies, Depends(get_companies)]
 NeedsDep = Annotated[Needs, Depends(get_needs)]
 SelectionsDep = Annotated[Selections, Depends(get_selections)]
 RegularTasksDep = Annotated[RegularTasks, Depends(get_regular_tasks)]
+NeedDraftsDep = Annotated[NeedDrafts, Depends(get_need_drafts)]
 CandidatePathDep = Annotated[CandidatePath, Depends(get_candidate_path)]
 AnswerCalibrationDep = Annotated[AnswerCalibration, Depends(get_answer_calibration)]
 CandidatesDep = Annotated[CandidateRepository, Depends(get_candidates)]

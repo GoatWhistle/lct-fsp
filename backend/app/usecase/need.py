@@ -26,6 +26,16 @@ from app.domain.need import (
 from app.usecase.interface import CatalogRepository, Clock, NeedRepository, UnitOfWork
 
 
+def terms_of(form: NeedForm, catalog: CatalogRepository) -> NeedTerms:
+    """Проверка формы по справочнику — внутри единицы работы."""
+    return need_terms(
+        form,
+        catalog.specialization(form.specialization),
+        catalog.grade(form.grade),
+        catalog.technologies(form.stack),
+    )
+
+
 @dataclass(frozen=True)
 class NeedView:
     record: NeedRecord
@@ -89,12 +99,7 @@ class Needs:
         return self._topics(known, technologies, edited)
 
     def _terms(self, form: NeedForm) -> NeedTerms:
-        return need_terms(
-            form,
-            self._catalog.specialization(form.specialization),
-            self._catalog.grade(form.grade),
-            self._catalog.technologies(form.stack),
-        )
+        return terms_of(form, self._catalog)
 
     def _view(self, record: NeedRecord) -> NeedView:
         need = record.need

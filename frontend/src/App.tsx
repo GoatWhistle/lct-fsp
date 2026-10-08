@@ -10,6 +10,7 @@ import { EmployerTasks } from './pages/EmployerTasks'
 import { Home } from './pages/Home'
 import { Login } from './pages/Login'
 import { NeedForm } from './pages/NeedForm'
+import { NeedFromText } from './pages/NeedFromText'
 import { Register } from './pages/Register'
 import { Selection } from './pages/Selection'
 import { TaskCatalog } from './pages/TaskCatalog'
@@ -46,6 +47,7 @@ export default function App() {
           <Route index element={<EmployerCabinet />} />
           <Route path="company" element={<CompanyProfile />} />
           <Route path="needs/new" element={<NeedForm />} />
+          <Route path="needs/text" element={<NeedFromText />} />
           <Route path="needs/:id" element={<NeedForm />} />
           <Route path="selections/:id" element={<Selection />} />
           <Route path="tasks" element={<EmployerTasks />} />

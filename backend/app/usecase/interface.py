@@ -55,6 +55,7 @@ from app.domain.fsp import (
 from app.domain.invitation import Invitation, InvitationTerms
 from app.domain.mail import Mail
 from app.domain.need import NeedRecord, NeedTerms
+from app.domain.need_draft import NeedDraft, OutOfCatalog
 from app.domain.regular_task import (
     AnsweredTask,
     CatalogFilter,
@@ -827,6 +828,21 @@ class CatalogRepository(Protocol):
 
     def apply(self, plan: CatalogPlan) -> None:
         """Применяет синхронизацию; снять код, на который ссылаются данные, хранилище откажет."""
+        ...
+
+
+class TextUnderstanding(Protocol):
+    """Понимание свободного текста (docs/adr/0002-text-understanding-port.md): текст → черновик со
+    значениями справочника. Сейчас — правила и словарь синонимов (`app.adapter.text_rules`).
+
+    Порт ничего не оценивает и наружу не ходит: модель — локальные веса или сервис в compose.
+    Вывод сценарий проверяет сам (`app.domain.need_draft.checked`), поэтому адаптер может
+    ошибиться, но не вывести значение за справочник. Разбор резюме станет второй операцией.
+    """
+
+    def need(self, text: str, catalog: Catalog) -> NeedDraft | OutOfCatalog:
+        """Потребность, которую работодатель написал как есть, — очищенный текст. `catalog` —
+        справочник, в пределах которого отвечать."""
         ...
 
 

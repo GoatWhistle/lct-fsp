@@ -61,7 +61,7 @@ log = logging.getLogger(__name__)
 
 
 def blueprint_of(prior: Prior, mechanics: Mechanics) -> Blueprint:
-    """Бланк теста из априорного и конфига — общий для пути кандидата и стенда валидации."""
+    """Бланк теста из априорного и конфига."""
     return Blueprint(
         topics=prior.topics,
         weights=prior.weights,

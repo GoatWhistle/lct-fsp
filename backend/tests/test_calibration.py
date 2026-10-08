@@ -22,7 +22,7 @@ from app.skills import irt
 from app.skills.irt import estimate, sigmoid
 from app.usecase.attempt import rest_levels
 from app.usecase.skill_profile import specialization_prior
-from tests.simulation import calibration_quality, expert, market, mean_responses
+from validation.market import calibration_quality, expert, market, mean_responses
 
 MECHANICS = Mechanics.from_yaml(Settings().mechanics_file)
 # Порог M12 плана валидации на 200 ответах в среднем на семейство.
@@ -216,12 +216,12 @@ def test_calibration_converges_on_simulated_candidates() -> None:
     m = market("qa", MECHANICS)
 
     while mean_responses(m) < MECHANICS.calibration_refit_min_responses:
-        m.adaptive(m.candidate())
+        m.attempt(m.candidate())
 
     r, error, expert_error = calibration_quality(m)
     assert r >= CALIBRATION_MIN_CORRELATION
     assert error < expert_error
-    refitted = [i for i in m.items.values() if i.refitted]
+    refitted = [f for f in m.calibrated().values() if f.refitted_at is not None]
     assert refitted
-    bias = sum(math.log(i.params.discrimination / i.truth.discrimination) for i in refitted)
+    bias = sum(math.log(f.discrimination / m.truth[f.family_code].discrimination) for f in refitted)
     assert bias / len(refitted) < 0.15

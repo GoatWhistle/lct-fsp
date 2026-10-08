@@ -4,18 +4,49 @@
 Справочник приходит в конструктор доменными типами. Записи — доменные объекты как есть:
 изменения сценария видны сразу, откат делает снимок единицы работы. Идентификаторы — по
 счётчику: на стенде прогон воспроизводим.
+
+Рядом с записями хранилище держит индексы: попытки кандидата, попытки специализации по времени,
+предъявления семейства. В индексах те же объекты, что в записях, и откатываются они вместе с
+ними. Без индексов каждый шаг читал бы все попытки, и стенд на тысячах кандидатов не дождался бы
+конца прогона.
 """
 
+import bisect
+import itertools
 import uuid
 import zlib
-from collections.abc import Mapping, Sequence
+from collections import Counter
+from collections.abc import Hashable, Iterator, Mapping, Sequence
 from datetime import datetime
+from typing import Any
 
 from app.domain import candidate
 from app.domain.attempt import AnsweredPresentation, Attempt, PathState, Presentation, Survey
 from app.domain.catalog import CatalogRef, Grade, Specialization, Topic
 from app.domain.skill import Normal, SkillProfileLevels
 from app.repository.memory.unit_of_work import MemoryStore
+
+# Индексы попыток специализации по времени — по началу и по остановке — и предъявлений семейства.
+# Остановленные попытки, предъявления семейства и id предъявлений с итоговой оценкой читает и
+# `MemoryCalibrationRepository`.
+STARTED = "specialization_started"
+FINISHED = "specialization_finished"
+FAMILY_PRESENTATIONS = "family_presentations"
+REST_READY = "family_rest_ready"
+FINISHED_SHOWN = "finished_shown"
+# Окно показов специализации: последний подсчёт и отметки изменений после него.
+EXPOSURE_CACHE = "exposure_cache"
+EXPOSURE_CHANGES = "exposure_changes"
+
+
+def _insort(index: dict[Hashable, Any], key: str, attempt: Attempt, at: datetime) -> None:
+    """Попытка в список индекса по времени `at`; при равном времени — после прежних."""
+    bisect.insort_right(index.setdefault(key, []), (at, attempt), key=lambda entry: entry[0])
+
+
+def latest(index: dict[Hashable, Any], key: str) -> Iterator[Attempt]:
+    """Попытки из списка индекса — от поздних к ранним."""
+    return (attempt for _, attempt in reversed(index.get(key, [])))
 
 
 class MemoryAttemptRepository:
@@ -38,16 +69,12 @@ class MemoryAttemptRepository:
     def answered(
         self, user_id: uuid.UUID, specialization_code: str
     ) -> Sequence[AnsweredPresentation]:
-        attempts = sorted(
-            (
-                a
-                for a in self._attempts().values()
-                if a.user_id == user_id and a.specialization_code == specialization_code
-            ),
-            key=lambda a: a.number,
-        )
         return [
-            p.answered() for a in attempts for p in a.presentations if p.answered_at is not None
+            p.answered()
+            for a in self._of_user(user_id)
+            if a.specialization_code == specialization_code
+            for p in a.presentations
+            if p.answered_at is not None
         ]
 
     # Порт записи `AttemptRepository`.
@@ -60,44 +87,30 @@ class MemoryAttemptRepository:
         return specialization.topics if specialization else None
 
     def state(self, user_id: uuid.UUID) -> PathState:
-        surveys = [
-            (number, survey)
-            for owner, number, survey in self._store.collection("surveys").values()
-            if owner == user_id
-        ]
-        attempts = [a for a in self._attempts().values() if a.user_id == user_id]
+        surveys = self._store.collection("user_surveys").get(user_id, [])
+        attempts = self._of_user(user_id)
         return PathState(
-            survey=max(surveys, key=lambda s: s[0])[1] if surveys else None,
-            attempt=max(attempts, key=lambda a: a.number) if attempts else None,
+            survey=surveys[-1] if surveys else None,
+            attempt=attempts[-1] if attempts else None,
             category=self._store.collection("categories").get(user_id),
         )
 
     def survey(self, survey_id: uuid.UUID) -> Survey:
-        survey: Survey = self._store.collection("surveys")[survey_id][2]
+        survey: Survey = self._store.collection("surveys")[survey_id]
         return survey
 
     def add_survey(self, user_id: uuid.UUID, specialization_code: str, now: datetime) -> Survey:
-        surveys = self._store.collection("surveys")
-        number = 1 + max(
-            (number for owner, number, _ in surveys.values() if owner == user_id), default=0
-        )
         survey = Survey(
             id=self._next_id("survey"),
             specialization=self._ref(specialization_code),
             created_at=now,
         )
-        surveys[survey.id] = (user_id, number, survey)
+        self._store.collection("surveys")[survey.id] = survey
+        self._store.collection("user_surveys").setdefault(user_id, []).append(survey)
         return survey
 
     def attempt_in_progress(self, user_id: uuid.UUID) -> Attempt | None:
-        return next(
-            (
-                a
-                for a in self._attempts().values()
-                if a.user_id == user_id and a.finished_at is None
-            ),
-            None,
-        )
+        return next((a for a in self._of_user(user_id) if a.finished_at is None), None)
 
     def add_attempt(
         self,
@@ -107,19 +120,21 @@ class MemoryAttemptRepository:
         continues: Attempt | None,
         now: datetime,
     ) -> Attempt:
-        attempts = self._attempts()
-        number = 1 + max((a.number for a in attempts.values() if a.user_id == user_id), default=0)
+        mine = self._store.collection("user_attempts").setdefault(user_id, [])
         attempt = Attempt(
             id=self._next_id("attempt"),
             user_id=user_id,
-            number=number,
+            number=len(mine) + 1,
             survey_id=survey.id,
             specialization_code=survey.specialization_code,
             grade_code=grade_code,
             continues_attempt_id=continues.id if continues else None,
             started_at=now,
         )
-        attempts[attempt.id] = attempt
+        self._attempts()[attempt.id] = attempt
+        mine.append(attempt)
+        _insort(self._store.collection(STARTED), survey.specialization_code, attempt, now)
+        self._exposure_changed(attempt)
         return attempt
 
     def add_presentation(
@@ -150,16 +165,31 @@ class MemoryAttemptRepository:
             shown_at=shown_at,
         )
         attempt.presentations.append(presentation)
+        by_family = self._store.collection(FAMILY_PRESENTATIONS)
+        by_family.setdefault(family_code, []).append(presentation)
+        self._exposure_changed(attempt)
         return presentation
 
     def save_answer(self, presentation: Presentation) -> None:
         """Запись — тот же объект в хранилище: ответ уже на месте."""
 
     def finish_attempt(self, attempt: Attempt) -> None:
-        """Запись — тот же объект в хранилище: остановка уже на месте."""
+        """Запись — тот же объект в хранилище: остановка уже на месте. Попытка встаёт в индекс
+        остановленных по времени остановки, её семейства — в набор показанных."""
+        assert attempt.finished_at is not None
+        finished = self._store.collection(FINISHED_SHOWN)
+        if attempt.id not in finished:
+            finished[attempt.id] = frozenset(attempt.shown())
+            by_finish = self._store.collection(FINISHED)
+            _insort(by_finish, attempt.specialization_code, attempt, attempt.finished_at)
 
     def save_rest_levels(self, presentations: Sequence[Presentation]) -> None:
-        """Запись — те же объекты в хранилище: оценки уже на месте."""
+        """Запись — те же объекты в хранилище: оценки уже на месте. Предъявления встают в счёт
+        ответов семейства с итоговой оценкой."""
+        ready = self._store.collection(REST_READY)
+        for p in presentations:
+            if p.topic_theta_rest is not None:
+                ready.setdefault(p.family_code, set()).add(p.id)
 
     def add_category(self, attempt: Attempt, now: datetime) -> None:
         assert attempt.outcome_grade_code is not None
@@ -182,27 +212,43 @@ class MemoryAttemptRepository:
     def exposure(
         self, specialization_code: str, current_attempt_id: uuid.UUID, window: int
     ) -> tuple[int, dict[str, int]]:
-        recent = sorted(
-            (
-                a
-                for a in self._attempts().values()
-                if a.specialization_code == specialization_code
-                and a.id != current_attempt_id
-                and a.presentations
-            ),
-            key=lambda a: a.started_at,
-            reverse=True,
-        )[: window - 1]
-        shown: dict[str, int] = {}
-        for a in recent:
-            for code in a.shown():
-                shown[code] = shown.get(code, 0) + 1
-        return len(recent), shown
+        """Окно считается заново, только если с прошлого подсчёта для той же попытки что-то
+        поменяла другая попытка: свои показы текущей попытки в окно не входят, а подсчёт по
+        сотням попыток — самый дорогой шаг стенда."""
+        cache = self._store.collection(EXPOSURE_CACHE)
+        cached = cache.get(specialization_code)
+        changes = self._store.collection(EXPOSURE_CHANGES).get(specialization_code, (0, None, 0))
+        if cached is not None:
+            attempt_id, cached_window, at_change, counted = cached
+            total, owner, run_start = changes
+            # Все изменения после подсчёта — от текущей попытки.
+            own = owner == current_attempt_id and run_start <= at_change + 1
+            if (
+                attempt_id == current_attempt_id
+                and cached_window == window
+                and (total == at_change or own)
+            ):
+                return counted[0], dict(counted[1])
+        candidates = latest(self._store.collection(STARTED), specialization_code)
+        recent = list(
+            itertools.islice(
+                (a for a in candidates if a.id != current_attempt_id and a.presentations),
+                max(window - 1, 0),
+            )
+        )
+        # Семейства остановленной попытки больше не меняются — их набор взят при остановке.
+        finished = self._store.collection(FINISHED_SHOWN)
+        shown = Counter(
+            itertools.chain.from_iterable(finished.get(a.id) or a.shown() for a in recent)
+        )
+        counted = len(recent), dict(shown)
+        cache[specialization_code] = (current_attempt_id, window, changes[0], counted)
+        return counted[0], dict(counted[1])
 
     def seen(self, user_id: uuid.UUID, current_attempt_id: uuid.UUID) -> dict[str, datetime]:
         seen: dict[str, datetime] = {}
-        for a in self._attempts().values():
-            if a.user_id != user_id or a.id == current_attempt_id:
+        for a in self._of_user(user_id):
+            if a.id == current_attempt_id:
                 continue
             for code in a.shown():
                 if code not in seen or seen[code] < a.started_at:
@@ -239,6 +285,21 @@ class MemoryAttemptRepository:
 
     def _attempts(self) -> dict[uuid.UUID, Attempt]:
         attempts: dict[uuid.UUID, Attempt] = self._store.collection("attempts")  # type: ignore[assignment]
+        return attempts
+
+    def _exposure_changed(self, attempt: Attempt) -> None:
+        """Отметка изменения окна показов специализации: номер изменения, попытка и номер, с
+        которого она меняет окно без перерыва."""
+        changes = self._store.collection(EXPOSURE_CHANGES)
+        total, owner, run_start = changes.get(attempt.specialization_code, (0, None, 0))
+        total += 1
+        if owner != attempt.id:
+            owner, run_start = attempt.id, total
+        changes[attempt.specialization_code] = (total, owner, run_start)
+
+    def _of_user(self, user_id: uuid.UUID) -> list[Attempt]:
+        """Попытки кандидата по номеру."""
+        attempts: list[Attempt] = self._store.collection("user_attempts").get(user_id, [])
         return attempts
 
     def _ref(self, specialization_code: str) -> CatalogRef:

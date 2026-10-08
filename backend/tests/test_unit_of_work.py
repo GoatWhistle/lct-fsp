@@ -115,3 +115,20 @@ def test_nested_block_is_refused(harness: Harness) -> None:
 
     with uow, pytest.raises(RuntimeError):
         uow.__enter__()
+
+
+def test_memory_block_without_rollback_breaks_store_on_error() -> None:
+    """Единица работы стенда — без снимка: упавший блок не откатывается, а портит хранилище, и
+    дальше на нём не работает ни одна единица работы."""
+    store = MemoryStore()
+    uow = MemoryUnitOfWork(store, rollback=False)
+    with uow:
+        store.collection("probe")["kept"] = "kept"
+
+    with pytest.raises(Boom), uow:
+        store.collection("probe")["half"] = "half"
+        raise Boom()
+
+    assert store.broken
+    with pytest.raises(RuntimeError):
+        MemoryUnitOfWork(store).__enter__()

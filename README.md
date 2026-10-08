@@ -58,15 +58,23 @@ docker compose run --rm --build tests
 удаляется после прогона. Без Docker Compose, с [uv](https://docs.astral.sh/uv/) и Docker:
 `cd backend && uv run pytest` — PostgreSQL поднимется в контейнере сам.
 
-Симуляция теста на кандидатах с известной истиной — сходимость калибровки и сравнение
-адаптивного теста с фиксированным бланком по всем специализациям:
-`cd backend && uv run python -m tests.simulation`.
+Стенд валидации — синтетические кандидаты с известной истиной проходят те же сценарии теста и
+калибровки, что HTTP, на in-memory хранилищах. Команды из `backend/`:
+
+- `uv run python -m validation` — сходимость калибровки и сравнение адаптивного теста с
+  фиксированным бланком по всем специализациям;
+- `uv run python -m validation honesty` — честность погрешности уровня и стабильность грейда на
+  прогретом банке D1 (`--seed`, `--candidates`, `--pairs`);
+- `uv run python -m validation tune` — подбор поправки погрешности `level_sd_inflation` на
+  настроечном наборе D3.
 
 ## Устройство
 
 ```
 backend/                 FastAPI + SQLAlchemy + Alembic, PostgreSQL
-  main.py                сборка приложения вручную; запуск — `uvicorn --factory main:create_app`
+  main.py                сборка прода вручную; запуск — `uvicorn --factory main:create_app`
+  composition.py         общая проводка сценариев из портов — для прода и стенда
+  validation/            стенд валидации: сборка `main.py`, синтетика, команды
   app/domain/ usecase/ controller/ adapter/ repository/
                          слои и порты — docs/adr/0001-layers-and-ports.md; модули переезжают туда
   app/<модуль>/          models, schemas, service, router одного модуля

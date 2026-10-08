@@ -183,3 +183,36 @@ def test_link_window_is_ordered_by_stop(storage: Storage) -> None:
         answers = storage.calibration.anchor_answers("qa", [ANCHOR.code], 1)
 
     assert len(answers) == 1
+
+
+def test_exposure_window_follows_other_attempts_not_own_shows(storage: Storage) -> None:
+    """Повторный подсчёт окна для той же попытки: свои новые показы в окно не входят, показ в
+    другой идущей попытке — входит."""
+    regular = [f for f in families_for_topics(QA_TOPICS) if not f.anchor]
+    with storage.uow:
+        other = attempt(storage, 0, families=(regular[0].code,))
+        current = attempt(storage, 1, families=(regular[1].code,))
+        assert storage.attempts.exposure("qa", current.id, 3) == (1, {regular[0].code: 1})
+
+        show(storage, current, regular[2].code)
+        assert storage.attempts.exposure("qa", current.id, 3) == (1, {regular[0].code: 1})
+
+        show(storage, other, regular[3].code)
+        window, shown = storage.attempts.exposure("qa", current.id, 3)
+
+    assert (window, shown) == (1, {regular[0].code: 1, regular[3].code: 1})
+
+
+def show(storage: Storage, shown_in: Attempt, code: str) -> None:
+    family = next(f for f in families_for_topics(QA_TOPICS) if f.code == code)
+    storage.attempts.add_presentation(
+        shown_in,
+        family_code=code,
+        topic_code=family.topic,
+        seed=0,
+        params={},
+        discrimination=1.0,
+        difficulty=0.0,
+        level_before=Normal(0.0, 1.0),
+        shown_at=T0,
+    )

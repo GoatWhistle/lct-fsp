@@ -67,9 +67,14 @@ class EloCalibration:
             row = rows.get(family.code)
             if row is None:
                 result[family.code] = self.expert(family.grade)
-            elif row.in_rotation:
+            elif row.issued:
                 result[family.code] = row.parameters
         return result
+
+    def compromised(self, codes: Iterable[str]) -> set[str]:
+        """Семейства из `codes`, которые детектор дрейфа пометил скомпрометированными."""
+        rows = self._repository.parameters(list(codes))
+        return {code for code, row in rows.items() if row.is_compromised}
 
     def lock(self, codes: Iterable[str]) -> None:
         """Блокировка строк семейств до конца единицы работы — по порядку кодов: так транзакции,
@@ -105,7 +110,10 @@ class EloCalibration:
     def relink(self, specialization: str, now: datetime) -> None:
         """Пересчёт связок шкалы по ответам на якорные семейства из окна связки — последних
         `calibration_link_window_attempts` остановленных попыток по специализации (§7)."""
-        anchors = [f.code for f in bank.BANK if f.anchor]
+        # Скомпрометированный якорь в связку не входит: его ответы — уже не ответы по уровню.
+        anchor_codes = [f.code for f in bank.BANK if f.anchor]
+        compromised = self.compromised(anchor_codes)
+        anchors = [code for code in anchor_codes if code not in compromised]
         answers = self._repository.anchor_answers(
             specialization, anchors, self.calibration_link_window_attempts
         )

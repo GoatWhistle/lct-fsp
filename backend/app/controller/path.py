@@ -35,13 +35,16 @@ from app.controller.path_schemas import (
     TestResultOut,
     TopicBlockIn,
     TopicBlockOut,
+    VerificationOut,
+    VerificationProgressOut,
+    VerificationResultOut,
     level_view,
     skill_profile_view,
 )
 from app.controller.schemas import CatalogRef
 from app.domain import errors
 from app.domain.account import Role
-from app.domain.attempt import HistoryEntry, PathView, TestResult
+from app.domain.attempt import HistoryEntry, PathView, TestResult, VerificationView
 from settings import Mechanics
 
 log = logging.getLogger(__name__)
@@ -92,12 +95,13 @@ def submit_survey(
         errors.GradeChangeTooEarly,
         errors.AttemptInProgress,
         errors.UnknownGrade,
+        errors.VerificationPending,
     ),
 )
 def start_attempt(
     body: AttemptIn, user: CurrentUser, paths: CandidatePathDep, mechanics: MechanicsDep
 ) -> PathOut:
-    view = paths.start_attempt(user.id, grade=body.grade)
+    view = paths.start_attempt(user.id, grade=body.grade, focus_consent=body.focus_consent)
     return _path_out(view, mechanics)
 
 
@@ -133,6 +137,27 @@ def start_topic_block(
     return _path_out(paths.start_topic_block(user.id, topic=body.topic), mechanics)
 
 
+@router.post(
+    "/verification",
+    summary="Начать проверочный блок",
+    description="Короткий блок на время из невиданных заданий тех же тем. Нужен, когда результат "
+    "попытки ждёт его: совпал с основным тестом — категория присваивается или повышается с "
+    "пометкой «уровень подтверждён», расхождение — категория прежняя, причина числами в "
+    "`verification.last`. Без отложенного результата — добровольно, чтобы подтвердить уровень "
+    "категории. Срок — `verification_time_limit_minutes` по часам сервера; повтор — не раньше "
+    "`verification_retest_days` от старта прошлого блока. Задания — через `/item`.",
+    responses=error_responses(
+        errors.VerificationUnavailable,
+        errors.VerificationTooEarly,
+        errors.AttemptInProgress,
+    ),
+)
+def start_verification(
+    user: CurrentUser, paths: CandidatePathDep, mechanics: MechanicsDep
+) -> PathOut:
+    return _path_out(paths.start_verification(user.id), mechanics)
+
+
 @router.get(
     "/item",
     summary="Текущее задание теста",
@@ -147,6 +172,8 @@ def get_item(user: CurrentUser, paths: CandidatePathDep) -> ItemOut:
         number=item.number,
         max_items=item.max_items,
         topic_block=item.topic_block,
+        verification=item.verification,
+        deadline=item.deadline,
         topic=CatalogRef.model_validate(item.topic),
         prompt=item.instance.prompt,
         code=item.instance.code,
@@ -160,7 +187,8 @@ def get_item(user: CurrentUser, paths: CandidatePathDep) -> ItemOut:
     summary="Ответ на текущее задание",
     description="Ответ проверяет бэкенд; верен ли он, не сообщается. Тест адаптивный: попытка "
     "останавливается, когда уровень определён с нужной точностью или задания кончились, — "
-    "тогда возвращается её итог.",
+    "тогда возвращается её итог. Ответ проверочного блока после срока не засчитывается: блок "
+    "останавливается. Счётчики событий пишутся, только если на попытку дано согласие.",
     responses=error_responses(errors.NoTestInProgress, errors.ItemNotCurrent),
 )
 def answer_item(
@@ -170,11 +198,20 @@ def answer_item(
     calibrations: AnswerCalibrationDep,
     mechanics: MechanicsDep,
 ) -> PathOut:
-    answered = paths.answer(user.id, presentation_id=body.presentation_id, response=body.response)
-    try:
-        calibrations.calibrate(answered.answer)
-    except Exception:
-        log.exception("Калибровка после ответа %s не прошла, ответ сохранён", body.presentation_id)
+    answered = paths.answer(
+        user.id,
+        presentation_id=body.presentation_id,
+        response=body.response,
+        paste_events=body.paste_events,
+        focus_losses=body.focus_losses,
+    )
+    if answered.answer is not None:
+        try:
+            calibrations.calibrate(answered.answer)
+        except Exception:
+            log.exception(
+                "Калибровка после ответа %s не прошла, ответ сохранён", body.presentation_id
+            )
     return _path_out(answered.view, mechanics)
 
 
@@ -210,6 +247,34 @@ def _path_out(view: PathView, mechanics: Mechanics) -> PathOut:
                 items=view.topic_block.items,
             )
             if view.topic_block
+            else None
+        ),
+        verification=_verification_out(view.verification) if view.verification else None,
+    )
+
+
+def _verification_out(view: VerificationView) -> VerificationOut:
+    return VerificationOut(
+        grade=view.grade,
+        available_at=view.available_at,
+        progress=(
+            VerificationProgressOut(
+                answered=view.progress.answered,
+                items=view.progress.items,
+                deadline=view.progress.deadline,
+            )
+            if view.progress
+            else None
+        ),
+        last=(
+            VerificationResultOut(
+                confirmed=view.last.confirmed,
+                expected=view.last.expected,
+                correct=view.last.correct,
+                items=view.last.items,
+                at=view.last.at,
+            )
+            if view.last
             else None
         ),
     )

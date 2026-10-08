@@ -49,6 +49,7 @@ from app.repository.memory.unit_of_work import MemoryStore, MemoryUnitOfWork
 from app.usecase.attempt import CandidatePath
 from app.usecase.calibration import AnswerCalibration
 from app.usecase.skill_profile import specialization_prior
+from composition import drift_detector
 from settings import CATALOG_FILE, Mechanics, Settings
 
 T0 = datetime(2026, 10, 7, 12, 0, tzinfo=UTC)
@@ -117,6 +118,9 @@ class SpyCalibration:
         self.calls.append("expert_gaps")
         return self.inner.expert_gaps(families)
 
+    def compromised(self, codes: Iterable[str]) -> set[str]:
+        return self.inner.compromised(codes)
+
 
 @pytest.fixture
 def calibration(store: MemoryStore) -> SpyCalibration:
@@ -165,7 +169,11 @@ def paths(
 
 @pytest.fixture
 def calibrations(store: MemoryStore, calibration: SpyCalibration) -> AnswerCalibration:
-    return AnswerCalibration(MemoryUnitOfWork(store), calibration)
+    return AnswerCalibration(
+        MemoryUnitOfWork(store),
+        calibration,
+        drift_detector(MemoryCalibrationRepository(store), MECHANICS),
+    )
 
 
 @pytest.fixture
@@ -180,6 +188,7 @@ def answer_items(paths: CandidatePath, calibrations: AnswerCalibration) -> Answe
             family = get_family(item.family_code)
             response = item.instance.answer if correct(family) else WRONG
             answered = paths.answer(user, presentation_id=item.presentation_id, response=response)
+            assert answered.answer is not None
             calibrations.calibrate(answered.answer)
             view = answered.view
         return view
@@ -305,6 +314,7 @@ def test_calibration_steps_after_each_answer_and_relinks_after_stop(
         item = paths.current_item(user)
         result = paths.answer(user, presentation_id=item.presentation_id, response=WRONG)
         calibration.calls.clear()
+        assert result.answer is not None
         calibrations.calibrate(result.answer)
         answered.append((result.answer, list(calibration.calls)))
         view = result.view
@@ -504,6 +514,7 @@ def _answer_block(
         shown.append(family.code)
         response = item.instance.answer if correct(family) else WRONG
         answered = paths.answer(user, presentation_id=item.presentation_id, response=response)
+        assert answered.answer is not None
         calibrations.calibrate(answered.answer)
         view = answered.view
     return view, shown
@@ -642,9 +653,9 @@ def test_block_stops_when_topic_families_leave_rotation(
     user = _determine(paths, answer_items)
     paths.start_topic_block(user, topic=BLOCK_TOPIC)
     item = paths.current_item(user)
-    calibrations.calibrate(
-        paths.answer(user, presentation_id=item.presentation_id, response=WRONG).answer
-    )
+    first = paths.answer(user, presentation_id=item.presentation_id, response=WRONG).answer
+    assert first is not None
+    calibrations.calibrate(first)
     repository = MemoryCalibrationRepository(store)
     for family in bank.families_for_topics([BLOCK_TOPIC]):
         if family.code != item.family_code:

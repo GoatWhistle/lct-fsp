@@ -27,7 +27,12 @@ class SurveyIn(BaseModel):
 class AttemptIn(BaseModel):
     grade: str = Field(
         description="Код грейда: заявленный, предложенный для дотеста или, при категории, "
-        "следующий выше"
+        "следующий выше; на шаге `verification` — грейд ниже отложенного результата"
+    )
+    focus_consent: bool = Field(
+        default=False,
+        description="Согласие на счётчики вставок и уходов со вкладки в этой попытке — только "
+        "как сигнал для проверочного блока. Без согласия тест проходится так же",
     )
 
 
@@ -38,6 +43,19 @@ class TopicBlockIn(BaseModel):
 class AnswerIn(BaseModel):
     presentation_id: uuid.UUID = Field(description="`id` задания из `GET /api/candidate/path/item`")
     response: str = Field(min_length=1, max_length=500)
+    paste_events: int = Field(
+        default=0,
+        ge=0,
+        le=10_000,
+        description="Вставок из буфера за время задания — пишется, только если кандидат дал "
+        "согласие на попытку, иначе отбрасывается",
+    )
+    focus_losses: int = Field(
+        default=0,
+        ge=0,
+        le=10_000,
+        description="Уходов со вкладки за время задания — на тех же условиях",
+    )
 
 
 class SurveyOut(_Out):
@@ -137,6 +155,41 @@ class CategoryOut(_Out):
     specialization: CatalogRef
     grade: CatalogRef
     assigned_at: datetime
+    verified_at: datetime | None = Field(
+        description="Уровень подтверждён проверочным блоком — с этого момента; `null` — нет"
+    )
+
+
+class VerificationProgressOut(BaseModel):
+    answered: int
+    items: int = Field(description="Заданий в блоке")
+    deadline: datetime = Field(
+        description="Срок по часам сервера: неотвеченное к нему считается неверным"
+    )
+
+
+class VerificationResultOut(BaseModel):
+    """Итог последнего блока — причина расхождения числами."""
+
+    confirmed: bool
+    expected: float = Field(description="Ожидалось верных по основному тесту")
+    correct: int = Field(description="Получено верных")
+    items: int
+    at: datetime
+
+
+class VerificationOut(BaseModel):
+    """Проверочный блок: короткий блок на время из невиданных заданий тех же тем."""
+
+    grade: str | None = Field(
+        description="Грейд результата, который ждёт блока; `null` — добровольный блок, чтобы "
+        "подтвердить уровень категории"
+    )
+    available_at: datetime | None = Field(
+        description="С какого момента можно начать блок; `null` — можно сейчас"
+    )
+    progress: VerificationProgressOut | None = Field(description="Идущий блок")
+    last: VerificationResultOut | None = Field(description="Итог последнего блока")
 
 
 class GradeUpOut(BaseModel):
@@ -159,7 +212,8 @@ class HistoryEntryOut(BaseModel):
     overall: LevelOut | None = Field(description="Уровень по оценке попытки")
     outcome: AttemptOutcome | None = Field(
         description="`assigned` — грейд присвоен; `offered` — предложен дотест; `no_category` — "
-        "категории нет; `not_passed` — попытка вверх не прошла, категория прежняя"
+        "категории нет; `not_passed` — попытка вверх не прошла, категория прежняя; "
+        "`verification` — результат ждёт проверочного блока"
     )
     outcome_grade: str | None = Field(description="Присвоенный или предложенный грейд")
 
@@ -168,7 +222,7 @@ class PathOut(BaseModel):
     stage: Stage = Field(
         description="`survey` — опрос; `grade` — выбор грейда; `test` — идёт тест; `offer` — "
         "предложен дотест на `offer_grade`; `category` — категория присвоена; `no_category` — "
-        "без категории до `retest_after`"
+        "без категории до `retest_after`; `verification` — результат ждёт проверочного блока"
     )
     survey: SurveyOut | None
     attempt: AttemptProgressOut | None = Field(description="Ход теста на шаге `test`")
@@ -189,6 +243,10 @@ class PathOut(BaseModel):
     topic_block: TopicBlockOut | None = Field(
         description="Незавершённый блок по теме: задания и ответы — те же `item`, что у теста"
     )
+    verification: VerificationOut | None = Field(
+        description="Проверочный блок на шагах `verification` и `category`: результат ждёт его, "
+        "он идёт или его можно пройти добровольно"
+    )
 
 
 class OptionOut(BaseModel):
@@ -204,6 +262,8 @@ class ItemOut(BaseModel):
         "заданий ровно столько"
     )
     topic_block: bool = Field(description="Задание блока по теме, а не теста")
+    verification: bool = Field(description="Задание проверочного блока")
+    deadline: datetime | None = Field(description="Срок проверочного блока по часам сервера")
     topic: CatalogRef
     prompt: str
     code: str | None = Field(description="Листинг, таблица или граф к условию — моноширинно")

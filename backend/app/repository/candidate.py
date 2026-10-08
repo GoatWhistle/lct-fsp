@@ -88,12 +88,14 @@ class SqlCandidateRepository:
                     CatalogRef(specialization_code, specialization_name),
                     CatalogRef(grade_code, grade_name),
                     assigned_at,
+                    verified_at,
                 ),
                 GradeRef(grade_code, grade_name, grade_rank),
             )
             for (
                 user_id,
                 assigned_at,
+                verified_at,
                 specialization_code,
                 specialization_name,
                 grade_code,
@@ -103,6 +105,7 @@ class SqlCandidateRepository:
                 select(
                     CandidateCategory.user_id,
                     CandidateCategory.assigned_at,
+                    CandidateCategory.verified_at,
                     Specialization.code,
                     Specialization.name,
                     Grade.code,

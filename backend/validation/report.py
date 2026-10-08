@@ -9,6 +9,8 @@
 проверит руками, дальше — по номерам плана.
 """
 
+import bisect
+import heapq
 import math
 import os
 import statistics
@@ -20,23 +22,65 @@ from dataclasses import dataclass, field, replace
 from pathlib import Path
 
 from app.domain.determination import grades_by_threshold
-from app.domain.selection import NeedSnapshot
+from app.domain.selection import NeedSnapshot, SelectionBlock
 from app.usecase.skill_profile import specialization_prior
 from settings import BACKEND_DIR, Mechanics
-from validation.figures import Panel, Series, reliability_svg
+from validation import d4
+from validation.baselines import (
+    B3_SYSTEM,
+    BM25_B,
+    BM25_K1,
+    PASSAGE,
+    QUERY,
+    Baseline,
+    Document,
+    LlmRanker,
+    need_text,
+    resume_text,
+)
+from validation.e5 import MODEL as E5_MODEL
+from validation.e5 import REVISION as E5_REVISION
+from validation.figures import Panel, Series, ecdf_svg, reliability_svg
 from validation.main import Catalog, catalog
 from validation.metrics import (
     cohen_kappa,
     ece,
+    median,
     ndcg_at,
     pearson,
     point_biserial,
     precision_at,
+    quantile,
     reliability,
+    spearman,
+    weighted_kappa,
 )
-from validation.population import DATASETS, Dataset, Generator, Pair, label, snapshot
-from validation.simulate import Adaptivity, Job, Outcome, Scale, SpecRun, run_cold, run_spec
-from validation.truth import CandidateTruth, Persona
+from validation.population import (
+    DATASETS,
+    Dataset,
+    Gender,
+    Generator,
+    Pair,
+    Person,
+    label,
+    snapshot,
+)
+from validation.simulate import (
+    Adaptivity,
+    Job,
+    Outcome,
+    Placed,
+    Scale,
+    SpecRun,
+    run_cold,
+    run_spec,
+)
+from validation.truth import RELEVANCE_EDGES, CandidateTruth, Persona
+from validation.twins import M3_PER_NEED, Twin, TwinKind, twins
+
+# Базовые линии набора: (имя набора, сид, корпус резюме пула специализации) → ранжировщики.
+BaselineSource = Callable[[str, int, Sequence[str]], list[Baseline]]
+BASELINES = ("B1", "B2", "B3")
 
 DOCS = BACKEND_DIR.parent / "docs"
 REPORT = DOCS / "validation-report.md"
@@ -75,8 +119,6 @@ METRICS: dict[str, tuple[str, str]] = {
 }
 # Чего не хватает метрикам, которые этот прогон не считает.
 PENDING: dict[str, str] = {
-    "M3": "нет базовых линий B1–B3 и двойников-накрутчиков",
-    "M5": "нет двойников по защищённым признакам и базовых линий B2, B3",
     "M6": "нет рыночной симуляции приглашений",
     "M7": "нет модели принятия и отложенной синтетики",
     "M8": "нет проверки вкладов объяснений на выдачах стенда",
@@ -85,7 +127,6 @@ PENDING: dict[str, str] = {
     "M16": "нет прогона LLM-помощника и D7",
     "M17": "нет прогона проверочного блока",
     "M18": "нет набора D6",
-    "M20": "нет ручной разметки D4 — ожидает разметки",
     "M21": "RMSD семейств на банке с испорченными семействами не считается; точность разбора "
     "потребности на D5 — команда `parsing`, в отчёт не сведена",
     "M22": "нет прогона l_z попытки; разбор резюме — нет набора D6",
@@ -98,6 +139,16 @@ WAITING = "ожидает данных"
 
 
 @dataclass(frozen=True)
+class B3Run:
+    """Чем и когда отвечала B3 на этом наборе — из кэша ответов."""
+
+    model: str | None
+    first: str | None
+    last: str | None
+    answers: int
+
+
+@dataclass(frozen=True)
 class DatasetRuns:
     """Набор и всё, что по нему записала платформа: κ из конфига и κ = 1 (до поправки)."""
 
@@ -107,6 +158,11 @@ class DatasetRuns:
     cold: dict[str, Adaptivity]
     # (потребность, кандидат) → эталон из истины.
     pairs: dict[tuple[uuid.UUID, uuid.UUID], Pair]
+    twins: tuple[Twin, ...] = ()
+    # Базовая линия → (потребность, кандидат или двойник) → скор. Базовой линии без данных
+    # здесь нет.
+    scores: dict[str, dict[tuple[uuid.UUID, uuid.UUID], float]] = field(default_factory=dict)
+    b3: B3Run | None = None
 
     def truth(self) -> dict[uuid.UUID, CandidateTruth]:
         return {t.id: t for t in self.dataset.truths}
@@ -164,20 +220,21 @@ def collect(
     sets: Sequence[str] = SETS,
     specializations: Sequence[str] | None = None,
     workers: int | None = None,
+    baselines: BaselineSource | None = None,
 ) -> Runs:
     """Задачи прогона в пуле процессов; результат от числа процессов не зависит: каждая задача
-    собирает свой стенд из сида набора."""
+    собирает свой стенд из сида набора. `baselines` — базовые линии B1–B3 по набору; без них
+    сравнение с ними — «ожидает данных»."""
     known = catalog()
     codes = tuple(specializations or known.specializations)
     before = mechanics.model_copy(update={"level_sd_inflation": 1.0})
     generated: dict[str, Dataset] = {}
+    doubles: dict[str, tuple[Twin, ...]] = {}
     futures: dict[tuple[str, str, str], Future[SpecRun] | Future[Adaptivity]] = {}
     with ProcessPoolExecutor(workers or max(1, (os.cpu_count() or 2) - 1)) as pool:
         for name in sets:
-            params = DATASETS[name]
-            if scale.candidates is not None:
-                params = replace(params, candidates_per_specialization=scale.candidates)
-            dataset = generated[name] = Generator(params, mechanics, known).generate()
+            dataset, doubles[name] = prepared(name, mechanics, scale, codes, known)
+            generated[name] = dataset
             stacks = {o.id: frozenset(o.stack) for o in dataset.observed}
             for code in codes:
                 job = Job(
@@ -188,6 +245,7 @@ def collect(
                     tuple(t for t in dataset.truths if t.specialization == code),
                     tuple(n for n in dataset.needs if n.form.specialization == code),
                     stacks,
+                    tuple(tw for tw in doubles[name] if tw.observed.specialization == code),
                 )
                 futures[name, code, "runs"] = pool.submit(run_spec, job)
                 light = replace(job, mechanics=before, full=False)
@@ -204,10 +262,86 @@ def collect(
         pairs = {
             (p.need, p.candidate): p for p in label(dataset.truths, dataset.needs, known, mechanics)
         }
-        found[name] = DatasetRuns(
-            dataset, part(name, "runs"), part(name, "before"), part(name, "cold"), pairs
+        data = DatasetRuns(
+            dataset,
+            part(name, "runs"),
+            part(name, "before"),
+            part(name, "cold"),
+            pairs,
+            doubles[name],
         )
+        if baselines is not None:
+            data = score_baselines(data, known, baselines)
+        found[name] = data
     return Runs(mechanics, known, scale, codes, found)
+
+
+def prepared(
+    name: str, mechanics: Mechanics, scale: Scale, codes: Sequence[str], known: Catalog
+) -> tuple[Dataset, tuple[Twin, ...]]:
+    """Набор `name` в масштабе прогона — только специализации `codes` — и его двойники."""
+    params = DATASETS[name]
+    if scale.candidates is not None:
+        params = replace(params, candidates_per_specialization=scale.candidates)
+    dataset = Generator(params, mechanics, known).generate()
+    dataset = replace(
+        dataset,
+        observed=tuple(o for o in dataset.observed if o.specialization in codes),
+        truths=tuple(t for t in dataset.truths if t.specialization in codes),
+        needs=tuple(n for n in dataset.needs if n.form.specialization in codes),
+    )
+    return dataset, twins(dataset, known)
+
+
+def baseline_pairs(
+    dataset: Dataset, doubles: Sequence[Twin], catalog_: Catalog
+) -> dict[str, list[tuple[uuid.UUID, uuid.UUID, Document, Document]]]:
+    """По специализации — пары, которые ранжируют базовые линии: весь пул каждой потребности,
+    двойники M3 — со своей потребностью, двойники M5 — с каждой потребностью специализации."""
+    resumes = {o.id: Document(str(o.id), resume_text(o)) for o in dataset.observed}
+    resumes |= {tw.id: Document(str(tw.id), resume_text(tw.observed)) for tw in doubles}
+    pool: dict[str, list[uuid.UUID]] = {}
+    for o in dataset.observed:
+        pool.setdefault(o.specialization, []).append(o.id)
+    found: dict[str, list[tuple[uuid.UUID, uuid.UUID, Document, Document]]] = {}
+    for need in dataset.needs:
+        code = need.form.specialization
+        doc = Document(str(need.id), need_text(need.form, catalog_))
+        members = [
+            *sorted(pool.get(code, [])),
+            *(
+                tw.id
+                for tw in doubles
+                if tw.observed.specialization == code and tw.need in (None, need.id)
+            ),
+        ]
+        found.setdefault(code, []).extend((need.id, c, doc, resumes[c]) for c in members)
+    return found
+
+
+def score_baselines(data: DatasetRuns, catalog_: Catalog, source: BaselineSource) -> DatasetRuns:
+    """Скоры B1–B3 по парам `baseline_pairs`; базовая линия, у которой нет данных, источником не
+    отдаётся. Корпус BM25 — резюме пула специализации без двойников."""
+    corpus: dict[str, list[str]] = {}
+    for o in data.dataset.observed:
+        corpus.setdefault(o.specialization, []).append(resume_text(o))
+    scores: dict[str, dict[tuple[uuid.UUID, uuid.UUID], float]] = {}
+    b3: B3Run | None = None
+    for code, pairs in sorted(baseline_pairs(data.dataset, data.twins, catalog_).items()):
+        for ranker in source(data.dataset.params.name, data.dataset.params.seed, corpus[code]):
+            prepare = getattr(ranker, "prepare", None)
+            if prepare is not None:
+                prepare(
+                    {QUERY + n.text for _, _, n, _ in pairs}
+                    | {PASSAGE + r.text for _, _, _, r in pairs}
+                )
+            own = scores.setdefault(ranker.name, {})
+            for need, candidate, n, r in pairs:
+                own[need, candidate] = ranker.score(n, r)
+            if isinstance(ranker, LlmRanker):
+                cache = ranker.cache
+                b3 = B3Run(cache.model, cache.first, cache.last, len(cache.answers))
+    return replace(data, scores=scores, b3=b3)
 
 
 # --- Общие расчёты -----------------------------------------------------------------------------
@@ -498,25 +632,37 @@ def m10(runs: Runs) -> Section:
 # --- M1, M2 ------------------------------------------------------------------------------------
 
 
+# Порядок блоков нашей выдачи; вне выдачи — после всех.
+BLOCK_RANK = {"exact": 0, "nearby": 1, "unconfirmed": 2}
+OURS = "ours"
+NAIVE = "B0"
+
+
 def ranked_lists(
-    data: DatasetRuns, *, naive: bool = False
-) -> Iterable[tuple[str, list[int], list[int]]]:
-    """По потребности: градации эталона в порядке нашей выдачи (точная категория, близкие,
-    нижний блок, затем остальные пула по id) или B0 (весь пул по доле верных) и градации всего
-    пула."""
+    data: DatasetRuns, method: str = OURS, *, within: bool = False
+) -> Iterable[tuple[str, uuid.UUID, list[uuid.UUID], list[uuid.UUID]]]:
+    """По потребности: пул в порядке ранжирования и пул по id.
+
+    Наша выдача — точная категория, близкие, нижний блок, затем остальные пула по id; B0 — весь
+    пул по доле верных наивного теста; B1–B3 — весь пул по своему скору, а `within` — внутри
+    блоков нашей выдачи (точные, близкие, нижний блок, остальные). Ничьи — по id."""
+    scores = data.scores.get(method, {})
     for run in data.runs.values():
         pool = sorted(run.outcomes)
-        for need, order_ in run.rankings.items():
-            if naive:
+        for need, rows in run.placed.items():
+            if method == OURS:
+                listed = {p.candidate for p in rows}
+                ranked = [*(p.candidate for p in rows), *(c for c in pool if c not in listed)]
+            elif method == NAIVE:
                 ranked = sorted(pool, key=lambda c: (-run.outcomes[c].naive[0], c))
+            elif within:
+                block = {p.candidate: BLOCK_RANK[p.block] for p in rows}
+                ranked = sorted(
+                    pool, key=lambda c: (block.get(c, len(BLOCK_RANK)), -scores[need, c], c)
+                )
             else:
-                listed = set(order_)
-                ranked = [*order_, *(c for c in pool if c not in listed)]
-            yield (
-                run.specialization,
-                [data.pairs[need, c].grade for c in ranked],
-                [data.pairs[need, c].grade for c in pool],
-            )
+                ranked = sorted(pool, key=lambda c: (-scores[need, c], c))
+            yield run.specialization, need, ranked, pool
 
 
 @dataclass(frozen=True)
@@ -526,49 +672,116 @@ class Ranking:
 
 
 def ranking_quality(
-    data: DatasetRuns, specialization: str | None = None, *, naive: bool = False
-) -> Ranking:
+    data: DatasetRuns,
+    specialization: str | None = None,
+    method: str = OURS,
+    *,
+    within: bool = False,
+) -> Ranking | None:
+    """M1 и M2 ранжирования `method`; базовой линии без данных — None."""
+    if method not in (OURS, NAIVE) and method not in data.scores:
+        return None
     lists = [
-        (ranked, pool)
-        for code, ranked, pool in ranked_lists(data, naive=naive)
+        (
+            [data.pairs[need, c].grade for c in ranked],
+            [data.pairs[need, c].grade for c in pool],
+        )
+        for code, need, ranked, pool in ranked_lists(data, method, within=within)
         if specialization in (None, code)
     ]
-    ndcg = [ndcg_at(r, p, TOP) for r, p in lists]
     return Ranking(
         mean(precision_at(r, TOP) for r, _ in lists),
-        mean(ndcg),
+        mean(ndcg_at(r, p, TOP) for r, p in lists),
     )
 
 
-def _ranking_section(runs: Runs, metric: str, attr: str, threshold: float, margin: str) -> Section:
+def quality(
+    data: DatasetRuns,
+    attr: str,
+    specialization: str | None = None,
+    method: str = OURS,
+    *,
+    within: bool = False,
+) -> float | None:
+    """Показатель `attr` ранжирования — `precision` или `ndcg`."""
+    found = ranking_quality(data, specialization, method, within=within)
+    return None if found is None else float(getattr(found, attr))
+
+
+def comparison(
+    ours: float, found: dict[str, float | None], threshold: float, margin: float, lower: bool
+) -> tuple[str, str]:
+    """Вердикт порога «абсолютная часть и сравнение с лучшей из B1–B3» и он словами. `lower` —
+    меньше лучше: сравнительная часть — не выше доли лучшей базовой линии; иначе — не ниже
+    лучшей плюс запас. Сравнение уже не выполнено на имеющихся базовых линиях — «не выполнен»,
+    хоть одной нет — «ожидает данных»."""
+    have = {k: v for k, v in found.items() if v is not None and not math.isnan(v)}
+    absolute = ours <= threshold if lower else ours >= threshold
+    if have:
+        best_name, best = (min if lower else max)(have.items(), key=lambda kv: kv[1])
+        bound = best * margin if lower else best + margin
+        relative: bool | None = ours <= bound if lower else ours >= bound
+        against = f"лучшая — {best_name}, {f(best)}, граница {f(bound)}"
+    else:
+        relative, against = None, "базовых линий нет"
+    missing = [k for k in found if k not in have]
+    parts = f"абсолютная часть {'выполнена' if absolute else 'не выполнена'}"
+    if relative is False or not absolute:
+        rel_text = "не выполнена" if relative is False else "выполнена" if relative else WAITING
+        return FAILED, f"{parts}, сравнительная — {rel_text} ({against})"
+    if missing:
+        return WAITING, (
+            f"{parts}, сравнительная — {WAITING}: нет {', '.join(missing)}; по имеющимся — "
+            f"{'выполнена' if relative else WAITING} ({against})"
+        )
+    return PASSED, f"{parts}, сравнительная — выполнена ({against})"
+
+
+def _ranking_section(
+    runs: Runs, metric: str, attr: str, threshold: float, margin: float
+) -> Section:
+    methods = (OURS, NAIVE, *BASELINES)
+    names = {OURS: "Наша", NAIVE: "B0"}
     header = ["Специализация"]
     for name in runs.sets:
-        header += [name.upper(), f"B0 {name.upper()}"]
+        header += [f"{names.get(m, m)} {name.upper()}" for m in methods]
     rows = []
     for code in (*runs.specializations, None):
         row = [runs.catalog.specializations[code].name if code else "**Все потребности**"]
         for data in runs.sets.values():
-            row += [
-                f(getattr(ranking_quality(data, code), attr)),
-                f(getattr(ranking_quality(data, code, naive=True), attr)),
-            ]
+            row += [f(quality(data, attr, code, m)) for m in methods]
         rows.append(row)
+    within_header = ["Базовая линия"]
+    for name in runs.sets:
+        within_header += [f"Весь пул {name.upper()}", f"В наших блоках {name.upper()}"]
+    within_rows = []
+    for m in BASELINES:
+        row = [m]
+        for data in runs.sets.values():
+            row += [f(quality(data, attr, None, m)), f(quality(data, attr, None, m, within=True))]
+        within_rows.append(row)
     verdicts, text = {}, {}
     for name, data in runs.sets.items():
-        ok = getattr(ranking_quality(data), attr) >= threshold
-        verdicts[name] = WAITING if ok else FAILED
-        text[name] = (
-            f"абсолютная часть {'выполнена' if ok else 'не выполнена'}, сравнительная — {WAITING}"
-        )
-    needs = sum(len(r.rankings) for r in next(iter(runs.sets.values())).runs.values())
+        ours = quality(data, attr)
+        assert ours is not None
+        found = {m: quality(data, attr, None, m) for m in BASELINES}
+        verdicts[name], text[name] = comparison(ours, found, threshold, margin, lower=False)
+    needs = sum(len(r.placed) for r in next(iter(runs.sets.values())).runs.values())
     body = (
-        f"Порог: не ниже {f(threshold, 2)} и не ниже лучшей из B1–B3 плюс {margin}. Сравнительная "
-        "часть ждёт базовых линий B1–B3. Выдача — подборка платформы по потребности набора: "
-        "точная категория по скору, затем «близкие» и нижний блок, затем остальные кандидаты "
-        "пула. Пул потребности — все кандидаты набора её специализации, включая "
-        f"персонажей-атакующих; эталон — градация rel из истины. Потребностей в наборе: {needs}. "
-        "B0 ранжирует весь пул по доле верных наивного теста — для ориентира, в порог не входит."
-        "\n\n" + table(header, rows) + naive_note(runs, attr)
+        f"Порог: не ниже {f(threshold, 2)} и не ниже лучшей из B1–B3 плюс {f(margin, 2)}. Выдача "
+        "— подборка платформы по потребности набора: точная категория по скору, затем «близкие» "
+        "и нижний блок, затем остальные кандидаты пула. Пул потребности — все кандидаты набора "
+        "её специализации, включая персонажей-атакующих; эталон — градация rel из истины. "
+        f"Потребностей в наборе: {needs}. B0 ранжирует весь пул по доле верных наивного теста — "
+        "для ориентира, в порог не входит. B1–B3 ранжируют весь пул по тексту резюме (раздел "
+        "«Базовые линии» выше); прочерк — базовой линии на наборе нет.\n\n"
+        + table(header, rows)
+        + "\n\n**Вклад отсечения и скора.** Те же B1–B3 внутри блоков нашей выдачи: порядок "
+        "блоков — наш (точные, близкие, нижний блок, остальные), внутри блока — скор базовой "
+        "линии. Рост против всего пула — вклад отсечения по категории, разница с нашей выдачей — "
+        "вклад нашего скора внутри блока. Все потребности.\n\n"
+        + table(within_header, within_rows)
+        + naive_note(runs, attr)
     )
     return judged(metric, body, verdicts, text=text)
 
@@ -583,7 +796,7 @@ def naive_note(runs: Runs, attr: str) -> str:
     worse = [
         name
         for name, data in runs.sets.items()
-        if getattr(ranking_quality(data, naive=True), attr) > getattr(ranking_quality(data), attr)
+        if (quality(data, attr, None, NAIVE) or 0) > (quality(data, attr) or 0)
     ]
     if not worse:
         return ""
@@ -598,20 +811,284 @@ def naive_note(runs: Runs, attr: str) -> str:
         f"присваивает консервативно: доля честных с заниженным грейдом (M10): {under}. Кандидат, "
         "чей истинный уровень выше требования, но категория ниже грейда потребности, попадает в "
         "«близкие» под всех точных, а B0 ставит его по доле верных без отсечения. Похоже, это "
-        "цена отсечения по категории при консервативном грейде, а не скора внутри категории; "
-        "разделят вклад отсечения и скора базовые линии внутри наших категорий (план, «Пул и "
-        "выдача»)."
+        "цена отсечения по категории при консервативном грейде, а не скора внутри категории — "
+        "вклад отсечения и скора разделяет таблица B1–B3 в наших блоках выше."
     )
 
 
 @section("M1")
 def m1(runs: Runs) -> Section:
-    return _ranking_section(runs, "M1", "precision", 0.70, "0,15")
+    return _ranking_section(runs, "M1", "precision", 0.70, 0.15)
 
 
 @section("M2")
 def m2(runs: Runs) -> Section:
-    return _ranking_section(runs, "M2", "ndcg", 0.75, "0,10")
+    return _ranking_section(runs, "M2", "ndcg", 0.75, 0.10)
+
+
+# --- M3, M5 ------------------------------------------------------------------------------------
+
+
+def place_keys(rows: Sequence[Placed]) -> dict[uuid.UUID, float]:
+    """Ключ места в нашей выдаче: выше — больше; вне выдачи ключа нет — ниже всех."""
+    return {p.candidate: float(len(rows) - i) for i, p in enumerate(rows)}
+
+
+def keys_of(
+    data: DatasetRuns, method: str, need: uuid.UUID, rows: Sequence[Placed]
+) -> Callable[[uuid.UUID], float]:
+    if method == OURS:
+        ours = place_keys(rows)
+        return lambda c: ours.get(c, -math.inf)
+    scores = data.scores[method]
+    return lambda c: scores[need, c]
+
+
+class Places:
+    """Процентильное место в пуле: 100 · (ниже + ½ · вровень) / (пул − 1) — 0–100, больше —
+    выше. Сам кандидат, которого заменяет двойник, в счёт не идёт."""
+
+    def __init__(self, keys: Iterable[float]) -> None:
+        self.keys = sorted(keys)
+
+    def of(self, value: float, replaced: float) -> float:
+        lower = bisect.bisect_left(self.keys, value)
+        equal = bisect.bisect_right(self.keys, value) - lower
+        if replaced < value:
+            lower -= 1
+        elif replaced == value:
+            equal -= 1
+        others = len(self.keys) - 1
+        return 100 * (lower + equal / 2) / others if others > 0 else math.nan
+
+
+def methods_of(data: DatasetRuns, *baselines: str) -> list[str]:
+    return [OURS, *(m for m in baselines if m in data.scores)]
+
+
+@dataclass(frozen=True)
+class Lift:
+    # Ранжирование → Δ процентильного места двойника против кандидата по парам.
+    deltas: dict[str, list[float]]
+    # S двойника − S кандидата — в парах, где скор есть у обоих.
+    gains: list[float]
+    # Пар, где двойник в точной категории, а кандидат — нет.
+    promoted: int
+    pairs: int
+
+
+def lift(data: DatasetRuns) -> Lift:
+    """M3: пара — потребность и честный кандидат, двойник дописал под неё резюме."""
+    by_need: dict[uuid.UUID, list[Twin]] = {}
+    for tw in data.twins:
+        if tw.kind == TwinKind.inflated and tw.need is not None:
+            by_need.setdefault(tw.need, []).append(tw)
+    methods = methods_of(data, *BASELINES)
+    deltas: dict[str, list[float]] = {m: [] for m in methods}
+    gains: list[float] = []
+    promoted = pairs = 0
+    exact = SelectionBlock.exact.value
+    for run in data.runs.values():
+        pool = sorted(run.outcomes)
+        for need, rows in run.twin_placed.items():
+            own = by_need.get(need, [])
+            for m in methods:
+                key = keys_of(data, m, need, rows)
+                places = Places(key(c) for c in pool)
+                for tw in own:
+                    source = key(tw.source)
+                    deltas[m].append(places.of(key(tw.id), source) - places.of(source, source))
+            placed = {p.candidate: p for p in rows}
+            for tw in own:
+                pairs += 1
+                a, b = placed.get(tw.source), placed.get(tw.id)
+                if a and b and a.score is not None and b.score is not None:
+                    gains.append(b.score - a.score)
+                promoted += bool(b and b.block == exact) and not (a and a.block == exact)
+    return Lift(deltas, gains, promoted, pairs)
+
+
+@section("M3")
+def m3(runs: Runs) -> Section:
+    cap = runs.mechanics.self_reported_stack_cap
+    found = {name: lift(data) for name, data in runs.sets.items()}
+    names = {OURS: "Наша выдача"}
+    header = ["Ранжирование"]
+    for name in found:
+        header += [f"Медиана Δ {name.upper()}", f"p90 Δ {name.upper()}"]
+    rows = []
+    for m in (OURS, *BASELINES):
+        row = [names.get(m, m)]
+        for lf in found.values():
+            values = lf.deltas.get(m) or []
+            row += [f(median(values), 1) if values else "—", f(quantile(values, 0.9), 1)]
+        rows.append(row)
+    checks_header = ["Проверка нашей выдачи", *(name.upper() for name in found)]
+    checks = [
+        [f"Прирост S ≤ λ = {f(cap, 2)}, доля пар"]
+        + [
+            f(sum(g <= cap + 1e-9 for g in lf.gains) / len(lf.gains)) if lf.gains else "—"
+            for lf in found.values()
+        ],
+        ["Пар со скором у обоих"] + [f"{len(lf.gains)} из {lf.pairs}" for lf in found.values()],
+        ["Наибольший прирост S"] + [f(max(lf.gains, default=math.nan)) for lf in found.values()],
+        ["Переходов в точную категорию"] + [str(lf.promoted) for lf in found.values()],
+    ]
+    verdicts, text = {}, {}
+    for name, lf in found.items():
+        ours = median(lf.deltas[OURS]) if lf.deltas[OURS] else math.nan
+        medians = {m: median(lf.deltas[m]) if lf.deltas.get(m) else None for m in BASELINES}
+        verdict, said = comparison(ours, medians, 5.0, 0.25, lower=True)
+        capped = all(g <= cap + 1e-9 for g in lf.gains)
+        if not capped or lf.promoted:
+            broken = ([] if capped else ["прирост S выше λ"]) + (
+                ["переход в точную категорию"] if lf.promoted else []
+            )
+            verdict, said = FAILED, f"{said}; не выполнено: {', '.join(broken)}"
+        verdicts[name], text[name] = verdict, said
+    panels = [
+        (name.upper(), [(names.get(m, m), lf.deltas.get(m, [])) for m in (OURS, *BASELINES)])
+        for name, lf in found.items()
+    ]
+    figure = "m3-lift.svg"
+    pairs = ", ".join(f"{name.upper()} — {lf.pairs}" for name, lf in found.items())
+    body = (
+        "Порог: медиана Δ не выше 5 п. п. и не выше четверти наименьшей медианы среди B1–B3; "
+        "прирост скора не больше λ = `self_reported_stack_cap` в 100 % пар; накрутчик не "
+        "переходит в точную категорию ни в одной паре. Двойник честного кандидата дописал в "
+        "самоописание и стек весь стек потребности и её название; тест, профиль и категория у "
+        "него те же. Δ — изменение процентильного места в выдаче потребности, 0–100, больше — "
+        "выше: место двойника среди остальных кандидатов пула против места самого кандидата. "
+        f"Пар: {pairs} — по {M3_PER_NEED} честных кандидатов на потребность. Вне нашей выдачи "
+        "кандидаты стоят вровень ниже всех.\n\n"
+        + table(header, rows)
+        + "\n\n"
+        + table(checks_header, checks)
+        + f"\n\n![M3, распределение Δ]({FIGURES}/{figure})"
+    )
+    svg = ecdf_svg("M3, распределение Δ процентильного места", panels, "Δ, п. п.")
+    return judged("M3", body, verdicts, {figure: svg}, text)
+
+
+# Признаки M5: название сравнения «группа / остальные» и кто в группе.
+PROTECTED: tuple[tuple[str, Callable[[Person], bool]], ...] = (
+    ("Пол: женщины / мужчины", lambda p: p.gender == Gender.female),
+    ("Возраст: 35 лет и старше / младше", lambda p: p.older),
+    ("Вуз: региональный / ведущий", lambda p: not p.leading),
+)
+
+
+@dataclass(frozen=True)
+class Bias:
+    # Доля пар «потребность — кандидат» с тем же блоком и тем же S у двойника.
+    identical: float
+    pairs: int
+    # Ранжирование → признак → отношение долей в топ-10.
+    ratios: dict[str, dict[str, float]]
+
+
+def bias(data: DatasetRuns) -> Bias:
+    """M5. Мир 0 — кандидаты выборки со своими признаками, мир 1 — вместо них двойники: каждый
+    кандидат выборки показан один раз в каждой группе признака, и распределение истины у групп
+    одно. Доля группы в топ-10 — сколько её показов попало в топ-10 потребности из всех её
+    показов в пуле."""
+    people = {o.id: o.person for o in data.dataset.observed}
+    sample = [tw for tw in data.twins if tw.kind == TwinKind.protected]
+    methods = methods_of(data, "B2", "B3")
+    shown = {m: {a: Counter[bool]() for a, _ in PROTECTED} for m in methods}
+    top = {m: {a: Counter[bool]() for a, _ in PROTECTED} for m in methods}
+    same = pairs = 0
+    for run in data.runs.values():
+        pool = sorted(run.outcomes)
+        own = [tw for tw in sample if tw.source in run.outcomes]
+        for need, rows in run.twin_placed.items():
+            placed = {p.candidate: p for p in rows}
+            for tw in own:
+                a, b = placed.get(tw.source), placed.get(tw.id)
+                pairs += 1
+                same += (a is None and b is None) or (
+                    a is not None and b is not None and (a.block, a.score) == (b.block, b.score)
+                )
+            for m in methods:
+                key = keys_of(data, m, need, rows)
+                for world in (0, 1):
+                    keys = {c: (-key(c), c) for c in pool}
+                    person = {tw.source: people[tw.source] for tw in own}
+                    if world:
+                        for tw in own:
+                            keys[tw.source] = (-key(tw.id), tw.id)
+                            person[tw.source] = tw.observed.person
+                    # Вне нашей выдачи кандидата в топ-10 нет, как бы ни легла ничья.
+                    listed = [c for c in pool if keys[c][0] != math.inf]
+                    best = set(heapq.nsmallest(TOP, listed, key=keys.__getitem__))
+                    for source, p in person.items():
+                        for attr, member in PROTECTED:
+                            shown[m][attr][member(p)] += 1
+                            top[m][attr][member(p)] += source in best
+    ratios = {
+        m: {attr: ratio(top[m][attr], shown[m][attr]) for attr, _ in PROTECTED} for m in methods
+    }
+    return Bias(same / pairs if pairs else math.nan, pairs, ratios)
+
+
+def ratio(top: Counter[bool], shown: Counter[bool]) -> float:
+    """Доля группы в топ-10 к доле остальных; без показов или попаданий остальных — nan."""
+    if not (shown[True] and shown[False] and top[False]):
+        return math.nan
+    return (top[True] / shown[True]) / (top[False] / shown[False])
+
+
+@section("M5")
+def m5(runs: Runs) -> Section:
+    found = {name: bias(data) for name, data in runs.sets.items()}
+    names = {OURS: "Наша выдача"}
+    columns = (OURS, "B2", "B3")
+    header = ["Признак"]
+    for name in found:
+        header += [f"{names.get(m, m)} {name.upper()}" for m in columns]
+    rows = []
+    for attr, _ in PROTECTED:
+        row = [attr]
+        for b in found.values():
+            row += [f(b.ratios[m][attr]) if m in b.ratios else "—" for m in columns]
+        rows.append(row)
+    identical = [
+        "Тождественны S и блок, доля пар (пар всего)",
+        *(f"{f(b.identical)} ({b.pairs})" for b in found.values()),
+    ]
+    verdicts, text = {}, {}
+    for name, b in found.items():
+        ours = list(b.ratios[OURS].values())
+        outside = [r for r in ours if not math.isnan(r) and not 0.8 <= r <= 1.25]
+        if b.identical < 1 or outside:
+            verdicts[name] = FAILED
+            text[name] = (
+                f"{FAILED}: S тождественны в доле пар {f(b.identical)}, отношений вне 0,8–1,25 — "
+                f"{len(outside)}"
+            )
+            continue
+        verdicts[name] = WAITING
+        unknown = any(math.isnan(r) for r in ours)
+        text[name] = (
+            "часть S выполнена"
+            + (", отношение долей без данных у части признаков" if unknown else "")
+            + f"; P(принятия) — {WAITING}"
+        )
+    samples = sum(tw.kind == TwinKind.protected for tw in next(iter(runs.sets.values())).twins)
+    body = (
+        "Порог: S и P(принятия) тождественны в 100 % пар; отношение долей в топ-10 — от 0,8 до "
+        "1,25. Двойник отличается от кандидата только полом (по имени), группой возраста и вузом "
+        f"в тексте резюме; кандидатов с двойниками — {samples} на набор, поровну по "
+        "специализациям, пары — с каждой потребностью их специализации. Отношение долей — доля "
+        "показов группы, попавших в топ-10, к той же доле остальных: каждый кандидат выборки "
+        "показан один раз в каждой группе (мир с кандидатами и мир с двойниками), истина у групп "
+        "одна. B2 и B3 — на тех же двойниках, в порог не входят. P(принятия) — "
+        f"{WAITING}: модели принятия на стенде нет.\n\n"
+        + table(["Показатель", *(n.upper() for n in found)], [identical])
+        + "\n\n"
+        + table(header, rows)
+    )
+    return judged("M5", body, verdicts, text=text)
 
 
 # --- M4 ----------------------------------------------------------------------------------------
@@ -1004,6 +1481,197 @@ def m13(runs: Runs) -> Section:
     return judged("M13", body, verdicts)
 
 
+# --- M20, D4 -----------------------------------------------------------------------------------
+
+
+def scored_pairs(data: DatasetRuns) -> dict[str, list[tuple[uuid.UUID, uuid.UUID, float]]]:
+    """По специализации — пары нашей выдачи со скором: (потребность, кандидат, S)."""
+    return {
+        code: [
+            (need, p.candidate, p.score)
+            for need, rows in run.placed.items()
+            for p in rows
+            if p.score is not None
+        ]
+        for code, run in data.runs.items()
+    }
+
+
+def level_scale(runs: Runs) -> str:
+    thresholds = runs.mechanics.grade_thresholds
+    bands = ", ".join(
+        f"{runs.catalog.grades[g].name} — от {f(thresholds[g], 2)}"
+        for g in grades_by_threshold(thresholds)
+    )
+    return f"Пороги грейдов на шкале уровня: {bands}."
+
+
+FSP_RESULTS = {
+    "winner": "победитель",
+    "prize": "призёр",
+    "finalist": "финалист",
+    "participant": "участник",
+}
+
+
+def card(data: DatasetRuns, runs: Runs, item: d4.Item) -> d4.Card:
+    """Карточка пары D4 — как её видит работодатель до принятия приглашения."""
+    run = data.runs[item.specialization]
+    need = next(n for n in data.dataset.needs if n.id == item.need)
+    seen = next(o for o in data.dataset.observed if o.id == item.candidate)
+    grade, levels = run.listed[item.candidate]
+    spec = runs.catalog.specializations[item.specialization]
+    category = f"{spec.name} · {runs.catalog.grades[grade].name}" if grade else "без категории"
+    profile = [
+        (t.name, levels[t.code].mean, levels[t.code].sd) for t in spec.topics if t.code in levels
+    ]
+    fsp = [
+        f"{a['event']}, {a['date']}: {FSP_RESULTS.get(a['fsp_result'], a['fsp_result'])}"
+        + (f", {a['place']} место" if a.get("place") else "")
+        for a in data.dataset.registry.get(seen.fsp_sub or "", [])
+    ]
+    stack = ", ".join(runs.catalog.technologies[t].name for t in seen.stack)
+    return d4.Card(need_text(need.form, runs.catalog), category, profile, fsp, stack)
+
+
+def write_d4(runs: Runs, directory: Path | None = None) -> bool:
+    """Выборка D4 и форма разметки по прогону D1 — только если выборки ещё нет: начатую
+    разметку новая выборка не затирает. Возвращает, записана ли."""
+    directory = directory or d4.D4_DIR
+    data = runs.sets.get("d1")
+    if data is None or (directory / d4.SAMPLE).exists():
+        return False
+    items = d4.draw(scored_pairs(data), data.dataset.params.seed)
+    d4.write_sample(items, directory)
+    cards = {it.number: card(data, runs, it) for it in items}
+    (directory / d4.FORM).write_text(d4.form(items, cards, level_scale(runs)), encoding="utf-8")
+    return True
+
+
+def score_grade(score: float) -> int:
+    """Градация скора — по тем же отсечкам, что эталон: 0,5, 0,7 и 0,9."""
+    return next((3 - i for i, edge in enumerate(RELEVANCE_EDGES) if score >= edge), 0)
+
+
+@section("M20")
+def m20(runs: Runs) -> Section:
+    data = runs.sets.get("d1")
+    directory = d4.D4_DIR
+    items = d4.load_sample(directory)
+    if runs.scale != PLAN_SCALE:
+        return Section(
+            "M20",
+            f"{WAITING.capitalize()}: выборка D4 — из прогона по плану, а этот прогон короче.",
+            WAITING,
+        )
+    if data is None or items is None:
+        return Section(
+            "M20",
+            f"{WAITING.capitalize()}: выборки D4 нет — её пишет команда `report` при прогоне по "
+            "плану.",
+            WAITING,
+        )
+    labels = {rater: d4.load_labels(directory, rater) for rater in d4.RATERS}
+    numbers = [it.number for it in items]
+    filled = {r: sum(n in own for n in numbers) for r, own in labels.items()}
+    where = f"`backend/validation/data/d4/` ({d4.FORM}, оценки — labels-a.csv и labels-b.csv)"
+    if any(v < len(numbers) for v in filled.values()):
+        done = ", ".join(f"{r.upper()} — {v} из {len(numbers)}" for r, v in filled.items())
+        return Section(
+            "M20",
+            f"Ожидает разметки: выборка D4 и форма — {where}; размечено: {done}. Расчёт готов и "
+            "сработает, когда оба файла оценок заполнены целиком.",
+            WAITING,
+        )
+    a, b = labels["a"], labels["b"]
+    placed = {
+        (need, p.candidate): p.score
+        for run in data.runs.values()
+        for need, rows in run.placed.items()
+        for p in rows
+    }
+    kept = [it for it in items if placed.get((it.need, it.candidate)) is not None]
+    ours = [placed[it.need, it.candidate] or 0.0 for it in kept]
+    consensus = [(a[it.number] + b[it.number]) / 2 for it in kept]
+    raters = weighted_kappa([(a[n], b[n]) for n in numbers], d4.SCALE)
+    rho = spearman(ours, consensus)
+    model = weighted_kappa(
+        [(score_grade(s), math.floor(c + 0.5)) for s, c in zip(ours, consensus, strict=True)],
+        d4.SCALE,
+    )
+    found: dict[str, float | None] = {
+        m: spearman([data.scores[m][it.need, it.candidate] for it in kept], consensus)
+        if m in data.scores
+        else None
+        for m in BASELINES
+    }
+    verdict, said = comparison(rho, found, 0.5, 0.0, lower=False)
+    broken = [
+        text
+        for ok, text in (
+            (raters >= 0.6, "κ_AB ниже 0,60"),
+            (model >= 0.5, "каппа модели ниже 0,50"),
+        )
+        if not ok
+    ]
+    if broken:
+        verdict, said = FAILED, f"{said}; не выполнено: {', '.join(broken)}"
+    rows = [
+        ["κ_AB размечающих, квадратичная", "≥ 0,60", f(raters)],
+        ["ρ(S, консенсус)", "≥ 0,50 и ≥ лучшей B1–B3", f(rho)],
+        *([f"ρ({m}, консенсус)", "—", f(v)] for m, v in found.items()),
+        ["Каппа градации S и округлённого консенсуса", "≥ 0,50", f(model)],
+    ]
+    note = (
+        "\n\n**κ_AB ниже 0,60** — рубрика неоднозначна: размечающие расходятся сильнее, чем "
+        "позволяет сравнение с моделью. Сравнение всё равно опубликовано."
+        if raters < 0.6
+        else ""
+    )
+    body = (
+        f"Пары D4 — {len(numbers)} из D1, по специализациям поровну и по квинтилям нашего скора; "
+        f"форма и оценки — {where}. Консенсус — среднее двух оценок; со скором в выдаче — "
+        f"{len(kept)} пар.\n\n" + table(["Показатель", "Порог", "Значение"], rows) + note
+    )
+    return Section("M20", body, f"D1 — {verdict}: {said}", {}, {"d1": verdict})
+
+
+# --- Базовые линии -----------------------------------------------------------------------------
+
+
+def baselines_note(runs: Runs) -> str:
+    """Раздел отчёта о базовых линиях: как устроены и чем и когда считались на наборах."""
+
+    def b3_on(name: str, data: DatasetRuns) -> str:
+        if data.b3 is None:
+            return f"{name.upper()} — прогона нет, сравнение с B3 — «{WAITING}»"
+        dates = (
+            data.b3.first if data.b3.first == data.b3.last else f"{data.b3.first}–{data.b3.last}"
+        )
+        return f"{name.upper()} — {data.b3.model}, {dates}, ответов {data.b3.answers}"
+
+    b2 = ", ".join(n.upper() for n, d in runs.sets.items() if "B2" in d.scores) or "нет"
+    b3 = "; ".join(b3_on(n, d) for n, d in runs.sets.items())
+    prompt = "\n".join("    " + line for line in B3_SYSTEM.splitlines())
+    return (
+        "## Базовые линии\n\n"
+        f"Определения — [план, «Базовые линии»]({PLAN}#базовые-линии). B0 — наивный тест, см. M9. "
+        "B1–B3 ранжируют по тексту: резюме кандидата из наблюдаемого — имя, возраст, вуз, стаж и "
+        "самоописание со стеком; вакансия — название, направление и грейд, стек, формат и вилка. "
+        "Истины, теста и нашего скора они не видят.\n\n"
+        f"- **B1 — BM25 Okapi**, k1 = {f(BM25_K1, 1)}, b = {f(BM25_B, 2)}; слова в нижнем "
+        "регистре без лемматизации; IDF и средняя длина — по резюме пула специализации.\n"
+        f"- **B2 — эмбеддинги** `{E5_MODEL}`, ревизия `{E5_REVISION[:12]}`, ONNX на CPU: среднее "
+        "скрытых состояний по токенам, косинус векторов «query: вакансия» и «passage: резюме». "
+        f"Наборы: {b2}.\n"
+        "- **B3 — LLM-ранжировщик** через Claude Agent SDK, только синтетика: без инструментов "
+        "и настроек с диска, структурированный ответ — целое 0–10 на пару. Ответы кэшируются в "
+        "`backend/validation/data/recorded/b3.<набор>.json` по ключу пары и хэшу запроса; отчёт "
+        "пересобирается из кэша без сети и ключа API, пары без ответа в кэше — ошибка сборки. "
+        f"Модель и дата прогона: {b3}. Системный промпт:\n\n{prompt}"
+    )
+
+
 # --- M19 ---------------------------------------------------------------------------------------
 
 
@@ -1012,7 +1680,7 @@ def m19(runs: Runs) -> Section:
     if not {"d1", "d2"} <= set(runs.sets):
         return Section("M19", "Нужны оба набора, D1 и D2.", WAITING)
     d1, d2 = runs.sets["d1"], runs.sets["d2"]
-    ndcg = ranking_quality(d1).ndcg, ranking_quality(d2).ndcg
+    ndcg = quality(d1, "ndcg") or math.nan, quality(d2, "ndcg") or math.nan
     exact = (
         truthfulness(honest_grades(d1, runs.mechanics)["ours"], runs.mechanics).exact,
         truthfulness(honest_grades(d2, runs.mechanics)["ours"], runs.mechanics).exact,
@@ -1023,21 +1691,21 @@ def m19(runs: Runs) -> Section:
         ok.append(drop <= 0.2)
         rows.append([label_, f(one), f(two), f(drop, 2), mark(drop <= 0.2)])
     shifted = {
-        m: computed(runs, m).sets.get("d2", WAITING) for m in ("M1", "M2", "M4", "M9", "M10")
+        m: computed(runs, m).sets.get("d2", WAITING) for m in ("M1", "M2", "M3", "M4", "M9", "M10")
     }
     failed = [m for m, v in shifted.items() if v == FAILED]
     rows += [[f"Порог {m} на D2", "", "", "", mark(v != FAILED)] for m, v in shifted.items()]
     body = (
         "Порог: пороги метрик M1–M4, M9, M10, M14, M15 выполняются и на D2; относительная "
-        "деградация nDCG@10 и точного совпадения грейда не больше 20 %. M1 и M2 на D2 — по "
-        "абсолютной части порога; M3, M14 и M15 ждут данных.\n\n"
-        + table(["Показатель", "D1", "D2", "Деградация", "Выполнено"], rows)
+        "деградация nDCG@10 и точного совпадения грейда не больше 20 %. M14 и M15 ждут "
+        "данных.\n\n" + table(["Показатель", "D1", "D2", "Деградация", "Выполнено"], rows)
     )
     if failed or not all(ok):
         reasons = [*(f"порог {m} на D2" for m in failed)]
         reasons += ["деградация больше 20 %"] if not all(ok) else []
         return Section("M19", body, f"{FAILED}: {', '.join(reasons)}")
-    return Section("M19", body, f"{WAITING}: M3, M14, M15")
+    waiting = [m for m, v in shifted.items() if v == WAITING] + ["M14", "M15"]
+    return Section("M19", body, f"{WAITING}: {', '.join(waiting)}")
 
 
 # --- Отчёт -------------------------------------------------------------------------------------
@@ -1083,7 +1751,7 @@ def render(runs: Runs, sections: dict[str, Section]) -> str:
             ),
         ),
     ]
-    parts = []
+    parts = [baselines_note(runs)]
     for metric in order(sections):
         title, plan_anchor = METRICS[metric]
         s = sections[metric]

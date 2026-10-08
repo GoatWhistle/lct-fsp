@@ -18,6 +18,7 @@ from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 
 from app.domain.skill import Normal, sigmoid
+from app.usecase.selection import Selections
 from settings import Mechanics
 from validation.main import catalog
 from validation.market import (
@@ -29,6 +30,7 @@ from validation.market import (
 from validation.metrics import median, regression
 from validation.population import Generator, GeneratorParams, SyntheticNeed, as_candidate
 from validation.truth import CandidateTruth, Persona
+from validation.twins import Twin
 
 # Точки сходимости калибровки M12 — ответов на семейство в среднем.
 CHECKPOINTS = (50, 100, 200, 500)
@@ -115,6 +117,15 @@ class Adaptivity:
 
 
 @dataclass(frozen=True)
+class Placed:
+    """Строка выдачи: кандидат или двойник, блок и скор S; в нижнем блоке скора нет."""
+
+    candidate: uuid.UUID
+    block: str
+    score: float | None
+
+
+@dataclass(frozen=True)
 class SpecRun:
     dataset: str
     specialization: str
@@ -122,6 +133,15 @@ class SpecRun:
     outcomes: dict[uuid.UUID, Outcome]
     # Потребность → кандидаты в порядке выдачи подборки.
     rankings: dict[uuid.UUID, tuple[uuid.UUID, ...]] = field(default_factory=dict)
+    # Потребность → строки той же выдачи с блоком и скором.
+    placed: dict[uuid.UUID, tuple[Placed, ...]] = field(default_factory=dict)
+    # Потребность → выдача по пулу с двойниками M3 и M5: кандидаты и двойники вместе. Порядок
+    # выдачи поточечный — блок, скор, соль по id, — и двойники не меняют порядок кандидатов
+    # между собой.
+    twin_placed: dict[uuid.UUID, tuple[Placed, ...]] = field(default_factory=dict)
+    # Категория и профиль, с которыми кандидат попал в пул подборки, — после повтора M9, если
+    # он был: так его видит работодатель.
+    listed: dict[uuid.UUID, tuple[str | None, dict[str, Normal]]] = field(default_factory=dict)
     checkpoints: tuple[Checkpoint, ...] = ()
     families: tuple[FamilyState, ...] = ()
     # B0: отсечки доли верных по грейдам — ожидаемая доля на пороге грейда по экспертным
@@ -139,6 +159,8 @@ class Job:
     truths: tuple[CandidateTruth, ...]
     needs: tuple[SyntheticNeed, ...]
     stack: dict[uuid.UUID, frozenset[str]]
+    # Двойники кандидатов специализации (`validation.twins`).
+    twins: tuple[Twin, ...] = ()
     # Полный прогон — с B0, повтором, подборками и M13; иначе только определения (M4 до поправки).
     full: bool = True
 
@@ -261,24 +283,64 @@ def run_spec(job: Job) -> SpecRun:
     for t in truths:
         m.enlist(users[t.id], stack=job.stack[t.id], claimed=t.claimed)
     selections = m.stand.selections()
-    rankings = {}
-    for need in job.needs:
-        page = selections.build_draft(EMPLOYER, need.form, limit=len(truths))
-        rankings[need.id] = tuple(by_user[e.candidate_id] for e in page.entries)
+    placed = {need.id: _placed(selections, need, len(truths), by_user.get) for need in job.needs}
+    rankings = {n: tuple(p.candidate for p in rows) for n, rows in placed.items()}
+
+    listed = {t.id: _listed(m, users[t.id]) for t in truths}
 
     families = _families(m)
     adaptivity = compare(m, scale.compare, source)
+    # Двойники — после всех замеров банка: подборка берёт соль из того же источника seed, что и
+    # тест, и лишние подборки до M13 сдвинули бы его.
+    claimed = {t.id: t.claimed for t in truths}
+    own_twins = [tw for tw in job.twins if tw.source in users]
+    for tw in own_twins:
+        m.enlist(
+            users[tw.source],
+            stack=frozenset(tw.observed.stack),
+            claimed=claimed[tw.source],
+            as_id=tw.id,
+        )
+    twin_placed = (
+        {
+            need.id: _placed(
+                selections, need, len(truths) + len(own_twins), lambda c: by_user.get(c, c)
+            )
+            for need in job.needs
+        }
+        if own_twins
+        else {}
+    )
     return SpecRun(
         params.name,
         code,
         mechanics.level_sd_inflation,
         outcomes,
         rankings,
+        placed,
+        twin_placed,
+        listed,
         checkpoints,
         families,
         naive_cutoffs(m, blank),
         adaptivity,
     )
+
+
+def _placed(
+    selections: Selections,
+    need: SyntheticNeed,
+    limit: int,
+    candidate: Callable[[uuid.UUID], uuid.UUID | None],
+) -> tuple[Placed, ...]:
+    """Выдача по потребности; `candidate` — id кандидата набора по id в пуле стенда."""
+    page = selections.build_draft(EMPLOYER, need.form, limit=limit)
+    found = []
+    for e in page.entries:
+        cid = candidate(e.candidate_id)
+        assert cid is not None
+        found.append(Placed(cid, e.block.value, e.match_score))
+    return tuple(found)
 
 
 def run_cold(job: Job) -> Adaptivity:
@@ -299,6 +361,12 @@ def _profile(m: Market, user: uuid.UUID) -> dict[str, Normal]:
     if profile is None:
         return {}
     return {t.topic.code: Normal(t.level.theta, t.level.theta_sd) for t in profile.topics}
+
+
+def _listed(m: Market, user: uuid.UUID) -> tuple[str | None, dict[str, Normal]]:
+    with m.stand.uow:
+        category = m.stand.attempts.state(user).category
+    return (category.grade.code if category else None), _profile(m, user)
 
 
 def _families(m: Market) -> tuple[FamilyState, ...]:

@@ -8,12 +8,14 @@ from decimal import Decimal, InvalidOperation
 
 import pytest
 
+from app.adapter.code_runner import InProcessCodeRunner
 from app.assessment.catalog import load_catalog
 from app.config import Mechanics, Settings
 from app.domain.bank import BANK, RETIRED, Family, covers, families_for_topics, get_family
 from app.domain.bank.family import same_answer, values
 
 SEEDS = range(200)
+RUNNER = InProcessCodeRunner()
 # Совпадения ответов считаются на большей выборке: доля около 4 % на 200 экземплярах шумит.
 COLLISION_SEEDS = range(500)
 TOPICS = {s.code: [t.code for t in s.topics] for s in load_catalog().specializations}
@@ -23,9 +25,9 @@ MECHANICS = Mechanics.from_yaml(Settings().mechanics_file)
 @pytest.mark.parametrize("family", BANK, ids=lambda f: f.code)
 def test_instance_is_reproducible_and_checks_its_own_answer(family: Family) -> None:
     for seed in SEEDS:
-        instance = family.instance(seed)
+        instance = family.instance(seed, RUNNER)
 
-        assert family.instance(seed) == instance
+        assert family.instance(seed, RUNNER) == instance
         assert instance.prompt and instance.answer
         assert family.check(instance, f"  {instance.answer.upper()} ")
         assert not family.check(instance, instance.answer + "1")
@@ -35,7 +37,7 @@ def test_instance_is_reproducible_and_checks_its_own_answer(family: Family) -> N
 
 @pytest.mark.parametrize("family", BANK, ids=lambda f: f.code)
 def test_family_has_different_instances(family: Family) -> None:
-    prompts = {(family.instance(s).prompt, family.instance(s).code) for s in SEEDS}
+    prompts = {(family.instance(s, RUNNER).prompt, family.instance(s, RUNNER).code) for s in SEEDS}
 
     assert len(prompts) >= 20
 
@@ -57,7 +59,7 @@ def _value_key(value: str) -> str:
 
 @pytest.mark.parametrize("family", BANK, ids=lambda f: f.code)
 def test_correct_answer_of_one_instance_rarely_fits_another(family: Family) -> None:
-    instances = [family.instance(s) for s in COLLISION_SEEDS]
+    instances = [family.instance(s, RUNNER) for s in COLLISION_SEEDS]
     counts = Counter(answer_key(i.answer) for i in instances)
     n = len(instances)
 

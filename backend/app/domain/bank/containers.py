@@ -5,12 +5,13 @@ import math
 import random
 
 from app.domain.bank.family import Instance
+from app.domain.bank.runner import CodeRunner
 
 _IMAGES = [("web", "nginx", 80), ("api", "api", 8000), ("db", "postgres", 5432)]
 _IMAGES += [("cache", "redis", 6379), ("admin", "admin", 3000)]
 
 
-def port_mapping(rng: random.Random) -> Instance:
+def port_mapping(rng: random.Random, runner: CodeRunner) -> Instance:
     containers = []
     for name, image, port in rng.sample(_IMAGES, 4):
         host = rng.choice([8080, 8081, 9000, 9090, 5433, 6380])
@@ -64,7 +65,7 @@ def port_mapping(rng: random.Random) -> Instance:
     )
 
 
-def service_selector(rng: random.Random) -> Instance:
+def service_selector(rng: random.Random, runner: CodeRunner) -> Instance:
     app = rng.choice(["shop", "billing"])
     tier = rng.choice(["api", "web"])
     selector = {"app": app, "tier": tier}
@@ -112,7 +113,7 @@ def service_selector(rng: random.Random) -> Instance:
 _UNITS = {"Mi": 2**20, "Gi": 2**30, "M": 10**6, "G": 10**9}
 
 
-def memory_units(rng: random.Random) -> Instance:
+def memory_units(rng: random.Random, runner: CodeRunner) -> Instance:
     rows = []
     for name in ("api", "worker", "web", "cron", "proxy"):
         number, unit = rng.choice([(512, "Mi"), (500, "M"), (1, "Gi"), (1, "G"), (256, "Mi")])
@@ -141,7 +142,7 @@ def memory_units(rng: random.Random) -> Instance:
     )
 
 
-def build_cache(rng: random.Random) -> Instance:
+def build_cache(rng: random.Random, runner: CodeRunner) -> Instance:
     steps = ["FROM python:3.12-slim", "WORKDIR /app"]
     for optional in ("ARG APP_VERSION=dev", "ENV PYTHONUNBUFFERED=1", "LABEL team=platform"):
         if rng.random() < 0.5:
@@ -191,7 +192,7 @@ def build_cache(rng: random.Random) -> Instance:
     )
 
 
-def hpa_replicas(rng: random.Random) -> Instance:
+def hpa_replicas(rng: random.Random, runner: CodeRunner) -> Instance:
     low, high = rng.randint(1, 3), rng.randint(8, 15)
     target = rng.choice([50, 60, 70, 80])
     rows: list[tuple[int, int, int]] = []
@@ -229,7 +230,7 @@ def hpa_replicas(rng: random.Random) -> Instance:
     )
 
 
-def crashloop_backoff(rng: random.Random) -> Instance:
+def crashloop_backoff(rng: random.Random, runner: CodeRunner) -> Instance:
     run = rng.randint(1, 20)
     first, second = sorted(rng.sample(range(2, 10), 2))
 
@@ -262,7 +263,7 @@ def _percent_or_count(rng: random.Random) -> tuple[str, float | int]:
     return str(count), count
 
 
-def rolling_update(rng: random.Random) -> Instance:
+def rolling_update(rng: random.Random, runner: CodeRunner) -> Instance:
     while True:
         replicas = rng.randint(3, 20)
         surge_text, surge = _percent_or_count(rng)
@@ -293,7 +294,7 @@ def _cpu(millicores: int) -> str:
     return f"{millicores}m" if millicores % 1000 else str(millicores // 1000)
 
 
-def pod_scheduling(rng: random.Random) -> Instance:
+def pod_scheduling(rng: random.Random, runner: CodeRunner) -> Instance:
     capacity = {
         name: (rng.choice([2000, 4000]), rng.choice([4096, 8192])) for name in ("node-a", "node-b")
     }
@@ -332,7 +333,7 @@ def pod_scheduling(rng: random.Random) -> Instance:
     )
 
 
-def probe_restart(rng: random.Random) -> Instance:
+def probe_restart(rng: random.Random, runner: CodeRunner) -> Instance:
     delay, period = rng.choice([5, 10, 15, 20]), rng.choice([5, 10, 15])
     threshold = rng.randint(2, 5)
     r_period, r_threshold = rng.choice([2, 3, 5]), rng.randint(1, 3)
@@ -370,7 +371,7 @@ def probe_restart(rng: random.Random) -> Instance:
     )
 
 
-def cpu_throttling(rng: random.Random) -> Instance:
+def cpu_throttling(rng: random.Random, runner: CodeRunner) -> Instance:
     limit = rng.choice([250, 500, 1000, 1500, 2000])
     threads = rng.choice([1, 1, 2, 4])
     work = rng.randrange(30, 400, 10)
@@ -398,7 +399,7 @@ def _decimal(value: float) -> str:
     return str(int(rounded)) if rounded.is_integer() else str(rounded)
 
 
-def pdb_disruptions(rng: random.Random) -> Instance:
+def pdb_disruptions(rng: random.Random, runner: CodeRunner) -> Instance:
     rows = []
     for _ in range(3):
         replicas = rng.randint(3, 12)

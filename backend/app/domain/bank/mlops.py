@@ -5,9 +5,10 @@ import math
 import random
 
 from app.domain.bank.family import Instance, rounded
+from app.domain.bank.runner import CodeRunner
 
 
-def split_sizes(rng: random.Random) -> Instance:
+def split_sizes(rng: random.Random, runner: CodeRunner) -> Instance:
     n = rng.randint(500, 20000)
     test = rng.choice([0.1, 0.15, 0.2, 0.25])
     val = rng.choice([0.1, 0.2, 0.25])
@@ -23,7 +24,7 @@ def split_sizes(rng: random.Random) -> Instance:
     return Instance(prompt, f"{rest - val_n} {val_n} {test_n}", {"n": n, "test": test, "val": val})
 
 
-def batch_inference(rng: random.Random) -> Instance:
+def batch_inference(rng: random.Random, runner: CodeRunner) -> Instance:
     samples = rng.randint(1000, 200000)
     batch = rng.choice([32, 64, 128, 256, 512])
     per_batch = rng.choice([20, 35, 50, 80, 120])
@@ -40,7 +41,7 @@ def batch_inference(rng: random.Random) -> Instance:
     return Instance(prompt, f"{batches} {rounded(seconds, 1)}", params)
 
 
-def dag_duration(rng: random.Random) -> Instance:
+def dag_duration(rng: random.Random, runner: CodeRunner) -> Instance:
     names = ["extract", "clean", "features", "train", "evaluate", "report"]
     durations = {n: rng.randint(2, 30) for n in names}
     deps: dict[str, list[str]] = {"extract": []}
@@ -61,7 +62,7 @@ def dag_duration(rng: random.Random) -> Instance:
     return Instance(prompt, answer, {"durations": durations, "deps": deps}, code="\n".join(lines))
 
 
-def psi_drift(rng: random.Random) -> Instance:
+def psi_drift(rng: random.Random, runner: CodeRunner) -> Instance:
     expected = [rng.randint(5, 40) for _ in range(4)]
     actual = [max(1, e + rng.randint(-12, 12)) for e in expected]
     e_total, a_total = sum(expected), sum(actual)
@@ -81,7 +82,7 @@ def psi_drift(rng: random.Random) -> Instance:
     )
 
 
-def registry_stages(rng: random.Random) -> Instance:
+def registry_stages(rng: random.Random, runner: CodeRunner) -> Instance:
     versions = {v: "None" for v in range(1, 5)}
     events = []
     for _ in range(rng.randint(5, 7)):
@@ -105,7 +106,7 @@ def registry_stages(rng: random.Random) -> Instance:
     return Instance(prompt, answer, {"events": events}, code="\n".join(events))
 
 
-def replicas_needed(rng: random.Random) -> Instance:
+def replicas_needed(rng: random.Random, runner: CodeRunner) -> Instance:
     rps = rng.randrange(50, 3000, 10)
     latency_ms = rng.choice([20, 40, 50, 80, 100, 200])
     concurrency = rng.choice([1, 2, 4, 8])
@@ -127,7 +128,7 @@ def replicas_needed(rng: random.Random) -> Instance:
     return Instance(prompt, f"{per_replica:g} {replicas}", params)
 
 
-def canary_requests(rng: random.Random) -> Instance:
+def canary_requests(rng: random.Random, runner: CodeRunner) -> Instance:
     steps = [rng.choice([1, 5, 10]), rng.choice([20, 25]), rng.choice([50]), 100]
     minutes = rng.choice([10, 15, 30])
     rps = rng.randint(10, 200)
@@ -156,7 +157,7 @@ def canary_requests(rng: random.Random) -> Instance:
     )
 
 
-def ab_test_z(rng: random.Random) -> Instance:
+def ab_test_z(rng: random.Random, runner: CodeRunner) -> Instance:
     n_a, n_b = rng.randrange(1000, 20000, 100), rng.randrange(1000, 20000, 100)
     p_a = rng.randint(20, 120) / 1000
     p_b = p_a + rng.randint(-15, 25) / 1000
@@ -176,7 +177,7 @@ def ab_test_z(rng: random.Random) -> Instance:
     return Instance(prompt, f"{rounded(z, 2)} {verdict}", params)
 
 
-def feature_freshness(rng: random.Random) -> Instance:
+def feature_freshness(rng: random.Random, runner: CodeRunner) -> Instance:
     ttl = rng.choice([5, 10, 15, 30])
     updates = sorted(rng.sample(range(0, 120, 5), rng.randint(3, 5)))
     reads = sorted(rng.sample(range(1, 150), 5))
@@ -198,7 +199,7 @@ def feature_freshness(rng: random.Random) -> Instance:
     return Instance(prompt, " ".join(answers), {"ttl": ttl, "updates": updates, "reads": reads})
 
 
-def degradation_alerts(rng: random.Random) -> Instance:
+def degradation_alerts(rng: random.Random, runner: CodeRunner) -> Instance:
     threshold = rng.choice([0.80, 0.85, 0.9])
     days = rng.randint(2, 3)
     values = [
@@ -241,7 +242,7 @@ def _cron_matches(field: str, value: int) -> bool:
     return False
 
 
-def cron_runs(rng: random.Random) -> Instance:
+def cron_runs(rng: random.Random, runner: CodeRunner) -> Instance:
     minute = rng.choice(["0", "15", "*/15", "*/20", "0,30", "5"])
     hour = rng.choice(["*", "*/2", "*/3", "9-18", "0,12", "6-9,18"])
     runs = [
@@ -267,7 +268,7 @@ def cron_runs(rng: random.Random) -> Instance:
     )
 
 
-def spot_training_cost(rng: random.Random) -> Instance:
+def spot_training_cost(rng: random.Random, runner: CodeRunner) -> Instance:
     hours = rng.randint(4, 40)
     price = rng.choice([2.5, 3.2, 4.0, 1.8])
     spot_discount = rng.choice([60, 65, 70])

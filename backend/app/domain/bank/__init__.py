@@ -40,10 +40,12 @@ from app.domain.bank import (
     testing,
 )
 from app.domain.bank.family import Family, Generator, Instance, same_answer
+from app.domain.bank.runner import CodeRunner
 
 __all__ = [
     "BANK",
     "RETIRED",
+    "CodeRunner",
     "Family",
     "Instance",
     "covers",

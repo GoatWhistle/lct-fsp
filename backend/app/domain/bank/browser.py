@@ -6,9 +6,10 @@ import random
 from urllib.parse import urljoin, urlsplit
 
 from app.domain.bank.family import Instance, rounded
+from app.domain.bank.runner import CodeRunner
 
 
-def parallel_downloads(rng: random.Random) -> Instance:
+def parallel_downloads(rng: random.Random, runner: CodeRunner) -> Instance:
     files = rng.randint(6, 30)
     per_host = rng.choice([2, 4, 6])
     duration = rng.randrange(40, 200, 10)
@@ -25,7 +26,7 @@ def parallel_downloads(rng: random.Random) -> Instance:
     return Instance(prompt, str(total), params)
 
 
-def url_resolution(rng: random.Random) -> Instance:
+def url_resolution(rng: random.Random, runner: CodeRunner) -> Instance:
     base = rng.choice(
         [
             "https://shop.example/catalog/phones/index.html",
@@ -59,7 +60,7 @@ def url_resolution(rng: random.Random) -> Instance:
     return Instance(prompt, " ".join(answers), {"base": base, "refs": refs})
 
 
-def script_order(rng: random.Random) -> Instance:
+def script_order(rng: random.Random, runner: CodeRunner) -> Instance:
     """Модель: все загрузки стартуют в 0 (сканер предзагрузки), скрипт i загружен к моменту
     load_i. Разбор HTML мгновенный, синхронный скрипт останавливает его до своей загрузки.
     inline и синхронный выполняются, когда до них дошёл разбор; async — по загрузке, но не раньше,
@@ -126,7 +127,7 @@ def script_order(rng: random.Random) -> Instance:
     )
 
 
-def event_propagation(rng: random.Random) -> Instance:
+def event_propagation(rng: random.Random, runner: CodeRunner) -> Instance:
     levels = ["outer", "middle", "inner"]
     listeners = []
     for el in levels:
@@ -166,7 +167,7 @@ def event_propagation(rng: random.Random) -> Instance:
     return Instance(prompt, " ".join(log), {"listeners": listeners}, code=code)
 
 
-def debounce_calls(rng: random.Random) -> Instance:
+def debounce_calls(rng: random.Random, runner: CodeRunner) -> Instance:
     wait = rng.choice([100, 200, 300])
     # Шаг 70 мс: паузы не совпадают с задержкой ровно — без ничьих таймера и нажатия.
     moments = sorted(rng.sample(range(0, 1500, 70), rng.randint(6, 9)))
@@ -183,7 +184,7 @@ def debounce_calls(rng: random.Random) -> Instance:
     return Instance(prompt, " ".join(map(str, calls)), {"wait": wait, "moments": moments})
 
 
-def throttle_calls(rng: random.Random) -> Instance:
+def throttle_calls(rng: random.Random, runner: CodeRunner) -> Instance:
     wait = rng.choice([100, 200, 300])
     moments = sorted(rng.sample(range(0, 1200, 25), rng.randint(7, 10)))
     calls, last = [], None
@@ -200,7 +201,7 @@ def throttle_calls(rng: random.Random) -> Instance:
     return Instance(prompt, " ".join(map(str, calls)), {"wait": wait, "moments": moments})
 
 
-def same_origin(rng: random.Random) -> Instance:
+def same_origin(rng: random.Random, runner: CodeRunner) -> Instance:
     base = "https://app.example.ru"
     candidates = [
         "https://app.example.ru/profile",
@@ -227,7 +228,7 @@ def same_origin(rng: random.Random) -> Instance:
     return Instance(prompt, " ".join(answers), {"urls": picked}, code="\n".join(picked))
 
 
-def critical_path(rng: random.Random) -> Instance:
+def critical_path(rng: random.Random, runner: CodeRunner) -> Instance:
     html = rng.randint(50, 300)
     css = rng.randint(50, 300)
     font = rng.randint(50, 300)
@@ -254,7 +255,7 @@ def critical_path(rng: random.Random) -> Instance:
     return Instance(prompt, f"{first_paint} {text_paint}", params, code=code)
 
 
-def layout_shift(rng: random.Random) -> Instance:
+def layout_shift(rng: random.Random, runner: CodeRunner) -> Instance:
     viewport = rng.choice([(800, 600), (1000, 800), (400, 800)])
     shifts = []
     total = 0.0
@@ -282,7 +283,7 @@ def layout_shift(rng: random.Random) -> Instance:
     return Instance(prompt, f"{rounded(total, 3)}", params, code="\n".join(lines))
 
 
-def cache_directives(rng: random.Random) -> Instance:
+def cache_directives(rng: random.Random, runner: CodeRunner) -> Instance:
     max_age = rng.choice([30, 60, 90])
     swr = rng.choice([0, 0, 60, 120])
     directive = f"max-age={max_age}" + (f", stale-while-revalidate={swr}" if swr else "")
@@ -310,7 +311,7 @@ def cache_directives(rng: random.Random) -> Instance:
     return Instance(prompt, "".join(letters), {"directive": directive, "moments": moments})
 
 
-def long_tasks(rng: random.Random) -> Instance:
+def long_tasks(rng: random.Random, runner: CodeRunner) -> Instance:
     tasks = [rng.choice([5, 10, 20, 30, 45, 60, 80, 120, 200]) for _ in range(rng.randint(5, 8))]
     blocking = sum(max(0, t - 50) for t in tasks)
     long_count = sum(1 for t in tasks if t > 50)
@@ -322,7 +323,7 @@ def long_tasks(rng: random.Random) -> Instance:
     return Instance(prompt, f"{long_count} {blocking}", {"tasks": tasks})
 
 
-def service_worker(rng: random.Random) -> Instance:
+def service_worker(rng: random.Random, runner: CodeRunner) -> Instance:
     strategy = rng.choice(["cache-first", "network-first", "stale-while-revalidate"])
     start = rng.randint(1, 9)
     cached = network = start

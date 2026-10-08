@@ -6,11 +6,13 @@ import random
 from collections.abc import Callable
 
 from app.domain.bank.family import Instance, rounded
+from app.domain.bank.python_code import run_python
+from app.domain.bank.runner import CodeRunner
 
 OUTCOMES = ["passed", "failed", "skipped"]
 
 
-def fail_fast(rng: random.Random) -> Instance:
+def fail_fast(rng: random.Random, runner: CodeRunner) -> Instance:
     statuses = [rng.choices(OUTCOMES, weights=[6, 2, 1])[0] for _ in range(rng.randint(7, 10))]
     if "failed" not in statuses:
         statuses[rng.randrange(2, len(statuses))] = "failed"
@@ -24,7 +26,7 @@ def fail_fast(rng: random.Random) -> Instance:
     return Instance(prompt, str(passed), {"statuses": statuses}, code=code)
 
 
-def boundary_values(rng: random.Random) -> Instance:
+def boundary_values(rng: random.Random, runner: CodeRunner) -> Instance:
     low = rng.randint(1, 50)
     high = low + rng.randint(2, 60)
     boundary = {low - 1, low, low + 1, high - 1, high, high + 1}
@@ -41,7 +43,7 @@ def boundary_values(rng: random.Random) -> Instance:
     return Instance(prompt, str(answer), {"low": low, "high": high, "values": values})
 
 
-def branch_coverage(rng: random.Random) -> Instance:
+def branch_coverage(rng: random.Random, runner: CodeRunner) -> Instance:
     a, b = sorted(rng.sample(range(0, 100), 2))
     c = rng.randint(b + 1, 150)
     branches: list[Callable[[int], bool]] = [
@@ -74,7 +76,7 @@ MUTANTS = [
 ]
 
 
-def mutant_killers(rng: random.Random) -> Instance:
+def mutant_killers(rng: random.Random, runner: CodeRunner) -> Instance:
     limit, divisor = rng.randrange(100, 1000, 50), rng.randint(5, 20)
     kind, description = rng.choice(MUTANTS)
     inputs = sorted(
@@ -107,7 +109,7 @@ def mutant_killers(rng: random.Random) -> Instance:
     return Instance(prompt, str(killers), params, code=code)
 
 
-def equivalence_class(rng: random.Random) -> Instance:
+def equivalence_class(rng: random.Random, runner: CodeRunner) -> Instance:
     low = rng.randint(14, 25)
     high = low + rng.randint(30, 50)
     values = sorted(rng.sample(range(low - 15, high + 15), 9))
@@ -149,7 +151,7 @@ def _holds(kind: str, a: bool, b: bool) -> bool:
     return a or b
 
 
-def decision_table(rng: random.Random) -> Instance:
+def decision_table(rng: random.Random, runner: CodeRunner) -> Instance:
     names = rng.sample(CONDITIONS, rng.randint(3, 5))
     constraints: list[tuple[str, int, int]] = []
     for _ in range(rng.randint(1, 3)):
@@ -171,7 +173,7 @@ def decision_table(rng: random.Random) -> Instance:
 STATES = ["Новый", "Оплачен", "Собран", "Отправлен", "Доставлен", "Отменён"]
 
 
-def transition_pairs(rng: random.Random) -> Instance:
+def transition_pairs(rng: random.Random, runner: CodeRunner) -> Instance:
     states = STATES[: rng.randint(4, 6)]
     transitions = {(states[i], states[i + 1]) for i in range(len(states) - 1)}
     while len(transitions) < len(states) + 2:
@@ -188,7 +190,7 @@ def transition_pairs(rng: random.Random) -> Instance:
     return Instance(prompt, str(pairs), {"transitions": [list(t) for t in ordered]}, code=code)
 
 
-def run_summary(rng: random.Random) -> Instance:
+def run_summary(rng: random.Random, runner: CodeRunner) -> Instance:
     statuses = [rng.choices(OUTCOMES, weights=[6, 2, 1])[0] for _ in range(rng.randint(8, 12))]
     if "failed" not in statuses:
         statuses[rng.randrange(2, len(statuses))] = "failed"
@@ -211,7 +213,7 @@ def run_summary(rng: random.Random) -> Instance:
     return Instance(prompt, answer, {"statuses": statuses, "maxfail": maxfail}, code=code)
 
 
-def assert_failures(rng: random.Random) -> Instance:
+def assert_failures(rng: random.Random, runner: CodeRunner) -> Instance:
     checks: list[tuple[str, bool]] = []
     for _ in range(6):
         kind = rng.randrange(5)
@@ -230,22 +232,19 @@ def assert_failures(rng: random.Random) -> Instance:
             checks.append((f"assert '{a}' * 2 == '{a}{a}'", True))
     code = "\n".join(f"def test_{i}():\n    {text}\n" for i, (text, _) in enumerate(checks, 1))
     # Первая строка — сам assert: проверяем его исполнением, а не по заготовленному флагу.
-    failing = []
-    for i, (text, _) in enumerate(checks, 1):
-        try:
-            exec(text, {})
-        except AssertionError:
-            failing.append(i)
+    listing = "".join(
+        f"try:\n    {text}\nexcept AssertionError:\n    print({i})\n"
+        for i, (text, _) in enumerate(checks, 1)
+    )
+    failing = run_python(runner, listing).split()
     prompt = (
         "Какие тесты упадут? Ответ — номера тестов через пробел по возрастанию; если все "
         "пройдут — 0."
     )
-    return Instance(
-        prompt, " ".join(map(str, failing)) or "0", {"checks": [c for c, _ in checks]}, code=code
-    )
+    return Instance(prompt, " ".join(failing) or "0", {"checks": [c for c, _ in checks]}, code=code)
 
 
-def boundary_points(rng: random.Random) -> Instance:
+def boundary_points(rng: random.Random, runner: CodeRunner) -> Instance:
     low = rng.randint(1, 50)
     high = low + rng.randint(3, 60)
     boundary = {low - 1, low, low + 1, high - 1, high, high + 1}
@@ -265,7 +264,7 @@ def boundary_points(rng: random.Random) -> Instance:
     )
 
 
-def mock_calls(rng: random.Random) -> Instance:
+def mock_calls(rng: random.Random, runner: CodeRunner) -> Instance:
     items = [rng.randint(1, 60) for _ in range(rng.randint(5, 8))]
     limit = rng.randint(15, 45)
     batch = rng.randint(2, 3)
@@ -303,7 +302,7 @@ def mock_calls(rng: random.Random) -> Instance:
         client.send(sum(chunk))
     if not sent:
         items.append(1)
-        return mock_calls(rng)
+        return mock_calls(rng, runner)
     prompt = (
         "Что выведет программа? Ответ — два числа через пробел: сколько раз вызван send и с "
         "каким аргументом в последний раз."
@@ -312,7 +311,7 @@ def mock_calls(rng: random.Random) -> Instance:
     return Instance(prompt, f"{len(sent)} {sent[-1]}", params, code=code)
 
 
-def flaky_retries(rng: random.Random) -> Instance:
+def flaky_retries(rng: random.Random, runner: CodeRunner) -> Instance:
     tests = rng.randint(5, 60)
     fail = rng.choice([2, 3, 4, 5, 8, 10, 15, 20])
     reruns = rng.randint(0, 1)
@@ -329,7 +328,7 @@ def flaky_retries(rng: random.Random) -> Instance:
     )
 
 
-def fixture_teardown(rng: random.Random) -> Instance:
+def fixture_teardown(rng: random.Random, runner: CodeRunner) -> Instance:
     names = rng.sample(["db", "cache", "client", "user", "tmpdir", "broker", "token"], 4)
     # Зависимости: каждая фикстура может зависеть от одной из предыдущих.
     deps = {
@@ -362,7 +361,7 @@ def fixture_teardown(rng: random.Random) -> Instance:
     return Instance(prompt, " ".join(output), {"deps": deps, "used": used}, code=code)
 
 
-def branch_cover_set(rng: random.Random) -> Instance:
+def branch_cover_set(rng: random.Random, runner: CodeRunner) -> Instance:
     bulk, member_bulk, cap = rng.randint(5, 15), rng.randint(3, 10), rng.randint(40, 80)
     code = (
         "def price(qty, member):\n"
@@ -410,7 +409,7 @@ def branch_cover_set(rng: random.Random) -> Instance:
     return Instance(prompt, " ".join(missed) or "0", params, code=code)
 
 
-def line_hits(rng: random.Random) -> Instance:
+def line_hits(rng: random.Random, runner: CodeRunner) -> Instance:
     limit, step = rng.randint(3, 9), rng.randint(2, 4)
     code = (
         "def score(points):\n"
@@ -439,7 +438,7 @@ def line_hits(rng: random.Random) -> Instance:
     )
 
 
-def shared_state(rng: random.Random) -> Instance:
+def shared_state(rng: random.Random, runner: CodeRunner) -> Instance:
     cart: list[int] = []
     bodies, failed = [], []
     for i in range(1, 9):
@@ -472,7 +471,7 @@ def shared_state(rng: random.Random) -> Instance:
     return Instance(prompt, " ".join(map(str, failed)) or "0", {"bodies": bodies}, code=code)
 
 
-def side_effects(rng: random.Random) -> Instance:
+def side_effects(rng: random.Random, runner: CodeRunner) -> Instance:
     retries = rng.randint(1, 3)
     rendered = [
         "TimeoutError()" if rng.random() < 0.4 else str(rng.randint(1, 99))
@@ -491,13 +490,13 @@ def side_effects(rng: random.Random) -> Instance:
         "results = [load(), load()]\n"
         "print(results[0], results[1], fetch.call_count)\n"
     )
-    out: list[str] = []
-    exec(code, {"print": lambda *a: out.append(" ".join(map(str, a)))})
     prompt = "Что выведет программа? Ответ — то, что появится в консоли."
-    return Instance(prompt, out[0], {"effects": rendered, "retries": retries}, code=code)
+    return Instance(
+        prompt, run_python(runner, code), {"effects": rendered, "retries": retries}, code=code
+    )
 
 
-def kill_matrix(rng: random.Random) -> Instance:
+def kill_matrix(rng: random.Random, runner: CodeRunner) -> Instance:
     limit, divisor = rng.randrange(100, 1000, 50), rng.randint(5, 20)
     shift = rng.randrange(50, 250, 10)
     inputs = sorted(rng.sample(range(limit - 300, limit + 400), 7))
@@ -536,7 +535,7 @@ def kill_matrix(rng: random.Random) -> Instance:
     return Instance(prompt, " ".join(map(str, kills)), params, code=code)
 
 
-def mutation_score(rng: random.Random) -> Instance:
+def mutation_score(rng: random.Random, runner: CodeRunner) -> Instance:
     total = rng.randint(20, 120)
     equivalent = rng.randint(0, 8)
     killed = rng.randint((total - equivalent) // 3, total - equivalent)
@@ -552,7 +551,7 @@ def mutation_score(rng: random.Random) -> Instance:
     )
 
 
-def equivalence_members(rng: random.Random) -> Instance:
+def equivalence_members(rng: random.Random, runner: CodeRunner) -> Instance:
     low = rng.randint(14, 25)
     high = low + rng.randint(30, 50)
     values = sorted(rng.sample(range(low - 15, high + 15), 9))
@@ -572,7 +571,7 @@ def equivalence_members(rng: random.Random) -> Instance:
     return Instance(prompt, " ".join(map(str, same)) or "0", params)
 
 
-def decision_rules(rng: random.Random) -> Instance:
+def decision_rules(rng: random.Random, runner: CodeRunner) -> Instance:
     names = rng.sample(CONDITIONS, rng.randint(3, 5))
     constraints: list[tuple[str, int, int]] = []
     for _ in range(rng.randint(1, 3)):
@@ -596,7 +595,7 @@ def decision_rules(rng: random.Random) -> Instance:
     return Instance(prompt, f"{len(rows)} {with_first} {with_last}", params)
 
 
-def risk_order(rng: random.Random) -> Instance:
+def risk_order(rng: random.Random, runner: CodeRunner) -> Instance:
     ids = rng.sample(range(10, 99), 6)
     scores = [(rng.randint(1, 5), rng.randint(1, 5)) for _ in ids]
     order = sorted(
@@ -631,7 +630,7 @@ BUG_FLOW = {
 BUG_ACTIONS = sorted({action for _, action in BUG_FLOW})
 
 
-def defect_lifecycle(rng: random.Random) -> Instance:
+def defect_lifecycle(rng: random.Random, runner: CodeRunner) -> Instance:
     bugs = {f"BUG-{n}": "Новый" for n in rng.sample(range(100, 999), 4)}
     events = []
     for _ in range(rng.randint(9, 12)):
@@ -653,7 +652,7 @@ def defect_lifecycle(rng: random.Random) -> Instance:
     )
 
 
-def transition_switch(rng: random.Random) -> Instance:
+def transition_switch(rng: random.Random, runner: CodeRunner) -> Instance:
     states = STATES[: rng.randint(4, 6)]
     transitions = {(states[i], states[i + 1]) for i in range(len(states) - 1)}
     while len(transitions) < len(states) + rng.randint(2, 5):
@@ -674,7 +673,7 @@ def transition_switch(rng: random.Random) -> Instance:
     return Instance(prompt, f"{len(pairs)} {from_start}", params, code=code)
 
 
-def traceability(rng: random.Random) -> Instance:
+def traceability(rng: random.Random, runner: CodeRunner) -> Instance:
     reqs = [f"R{i}" for i in range(1, 6)]
     tests = {f"T{i}": sorted(rng.sample(reqs, rng.randint(1, 2))) for i in range(1, 6)}
     results = {t: rng.random() < 0.7 for t in tests}
@@ -700,7 +699,7 @@ def traceability(rng: random.Random) -> Instance:
     return Instance(prompt, "".join(statuses), params, code="\n".join(lines))
 
 
-def pairwise_coverage(rng: random.Random) -> Instance:
+def pairwise_coverage(rng: random.Random, runner: CodeRunner) -> Instance:
     params_values = {
         "браузер": ["Chrome", "Firefox", "Safari"][: rng.randint(2, 3)],
         "ОС": ["Windows", "macOS", "Linux"][: rng.randint(2, 3)],
@@ -726,7 +725,7 @@ def pairwise_coverage(rng: random.Random) -> Instance:
     return Instance(prompt, f"{needed} {len(covered)}", params, code="\n".join(lines))
 
 
-def defect_removal(rng: random.Random) -> Instance:
+def defect_removal(rng: random.Random, runner: CodeRunner) -> Instance:
     found = rng.randint(40, 300)
     escaped = rng.randint(2, 60)
     kloc = rng.randint(10, 120)

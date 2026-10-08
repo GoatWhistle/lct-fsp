@@ -3,6 +3,7 @@
 import random
 
 from app.domain.bank.family import Instance, rounded
+from app.domain.bank.runner import CodeRunner
 
 PROMPT = "Сколько тестов соберёт pytest из этого файла? Ответ — целое число."
 
@@ -14,14 +15,14 @@ def _plain_tests(rng: random.Random, count: int, start: int = 1) -> list[str]:
     ]
 
 
-def parametrize_count(rng: random.Random) -> Instance:
+def parametrize_count(rng: random.Random, runner: CodeRunner) -> Instance:
     plain, values = rng.randint(2, 5), rng.sample(range(1, 50), rng.randint(3, 7))
     code = "import pytest\n\n" + "\n".join(_plain_tests(rng, plain))
     code += f'\n@pytest.mark.parametrize("x", {values})\ndef test_values(x):\n    assert check(x)\n'
     return Instance(PROMPT, str(plain + len(values)), {"plain": plain, "values": values}, code=code)
 
 
-def stacked_parametrize(rng: random.Random) -> Instance:
+def stacked_parametrize(rng: random.Random, runner: CodeRunner) -> Instance:
     xs, ys = (
         rng.sample(range(1, 20), rng.randint(2, 4)),
         rng.sample(range(20, 40), rng.randint(2, 4)),
@@ -47,7 +48,7 @@ def stacked_parametrize(rng: random.Random) -> Instance:
 SCOPES = ["function", "module", "session"]
 
 
-def fixture_scope(rng: random.Random) -> Instance:
+def fixture_scope(rng: random.Random, runner: CodeRunner) -> Instance:
     scope = rng.choice(SCOPES)
     modules = [rng.randint(0, 4) for _ in range(3)]
     if not any(modules):
@@ -72,7 +73,7 @@ def fixture_scope(rng: random.Random) -> Instance:
     return Instance(prompt, str(setups), {"scope": scope, "modules": modules}, code=code)
 
 
-def parametrized_fixture(rng: random.Random) -> Instance:
+def parametrized_fixture(rng: random.Random, runner: CodeRunner) -> Instance:
     scope = rng.choice(["function", "module"])
     params = rng.sample(["sqlite", "postgres", "mysql", "oracle"], rng.randint(2, 4))
     modules = [rng.randint(1, 4), rng.randint(0, 4)]
@@ -91,7 +92,7 @@ def parametrized_fixture(rng: random.Random) -> Instance:
     return Instance(prompt, str(setups), data, code=code)
 
 
-def collect_count(rng: random.Random) -> Instance:
+def collect_count(rng: random.Random, runner: CodeRunner) -> Instance:
     plain = rng.randint(1, 5)
     values = rng.sample(range(1, 50), rng.randint(2, 8))
     in_class = rng.randint(1, 4)
@@ -116,7 +117,7 @@ def collect_count(rng: random.Random) -> Instance:
     return Instance(prompt, f"{collected} {collected - skipped}", params, code=code)
 
 
-def stacked_count(rng: random.Random) -> Instance:
+def stacked_count(rng: random.Random, runner: CodeRunner) -> Instance:
     xs = rng.sample(range(1, 20), rng.randint(2, 4))
     ys = rng.sample(range(20, 40), rng.randint(2, 4))
     marked = rng.randint(0, 3)
@@ -149,7 +150,7 @@ def _marked_tests(rng: random.Random) -> list[tuple[str, set[str]]]:
     return [(name, set(rng.sample(TEST_MARKS, rng.randint(0, 2)))) for name in names]
 
 
-def marker_selection(rng: random.Random) -> Instance:
+def marker_selection(rng: random.Random, runner: CodeRunner) -> Instance:
     tests = _marked_tests(rng)
     a, b = rng.sample(TEST_MARKS, 2)
     kind = rng.randrange(3)
@@ -175,7 +176,7 @@ def marker_selection(rng: random.Random) -> Instance:
     return Instance(prompt, " ".join(selected) or "0", params, code=code)
 
 
-def keyword_selection(rng: random.Random) -> Instance:
+def keyword_selection(rng: random.Random, runner: CodeRunner) -> Instance:
     words = ["login", "logout", "cart", "card", "pay", "payment", "order", "orders"]
     names = [
         f"test_{rng.choice(words)}_{rng.choice(['ok', 'fail', 'empty', 'big'])}" for _ in range(6)
@@ -208,7 +209,7 @@ def keyword_selection(rng: random.Random) -> Instance:
     )
 
 
-def xfail_outcomes(rng: random.Random) -> Instance:
+def xfail_outcomes(rng: random.Random, runner: CodeRunner) -> Instance:
     tests = []
     counts = {"passed": 0, "failed": 0, "xfailed": 0, "xpassed": 0}
     for i in range(1, rng.randint(6, 9)):
@@ -233,7 +234,7 @@ def xfail_outcomes(rng: random.Random) -> Instance:
     return Instance(prompt, answer, {"tests": tests}, code=code)
 
 
-def fixture_setups(rng: random.Random) -> Instance:
+def fixture_setups(rng: random.Random, runner: CodeRunner) -> Instance:
     modules = [rng.randint(0, 6) for _ in range(4)]
     if not any(modules):
         modules[0] = 3
@@ -251,7 +252,7 @@ def fixture_setups(rng: random.Random) -> Instance:
     return Instance(prompt, answer, {"modules": modules}, code=code)
 
 
-def conftest_override(rng: random.Random) -> Instance:
+def conftest_override(rng: random.Random, runner: CodeRunner) -> Instance:
     values = rng.sample(range(10, 99), 3)
     defined = {
         "conftest.py (корень)": values[0],
@@ -282,7 +283,7 @@ def conftest_override(rng: random.Random) -> Instance:
     )
 
 
-def explicit_wait(rng: random.Random) -> Instance:
+def explicit_wait(rng: random.Random, runner: CodeRunner) -> Instance:
     timeout = rng.randint(3, 20)
     poll = rng.choice([0.25, 0.5, 1.0])
     appears = rng.randint(1, 100) / 4
@@ -306,7 +307,7 @@ def explicit_wait(rng: random.Random) -> Instance:
     return Instance(prompt, f"{answer} {status}", params, code=code)
 
 
-def parametrized_setups(rng: random.Random) -> Instance:
+def parametrized_setups(rng: random.Random, runner: CodeRunner) -> Instance:
     params = rng.sample(["sqlite", "postgres", "mysql", "oracle"], rng.randint(2, 4))
     modules = [rng.randint(1, 5), rng.randint(0, 5), rng.randint(0, 3)]
     tests = sum(modules)
@@ -327,7 +328,7 @@ def parametrized_setups(rng: random.Random) -> Instance:
     return Instance(prompt, answer, {"params": params, "modules": modules}, code=code)
 
 
-def xdist_duration(rng: random.Random) -> Instance:
+def xdist_duration(rng: random.Random, runner: CodeRunner) -> Instance:
     import heapq
 
     workers = rng.randint(2, 4)

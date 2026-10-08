@@ -5,12 +5,14 @@ from typing import Any
 
 from fastapi.testclient import TestClient
 
+from app.adapter.code_runner import InProcessCodeRunner
 from app.domain.bank import Family, Instance, families_for_topics
 from tests.conftest import Seeds
 
 PATH = "/api/candidate/path"
 ITEM = f"{PATH}/item"
 WRONG = "ответа нет"
+RUNNER = InProcessCodeRunner()
 
 Json = dict[str, Any]
 
@@ -35,7 +37,7 @@ def presented(seeds: Seeds, item: Json) -> tuple[Family, int]:
     совпал с заданием."""
     candidates = families_for_topics([item["topic"]["code"]])
     for seed in reversed(seeds.issued):
-        found = [f for f in candidates if _shows(f.instance(seed), item)]
+        found = [f for f in candidates if _shows(f.instance(seed, RUNNER), item)]
         if found:
             assert len(found) == 1, (item, [f.code for f in found])
             return found[0], seed
@@ -57,7 +59,7 @@ def answer_items(c: TestClient, seeds: Seeds, correct: Callable[[Family], bool])
         item = c.get(ITEM).json()
         assert "id" in item, (item, path)
         family, seed = presented(seeds, item)
-        response = family.instance(seed).answer if correct(family) else WRONG
+        response = family.instance(seed, RUNNER).answer if correct(family) else WRONG
         answered = c.post(
             f"{ITEM}/answer", json={"presentation_id": item["id"], "response": response}
         )

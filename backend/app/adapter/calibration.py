@@ -11,11 +11,12 @@ from datetime import datetime
 from app.domain import bank
 from app.domain.calibration import (
     CalibratedFamily,
+    ExpertGap,
     Parameters,
     Response,
     elo_update,
+    expert_gap,
     fit_link,
-    needs_review,
     refit,
 )
 from app.domain.skill import Normal
@@ -125,7 +126,7 @@ class EloCalibration:
 
         Уровни кандидатов переводятся связкой шкалы. Результат — новые текущие и опорные
         параметры. Опорная сложность легче экспертной больше допустимого — семейство уходит из
-        выдачи до ручной проверки.
+        выдачи до ручной проверки; тяжелее — остаётся в выдаче с пометкой (`expert_gaps`).
         """
         link = self._repository.links(specialization)[1]
         for code in sorted(set(codes)):
@@ -151,7 +152,8 @@ class EloCalibration:
             row.discrimination, row.difficulty = fitted.discrimination, fitted.difficulty
             row.reference = fitted
             row.refitted_at = now
-            if needs_review(fitted, start, expert_gap=self.calibration_expert_gap_review):
+            gap = expert_gap(fitted, start, gap=self.calibration_expert_gap_review)
+            if gap == ExpertGap.EASIER:
                 row.in_rotation = False
                 log.warning(
                     "Семейство %s легче экспертной оценки: b = %.2f при экспертной %.2f — "
@@ -160,7 +162,32 @@ class EloCalibration:
                     fitted.difficulty,
                     start.difficulty,
                 )
+            elif gap == ExpertGap.HARDER:
+                log.warning(
+                    "Семейство %s тяжелее экспертной оценки: b = %.2f при экспертной %.2f — "
+                    "остаётся в выдаче, помечено в отчёте покрытия",
+                    code,
+                    fitted.difficulty,
+                    start.difficulty,
+                )
             self._repository.save(row)
+
+    def expert_gaps(self, families: Sequence[bank.Family]) -> dict[str, ExpertGap]:
+        """Семейства, чья опорная сложность разошлась с экспертной больше
+        `calibration_expert_gap_review`, — в обе стороны. Пометка выводится из опорных
+        параметров, отдельно не хранится; до переоценки сверять не с чем."""
+        rows = self._repository.parameters([f.code for f in families])
+        result = {}
+        for family in families:
+            row = rows.get(family.code)
+            if row is None or row.reference is None:
+                continue
+            gap = expert_gap(
+                row.reference, self.expert(family.grade), gap=self.calibration_expert_gap_review
+            )
+            if gap is not None:
+                result[family.code] = gap
+        return result
 
     def _locked(self, family: bank.Family) -> CalibratedFamily:
         return self._repository.locked(family.code, self.expert(family.grade))

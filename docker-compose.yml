@@ -61,6 +61,10 @@ services:
       FSP_ID_CLIENT_ID: ${FSP_ID_CLIENT_ID:-lct-platform}
       FSP_ID_CLIENT_SECRET: ${FSP_ID_CLIENT_SECRET:-dev-only-fsp-id-client-secret}
       FSP_ID_REDIRECT_URI: ${FSP_ID_REDIRECT_URI:-}
+      # Разбор потребности из текста: rules по умолчанию, llama — с сервисом llama ниже.
+      TEXT_UNDERSTANDING: ${TEXT_UNDERSTANDING:-rules}
+      TEXT_UNDERSTANDING_TIMEOUT_SECONDS: ${TEXT_UNDERSTANDING_TIMEOUT_SECONDS:-10}
+      LLAMA_URL: ${LLAMA_URL:-http://llama:8080}
     # Вход по email не ждёт Keycloak: недоступный ФСП ID — понятная ошибка на кнопке.
     depends_on:
       db:
@@ -69,11 +73,41 @@ services:
         condition: service_started
     ports:
       - "127.0.0.1:${BACKEND_PORT:-8000}:8000"
+    networks: [default, llm]
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health')"]
       interval: 3s
       timeout: 3s
       retries: 40
+
+  # Локальная модель для разбора текста — llama-server из llama.cpp на CPU, без сети наружу.
+  # Только со своим profile: TEXT_UNDERSTANDING=llama docker compose --profile llama up --build.
+  # Файл GGUF кладётся в ./models, имя — LLAMA_MODEL_FILE. Бэкенд его не ждёт: пока модель
+  # не ответила, разбор отвечает правилами.
+  llama:
+    profiles: [llama]
+    image: ${LLAMA_IMAGE:-ghcr.io/ggml-org/llama.cpp:server}
+    command:
+      - --model
+      - /models/${LLAMA_MODEL_FILE:-model.gguf}
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8080"
+      - --ctx-size
+      - "${LLAMA_CTX_SIZE:-8192}"
+      - --threads
+      - "${LLAMA_THREADS:-8}"
+    volumes:
+      - ./models:/models:ro
+    # Сеть без выхода наружу: до модели доходит только бэкенд, сама она — никуда.
+    networks: [llm]
+    mem_limit: ${LLAMA_MEM_LIMIT:-16g}
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8080/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 60
 
   frontend:
     build: ./frontend
@@ -97,6 +131,10 @@ services:
     depends_on:
       db:
         condition: service_healthy
+
+networks:
+  llm:
+    internal: true
 
 volumes:
   pgdata:

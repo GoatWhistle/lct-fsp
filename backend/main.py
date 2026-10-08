@@ -27,6 +27,8 @@ from app.adapter.password import Argon2Passwords
 from app.adapter.profile_pdf import FpdfProfileRenderer
 from app.adapter.seed import SecureSeeds
 from app.adapter.session import JwtSessions
+from app.adapter.text_llama import LlamaCompletion
+from app.adapter.text_model import Completion
 from app.adapter.text_rules import RulesTextUnderstanding, load_synonyms
 from app.controller.auth import router as auth_router
 from app.controller.cabinets import candidate_router, employer_router
@@ -80,6 +82,8 @@ from composition import (
     build_usecases,
     catalog_sync,
     item_selector,
+    model_understanding,
+    named_completion,
 )
 from settings import Mechanics, Settings
 
@@ -97,13 +101,20 @@ ISO 8601 с `Z`.
 
 
 def text_understanding(settings: Settings) -> TextUnderstanding:
-    """Разбор текста по имени из настроек. Сейчас реализация одна — правила; модельному адаптеру
-    достанется таймаут `text_understanding_timeout_seconds`, после которого отвечают правила."""
+    """Разбор текста по имени из настроек: `rules` — правила, `llama` — `llama-server` с откатом
+    на правила по сбою и таймауту `text_understanding_timeout_seconds`; другое имя — модель,
+    которую сборка находит по имени (`composition.named_completion`)."""
+    synonyms = load_synonyms(settings.synonyms_file)
+    timeout = settings.text_understanding_timeout_seconds
+    complete: Completion
     match settings.text_understanding:
         case "rules":
-            return RulesTextUnderstanding(load_synonyms(settings.synonyms_file))
+            return RulesTextUnderstanding(synonyms)
+        case "llama":
+            complete = LlamaCompletion(settings.llama_url, settings.llama_model, timeout)
         case name:
-            raise ValueError(f"неизвестный разбор текста {name!r}: есть только rules")
+            complete = named_completion(name, timeout)
+    return model_understanding(complete, synonyms, timeout=timeout)
 
 
 def create_app(

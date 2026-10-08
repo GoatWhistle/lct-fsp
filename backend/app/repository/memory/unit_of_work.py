@@ -17,6 +17,8 @@ class MemoryStore:
 
     def __init__(self) -> None:
         self._collections: Snapshot = {}
+        # Блок без отката упал на середине: записи могут быть недописаны.
+        self.broken = False
 
     def collection(self, name: str) -> dict[Hashable, Any]:
         return self._collections.setdefault(name, {})
@@ -31,16 +33,27 @@ class MemoryStore:
 
 
 class MemoryUnitOfWork:
-    """Реализация порта `UnitOfWork`. Записанное видно сразу, откат — восстановление снимка."""
+    """Реализация порта `UnitOfWork`. Записанное видно сразу, откат — восстановление снимка.
 
-    def __init__(self, store: MemoryStore) -> None:
+    Снимок — копия всего хранилища на каждый блок. Стенду валидации на тысячах попыток она не по
+    карману, и он берёт единицу работы без отката (`rollback=False`): исключение в блоке портит
+    хранилище, и следующий вход в любую его единицу работы — `RuntimeError`. Прогон стенда
+    обрывается, а не продолжается на недописанных записях.
+    """
+
+    def __init__(self, store: MemoryStore, *, rollback: bool = True) -> None:
         self.store = store
+        self._rollback = rollback
         self._snapshot: Snapshot | None = None
+        self._open = False
 
     def __enter__(self) -> Self:
-        if self._snapshot is not None:
+        if self._open:
             raise RuntimeError("единица работы уже открыта")
-        self._snapshot = self.store.snapshot()
+        if self.store.broken:
+            raise RuntimeError("хранилище испорчено блоком без отката, который упал")
+        self._open = True
+        self._snapshot = self.store.snapshot() if self._rollback else None
         return self
 
     def __exit__(
@@ -49,6 +62,10 @@ class MemoryUnitOfWork:
         exc: BaseException | None,
         tb: TracebackType | None,
     ) -> None:
-        snapshot, self._snapshot = self._snapshot, None
-        if exc_type is not None and snapshot is not None:
+        snapshot, self._snapshot, self._open = self._snapshot, None, False
+        if exc_type is None:
+            return
+        if snapshot is not None:
             self.store.restore(snapshot)
+        else:
+            self.store.broken = True

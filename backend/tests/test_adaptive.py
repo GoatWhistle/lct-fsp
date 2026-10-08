@@ -11,7 +11,8 @@ from app.config import Mechanics, Settings
 from app.domain.adaptive import Blueprint, Exposure, Option, selection_prior, should_stop
 from app.domain.skill import Normal, Observation, Prior
 from app.skills.irt import Estimate, initial, update
-from tests.simulation import Candidate, market, median
+from validation.market import Candidate, market
+from validation.metrics import median
 
 MECHANICS = Mechanics.from_yaml(Settings().mechanics_file)
 TOPICS = ("t.one", "t.two")
@@ -152,7 +153,7 @@ def test_candidates_with_same_answers_get_different_sets() -> None:
     m.calibrate = False
     same = Candidate({t: 0.5 for t in m.prior.topics}, "middle")
 
-    sets = [frozenset(m.adaptive(same).shown) for _ in range(30)]
+    sets = [frozenset(m.attempt(same).shown) for _ in range(30)]
 
     assert len(set(sets)) == len(sets)
     overlap = [len(a & b) / len(a | b) for a, b in itertools.combinations(sets, 2)]
@@ -168,13 +169,14 @@ def test_family_exposure_stays_under_cap() -> None:
     m.calibrate = False
     cold_start = 5
     picks = fallbacks = 0
+    previous: list[set[str]] = []
 
     for attempt in range(300):
-        before = list(m.window)
-        run = m.adaptive(m.candidate())
+        run = m.attempt(m.candidate())
+        window = [*previous[-(mechanics.exposure_window_attempts - 1) :], set(run.shown)]
+        previous.append(set(run.shown))
         if attempt < cold_start:
             continue
-        window = [*before, set(run.shown)]
         for code in set(run.shown) - set(run.capped):
             shown = sum(code in a for a in window)
             assert shown <= mechanics.exposure_max_rate * len(window), (attempt, code)
@@ -190,15 +192,17 @@ def test_adaptive_reaches_target_precision_in_fewer_items_than_fixed_blueprint()
     покрытием тем (схема S2 плана валидации)."""
     m = market("backend", MECHANICS)
     m.calibrate = False
-    for item in m.items.values():
-        item.params = item.truth
-    bank = len(m.items)
-    m.blueprint = replace(m.blueprint, max_items=bank)
+    m.load(m.truth)
+    bank = len(m.families)
+    unlimited = m.stand.variant(MECHANICS.model_copy(update={"test_max_items": bank}))
     adaptive, fixed = [], []
 
     for _ in range(150):
         c = m.candidate()
-        adaptive.append(m.adaptive(c).items_to(MECHANICS.test_stop_sd) or bank + 1)
-        fixed.append(m.fixed(c, bank, target=0.0).items_to(MECHANICS.test_stop_sd) or bank + 1)
+        adaptive.append(
+            m.items_to(m.attempt(c, stand=unlimited), MECHANICS.test_stop_sd) or bank + 1
+        )
+        common = m.fixed(c, bank, target=0.0)
+        fixed.append(m.items_to(common, MECHANICS.test_stop_sd) or bank + 1)
 
     assert median(adaptive) < median(fixed)

@@ -188,16 +188,15 @@ class SqlCandidatePool:
     ) -> dict[uuid.UUID, int]:
         if not candidate_ids:
             return {}
+        # Открытых приглашений немного — бюджет компаний за срок жизни: все открытые одним
+        # запросом и фильтр здесь дешевле, чем тысяча id параметрами запроса.
+        wanted = set(candidate_ids)
         rows = self._session.execute(
             select(InvitationRow.candidate_id, func.count())
-            .where(
-                InvitationRow.candidate_id.in_(candidate_ids),
-                InvitationRow.status.in_(OPEN),
-                InvitationRow.sent_at > since,
-            )
+            .where(InvitationRow.status.in_(OPEN), InvitationRow.sent_at > since)
             .group_by(InvitationRow.candidate_id)
         )
-        return {candidate_id: count for candidate_id, count in rows}
+        return {candidate_id: count for candidate_id, count in rows if candidate_id in wanted}
 
     def facts(self, candidate_ids: Collection[uuid.UUID]) -> list[CandidateFacts]:
         return self._facts(list(candidate_ids)) if candidate_ids else []

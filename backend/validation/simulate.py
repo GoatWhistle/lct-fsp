@@ -301,15 +301,9 @@ def run_spec(job: Job) -> SpecRun:
     adaptivity = compare(m, scale.compare, source)
     # Двойники — после всех замеров банка: подборка берёт соль из того же источника seed, что и
     # тест, и лишние подборки до M13 сдвинули бы его.
-    claimed = {t.id: t.claimed for t in truths}
     own_twins = [tw for tw in job.twins if tw.source in users]
     for tw in own_twins:
-        m.enlist(
-            users[tw.source],
-            stack=frozenset(tw.observed.stack),
-            claimed=claimed[tw.source],
-            as_id=tw.id,
-        )
+        m.twin(users[tw.source], tw.id, frozenset(tw.observed.stack))
     twin_placed = (
         {
             need.id: _placed(

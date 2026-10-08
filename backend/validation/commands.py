@@ -6,7 +6,8 @@
   банке D1;
 - `tune_inflation` — подбор поправки погрешности `level_sd_inflation` на настроечном наборе D3
   по правилу плана валидации;
-- `report_parsing` — M21, точность разбора потребности из текста по полям на размеченном наборе.
+- `report_parsing` — M21, точность разбора потребности из текста по полям на размеченном наборе:
+  правилами или моделью из записи её ответов (`validation.recorded`).
 
 Прогоны специализаций идут в пуле процессов; каждый процесс собирает свой стенд из seed прогона.
 """
@@ -20,8 +21,12 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from app.adapter.catalog_file import load_catalog
+from app.adapter.text_llama import LlamaCompletion
+from app.adapter.text_model import ModelError, ModelRequest
+from app.adapter.text_rules import load_synonyms
 from app.domain.determination import grades_by_threshold
-from settings import CATALOG_FILE, MECHANICS_FILE, Mechanics
+from composition import model_understanding, named_completion
+from settings import CATALOG_FILE, MECHANICS_FILE, SYNONYMS_FILE, Mechanics, Settings
 from validation.main import build_stand
 from validation.market import (
     SEED,
@@ -35,10 +40,17 @@ from validation.market import (
     warm,
 )
 from validation.metrics import cohen_kappa, median, pearson
-from validation.parsing import load_labeled, parsing_table, run_parsing
+from validation.parsing import LabeledText, load_labeled, parsing_table, run_parsing
+from validation.recorded import Recording, Replay, record
 
 # Набор D5 — тексты вакансий с разметкой; формат — validation/data/need_texts.md.
-D5_FILE = Path(__file__).resolve().parent / "data" / "d5_need_texts.yaml"
+DATA_DIR = Path(__file__).resolve().parent / "data"
+D5_FILE = DATA_DIR / "d5_need_texts.yaml"
+# Записи ответов моделей для M21: `<набор>.<модель>.json`.
+RECORDED_DIR = DATA_DIR / "recorded"
+# Таймаут модели в отчёте — как у прода по умолчанию; запись идёт с запасом, без отката.
+MODEL_TIMEOUT = Settings.model_fields["text_understanding_timeout_seconds"].default
+RECORD_TIMEOUT = 600.0
 
 # Сетка подбора поправки погрешности κ — шаг 0,05.
 INFLATION_GRID = tuple(round(1 + 0.05 * i, 2) for i in range(11))
@@ -277,14 +289,86 @@ def report(mechanics: Mechanics) -> None:
             print(f"| {code} | {_compare(m, 300)} |", flush=True)
 
 
-def report_parsing(mechanics: Mechanics, dataset: Path) -> None:
-    """M21 по набору `dataset` — тем же сценарием разбора, что HTTP."""
+def recording_path(dataset: Path, model: str) -> Path:
+    return RECORDED_DIR / f"{dataset.stem}.{model}.json"
+
+
+class _Capture:
+    """`Completion`, который только запоминает запросы и отвечает сбоем: так стенд узнаёт, о чём
+    сценарий спросит модель, не повторяя сборку запроса."""
+
+    def __init__(self) -> None:
+        self.requests: list[ModelRequest] = []
+
+    def __call__(self, request: ModelRequest) -> str:
+        self.requests.append(request)
+        raise ModelError("запрос записан")
+
+
+def _record(
+    mechanics: Mechanics, labeled: list[LabeledText], model: str, recording: Recording, workers: int
+) -> None:
+    synonyms = load_synonyms(SYNONYMS_FILE)
+    capture = _Capture()
+    understanding = model_understanding(capture, synonyms, timeout=RECORD_TIMEOUT)
+    capturing = build_stand(mechanics, understanding=understanding).need_drafts()
+    for item in labeled:
+        capturing.parse(item.text)
+    settings = Settings()
+    live = (
+        LlamaCompletion(settings.llama_url, settings.llama_model, RECORD_TIMEOUT)
+        if model == "llama"
+        else named_completion(model, RECORD_TIMEOUT)
+    )
+    added = record(
+        recording, capture.requests, live, workers=workers, model=getattr(live, "model", None)
+    )
+    print(f"Записано ответов модели: {added}, файл {recording.path.name}\n")
+
+
+def report_parsing(
+    mechanics: Mechanics,
+    dataset: Path,
+    model: str | None = None,
+    *,
+    timeout: float = MODEL_TIMEOUT,
+    record_workers: int = 0,
+) -> None:
+    """M21 по набору `dataset` — тем же сценарием разбора, что HTTP: правилами или моделью
+    `model` с откатом на правила, как в проде. Модель отвечает из записи; `record_workers` —
+    сначала дописать в запись недостающие ответы, спросив модель столькими потоками."""
     if not dataset.exists():
         raise SystemExit(f"нет набора {dataset}: формат — validation/data/need_texts.md")
     labeled = load_labeled(dataset)
-    drafts = build_stand(mechanics).need_drafts()
     print(f"## M21 — разбор потребности: {dataset.name}, текстов {len(labeled)}\n")
-    print(parsing_table(run_parsing(labeled, drafts.parse)))
+    if model is None:
+        print("Разбор: правила и словарь синонимов.\n")
+        print(parsing_table(run_parsing(labeled, build_stand(mechanics).need_drafts().parse)))
+    else:
+        recording = Recording(recording_path(dataset, model))
+        if record_workers:
+            _record(mechanics, labeled, model, recording, record_workers)
+        if not recording.answers:
+            raise SystemExit(f"нет записи {recording.path}: запустите с --record")
+        replay = Replay(recording, timeout)
+        understanding = model_understanding(replay, load_synonyms(SYNONYMS_FILE), timeout=timeout)
+        drafts = build_stand(mechanics, understanding=understanding).need_drafts()
+        report = run_parsing(labeled, drafts.parse, replay.take_ms)
+        if replay.missing:
+            raise SystemExit(
+                f"в {recording.path.name} нет ответов на {replay.missing} текстов: запрос "
+                "изменился или запись неполная — допишите её с --record"
+            )
+        print(
+            f"Разбор: модель {recording.model or model} из записи {recording.path.name}, "
+            f"таймаут {timeout:g} с, откат на правила — {replay.failed} из {len(labeled)}.\n"
+        )
+        print(parsing_table(report))
+    if any(t.checked_by == "model" for t in labeled):
+        print(
+            "\nРазметка набора — модели, без проверки человеком: её ошибки сдвигают точность в "
+            "неизвестную сторону (docs/validation-plan.md, M21)."
+        )
 
 
 def main() -> None:
@@ -293,6 +377,23 @@ def main() -> None:
     parser.add_argument("--seed", type=int, default=SEED, help="сид для honesty, по умолчанию D1")
     parser.add_argument("--candidates", type=int, default=1500)
     parser.add_argument("--pairs", type=int, default=1500)
+    parser.add_argument(
+        "--model",
+        help="для parsing: модель разбора по имени, как TEXT_UNDERSTANDING; без него — правила",
+    )
+    parser.add_argument(
+        "--record",
+        type=int,
+        default=0,
+        metavar="N",
+        help="для parsing с --model: дописать недостающие ответы модели в запись, N потоков",
+    )
+    parser.add_argument(
+        "--timeout",
+        type=float,
+        default=MODEL_TIMEOUT,
+        help="для parsing с --model: таймаут модели, после которого отвечают правила",
+    )
     parser.add_argument(
         "--dataset",
         type=Path,
@@ -310,6 +411,12 @@ def main() -> None:
         case "tune":
             tune_inflation(mechanics, args.candidates)
         case "parsing":
-            report_parsing(mechanics, args.dataset)
+            report_parsing(
+                mechanics,
+                args.dataset,
+                args.model,
+                timeout=args.timeout,
+                record_workers=args.record,
+            )
         case _:
             report(mechanics)

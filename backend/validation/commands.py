@@ -5,7 +5,8 @@
 - `report_honesty` — честность погрешности уровня и стабильность грейда при повторе на прогретом
   банке D1;
 - `tune_inflation` — подбор поправки погрешности `level_sd_inflation` на настроечном наборе D3
-  по правилу плана валидации.
+  по правилу плана валидации;
+- `report_parsing` — M21, точность разбора потребности из текста по полям на размеченном наборе.
 
 Прогоны специализаций идут в пуле процессов; каждый процесс собирает свой стенд из seed прогона.
 """
@@ -16,10 +17,12 @@ import os
 import statistics
 from concurrent.futures import ProcessPoolExecutor
 from dataclasses import dataclass
+from pathlib import Path
 
 from app.adapter.catalog_file import load_catalog
 from app.domain.determination import grades_by_threshold
 from settings import CATALOG_FILE, MECHANICS_FILE, Mechanics
+from validation.main import build_stand
 from validation.market import (
     SEED,
     TUNING_SEED,
@@ -32,6 +35,10 @@ from validation.market import (
     warm,
 )
 from validation.metrics import cohen_kappa, median, pearson
+from validation.parsing import load_labeled, parsing_table, run_parsing
+
+# Набор D5 — тексты вакансий с разметкой; формат — validation/data/need_texts.md.
+D5_FILE = Path(__file__).resolve().parent / "data" / "d5_need_texts.yaml"
 
 # Сетка подбора поправки погрешности κ — шаг 0,05.
 INFLATION_GRID = tuple(round(1 + 0.05 * i, 2) for i in range(11))
@@ -270,12 +277,28 @@ def report(mechanics: Mechanics) -> None:
             print(f"| {code} | {_compare(m, 300)} |", flush=True)
 
 
+def report_parsing(mechanics: Mechanics, dataset: Path) -> None:
+    """M21 по набору `dataset` — тем же сценарием разбора, что HTTP."""
+    if not dataset.exists():
+        raise SystemExit(f"нет набора {dataset}: формат — validation/data/need_texts.md")
+    labeled = load_labeled(dataset)
+    drafts = build_stand(mechanics).need_drafts()
+    print(f"## M21 — разбор потребности: {dataset.name}, текстов {len(labeled)}\n")
+    print(parsing_table(run_parsing(labeled, drafts.parse)))
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(prog="python -m validation")
-    parser.add_argument("command", nargs="?", choices=("honesty", "tune"))
+    parser.add_argument("command", nargs="?", choices=("honesty", "tune", "parsing"))
     parser.add_argument("--seed", type=int, default=SEED, help="сид для honesty, по умолчанию D1")
     parser.add_argument("--candidates", type=int, default=1500)
     parser.add_argument("--pairs", type=int, default=1500)
+    parser.add_argument(
+        "--dataset",
+        type=Path,
+        default=D5_FILE,
+        help="размеченные тексты для parsing, по умолчанию D5",
+    )
     args = parser.parse_args()
     # Предупреждения сценариев о потолке показов и выводе семейств из выдачи на тысячах попыток
     # забили бы отчёт: сверх потолка стенд считает сам, в таблице.
@@ -286,5 +309,7 @@ def main() -> None:
             report_honesty(mechanics, args.seed, args.candidates, args.pairs)
         case "tune":
             tune_inflation(mechanics, args.candidates)
+        case "parsing":
+            report_parsing(mechanics, args.dataset)
         case _:
             report(mechanics)

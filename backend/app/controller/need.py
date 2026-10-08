@@ -9,15 +9,20 @@ from fastapi import APIRouter, Query, status
 from app.controller.deps import (
     ROLE_RESPONSES,
     CurrentUser,
+    NeedDraftsDep,
     NeedsDep,
     SelectionsDep,
     role_guard,
 )
 from app.controller.errors import error_responses
 from app.controller.need_schemas import (
+    NeedDraftOut,
     NeedIn,
     NeedOut,
+    NeedParseOut,
     NeedSnapshot,
+    NeedTextIn,
+    OutOfCatalogOut,
     RequirementOut,
     SelectionEntryOut,
     SelectionOut,
@@ -31,6 +36,7 @@ from app.controller.schemas import CatalogRef
 from app.domain import errors
 from app.domain.account import Role
 from app.domain.need import NEED_ERRORS, NeedForm, TopicView
+from app.domain.need_draft import CheckedDraft, CheckedOutOfCatalog
 from app.domain.selection import NeedSnapshot as Snapshot
 from app.domain.selection import Page, SelectionBlock, Summary
 from app.usecase.need import NeedView
@@ -81,6 +87,17 @@ def preview_topic_importance(body: TopicImportanceIn, needs: NeedsDep) -> list[T
     return _topics_out(needs.preview_topics(body.specialization, body.stack, body.topic_importance))
 
 
+@router.post(
+    "/parse",
+    summary="Разобрать потребность из текста",
+    description="Текст вакансии или описание как есть → черновик «система поняла так» со "
+    "значениями справочника или ответ «такой специализации нет» с ближайшими. Разбор локальный, "
+    "наружу текст не уходит; ничего не сохраняется.",
+)
+def parse_need(body: NeedTextIn, drafts: NeedDraftsDep) -> NeedParseOut:
+    return _parsed_out(drafts.parse(body.text))
+
+
 @router.get(
     "/{need_id}",
     summary="Потребность",
@@ -125,6 +142,21 @@ def build_selection(
     return _selection_out(selections.build(user.id, need_id, limit=limit))
 
 
+@selections_router.post(
+    "",
+    status_code=status.HTTP_201_CREATED,
+    summary="Сформировать подборку по черновику",
+    description="Та же подборка, что по сохранённой потребности, но по полям формы без "
+    "сохранения — черновик из текста после правки. Правка и новый вызов — новая подборка, "
+    "прежняя открывается с той же выдачей. `need_id` у такой подборки — `null`.",
+    responses=error_responses(*NEED_ERRORS),
+)
+def build_draft_selection(
+    body: NeedIn, user: CurrentUser, selections: SelectionsDep, limit: Limit = 20
+) -> SelectionOut:
+    return _selection_out(selections.build_draft(user.id, _form(body), limit=limit))
+
+
 @selections_router.get("", summary="Подборки компании, новые сверху")
 def list_selections(
     user: CurrentUser,
@@ -164,6 +196,30 @@ def _form(body: NeedIn) -> NeedForm:
         city=body.city,
         salary_from=body.salary_from,
         salary_to=body.salary_to,
+    )
+
+
+def _parsed_out(parsed: CheckedDraft | CheckedOutOfCatalog) -> NeedDraftOut | OutOfCatalogOut:
+    if isinstance(parsed, CheckedOutOfCatalog):
+        return OutOfCatalogOut(
+            kind="out_of_catalog",
+            asked=parsed.asked,
+            nearest=[CatalogRef.model_validate(s) for s in parsed.nearest],
+        )
+    return NeedDraftOut(
+        kind="draft",
+        title=parsed.title,
+        specialization=CatalogRef.model_validate(parsed.specialization)
+        if parsed.specialization
+        else None,
+        grade=CatalogRef.model_validate(parsed.grade) if parsed.grade else None,
+        stack=[CatalogRef.model_validate(t) for t in parsed.stack],
+        work_format=parsed.work_format,
+        city=parsed.city,
+        salary_from=parsed.salary_from,
+        salary_to=parsed.salary_to,
+        confidence=dict(parsed.confidence),
+        uncertain=sorted(parsed.uncertain),
     )
 
 

@@ -89,8 +89,10 @@ def reliability(predicted: Sequence[float], observed: Sequence[float], bins: int
 
 
 def ece(predicted: Sequence[float], observed: Sequence[float], bins: int = 10) -> float:
-    """ECE = Σ_b n_b / N · |acc_b − conf_b|; наблюдаемое — метки 0/1 или доли."""
+    """ECE = Σ_b n_b / N · |acc_b − conf_b|; наблюдаемое — метки 0/1 или доли. Без данных — nan."""
     n = len(predicted)
+    if not n:
+        return math.nan
     return sum(
         b.count / n * abs(b.accuracy - b.confidence)
         for b in reliability(predicted, observed, bins)

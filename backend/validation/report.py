@@ -119,6 +119,8 @@ class Runs:
     scale: Scale
     specializations: tuple[str, ...]
     sets: dict[str, DatasetRuns]
+    # Посчитанные разделы — `computed`.
+    memo: dict[str, "Section"] = field(default_factory=dict, compare=False, repr=False)
 
 
 @dataclass(frozen=True)
@@ -254,7 +256,18 @@ def mark(ok: bool | None) -> str:
 
 
 def verdict_of(checks: Iterable[bool]) -> str:
+    """Сравнение с nan ложно: часть без данных порог не проходит."""
     return PASSED if all(checks) else FAILED
+
+
+def mean(values: Iterable[float]) -> float:
+    """Среднее без nan; нет значений — nan."""
+    kept = [v for v in values if not math.isnan(v)]
+    return statistics.fmean(kept) if kept else math.nan
+
+
+def spread(values: Sequence[float]) -> float:
+    return statistics.pstdev(values) if len(values) > 1 else math.nan
 
 
 def judged(
@@ -522,8 +535,8 @@ def ranking_quality(
     ]
     ndcg = [ndcg_at(r, p, TOP) for r, p in lists]
     return Ranking(
-        statistics.fmean(precision_at(r, TOP) for r, _ in lists),
-        statistics.fmean(x for x in ndcg if not math.isnan(x)),
+        mean(precision_at(r, TOP) for r, _ in lists),
+        mean(ndcg),
     )
 
 
@@ -555,9 +568,40 @@ def _ranking_section(runs: Runs, metric: str, attr: str, threshold: float, margi
         "пула. Пул потребности — все кандидаты набора её специализации, включая "
         f"персонажей-атакующих; эталон — градация rel из истины. Потребностей в наборе: {needs}. "
         "B0 ранжирует весь пул по доле верных наивного теста — для ориентира, в порог не входит."
-        "\n\n" + table(header, rows)
+        "\n\n" + table(header, rows) + naive_note(runs, attr)
     )
     return judged(metric, body, verdicts, text=text)
+
+
+def underestimate(data: DatasetRuns, mechanics: Mechanics) -> float:
+    return truthfulness(honest_grades(data, mechanics)["ours"], mechanics).under
+
+
+def naive_note(runs: Runs, attr: str) -> str:
+    """Разбор, когда B0 ранжирует лучше нашей выдачи: на каких наборах и сколько занижает грейд
+    правило уверенности (M10)."""
+    worse = [
+        name
+        for name, data in runs.sets.items()
+        if getattr(ranking_quality(data, naive=True), attr) > getattr(ranking_quality(data), attr)
+    ]
+    if not worse:
+        return ""
+    under = ", ".join(
+        f"{name.upper()} — {f(underestimate(data, runs.mechanics), 2)}"
+        for name, data in runs.sets.items()
+        if name in worse
+    )
+    return (
+        f"\n\n**B0 выше нашей выдачи** на {', '.join(n.upper() for n in worse)} — отрицательный "
+        "результат. Выдача сначала отсекает по категории, а категорию правило уверенности "
+        f"присваивает консервативно: доля честных с заниженным грейдом (M10): {under}. Кандидат, "
+        "чей истинный уровень выше требования, но категория ниже грейда потребности, попадает в "
+        "«близкие» под всех точных, а B0 ставит его по доле верных без отсечения. Похоже, это "
+        "цена отсечения по категории при консервативном грейде, а не скора внутри категории; "
+        "разделят вклад отсечения и скора базовые линии внутри наших категорий (план, «Пул и "
+        "выдача»)."
+    )
 
 
 @section("M1")
@@ -599,6 +643,9 @@ def calibration(data: DatasetRuns, runs: Runs, *, before: bool) -> Calibration:
     grade: tuple[list[float], list[float]] = ([], [])
     skill: tuple[list[float], list[float]] = ([], [])
     z: dict[str, list[float]] = {}
+    levels = {
+        code: sorted({s.topics[0].requirement for _, s in own}) for code, own in snaps.items()
+    }
     for run, cid, o in outcomes(data, before=before):
         t = truth[cid]
         own = snaps[run.specialization]
@@ -614,9 +661,8 @@ def calibration(data: DatasetRuns, runs: Runs, *, before: bool) -> Calibration:
                 grade[1].append(float(overall >= c))
         if not o.profile:
             continue
-        levels = sorted({s.topics[0].requirement for _, s in own})
         for topic, level in sorted(o.profile.items()):
-            for req in levels:
+            for req in levels[run.specialization]:
                 p, hit = level.prob_at_least(req), float(t.level[topic] >= req)
                 topics[0].append(p)
                 topics[1].append(hit)
@@ -681,15 +727,15 @@ def m4(runs: Runs) -> Section:
     for code in runs.specializations:
         row = [runs.catalog.specializations[code].name]
         for before, after in found.values():
-            row += [f(statistics.pstdev(before.z[code])), f(statistics.pstdev(after.z[code]))]
+            row += [f(spread(before.z.get(code, []))), f(spread(after.z.get(code, [])))]
         z_rows.append(row)
     header = ["Часть"]
     off = [
         f"{name.upper()} {runs.catalog.specializations[code].name} "
-        f"({f(statistics.pstdev(after.z[code]), 2)})"
+        f"({f(spread(after.z.get(code, [])), 2)})"
         for name, (_, after) in found.items()
         for code in runs.specializations
-        if not 0.9 <= statistics.pstdev(after.z[code]) <= 1.1
+        if not 0.9 <= spread(after.z.get(code, [])) <= 1.1
     ]
     outside = (
         f"С поправкой вне 0,9–1,1: {', '.join(off)}. Там погрешность общего уровня остаётся "
@@ -749,7 +795,7 @@ def discrimination(data: DatasetRuns) -> list[Discrimination]:
         honest = [seen[c] for c in sorted(run.outcomes) if truth[c].persona == Persona.honest]
         totals = [sum(r.correct for r in o.answers.values()) for o in honest]
         size = len(run.families)
-        for fam in run.families:
+        for fam in (f_ for f_ in run.families if not f_.anchor):
             correct = [float(o.answers[fam.code].correct) for o in honest]
             rest = [(t - c) / (size - 1) for t, c in zip(totals, correct, strict=True)]
             found.append(
@@ -793,7 +839,8 @@ def m11(runs: Runs) -> Section:
         )
         failing.append(f"**Кандидаты на замену, {name.upper()}** — {len(bad)}.\n\n{lines}")
     body = (
-        "Порог: не меньше 0,90 семейств с â_f ≥ 0,5 и r_pb ≥ 0,2. â_f — разделяющая сила после "
+        "Порог: не меньше 0,90 семейств с â_f ≥ 0,5 и r_pb ≥ 0,2; якорные семейства не "
+        "считаются — их параметры известны и не оцениваются. â_f — разделяющая сила после "
         "прогрева банка на честных кандидатах набора; r_pb — точечно-бисериальная корреляция "
         "верности ответа с долей верных на остальных семействах банка у честных кандидатов "
         "набора: каждый из них ответил на экземпляр каждого семейства. На синтетике метрика "
@@ -917,6 +964,7 @@ def m13(runs: Runs) -> Section:
                     runs.catalog.specializations[code].name,
                     f"{f(cold.adaptive_median, 1)} / {f(cold.common_median, 1)}",
                     f(cold.ratio, 2),
+                    f"{f(warm_.adaptive_within, 2)} / {f(warm_.common_within, 2)}",
                     f"{f(warm_.adaptive_median, 1)} / {f(warm_.common_median, 1)}",
                     f"**{f(warm_.ratio, 2)}**",
                     f"{f(warm_.adaptive_sd_20)} / {f(warm_.common_sd_20)}",
@@ -931,6 +979,7 @@ def m13(runs: Runs) -> Section:
                     "Специализация",
                     "Холодный: адаптивный / бланк",
                     "Отношение",
+                    "Прогретый: доля до лимита, адаптивный / бланк",
                     "Прогретый: адаптивный / бланк",
                     "Отношение",
                     "σ̄ на 20: адаптивный / бланк",
@@ -943,7 +992,8 @@ def m13(runs: Runs) -> Section:
         "Медиана числа заданий до σ̄ ≤ `test_stop_sd` у адаптивного теста и общего фиксированного "
         "бланка с тем же покрытием тем, на тех же кандидатах, без лимита заданий. Порог — "
         "отношение медиан на прогретом банке не выше 0,75; холодный банк — экспертные параметры, "
-        "для сравнения.\n\n"
+        "для сравнения. Доля до лимита — доля кандидатов, дошедших до порога за "
+        "`test_max_items` заданий.\n\n"
         + "\n\n".join(parts)
         + f"\n\n**Предел от размера банка.** Адаптивный выбор берёт одно из `exposure_top_k` = {k} "
         "самых информативных семейств темы под потолком показов. Когда на грейд темы приходится "
@@ -973,7 +1023,7 @@ def m19(runs: Runs) -> Section:
         ok.append(drop <= 0.2)
         rows.append([label_, f(one), f(two), f(drop, 2), mark(drop <= 0.2)])
     shifted = {
-        m: SECTIONS[m](runs).sets.get("d2", WAITING) for m in ("M1", "M2", "M4", "M9", "M10")
+        m: computed(runs, m).sets.get("d2", WAITING) for m in ("M1", "M2", "M4", "M9", "M10")
     }
     failed = [m for m, v in shifted.items() if v == FAILED]
     rows += [[f"Порог {m} на D2", "", "", "", mark(v != FAILED)] for m, v in shifted.items()]
@@ -1051,19 +1101,27 @@ def _anchor(metric: str) -> str:
     return kept.replace(" ", "-")
 
 
-def build(runs: Runs) -> tuple[str, dict[str, str]]:
-    sections = {
-        metric: SECTIONS[metric](runs) if metric in SECTIONS else pending(metric)
-        for metric in METRICS
-    }
+def computed(runs: Runs, metric: str) -> Section:
+    """Раздел метрики — один раз на прогон: M19 читает вердикты других разделов."""
+    if metric not in runs.memo:
+        runs.memo[metric] = SECTIONS[metric](runs) if metric in SECTIONS else pending(metric)
+    return runs.memo[metric]
+
+
+def build(runs: Runs, figures_dir: str = FIGURES) -> tuple[str, dict[str, str]]:
+    """Текст отчёта и картинки; ссылки на картинки — в каталог `figures_dir` рядом с отчётом."""
+    sections = {metric: computed(runs, metric) for metric in METRICS}
     figures = {name: svg for s in sections.values() for name, svg in s.figures.items()}
-    return render(runs, sections), figures
+    text = render(runs, sections).replace(f"]({FIGURES}/", f"]({figures_dir}/")
+    return text, figures
 
 
 def write_report(runs: Runs, path: Path = REPORT) -> None:
-    text, figures = build(runs)
+    """Отчёт в `path`, картинки — в каталог его имени рядом: короткий прогон в другой файл не
+    затирает картинки основного отчёта."""
+    text, figures = build(runs, path.stem)
     path.write_text(text, encoding="utf-8")
-    directory = path.parent / FIGURES
+    directory = path.parent / path.stem
     directory.mkdir(exist_ok=True)
     for name, svg in sorted(figures.items()):
         (directory / name).write_text(svg, encoding="utf-8")

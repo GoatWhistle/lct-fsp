@@ -5,24 +5,31 @@
 """
 
 import logging
+from collections import defaultdict
 from collections.abc import Iterable, Mapping, Sequence
 from datetime import datetime
 
 from app.domain import bank
 from app.domain.calibration import (
+    AnchorAnswer,
     CalibratedFamily,
     ExpertGap,
+    Link,
     Parameters,
     Response,
     elo_update,
     expert_gap,
     fit_link,
+    item_fit_rmsd,
     refit,
 )
 from app.domain.skill import Normal
 from app.usecase.interface import CalibrationRepository
 
 log = logging.getLogger(__name__)
+# Поля записи журнала о семействе с плохим согласием — задачи банку на ручную проверку.
+ITEM_FIT_FAMILY = "item_fit_family"
+ITEM_FIT_RMSD = "item_fit_rmsd"
 
 
 class EloCalibration:
@@ -40,6 +47,8 @@ class EloCalibration:
         calibration_refit_difficulty_prior_sd: float,
         calibration_refit_log_discrimination_prior_sd: float,
         calibration_link_window_attempts: int,
+        item_fit_groups: int,
+        item_fit_rmsd_max: float,
     ) -> None:
         self._repository = repository
         self.expert_discrimination = expert_discrimination
@@ -54,6 +63,8 @@ class EloCalibration:
             calibration_refit_log_discrimination_prior_sd
         )
         self.calibration_link_window_attempts = calibration_link_window_attempts
+        self.item_fit_groups = item_fit_groups
+        self.item_fit_rmsd_max = item_fit_rmsd_max
 
     def expert(self, grade: str) -> Parameters:
         """Стартовые параметры семейства по грейду эксперта: середина полосы и общая a₀ (§2)."""
@@ -73,8 +84,14 @@ class EloCalibration:
 
     def lock(self, codes: Iterable[str]) -> None:
         """Блокировка строк семейств до конца единицы работы — по порядку кодов: так транзакции,
-        которые берут несколько семейств, не ждут друг друга по кругу."""
-        for code in sorted(set(codes)):
+        которые берут несколько семейств, не ждут друг друга по кругу.
+
+        Вместе с ними — якоря их специализаций: пересчёт связки может вывести якорь из выдачи, и
+        его строка должна быть взята в том же порядке, а не после строк попытки."""
+        wanted = set(codes)
+        specializations = {_specialization(bank.get_family(code)) for code in wanted}
+        wanted |= {f.code for f in bank.BANK if f.anchor and _specialization(f) in specializations}
+        for code in sorted(wanted):
             self._locked(bank.get_family(code))
 
     def learn(
@@ -103,21 +120,31 @@ class EloCalibration:
         self._repository.save(row)
 
     def relink(self, specialization: str, now: datetime) -> None:
-        """Пересчёт связок шкалы по ответам на якорные семейства из окна связки — последних
-        `calibration_link_window_attempts` остановленных попыток по специализации (§7)."""
+        """Пересчёт связок шкалы по ответам на якорные семейства в выдаче из окна связки —
+        последних `calibration_link_window_attempts` остановленных попыток по специализации (§7).
+
+        Заодно — согласие якорей с моделью: якорь, набравший в окне
+        `calibration_refit_min_responses` ответов с итоговой оценкой, сверяется на своих
+        фиксированных (a, b) с уровнями, переведёнными новой связкой. Якорь с плохим согласием
+        гнёт связку, по которой судят остальных, поэтому выводится по одному — худший, — и связка
+        пересчитывается без его ответов, пока плохих не останется.
+        """
         anchors = [f.code for f in bank.BANK if f.anchor]
+        rows = self._repository.parameters(anchors)
         answers = self._repository.anchor_answers(
-            specialization, anchors, self.calibration_link_window_attempts
-        )
-        before = [(a.params, a.before) for a in answers]
-        rest = [(a.params, a.rest) for a in answers if a.rest is not None]
-        minimum = self.calibration_refit_min_responses
-        self._repository.save_links(
             specialization,
-            fit_link(before, min_responses=minimum),
-            fit_link(rest, min_responses=minimum),
-            now,
+            [code for code in anchors if code not in rows or rows[code].in_rotation],
+            self.calibration_link_window_attempts,
         )
+        while True:
+            before, rest = self._links(answers)
+            worst = self._worst_anchor(answers, rest)
+            if worst is None:
+                break
+            code, rmsd = worst
+            self._retire_misfit(code, rmsd)
+            answers = [a for a in answers if a.family_code != code]
+        self._repository.save_links(specialization, before, rest, now)
 
     def refit_due(self, codes: Iterable[str], specialization: str, now: datetime) -> None:
         """Пакетная переоценка семейств, набравших `calibration_refit_min_responses` ответов с
@@ -153,6 +180,9 @@ class EloCalibration:
             row.reference = fitted
             row.refitted_at = now
             gap = expert_gap(fitted, start, gap=self.calibration_expert_gap_review)
+            # Дрейф и согласие проверяются независимо: вывод — по любой из проверок.
+            if self._misfits(code, responses, fitted):
+                row.in_rotation = False
             if gap == ExpertGap.EASIER:
                 row.in_rotation = False
                 log.warning(
@@ -189,5 +219,67 @@ class EloCalibration:
                 result[family.code] = gap
         return result
 
+    def _links(self, answers: Sequence[AnchorAnswer]) -> tuple[Link, Link]:
+        """Связки по оценкам до ответа и без ответа; ответов меньше
+        `calibration_refit_min_responses` — тождественные."""
+        minimum = self.calibration_refit_min_responses
+        return (
+            fit_link([(a.params, a.before) for a in answers], min_responses=minimum),
+            fit_link(
+                [(a.params, a.rest) for a in answers if a.rest is not None],
+                min_responses=minimum,
+            ),
+        )
+
+    def _worst_anchor(
+        self, answers: Sequence[AnchorAnswer], link: Link
+    ) -> tuple[str, float] | None:
+        """Якорь с худшим согласием выше `item_fit_rmsd_max` среди набравших
+        `calibration_refit_min_responses` ответов; уровни переводятся связкой `link`."""
+        by_anchor: dict[str, list[AnchorAnswer]] = defaultdict(list)
+        for a in answers:
+            by_anchor[a.family_code].append(a)
+        worst = None
+        for code, group in sorted(by_anchor.items()):
+            responses = [
+                Response(link.apply(a.rest.level), a.rest.correct) for a in group if a.rest
+            ]
+            if len(responses) < self.calibration_refit_min_responses:
+                continue
+            rmsd = item_fit_rmsd(responses, group[0].params, groups=self.item_fit_groups)
+            if rmsd > self.item_fit_rmsd_max and (worst is None or rmsd > worst[1]):
+                worst = (code, rmsd)
+        return worst
+
+    def _misfits(self, code: str, responses: Sequence[Response], params: Parameters) -> bool:
+        """Согласие семейства с 2PL хуже `item_fit_rmsd_max`."""
+        rmsd = item_fit_rmsd(responses, params, groups=self.item_fit_groups)
+        if rmsd <= self.item_fit_rmsd_max:
+            return False
+        self._report_misfit(code, rmsd)
+        return True
+
+    def _retire_misfit(self, code: str, rmsd: float) -> None:
+        row = self._locked(bank.get_family(code))
+        row.in_rotation = False
+        self._repository.save(row)
+        self._report_misfit(code, rmsd)
+
+    def _report_misfit(self, code: str, rmsd: float) -> None:
+        """Задача банку на ручную проверку — запись в журнал с кодом семейства и RMSD."""
+        log.warning(
+            "Семейство %s не согласуется с моделью: RMSD = %.3f при допустимом %.3f — "
+            "выведено из выдачи до ручной проверки",
+            code,
+            rmsd,
+            self.item_fit_rmsd_max,
+            extra={ITEM_FIT_FAMILY: code, ITEM_FIT_RMSD: rmsd},
+        )
+
     def _locked(self, family: bank.Family) -> CalibratedFamily:
         return self._repository.locked(family.code, self.expert(family.grade))
+
+
+def _specialization(family: bank.Family) -> str:
+    """Специализация семейства — первая часть кода темы: `<специализация>.<тема>`."""
+    return family.topic.split(".", 1)[0]

@@ -72,9 +72,10 @@ class CalibratedFamily:
 
 @dataclass(frozen=True)
 class AnchorAnswer:
-    """Ответ на якорное семейство для связки шкалы: параметры якоря, оценка темы до ответа и
-    итоговая без ответа — её нет, пока попытка ответа не остановлена."""
+    """Ответ на якорное семейство для связки шкалы: код и параметры якоря, оценка темы до ответа
+    и итоговая без ответа — её нет, пока попытка ответа не остановлена."""
 
+    family_code: str
     params: Parameters
     before: Response
     rest: Response | None
@@ -159,6 +160,33 @@ def refit(
         if abs(step_b) < 1e-7 and abs(step_l) < 1e-7:
             break
     return Parameters(math.exp(log_a), b)
+
+
+def item_fit_rmsd(responses: Sequence[Response], params: Parameters, *, groups: int) -> float:
+    """Согласие семейства с 2PL: RMSD наблюдённой и ожидаемой доли верных по группам равного
+    размера по уровню отвечавших, взвешенный числом ответов в группе, за вычетом шума выборки.
+
+    Ответы сортируются по `level.mean` и делятся на `groups` групп, остаток — по одному в первые
+    группы. Ожидаемая доля — с поправкой на погрешность уровня, как в шаге Эло. Доля верных в
+    группе гуляет и у семейства, которое ведёт себя ровно по модели, — с дисперсией
+    Σ p(1 − p) / nₖ²; она вычитается из квадрата расхождения. Без ответов расхождения нет — 0.
+    """
+    ordered = sorted(responses, key=lambda r: r.level.mean)
+    if not ordered:
+        return 0.0
+    size, extra = divmod(len(ordered), min(groups, len(ordered)))
+    total, start = 0.0, 0
+    while start < len(ordered):
+        end = start + size + (1 if extra > 0 else 0)
+        extra -= 1
+        group = ordered[start:end]
+        expected = [expected_correct(params, r.level) for r in group]
+        observed = sum(r.correct for r in group) / len(group)
+        gap = observed - sum(expected) / len(group)
+        noise = sum(p * (1 - p) for p in expected) / len(group) ** 2
+        total += len(group) * (gap**2 - noise)
+        start = end
+    return math.sqrt(max(0.0, total) / len(ordered))
 
 
 def fit_link(

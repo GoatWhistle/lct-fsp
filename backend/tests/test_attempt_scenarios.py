@@ -4,6 +4,7 @@
 каскад вниз и подсказка «грейд выше» проверяются на сценариях напрямую, без HTTP.
 """
 
+import random
 import uuid
 from collections.abc import Callable, Iterable, Sequence
 from datetime import UTC, datetime, timedelta
@@ -27,7 +28,7 @@ from app.domain.attempt import (
     Stage,
 )
 from app.domain.bank import Family, get_family
-from app.domain.calibration import ExpertGap, Parameters
+from app.domain.calibration import ExpertGap, Parameters, Response
 from app.domain.catalog import Grade, Specialization, Topic
 from app.domain.errors import (
     AttemptInProgress,
@@ -49,6 +50,7 @@ from app.repository.memory.unit_of_work import MemoryStore, MemoryUnitOfWork
 from app.usecase.attempt import CandidatePath
 from app.usecase.calibration import AnswerCalibration
 from app.usecase.skill_profile import specialization_prior
+from composition import elo_calibration
 from settings import CATALOG_FILE, Mechanics, Settings
 
 T0 = datetime(2026, 10, 7, 12, 0, tzinfo=UTC)
@@ -135,6 +137,8 @@ def calibration(store: MemoryStore) -> SpyCalibration:
                 MECHANICS.calibration_refit_log_discrimination_prior_sd
             ),
             calibration_link_window_attempts=MECHANICS.calibration_link_window_attempts,
+            item_fit_groups=MECHANICS.item_fit_groups,
+            item_fit_rmsd_max=MECHANICS.item_fit_rmsd_max,
         )
     )
 
@@ -658,3 +662,51 @@ def test_block_stops_when_topic_families_leave_rotation(
     assert paths.path(user).topic_block is None
     block = attempts.attempts(user)[-1]
     assert block.purpose == AttemptPurpose.topic_block and block.finished_at is not None
+
+
+class MisfitCalibrationRepository(MemoryCalibrationRepository):
+    """Калибровка в памяти стенда, где на семейства `codes` уже накоплены ответы, которые не
+    ложатся на 2PL: сильные ошибаются, слабые решают."""
+
+    def __init__(self, store: MemoryStore, codes: Iterable[str]) -> None:
+        super().__init__(store)
+        rng = random.Random(5)
+        levels = [
+            Normal(rng.gauss(1.0, 1.2), 0.5)
+            for _ in range(MECHANICS.calibration_refit_min_responses)
+        ]
+        self.answers = {
+            code: [Response(level, level.mean < 1.0) for level in levels] for code in codes
+        }
+
+    def rest_answers(self, code: str) -> list[Response]:
+        return self.answers.get(code, [])
+
+    def ready_responses(self, code: str) -> int:
+        return len(self.answers.get(code, []))
+
+
+def test_misfitting_families_leave_adaptive_test_and_topic_block(
+    paths: CandidatePath,
+    attempts: MemoryAttemptRepository,
+    store: MemoryStore,
+    calibrations: AnswerCalibration,
+    answer_items: AnswerItems,
+) -> None:
+    """Переоценка вывела из выдачи семейства темы с плохим согласием с моделью (§7) — их нет ни
+    в первичном тесте, ни в проверочном блоке по этой теме."""
+    misfits = {
+        f.code
+        for f in bank.families_for_topics([BLOCK_TOPIC])
+        if not f.anchor and f.grade in ("middle", "senior")
+    }
+    calibration = elo_calibration(MisfitCalibrationRepository(store, misfits), MECHANICS)
+
+    calibration.refit_due(misfits, "qa", T0)
+
+    assert not calibration.current([get_family(code) for code in misfits])
+    user = _determine(paths, answer_items)
+    paths.start_topic_block(user, topic=BLOCK_TOPIC)
+    _, block = _answer_block(paths, calibrations, user, lambda family: True)
+    shown = {p.family_code for a in attempts.attempts(user) for p in a.presentations}
+    assert block and not shown & misfits

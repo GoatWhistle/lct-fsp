@@ -70,6 +70,8 @@ STATUS: dict[type[e.DomainError], int] = {
     e.InvitationExpired: 409,
     e.InvitationAlreadyOpen: 409,
     e.InvitationBudgetExhausted: 409,
+    e.InvitationNotAccepted: 409,
+    e.InvalidMessageText: 422,
 }
 
 

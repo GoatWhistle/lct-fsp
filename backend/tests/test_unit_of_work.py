@@ -65,7 +65,7 @@ def _memory() -> Iterator[Harness]:
     yield Harness(lambda: MemoryUnitOfWork(store), write, read)
 
 
-@pytest.fixture(params=["postgres", "memory"])
+@pytest.fixture(params=[pytest.param("postgres", marks=pytest.mark.integration), "memory"])
 def harness(request: pytest.FixtureRequest) -> Iterator[Harness]:
     if request.param == "postgres":
         yield from _postgres(request.getfixturevalue("db_engine"))

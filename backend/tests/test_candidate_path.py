@@ -14,6 +14,7 @@ from app.adapter.calibration import EloCalibration
 from app.adapter.catalog_file import load_catalog
 from app.adapter.clock import FrozenClock
 from app.adapter.irt import estimate
+from app.adapter.password import Argon2Passwords
 from app.domain.account import Role
 from app.domain.bank import Family, families_for_topics, get_family
 from app.domain.skill import Normal, Observation
@@ -476,6 +477,7 @@ def test_interrupted_attempt_resumes_after_backend_restart(
     mechanics: Mechanics,
     outbox: Outbox,
     clock: FrozenClock,
+    passwords: Argon2Passwords,
 ) -> None:
     """Состояние попытки — список предъявлений, оценка — чистая функция от него (§6): после
     перезапуска бэкенда тест продолжается с того же задания и той же оценки."""
@@ -485,7 +487,9 @@ def test_interrupted_attempt_resumes_after_backend_restart(
         answer_current(candidate, seeds)
     pending = candidate.get(ITEM).json()
 
-    restarted = create_app(settings, mechanics, outbox, clock=clock, seeds=seeds)
+    restarted = create_app(
+        settings, mechanics, outbox, clock=clock, seeds=seeds, passwords=passwords
+    )
     try:
         with TestClient(restarted, cookies=candidate.cookies) as again:
             path = again.get(PATH).json()
@@ -551,11 +555,12 @@ def test_family_is_refitted_once_it_has_enough_answers(
     outbox: Outbox,
     db_engine: Engine,
     clock: FrozenClock,
+    passwords: Argon2Passwords,
 ) -> None:
     """Набравшее ответов семейство переоценивается пакетно: результат — текущие и опорные
     параметры (§7). Порог здесь — один ответ, чтобы хватило одной попытки."""
     eager = mechanics.model_copy(update={"calibration_refit_min_responses": 1})
-    app = create_app(settings, eager, outbox, clock=clock, seeds=seeds)
+    app = create_app(settings, eager, outbox, clock=clock, seeds=seeds, passwords=passwords)
     try:
         with TestClient(app) as c:
             email = f"candidate-{uuid.uuid4().hex[:8]}@example.com"

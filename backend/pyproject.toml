@@ -34,7 +34,12 @@ dev = [
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]
-addopts = "-ra"
+addopts = "-ra --strict-markers -m unit"
+markers = [
+    "unit: без базы и долгих прогонов — идёт по умолчанию",
+    "integration: ходит в PostgreSQL — ставится сам по фикстуре базы",
+    "simulation: свойство механики на синтетике, долгий прогон",
+]
 
 [tool.ruff]
 line-length = 100

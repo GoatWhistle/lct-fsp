@@ -63,6 +63,11 @@ def test_ece_of_perfectly_calibrated_prediction_is_zero() -> None:
     assert ece(predicted, observed) == pytest.approx(0.0)
 
 
+def test_ece_without_data_is_nan() -> None:
+    """Часть метрики без данных не проходит порог молча."""
+    assert math.isnan(ece([], []))
+
+
 def test_ece_weights_bins_by_their_size() -> None:
     predicted = [0.9] * 30 + [0.2] * 10
     observed = [0.6] * 30 + [0.2] * 10

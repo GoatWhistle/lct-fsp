@@ -233,9 +233,11 @@ def set_level(db_engine: Engine, candidate: str, topic: str, theta: float) -> No
         )
 
 
-def test_selection_has_only_candidates_with_category_by_test(
+def test_selection_ranks_only_candidates_with_category_by_test(
     signed_in: SignIn, employer: TestClient, seeds: Seeds
 ) -> None:
+    """Скор — только у кандидатов с категорией. Проваливший тест на грейд потребности — в нижнем
+    блоке со статусом, без скора; только самоописание без теста — не в выдаче."""
     middle = signed_in(Role.candidate)
     pass_test(middle, seeds, "middle")
     junior = signed_in(Role.candidate)
@@ -253,8 +255,12 @@ def test_selection_has_only_candidates_with_category_by_test(
 
     selection = build(employer, create_need(employer))
 
-    assert (selection["exact_total"], selection["nearby_total"]) == (1, 1)
-    exact, nearby = selection["entries"]
+    assert (
+        selection["exact_total"],
+        selection["nearby_total"],
+        selection["unconfirmed_total"],
+    ) == (1, 1, 1)
+    exact, nearby, bottom = selection["entries"]
     assert (exact["candidate_id"], exact["block"], exact["rank"], exact["position"]) == (
         user_id(middle),
         "exact",
@@ -269,6 +275,25 @@ def test_selection_has_only_candidates_with_category_by_test(
         1,
         2,
     )
+    assert (bottom["candidate_id"], bottom["block"], bottom["rank"], bottom["position"]) == (
+        user_id(failed),
+        "unconfirmed",
+        1,
+        3,
+    )
+    middle_ref = {"code": "middle", "name": "Middle"}
+    assert bottom["grade_status"] == {
+        "kind": "unconfirmed",
+        "claimed": middle_ref,
+        "confirmed": None,
+    }
+    assert exact["grade_status"] == {
+        "kind": "confirmed",
+        "claimed": middle_ref,
+        "confirmed": middle_ref,
+    }
+    assert (bottom["match_score"], bottom["mutual_score"], bottom["topics"]) == (None, None, [])
+    assert bottom["stack"]["contribution"] is None
 
 
 def test_other_specialization_is_not_in_selection(employer: TestClient, db_engine: Engine) -> None:

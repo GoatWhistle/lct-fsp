@@ -1,7 +1,7 @@
 """Потребности, пул кандидатов и подборки в памяти — для сценарных тестов и стенда валидации.
 
-Данные кладёт тест или стенд: `put` у потребностей, `add` у пула. Досягаемость в пуле — та же
-доменная функция `block_of`, что задаёт блоки подборки.
+Данные кладёт тест или стенд: `put` у потребностей, `add` и `add_unconfirmed` у пула.
+Досягаемость в пуле — та же доменная функция `block_of`, что задаёт блоки подборки.
 """
 
 import dataclasses
@@ -17,6 +17,7 @@ from app.domain.selection import (
     SelectionDraft,
     SelectionEntry,
     Summary,
+    UnconfirmedCandidate,
     block_of,
     block_totals,
 )
@@ -54,6 +55,23 @@ class MemoryCandidatePool:
             for c in self._store.collection("pool").values()
             if c.specialization == specialization
             and block_of(grade_rank, c.grade.rank, distance) is not None
+        ]
+
+    def add_unconfirmed(self, candidate: UnconfirmedCandidate) -> None:
+        self._store.collection("unconfirmed")[candidate.candidate_id] = candidate
+
+    def unconfirmed(
+        self, specialization: str, grade: str, technologies: Collection[str]
+    ) -> list[UnconfirmedCandidate]:
+        wanted = frozenset(technologies)
+        # Категория — только в `add`: кандидат с ней в нижний блок не попадает, как и в Postgres.
+        categorized = self._store.collection("pool")
+        return [
+            dataclasses.replace(c, stack=c.stack & wanted)
+            for c in self._store.collection("unconfirmed").values()
+            if c.specialization == specialization
+            and c.claimed.code == grade
+            and c.candidate_id not in categorized
         ]
 
 

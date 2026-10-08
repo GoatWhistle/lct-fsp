@@ -62,6 +62,7 @@ from app.domain.selection import (
     SelectionDraft,
     SelectionEntry,
     Summary,
+    UnconfirmedCandidate,
 )
 from app.domain.skill import Normal, Observation, Prior, SkillEstimate, SkillProfileLevels
 
@@ -454,7 +455,8 @@ class NeedRepository(NeedReader, Protocol):
 
 
 class CandidatePool(Protocol):
-    """Кандидаты с категорией по тесту и профилем навыков её специализации."""
+    """Кандидаты подборки: с категорией по тесту и профилем навыков её специализации — и без
+    категории, заявившие грейд, для нижнего блока."""
 
     def in_reach(
         self, specialization: str, grade_rank: int, distance: int, technologies: Collection[str]
@@ -462,6 +464,13 @@ class CandidatePool(Protocol):
         """Категория — `specialization`, ранг грейда — не дальше `distance` от `grade_rank`
         (`app.domain.selection.block_of`). Стек кандидата — только из `technologies`, технологий
         потребности. Порядок не важен: его задаёт подборка."""
+        ...
+
+    def unconfirmed(
+        self, specialization: str, grade: str, technologies: Collection[str]
+    ) -> list[UnconfirmedCandidate]:
+        """Без категории: последний опрос — `specialization`, заявлен ровно грейд `grade`. Стек —
+        только из `technologies`. Порядок не важен."""
         ...
 
 

@@ -9,7 +9,11 @@
 - `report_parsing` — M21, точность разбора потребности из текста по полям на размеченном наборе:
   правилами или моделью из записи её ответов (`validation.recorded`);
 - `write_market` — синтетический рынок D1 или D2 файлами: истина, наблюдаемое, потребности и
-  эталон пар (`validation.population`).
+  эталон пар (`validation.population`);
+- `tune_drift` — подбор порога детектора дрейфа `drift_cusum_h` на D3 по правилу плана
+  (`validation.protection`);
+- `record_llm` — M16 (б), D7: живой прогон модели через тест с записью ответов в репо
+  (`validation.llm_attack`); отчёт потом пересобирается из записи без сети.
 
 Прогоны специализаций идут в пуле процессов; каждый процесс собирает свой стенд из seed прогона.
 """
@@ -29,6 +33,9 @@ from app.adapter.text_rules import load_synonyms
 from app.domain.determination import grades_by_threshold
 from composition import model_understanding, named_completion
 from settings import CATALOG_FILE, MECHANICS_FILE, SYNONYMS_FILE, Mechanics, Settings
+from validation.llm_attack import ATTEMPTS, SPECIALIZATIONS, Answering, LlmAttempt, run_attempts
+from validation.llm_attack import PARAMS as D7_PARAMS
+from validation.llm_attack import recording_path as llm_recording_path
 from validation.main import build_stand, catalog
 from validation.market import (
     SEED,
@@ -42,8 +49,18 @@ from validation.market import (
 from validation.metrics import cohen_kappa, median, pearson
 from validation.parsing import LabeledText, load_labeled, parsing_table, run_parsing
 from validation.population import DATASETS, Generator, write
-from validation.recorded import Recording, Replay, record
-from validation.report import REPORT, collect, write_report
+from validation.protection import (
+    D3,
+    DRIFT_GRID,
+    ProtectionJob,
+    ProtectionScale,
+    flagged_share,
+    run_protection,
+    tune_threshold,
+    warmed,
+)
+from validation.recorded import Answer, Recording, Replay, record
+from validation.report import PLAN_PROTECTION, REPORT, collect, write_report
 from validation.simulate import Scale
 
 # Набор D5 — тексты вакансий с разметкой; формат — validation/data/need_texts.md.
@@ -54,6 +71,9 @@ RECORDED_DIR = DATA_DIR / "recorded"
 # Таймаут модели в отчёте — как у прода по умолчанию; запись идёт с запасом, без отката.
 MODEL_TIMEOUT = Settings.model_fields["text_understanding_timeout_seconds"].default
 RECORD_TIMEOUT = 600.0
+
+# Модель D7 по имени сборки: Claude Sonnet через Agent SDK.
+D7_MODEL = "agent_sdk"
 
 # Каталог наборов D1 и D2: файлы воспроизводятся по seed и в репо не хранятся.
 MARKET_DIR = DATA_DIR / "market"
@@ -316,10 +336,73 @@ def write_market(
     )
 
 
+def tune_drift(mechanics: Mechanics, scale: ProtectionScale) -> float | None:
+    """Подбор `drift_cusum_h` на D3: честный поток по каждой специализации, пик CUSUM семейства
+    в окне `honest_responses` ответов; значение — наименьшее из сетки с FPR не выше 0,05."""
+    specializations = [s.code for s in load_catalog(CATALOG_FILE).specializations]
+    jobs = [ProtectionJob(D3, code, mechanics, scale, full=False) for code in specializations]
+    with _pool() as pool:
+        drift = [d for run in pool.map(run_protection, jobs) for d in run.honest_drift]
+    print(f"Подбор drift_cusum_h: D3, сид {D3.seed}, семейств {len(drift)}")
+    print("| drift_cusum_h | FPR |")
+    print("|---|---|")
+    for h in DRIFT_GRID:
+        print(f"| {h:.1f} | {flagged_share(drift, h, scale.honest_responses):.3f} |")
+    chosen = tune_threshold(drift, scale.honest_responses)
+    print(f"\nвыбрано drift_cusum_h = {chosen}")
+    return chosen
+
+
+def _record_chunk(
+    job: tuple[Mechanics, str, range, str, dict[str, Answer]],
+) -> tuple[dict[str, Answer], list[LlmAttempt], str | None]:
+    """Попытки модели одной специализации — задача пула процессов: свой прогретый банк, ответы
+    из записи, недостающие — у живой модели."""
+    mechanics, code, indices, model, known = job
+    m = warmed(D7_PARAMS, code, mechanics, PLAN_PROTECTION.warm)
+    live = named_completion(model, RECORD_TIMEOUT)
+    answering = Answering(known, live)
+    attempts = run_attempts(m, code, indices, answering)
+    return answering.added, attempts, getattr(live, "model", None)
+
+
+def record_llm(mechanics: Mechanics, model: str, workers: int) -> None:
+    """D7: попытки модели по специализациям D7 — `workers` процессов; запись дописывается после
+    каждой задачи. Уже записанные ответы модель не спрашивают."""
+    recording = Recording(llm_recording_path(RECORDED_DIR, model))
+    chunk = max(1, ATTEMPTS * len(SPECIALIZATIONS) // max(1, workers))
+    jobs = [
+        (
+            mechanics,
+            code,
+            range(start, min(start + chunk, ATTEMPTS)),
+            model,
+            dict(recording.answers),
+        )
+        for code in SPECIALIZATIONS
+        for start in range(0, ATTEMPTS, chunk)
+    ]
+    found: list[LlmAttempt] = []
+    with ProcessPoolExecutor(max(1, workers)) as pool:
+        for added, attempts, name in pool.map(_record_chunk, jobs):
+            if recording.model and name and recording.model != name:
+                raise SystemExit(f"{recording.path.name} — ответы {recording.model}, а не {name}")
+            recording.model = recording.model or name
+            for key, answer in added.items():
+                recording.add(key, answer)
+            recording.save()
+            found += attempts
+            print(f"записано ответов: {len(added)}, попыток: {len(attempts)}", flush=True)
+    flagged = sum(a.flagged for a in found)
+    print(f"D7: попыток {len(found)}, помечено {flagged}, запись — {recording.path}")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(prog="python -m validation")
     parser.add_argument(
-        "command", nargs="?", choices=("report", "honesty", "tune", "parsing", "market")
+        "command",
+        nargs="?",
+        choices=("report", "honesty", "tune", "parsing", "market", "drift", "llm"),
     )
     parser.add_argument(
         "--seed", type=int, default=None, help="сид для honesty и market, по умолчанию плановый"
@@ -345,14 +428,21 @@ def main() -> None:
     parser.add_argument("--report", type=Path, default=REPORT, help="report: куда писать отчёт")
     parser.add_argument(
         "--model",
-        help="для parsing: модель разбора по имени, как TEXT_UNDERSTANDING; без него — правила",
+        help="для parsing: модель разбора по имени, как TEXT_UNDERSTANDING; без него — правила; "
+        "для llm и report — модель D7 по имени, по умолчанию agent_sdk",
     )
     parser.add_argument(
         "--record",
         type=int,
         default=0,
         metavar="N",
-        help="для parsing с --model: дописать недостающие ответы модели в запись, N потоков",
+        help="для parsing с --model: дописать недостающие ответы модели в запись, N потоков; "
+        "для llm — живой прогон D7, N процессов",
+    )
+    parser.add_argument(
+        "--no-protection",
+        action="store_true",
+        help="report: без экспериментов защиты M14–M17 — быстрее",
     )
     parser.add_argument(
         "--timeout",
@@ -391,6 +481,12 @@ def main() -> None:
             )
         case "market":
             write_market(mechanics, args.set, args.seed, args.candidates, args.out)
+        case "drift":
+            tune_drift(mechanics, PLAN_PROTECTION)
+        case "llm":
+            if not args.record:
+                raise SystemExit("llm — живой прогон: укажите --record N")
+            record_llm(mechanics, args.model or D7_MODEL, args.record)
         case _:
             scale = Scale(
                 **{
@@ -404,5 +500,14 @@ def main() -> None:
                     if v is not None
                 }
             )
-            write_report(collect(mechanics, scale), args.report)
+            path = llm_recording_path(RECORDED_DIR, args.model or D7_MODEL)
+            write_report(
+                collect(
+                    mechanics,
+                    scale,
+                    protection=None if args.no_protection else PLAN_PROTECTION,
+                    llm=Recording(path) if path.exists() else None,
+                ),
+                args.report,
+            )
             print(f"отчёт → {args.report}")

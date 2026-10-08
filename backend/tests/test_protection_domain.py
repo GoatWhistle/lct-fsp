@@ -9,7 +9,7 @@ import pytest
 
 from app.adapter import irt
 from app.domain.adaptive import Option
-from app.domain.calibration import Parameters
+from app.domain.calibration import Parameters, expected_correct
 from app.domain.protection import (
     AttemptSignals,
     ResponseTimes,
@@ -22,27 +22,36 @@ from app.domain.protection import (
     verification_expectation,
     verification_verdict,
 )
-from app.domain.skill import Observation, Prior, sigmoid
+from app.domain.skill import Normal, Observation, Prior, sigmoid
 
 REFERENCE = Parameters(1.2, 0.5)
 
 
 def test_cusum_grows_on_surprising_correct_answers_and_never_goes_below_zero() -> None:
-    s = cusum_step(0.0, REFERENCE, -1.0, True, shift=1.0)
+    weak = Normal(-1.0, 0.4)
+    s = cusum_step(0.0, REFERENCE, weak, True, shift=1.0)
     assert s > 0
-    p0 = sigmoid(1.2 * (-1.0 - 0.5))
-    p1 = sigmoid(1.2 * (-1.0 - 0.5 + 1.0))
+    p0 = expected_correct(REFERENCE, weak)
+    p1 = expected_correct(REFERENCE, Normal(0.0, 0.4))
     assert s == pytest.approx(math.log(p1 / p0))
-    assert cusum_step(0.0, REFERENCE, -1.0, False, shift=1.0) == 0.0
-    assert cusum_step(0.3, REFERENCE, -1.0, False, shift=1.0) == pytest.approx(
+    assert cusum_step(0.0, REFERENCE, weak, False, shift=1.0) == 0.0
+    assert cusum_step(0.3, REFERENCE, weak, False, shift=1.0) == pytest.approx(
         max(0.0, 0.3 + math.log((1 - p1) / (1 - p0)))
     )
 
 
 def test_cusum_is_risk_adjusted_a_strong_candidate_raises_less_alarm() -> None:
-    weak = cusum_step(0.0, REFERENCE, -1.0, True, shift=1.0)
-    strong = cusum_step(0.0, REFERENCE, 2.0, True, shift=1.0)
+    weak = cusum_step(0.0, REFERENCE, Normal(-1.0, 0.4), True, shift=1.0)
+    strong = cusum_step(0.0, REFERENCE, Normal(2.0, 0.4), True, shift=1.0)
     assert strong < weak
+
+
+def test_cusum_discounts_answers_of_imprecise_estimates() -> None:
+    """Верный ответ при неточной оценке удивляет меньше: в начале теста оценка стянута к
+    априорному, и сильный кандидат на трудном задании — не повод для тревоги."""
+    sharp = cusum_step(0.0, REFERENCE, Normal(-1.0, 0.2), True, shift=1.0)
+    vague = cusum_step(0.0, REFERENCE, Normal(-1.0, 1.0), True, shift=1.0)
+    assert vague < sharp
 
 
 def test_cusum_on_honest_answers_stays_low_and_on_leaked_rises() -> None:
@@ -52,9 +61,12 @@ def test_cusum_on_honest_answers_stays_low_and_on_leaked_rises() -> None:
     for _ in range(1000):
         level = rng.gauss(0, 1)
         p = sigmoid(1.2 * (level - 0.5))
-        honest = cusum_step(honest, REFERENCE, level, rng.random() < p, shift=1.0)
+        estimate = Normal(level, 0.01)
+        honest = cusum_step(honest, REFERENCE, estimate, rng.random() < p, shift=1.0)
         peak = max(peak, honest)
-        leaked = cusum_step(leaked, REFERENCE, level, rng.random() < p + 0.5 * (1 - p), shift=1.0)
+        leaked = cusum_step(
+            leaked, REFERENCE, estimate, rng.random() < p + 0.5 * (1 - p), shift=1.0
+        )
     assert peak < 8
     assert leaked > 50
 

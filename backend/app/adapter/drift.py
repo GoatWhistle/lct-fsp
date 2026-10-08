@@ -45,7 +45,7 @@ class CusumDriftDetector:
         reference = row.parameters if family.anchor else row.reference
         if reference is None:
             return False
-        level = self._repository.links(specialization)[0].apply(level_before).mean
+        level = self._repository.links(specialization)[0].apply(level_before)
         row.drift = cusum_step(row.drift, reference, level, correct, shift=self.drift_shift)
         flagged = row.drift > self.drift_cusum_h
         if flagged:

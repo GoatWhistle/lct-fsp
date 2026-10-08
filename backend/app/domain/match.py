@@ -83,8 +83,7 @@ def match_score(
     """Скор соответствия кандидата потребности; `levels` — уровни по темам из профиля навыков,
     `stack_cap` — λ, потолок вклада самоописания."""
     probabilities = [levels[r.topic].prob_at_least(r.level) for r in need]
-    matched = tuple(sorted(set(need_stack) & set(candidate_stack)))
-    overlap = len(matched) / len(set(need_stack)) if need_stack else 0.0
+    matched, overlap = stack_overlap(need_stack, candidate_stack)
 
     # Скор — по формуле, вклады — отдельно: их совпадение проверяет тест, а не построение.
     skills = sum(r.weight * p for r, p in zip(need, probabilities, strict=True))
@@ -96,6 +95,14 @@ def match_score(
     )
     stack = StackFit(matched, len(set(need_stack)), overlap, stack_cap * overlap)
     return Match(score, topics, stack)
+
+
+def stack_overlap(
+    need_stack: Collection[str], candidate_stack: Collection[str]
+) -> tuple[tuple[str, ...], float]:
+    """Технологии потребности в самоописанном стеке и их доля o; без стека в потребности — 0."""
+    matched = tuple(sorted(set(need_stack) & set(candidate_stack)))
+    return matched, len(matched) / len(set(need_stack)) if need_stack else 0.0
 
 
 def ranking(scores: Mapping[uuid.UUID, float], salt: int) -> list[uuid.UUID]:

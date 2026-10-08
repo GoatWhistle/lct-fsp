@@ -89,7 +89,7 @@ def field_types(cls: type) -> set[type]:
 def test_anonymized_card_has_no_hidden_fields_by_type() -> None:
     names = {f.name for f in dataclasses.fields(AnonymizedCard)}
 
-    assert names == {"candidate_id", "self_reported", "category", "skill_profile"}
+    assert names == {"candidate_id", "self_reported", "category", "skill_profile", "grade_status"}
     assert not names & HIDDEN
     # Самоописание в карточке — только структурная часть, без раскрываемого.
     assert not {f.name for f in dataclasses.fields(SelfReported)} & HIDDEN
@@ -105,6 +105,7 @@ def test_candidate_sees_own_profile_disclosed_with_expected_salary() -> None:
         expected_salary=287_500,
         category=CANDIDATE.category,
         skill_profile=CANDIDATE.skill_profile,
+        grade_status=CANDIDATE.grade_status,
     )
     assert card.self_reported == SELF_REPORTED
 
@@ -129,6 +130,7 @@ ANONYMIZED = AnonymizedCard(
     self_reported=SELF_REPORTED,
     category=CANDIDATE.category,
     skill_profile=CANDIDATE.skill_profile,
+    grade_status=CANDIDATE.grade_status,
 )
 
 
@@ -182,6 +184,7 @@ def test_employer_with_access_sees_disclosed_card_without_expected_salary(access
         expected_salary=None,
         category=CANDIDATE.category,
         skill_profile=CANDIDATE.skill_profile,
+        grade_status=CANDIDATE.grade_status,
     )
 
 
@@ -190,7 +193,9 @@ def test_anonymized_card_without_profile() -> None:
 
     card = disclosure(blank, EMPLOYER, NO_ACCESS)
 
-    assert card == AnonymizedCard(blank.id, None, blank.category, blank.skill_profile)
+    assert card == AnonymizedCard(
+        blank.id, None, blank.category, blank.skill_profile, blank.grade_status
+    )
 
 
 def test_no_access_is_the_default() -> None:

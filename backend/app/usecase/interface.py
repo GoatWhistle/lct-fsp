@@ -66,10 +66,10 @@ from app.domain.regular_task import (
     TaskAnswer,
     TaskTerms,
 )
+from app.domain.search import CandidateFacts, CandidateFilters
 from app.domain.selection import (
     AcceptanceFeatures,
     Need,
-    Page,
     PoolCandidate,
     Selection,
     SelectionDraft,
@@ -585,6 +585,16 @@ class CandidatePool(Protocol):
         только из `technologies`. Порядок не важен."""
         ...
 
+    def facts(self, candidate_ids: Collection[uuid.UUID]) -> list[CandidateFacts]:
+        """Что фильтры знают о кандидатах из `candidate_ids` — сейчас, а не на момент подборки.
+        Кандидата без статуса грейда в ответе нет; профиль навыков — на момент последнего
+        сигнала. Порядок не важен."""
+        ...
+
+    def searchable(self) -> list[CandidateFacts]:
+        """То же по всей базе: все кандидаты с категорией или заявленным грейдом."""
+        ...
+
 
 class SelectionRepository(Protocol):
     """Сохранённые подборки: снимок потребности и выдача. Формат хранения снимка и объяснения
@@ -594,8 +604,22 @@ class SelectionRepository(Protocol):
         """Сохраняет подборку с выдачей и даёт ей id."""
         ...
 
-    def page(self, user_id: uuid.UUID, selection_id: uuid.UUID, *, offset: int, limit: int) -> Page:
-        """Страница выдачи по местам; чужая или несуществующая подборка — `SelectionNotFound`."""
+    def get(
+        self, user_id: uuid.UUID, selection_id: uuid.UUID
+    ) -> tuple[Selection, tuple[SelectionEntry, ...]]:
+        """Подборка с фильтрами и шортлистом и вся её выдача по местам; чужая или
+        несуществующая — `SelectionNotFound`."""
+        ...
+
+    def save_filters(self, selection_id: uuid.UUID, filters: CandidateFilters) -> None:
+        """Заменяет фильтры подборки; выдачу не трогает."""
+        ...
+
+    def set_shortlisted(
+        self, selection_id: uuid.UUID, candidate_id: uuid.UUID, shortlisted: bool
+    ) -> None:
+        """Отмечает кандидата выдачи или снимает отметку; повтор ничего не меняет. Что кандидат
+        в выдаче, проверяет сценарий."""
         ...
 
     def summaries(

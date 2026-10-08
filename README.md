@@ -68,6 +68,14 @@ docker compose run --rm --build tests
 - `uv run python -m validation tune` — подбор поправки погрешности `level_sd_inflation` на
   настроечном наборе D3.
 
+Банк заданий — тоже из `backend/`:
+
+- `uv run python -m bank_report` — отчёт покрытия в markdown: доля трассировки по темам,
+  сценарные семейства у middle и senior, ячейки «тема × грейд» без семейств и без описания в
+  матрице грейдов; с `--calibration` — и сверка сложности с экспертной по калибровке из базы;
+- `uv run python -m bank_report matrix` — пересобрать [`docs/grade-matrix.md`](docs/grade-matrix.md)
+  из `config/grade_matrix.yaml`.
+
 ## Устройство
 
 ```

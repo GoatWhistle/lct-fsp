@@ -111,3 +111,37 @@ def test_demo_candidates_are_hidden_from_real_employers(
     real = signed_in(Role.employer).post("/api/employer/candidates/search", json={})
     assert real.status_code == 200
     assert real.json()["total"] == 0
+
+
+def test_demo_answers_do_not_enter_calibration_or_response_time_samples(
+    demo: TestClient,
+    db_engine: Engine,
+    mechanics: Mechanics,
+) -> None:
+    import uuid
+
+    from app.repository.attempt import SqlAttemptRepository
+    from app.repository.calibration import SqlCalibrationRepository
+    from app.repository.orm.attempt import Presentation, TestAttempt
+
+    demo.post(
+        "/api/demo/candidate", json={"specialization": "qa", "grade": "junior"}
+    ).raise_for_status()
+    item = demo.get(f"{PATH}/item").json()
+    with transaction(db_engine) as session:
+        shown = session.get_one(Presentation, uuid.UUID(item["id"]))
+        attempt = session.get_one(TestAttempt, shown.attempt_id)
+        shown.correct = True
+        shown.topic_theta_rest = 0.0
+        shown.topic_theta_rest_sd = 0.5
+        shown.response_time_ms = 1000
+        attempt.finished_at = shown.shown_at
+        session.flush()
+        calibration = SqlCalibrationRepository(session)
+        assert calibration.anchor_answers("qa", [shown.family_code], 100) == []
+        assert calibration.rest_answers(shown.family_code) == []
+        assert calibration.ready_responses(shown.family_code) == 0
+        times = SqlAttemptRepository(
+            session, mechanics.grade_thresholds, mechanics.grade_confidence
+        ).response_times([shown.family_code], uuid.uuid4())
+        assert times[shown.family_code] == []

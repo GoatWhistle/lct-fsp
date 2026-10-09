@@ -350,6 +350,11 @@ class SqlAttemptRepository(SqlAttemptReader):
                 models.Presentation.attempt_id != exclude_attempt_id,
                 models.Presentation.correct.is_(True),
                 models.Presentation.response_time_ms.is_not(None),
+                models.Presentation.attempt_id.in_(
+                    select(models.TestAttempt.id)
+                    .join(User, User.id == models.TestAttempt.user_id)
+                    .where(~User.is_demo)
+                ),
             )
         ).all()
         times: dict[str, list[float]] = {code: [] for code in family_codes}

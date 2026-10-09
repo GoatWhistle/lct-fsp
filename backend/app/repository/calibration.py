@@ -5,12 +5,13 @@
 from collections.abc import Collection
 from datetime import datetime
 
-from sqlalchemy import func, select
+from sqlalchemy import exists, func, select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.orm import Session
 
 from app.domain.calibration import AnchorAnswer, CalibratedFamily, Link, Parameters, Response
 from app.domain.skill import Normal
+from app.repository.orm.account import User
 from app.repository.orm.attempt import FamilyCalibration, FamilyStatus, ScaleLink, TestAttempt
 from app.repository.orm.attempt import Presentation as PresentationRow
 
@@ -112,6 +113,7 @@ class SqlCalibrationRepository:
             .where(
                 TestAttempt.specialization_code == specialization,
                 TestAttempt.finished_at.is_not(None),
+                ~exists().where(User.id == TestAttempt.user_id, User.is_demo),
             )
             .order_by(TestAttempt.finished_at.desc())
             .limit(window_attempts)
@@ -156,6 +158,11 @@ class SqlCalibrationRepository:
             ).where(
                 PresentationRow.family_code == code,
                 PresentationRow.topic_theta_rest.is_not(None),
+                PresentationRow.attempt_id.in_(
+                    select(TestAttempt.id)
+                    .join(User, User.id == TestAttempt.user_id)
+                    .where(~User.is_demo)
+                ),
             )
         ).all()
         return [
@@ -169,6 +176,11 @@ class SqlCalibrationRepository:
             select(func.count()).where(
                 PresentationRow.family_code == code,
                 PresentationRow.topic_theta_rest.is_not(None),
+                PresentationRow.attempt_id.in_(
+                    select(TestAttempt.id)
+                    .join(User, User.id == TestAttempt.user_id)
+                    .where(~User.is_demo)
+                ),
             )
         )
         return count or 0

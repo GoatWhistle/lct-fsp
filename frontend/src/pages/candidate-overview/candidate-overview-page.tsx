@@ -9,14 +9,14 @@ import {
   SkillPanel,
 } from "@/features/candidate-overview"
 import { VerificationCard } from "@/features/test-verification"
-import { useDocumentTitle, useTranslation } from "@/shared/i18n"
-import { LoadError, PageBody, PageHeader, Skeleton } from "@/shared/ui"
+import { useCatalogNames, useDocumentTitle, useTranslation } from "@/shared/i18n"
+import { Banner, ButtonLink, LoadError, PageBody, PageHeader, Skeleton } from "@/shared/ui"
 import styles from "./candidate-overview-page.module.css"
 
 function OverviewSkeleton() {
   return (
     <div className={styles.grid} aria-hidden="true">
-      <Skeleton shape="block" className={styles.hero} />
+      <Skeleton shape="block" className={styles.wide} />
       <Skeleton shape="block" className={styles.placeholder} />
       <Skeleton shape="block" className={styles.placeholder} />
     </div>
@@ -27,10 +27,10 @@ export function CandidateOverviewPage() {
   const { t } = useTranslation("overview")
   const path = usePath()
   const fsp = useFspStatus()
+  const names = useCatalogNames()
   useDocumentTitle(t("title"))
   const data = path.data
-  if (data !== undefined && (data.category === null || data.topic_block !== null))
-    return <Navigate to="/candidate/path" replace />
+  if (data !== undefined && data.category === null) return <Navigate to="/candidate/path" replace />
   const level = data?.profile ?? null
   return (
     <>
@@ -46,13 +46,35 @@ export function CandidateOverviewPage() {
           <OverviewSkeleton />
         ) : (
           <div className={styles.grid}>
-            <CategoryPanel path={data} motionIndex={0} className={styles.hero} />
-            <div className={styles.main}>
+            {data.topic_block === null ? null : (
+              <Banner
+                tone="info"
+                icon="test"
+                title={t("block.open", {
+                  topic: names.topic(data.topic_block.topic),
+                  answered: data.topic_block.answered,
+                  items: data.topic_block.items,
+                })}
+                action={
+                  <ButtonLink
+                    to="/candidate/test"
+                    size="compact"
+                    icon="arrow-right"
+                    iconPosition="end"
+                  >
+                    {t("block.continue")}
+                  </ButtonLink>
+                }
+                className={styles.wide}
+              />
+            )}
+            <CategoryPanel path={data} motionIndex={0} className={styles.wide} />
+            <div className={styles.column}>
               {level === null ? null : (
                 <SkillPanel profile={level} fspLinked={fsp.data?.linked ?? null} motionIndex={1} />
               )}
             </div>
-            <div className={styles.aside}>
+            <div className={styles.column}>
               <VerificationCard path={data} />
               <InvitationsPanel motionIndex={3} />
               {data.history.length === 0 ? null : (

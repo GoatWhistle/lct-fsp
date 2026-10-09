@@ -25,7 +25,9 @@
   "block": {
     "start": "Take a block",
     "pending": "Preparing the block",
-    "availableFrom": "Block available from {{date}}"
+    "availableFrom": "Block available from {{date}}",
+    "open": "Topic block “{{topic}}” is unfinished: {{answered}} of {{items}}",
+    "continue": "Continue"
   },
   "skills": {
     "title": "Skill profile",

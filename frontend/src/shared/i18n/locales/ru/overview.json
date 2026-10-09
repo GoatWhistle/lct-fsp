@@ -25,7 +25,9 @@
   "block": {
     "start": "Пройти блок",
     "pending": "Готовим блок",
-    "availableFrom": "Блок доступен с {{date}}"
+    "availableFrom": "Блок доступен с {{date}}",
+    "open": "Блок по теме «{{topic}}» не закончен: {{answered}} из {{items}}",
+    "continue": "Продолжить"
   },
   "skills": {
     "title": "Профиль навыков",

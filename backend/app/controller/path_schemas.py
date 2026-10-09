@@ -34,6 +34,11 @@ class AttemptIn(BaseModel):
         description="Согласие на счётчики вставок и уходов со вкладки в этой попытке — только "
         "как сигнал для проверочного блока. Без согласия тест проходится так же",
     )
+    express: bool = Field(
+        default=False,
+        description="Экспресс-тест режима жюри: короткий, с лимитом `express_max_items` заданий, "
+        "правило уверенности то же. Только тестовому кандидату на шаге `grade`",
+    )
 
 
 class TopicBlockIn(BaseModel):
@@ -143,6 +148,16 @@ class AttemptProgressOut(BaseModel):
         description="Больше заданий попытка не задаст; обычно тест останавливается раньше — "
         "когда уровень определён с нужной точностью"
     )
+    express: bool = Field(description="Экспресс-тест режима жюри: лимит — `express_max_items`")
+
+
+class ExpressOut(BaseModel):
+    limit: int = Field(description="Лимит заданий экспресс-теста")
+    answered: int
+    paused: bool = Field(
+        description="Лимит выбран, уверенности для категории нет: тест ждёт продолжения полным "
+        "(`POST /api/candidate/path/express/continue`); уровень с погрешностью — в `result`"
+    )
 
 
 class TopicBlockOut(BaseModel):
@@ -229,7 +244,10 @@ class PathOut(BaseModel):
     offer_grade: str | None
     retest_after: datetime | None
     category: CategoryOut | None
-    result: TestResultOut | None = Field(description="На шагах `offer`, `category`, `no_category`")
+    result: TestResultOut | None = Field(
+        description="На шагах `offer`, `category`, `no_category`; у экспресс-теста, который ждёт "
+        "продолжения, — на шаге `test`"
+    )
     profile: SkillProfileOut | None
     grade_up: GradeUpOut | None = Field(
         description="Попытка на грейд выше — на шаге `category`, если грейд не старший"
@@ -246,6 +264,10 @@ class PathOut(BaseModel):
     verification: VerificationOut | None = Field(
         description="Проверочный блок на шагах `verification` и `category`: результат ждёт его, "
         "он идёт или его можно пройти добровольно"
+    )
+    express: ExpressOut | None = Field(
+        description="Экспресс-тест режима жюри: идёт, ждёт продолжения или дал итог пути — "
+        "итог помечается «экспресс-оценка»"
     )
 
 

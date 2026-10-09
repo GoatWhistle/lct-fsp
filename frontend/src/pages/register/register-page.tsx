@@ -1,6 +1,7 @@
 import { useState } from "react"
 import { useSearchParams } from "react-router"
 import { FspTile, RegisterForm, ResendVerification } from "@/features/auth"
+import { JuryActions } from "@/features/jury-mode"
 import type { Role } from "@/shared/api"
 import { useDocumentTitle, useTranslation } from "@/shared/i18n"
 import { withViewTransition } from "@/shared/motion"
@@ -66,6 +67,9 @@ export function RegisterPage() {
       ) : null}
       <div className={styles.form}>
         <RegisterForm role={role} onSent={setSentTo} />
+      </div>
+      <div className={styles.jury}>
+        <JuryActions />
       </div>
       <div className={styles.switch}>
         <AuthSwitch text={t("register.haveAccount")} to="/login" link={t("register.login")} />

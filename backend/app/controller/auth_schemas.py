@@ -36,3 +36,6 @@ class UserOut(BaseModel):
     email: str
     role: Role
     email_verified: bool
+    demo: bool = Field(
+        default=False, description="Тестовая учётка режима жюри: ей доступен экспресс-тест"
+    )

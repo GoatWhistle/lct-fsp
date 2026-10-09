@@ -35,6 +35,7 @@ exposure_max_rate: 0.5
 exposure_window_attempts: 500
 topic_block_items: 6
 topic_block_interval_days: 30
+express_max_items: 8
 
 # Калибровка
 elo_k_initial: 0.4

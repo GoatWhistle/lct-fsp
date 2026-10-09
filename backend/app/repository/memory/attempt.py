@@ -135,6 +135,7 @@ class MemoryAttemptRepository:
         focus_consent: bool = False,
         verifies: Attempt | None = None,
         deadline: datetime | None = None,
+        express_limit: int | None = None,
     ) -> Attempt:
         mine = self._store.collection("user_attempts").setdefault(user_id, [])
         attempt = Attempt(
@@ -151,6 +152,7 @@ class MemoryAttemptRepository:
             focus_consent=focus_consent,
             verifies_attempt_id=verifies.id if verifies else None,
             deadline=deadline,
+            express_limit=express_limit,
         )
         self._attempts()[attempt.id] = attempt
         mine.append(attempt)
@@ -216,6 +218,16 @@ class MemoryAttemptRepository:
     def withhold(self, attempts: Sequence[Attempt], withheld: bool) -> None:
         for attempt in attempts:
             attempt.withheld = withheld
+
+    def lift_express_limit(self, attempt: Attempt) -> None:
+        attempt.express_limit = None
+
+    def mark_demo(self, user_id: uuid.UUID) -> None:
+        """Тестовая учётка режима жюри — в тестах; в проде пометку ставит учётка."""
+        self._store.collection("demo_users")[user_id] = True
+
+    def is_demo(self, user_id: uuid.UUID) -> bool:
+        return user_id in self._store.collection("demo_users")
 
     def response_times(
         self, family_codes: Collection[str], exclude_attempt_id: uuid.UUID

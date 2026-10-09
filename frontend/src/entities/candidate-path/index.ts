@@ -1,6 +1,7 @@
 export {
   isInProgress,
   PATH_KEY,
+  useContinueExpress,
   useGradeHint,
   usePath,
   useSetPath,

@@ -34,6 +34,7 @@ from app.usecase.interface import (
     RequestUnitOfWork,
 )
 from app.usecase.invitation import Invitations
+from app.usecase.jury import JuryMode
 from app.usecase.need import Needs
 from app.usecase.need_draft import NeedDrafts
 from app.usecase.regular_task import RegularTasks
@@ -121,6 +122,11 @@ def get_accounts(request: Request, uow: UnitOfWorkDep) -> Accounts:
 def get_fsp_accounts(request: Request, uow: UnitOfWorkDep) -> FspAccounts:
     fsp_accounts: FspAccounts = request.app.state.fsp_accounts(uow)
     return fsp_accounts
+
+
+def get_jury(request: Request, uow: UnitOfWorkDep) -> JuryMode:
+    jury: JuryMode = request.app.state.jury(uow)
+    return jury
 
 
 def get_catalog(request: Request, uow: UnitOfWorkDep) -> CatalogQueries:
@@ -213,6 +219,7 @@ def get_applications(request: Request, uow: UnitOfWorkDep) -> Applications:
 
 
 AccountsDep = Annotated[Accounts, Depends(get_accounts)]
+JuryDep = Annotated[JuryMode, Depends(get_jury)]
 FspAccountsDep = Annotated[FspAccounts, Depends(get_fsp_accounts)]
 CatalogQueriesDep = Annotated[CatalogQueries, Depends(get_catalog)]
 CompaniesDep = Annotated[Companies, Depends(get_companies)]

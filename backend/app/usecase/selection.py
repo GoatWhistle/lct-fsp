@@ -144,6 +144,7 @@ class Selections:
             key_min_technologies=mechanics.need_key_topic_min_technologies,
         )
         now = self._clock.now()
+        demo = self._pool.is_demo(user_id)
         pool = [
             self._freshness.pool(member, now)
             for member in self._pool.in_reach(
@@ -151,13 +152,17 @@ class Selections:
                 need.grade.rank,
                 rules.nearby_grade_distance,
                 [t.code for t in need.stack],
+                demo=demo,
             )
         ]
         scored = score(snapshot, need.grade.rank, pool, rules)
         showcased = showcase(
             snapshot,
             self._pool.unconfirmed(
-                need.specialization.code, need.grade.code, [t.code for t in need.stack]
+                need.specialization.code,
+                need.grade.code,
+                [t.code for t in need.stack],
+                demo=demo,
             ),
         )
         acceptance = self._acceptance.predict(
@@ -241,11 +246,14 @@ class Selections:
         with self._uow:
             return _shortlist(*self._selections.get(user_id, selection_id))
 
-    def search(self, filters: CandidateFilters, *, offset: int, limit: int) -> SearchPage:
+    def search(
+        self, user_id: uuid.UUID, filters: CandidateFilters, *, offset: int, limit: int
+    ) -> SearchPage:
         """Поиск по всему банку без потребности: подтверждённые — по уверенности в уровне
-        грейда категории, неподтверждённые — ниже всех."""
+        грейда категории, неподтверждённые — ниже всех. Тестовых кандидатов режима жюри видит
+        только демо-работодатель."""
         with self._uow:
-            found = self._pool.searchable()
+            found = self._pool.searchable(demo=self._pool.is_demo(user_id))
         now = self._clock.now()
         admitted = [f for f in self._fresh(found, now) if self._admits(filters, f)]
         hits = search_order(admitted, self._mechanics.grade_thresholds)

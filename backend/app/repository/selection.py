@@ -12,7 +12,7 @@ from typing import Any
 
 from sqlalchemy import ColumnElement, Select, and_, delete, exists, func, insert, select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
-from sqlalchemy.orm import Session, aliased
+from sqlalchemy.orm import QueryableAttribute, Session, aliased
 
 from app.domain.candidate import GradeStatus, GradeStatusKind, HideableField, grade_status
 from app.domain.catalog import CatalogRef, Grade
@@ -41,6 +41,7 @@ from app.domain.skill import Normal, SignalSource, SkillProfileLevels
 from app.domain.work import SalaryBasis, SalaryRange, WorkFormat
 from app.repository.candidate import claimed_grades
 from app.repository.fsp import histories
+from app.repository.orm.account import User
 from app.repository.orm.attempt import CandidateCategory, Survey, TestAttempt
 from app.repository.orm.candidate import (
     CandidateProfile,
@@ -57,16 +58,31 @@ from app.repository.orm.skill_profile import SkillProfile, SkillProfileTopic
 Json = dict[str, Any]
 
 
+def _real(user_id: QueryableAttribute[uuid.UUID]) -> ColumnElement[bool]:
+    """Кандидат не из режима жюри: тестовые учётки реальным работодателям не показываются."""
+    return user_id.not_in(select(User.id).where(User.is_demo))
+
+
 class SqlCandidatePool:
     def __init__(self, session: Session) -> None:
         self._session = session
 
+    def is_demo(self, user_id: uuid.UUID) -> bool:
+        return bool(self._session.scalar(select(User.is_demo).where(User.id == user_id)))
+
     def in_reach(
-        self, specialization: str, grade_rank: int, distance: int, technologies: Collection[str]
+        self,
+        specialization: str,
+        grade_rank: int,
+        distance: int,
+        technologies: Collection[str],
+        *,
+        demo: bool,
     ) -> list[PoolCandidate]:
         reach = (
             CandidateCategory.specialization_code == specialization,
             GradeRow.rank.between(grade_rank - distance, grade_rank + distance),
+            *(() if demo else (_real(CandidateCategory.user_id),)),
         )
         levels = self._session.execute(
             select(
@@ -159,7 +175,12 @@ class SqlCandidatePool:
         ]
 
     def unconfirmed(
-        self, specialization: str, grade: str, technologies: Collection[str]
+        self,
+        specialization: str,
+        grade: str,
+        technologies: Collection[str],
+        *,
+        demo: bool,
     ) -> list[UnconfirmedCandidate]:
         # Последний опрос — по `specialization`, категории нет.
         later = aliased(Survey)
@@ -167,6 +188,7 @@ class SqlCandidatePool:
             Survey.specialization_code == specialization,
             ~exists().where(later.user_id == Survey.user_id, later.number > Survey.number),
             ~exists().where(CandidateCategory.user_id == Survey.user_id),
+            *(() if demo else (_real(Survey.user_id),)),
         )
         # Заявка — по той же специализации, что опрос: попытка по прошлому опросу не в счёт.
         claimed = {
@@ -208,9 +230,14 @@ class SqlCandidatePool:
     def facts(self, candidate_ids: Collection[uuid.UUID]) -> list[CandidateFacts]:
         return self._facts(list(candidate_ids)) if candidate_ids else []
 
-    def searchable(self) -> list[CandidateFacts]:
+    def searchable(self, *, demo: bool) -> list[CandidateFacts]:
         # Подзапросом, а не списком id: база не гоняет весь банк через параметры запроса.
-        everyone = select(CandidateCategory.user_id).union(select(TestAttempt.user_id))
+        categorized = select(CandidateCategory.user_id)
+        tested = select(TestAttempt.user_id)
+        if not demo:
+            categorized = categorized.where(_real(CandidateCategory.user_id))
+            tested = tested.where(_real(TestAttempt.user_id))
+        everyone = categorized.union(tested)
         return self._facts(select(everyone.subquery().c.user_id))
 
     def _facts(self, ids: Collection[uuid.UUID] | Select[uuid.UUID]) -> list[CandidateFacts]:

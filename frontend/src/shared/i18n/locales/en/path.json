@@ -64,5 +64,13 @@
     "toCabinet": "To dashboard",
     "notPassedTitle": "Category unchanged: {{grade}}",
     "notPassedText": "There is not enough confidence for the higher grade yet. The attempt is not burnt: the next one opens later, and the result has already refined your skill profile."
+  },
+  "express": {
+    "badge": "Express estimate",
+    "note": "A short test of {{limit}} tasks. The error is larger than in the full test: the confidence rule for the category is the same.",
+    "title": "The express estimate is ready, no category yet",
+    "text": "{{answered}} tasks were not enough for confidence in a category. The level and its error are below. Continue the full test: your answers stay in the estimate.",
+    "action": "Continue the full test",
+    "pending": "Continuing"
   }
 }

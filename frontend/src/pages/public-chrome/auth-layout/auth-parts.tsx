@@ -1,5 +1,5 @@
 import type { ReactNode } from "react"
-import { Link } from "react-router"
+import { ButtonLink } from "@/shared/ui"
 import styles from "./auth-layout.module.css"
 
 export function AuthDivider({ children }: { readonly children: ReactNode }) {
@@ -26,11 +26,11 @@ export interface AuthSwitchProps {
 
 export function AuthSwitch({ text, to, link }: AuthSwitchProps) {
   return (
-    <p className={styles.switch}>
-      {text}{" "}
-      <Link to={to} className={styles.switchLink} viewTransition>
+    <div className={styles.switch}>
+      <p className={styles.switchText}>{text}</p>
+      <ButtonLink to={to} variant="secondary" size="compact" icon="arrow-right" iconPosition="end">
         {link}
-      </Link>
-    </p>
+      </ButtonLink>
+    </div>
   )
 }

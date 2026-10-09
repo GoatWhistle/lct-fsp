@@ -1,0 +1,15 @@
+.role {
+  view-transition-name: register-role;
+}
+
+.fsp {
+  view-transition-name: register-fsp;
+}
+
+.form {
+  view-transition-name: register-form;
+}
+
+.switch {
+  view-transition-name: register-switch;
+}

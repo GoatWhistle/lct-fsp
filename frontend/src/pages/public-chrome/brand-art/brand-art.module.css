@@ -1,4 +1,7 @@
 .art {
+  --pointer-x: 0;
+  --pointer-y: 0;
+
   position: relative;
   display: grid;
   place-items: center;
@@ -7,34 +10,44 @@
   justify-self: center;
 }
 
+.defs {
+  position: absolute;
+  inline-size: 0;
+  block-size: 0;
+}
+
+.stage {
+  display: grid;
+  place-items: center;
+  inline-size: 84%;
+  transform: perspective(var(--tilt-depth)) rotateY(calc(var(--pointer-x) * var(--tilt-max)))
+    rotateX(calc(var(--pointer-y) * var(--tilt-max) * -1));
+  transition: var(--transition-tilt);
+}
+
+.head {
+  position: relative;
+  inline-size: 100%;
+  animation: var(--motion-float);
+}
+
 .face {
-  inline-size: 72%;
+  display: block;
+  inline-size: 100%;
   block-size: auto;
   mask-image: var(--mask-vignette);
+  filter: var(--art-face-filter);
   animation: var(--motion-fade-in);
 }
 
-.traces {
+.scan {
+  composes: face;
   position: absolute;
   inset: 0;
-  inline-size: 100%;
-  block-size: 100%;
-  overflow: visible;
-}
-
-.trace {
-  composes: traceLine from "../../../shared/styles/compose.module.css";
-  animation-delay: calc(var(--i) * var(--stagger) * 3);
-}
-
-.node {
-  fill: var(--text-secondary);
-  transform-box: fill-box;
-  transform-origin: center;
-  animation: var(--motion-node-in);
-  animation-delay: calc(var(--dur-draw) + var(--i) * var(--stagger) * 3);
-}
-
-.node[data-accent="true"] {
-  fill: var(--text-accent);
+  filter: var(--scan-filter) brightness(var(--scan-boost));
+  mix-blend-mode: var(--art-scan-blend);
+  clip-path: inset(0 0 100% 0);
+  pointer-events: none;
+  animation: var(--motion-scan);
+  animation-delay: var(--dur-draw);
 }

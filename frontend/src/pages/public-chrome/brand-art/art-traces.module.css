@@ -1,0 +1,74 @@
+.traces {
+  composes: svgLayer from "../../../shared/styles/svg-motion.module.css";
+}
+
+.trace {
+  composes: traceLine from "../../../shared/styles/compose.module.css";
+  animation-delay: calc(var(--i) * var(--stagger) * 3);
+}
+
+.lit {
+  composes: strokeLine from "../../../shared/styles/compose.module.css";
+  stroke: var(--text-accent);
+  stroke-width: calc(var(--trace-stroke) * 1.6);
+  stroke-dashoffset: 1;
+  transition: var(--transition-trace);
+}
+
+.signal {
+  composes: signalLine from "../../../shared/styles/svg-motion.module.css";
+  stroke: var(--text-accent);
+  stroke-width: calc(var(--trace-stroke) * 1.6);
+  animation-delay: calc(var(--dur-draw) + var(--i) * var(--dur-signal) / 5);
+}
+
+.node {
+  composes: svgNode from "../../../shared/styles/svg-motion.module.css";
+  fill: var(--text-secondary);
+  transition: var(--transition-node);
+  animation: var(--motion-node-in);
+  animation-delay: calc(var(--dur-draw) + var(--i) * var(--stagger) * 3);
+}
+
+.node[data-accent="true"] {
+  fill: var(--text-accent);
+}
+
+.ping {
+  composes: pingNode from "../../../shared/styles/svg-motion.module.css";
+  fill: var(--text-accent);
+  animation-delay: calc(var(--dur-draw) + var(--i) * var(--dur-breathe) / 4);
+}
+
+.halo {
+  composes: svgNode outline from "../../../shared/styles/svg-motion.module.css";
+  stroke: var(--text-accent);
+  opacity: 0;
+  scale: var(--node-enter-scale);
+  transition: var(--transition-mark-out);
+}
+
+.readout {
+  composes: labelText from "../../../shared/styles/compose.module.css";
+  fill: var(--text-primary);
+  opacity: 0;
+  translate: 0 var(--shift-rise);
+  transition: var(--transition-mark-out);
+}
+
+.group[data-near="true"] .lit {
+  stroke-dashoffset: 0;
+}
+
+.group[data-near="true"] .node {
+  fill: var(--text-accent);
+  scale: var(--mark-scale);
+}
+
+.group[data-near="true"] .halo,
+.group[data-near="true"] .readout {
+  opacity: 1;
+  scale: 1;
+  translate: 0 0;
+  transition: var(--transition-mark-in);
+}

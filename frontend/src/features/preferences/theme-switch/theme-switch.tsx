@@ -1,12 +1,11 @@
 import { useTranslation } from "@/shared/i18n"
-import { THEME_CHOICES, type ThemeChoice, useTheme } from "@/shared/theme"
+import { THEME_CHOICES, type Theme, useTheme } from "@/shared/theme"
 import type { IconName, Placement } from "@/shared/ui"
 import { IconLabel, RadioMenuButton } from "@/shared/ui"
 
-const CHOICE_ICON: Readonly<Record<ThemeChoice, IconName>> = {
+const CHOICE_ICON: Readonly<Record<Theme, IconName>> = {
   light: "sun",
   dark: "moon",
-  system: "monitor",
 }
 
 export interface ThemeSwitchProps {
@@ -15,15 +14,15 @@ export interface ThemeSwitchProps {
 
 export function ThemeSwitch({ placement }: ThemeSwitchProps) {
   const { t } = useTranslation()
-  const { choice, theme, setChoice } = useTheme()
+  const { theme, setTheme } = useTheme()
   return (
     <RadioMenuButton
-      icon={theme === "dark" ? "moon" : "sun"}
-      label={t("theme.current", { name: t(`theme.${choice}`) })}
+      icon={CHOICE_ICON[theme]}
+      label={t("theme.current", { name: t(`theme.${theme}`) })}
       legend={t("theme.legend")}
-      value={choice}
+      value={theme}
       placement={placement}
-      onChange={setChoice}
+      onChange={setTheme}
       options={THEME_CHOICES.map((value) => ({
         value,
         content: <IconLabel icon={CHOICE_ICON[value]}>{t(`theme.${value}`)}</IconLabel>,

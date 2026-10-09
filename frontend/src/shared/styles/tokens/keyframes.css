@@ -202,3 +202,49 @@
     transform: scaleY(0);
   }
 }
+
+@keyframes kf-float {
+  50% {
+    transform: translateY(calc(var(--shift-float) * -1));
+  }
+}
+
+@keyframes kf-signal {
+  0% {
+    opacity: 0;
+    stroke-dashoffset: 0.16;
+  }
+  12%,
+  48% {
+    opacity: 1;
+  }
+  60%,
+  100% {
+    opacity: 0;
+    stroke-dashoffset: -1;
+  }
+}
+
+@keyframes kf-scan {
+  0% {
+    clip-path: inset(0 0 100% 0);
+  }
+  8% {
+    clip-path: inset(0 0 92% 0);
+  }
+  58% {
+    clip-path: inset(92% 0 0 0);
+  }
+  66%,
+  100% {
+    clip-path: inset(100% 0 0 0);
+  }
+}
+
+@keyframes kf-ping {
+  70%,
+  100% {
+    opacity: 0;
+    transform: scale(3);
+  }
+}

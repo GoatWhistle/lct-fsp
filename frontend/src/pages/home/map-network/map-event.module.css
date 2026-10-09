@@ -1,0 +1,44 @@
+.event {
+  composes: cardFrame from "../../../shared/styles/compose.module.css";
+  position: absolute;
+  inset-block-start: var(--event-y);
+  inset-inline-start: var(--event-x);
+  display: grid;
+  gap: var(--space-4);
+  padding: var(--space-12) var(--space-16);
+  box-shadow: var(--shadow-float);
+  white-space: nowrap;
+  pointer-events: none;
+  translate: var(--space-16) calc(-100% - var(--space-16));
+  transform-origin: bottom left;
+  animation: var(--motion-pop-in);
+}
+
+.event[data-side="start"] {
+  translate: calc(-100% - var(--space-16)) calc(-100% - var(--space-16));
+  transform-origin: bottom right;
+}
+
+.city {
+  composes: labelText from "../../../shared/styles/compose.module.css";
+  color: var(--text-secondary);
+}
+
+.role {
+  color: var(--text-primary);
+  font-weight: var(--weight-semibold);
+}
+
+.signal {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-4);
+  color: var(--text-accent);
+  font-size: var(--font-size-body-sm);
+}
+
+@media (max-width: 47.99rem) {
+  .event {
+    display: none;
+  }
+}

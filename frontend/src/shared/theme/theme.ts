@@ -1,27 +1,25 @@
-export const THEME_CHOICES = ["light", "dark", "system"] as const
+export const THEME_CHOICES = ["light", "dark"] as const
 
-export type ThemeChoice = (typeof THEME_CHOICES)[number]
-
-export type Theme = "light" | "dark"
+export type Theme = (typeof THEME_CHOICES)[number]
 
 export const THEME_STORAGE_KEY = "calibr-theme"
 
 const DARK_QUERY = "(prefers-color-scheme: dark)"
 
-export function isThemeChoice(value: unknown): value is ThemeChoice {
+export function isThemeChoice(value: unknown): value is Theme {
   return typeof value === "string" && (THEME_CHOICES as readonly string[]).includes(value)
 }
 
-export function readThemeChoice(): ThemeChoice {
+export function readThemeChoice(): Theme | null {
   try {
     const stored = globalThis.localStorage?.getItem(THEME_STORAGE_KEY)
-    return isThemeChoice(stored) ? stored : "system"
+    return isThemeChoice(stored) ? stored : null
   } catch {
-    return "system"
+    return null
   }
 }
 
-export function storeThemeChoice(choice: ThemeChoice): void {
+export function storeThemeChoice(choice: Theme): void {
   try {
     globalThis.localStorage?.setItem(THEME_STORAGE_KEY, choice)
   } catch {
@@ -31,10 +29,6 @@ export function storeThemeChoice(choice: ThemeChoice): void {
 
 export function systemTheme(): Theme {
   return globalThis.matchMedia?.(DARK_QUERY).matches ? "dark" : "light"
-}
-
-export function resolveTheme(choice: ThemeChoice): Theme {
-  return choice === "system" ? systemTheme() : choice
 }
 
 export function subscribeSystemTheme(listener: () => void): () => void {

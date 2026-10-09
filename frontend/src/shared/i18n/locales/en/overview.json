@@ -80,7 +80,7 @@
     },
     "gain": "+{{gain}} match",
     "gainPlaces": "+{{gain}} match, about {{places}} places higher",
-    "open": "Tips: {{count}}"
+    "open": "Tips"
   },
   "invitations": {
     "title": "Invitations",

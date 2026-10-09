@@ -75,14 +75,8 @@
 }
 
 .count {
-  composes: captionText from "../../../shared/styles/compose.module.css";
-  min-inline-size: var(--icon-md);
-  padding-inline: var(--space-4);
-  border-radius: var(--radius-badge);
+  composes: countBadge from "../../../shared/styles/feedback.module.css";
   background-color: var(--action-primary);
-  color: var(--text-on-action);
-  font-family: var(--font-mono);
-  text-align: center;
 }
 
 .footer {

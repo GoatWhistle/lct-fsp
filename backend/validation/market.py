@@ -19,7 +19,7 @@ import math
 import random
 import uuid
 from collections.abc import Callable, Iterable, Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import timedelta
 
 from app.adapter.clock import SimulatedClock
@@ -383,6 +383,15 @@ class Market:
                 )
             )
         return True
+
+    def twin(self, user: uuid.UUID, twin_id: uuid.UUID, stack: frozenset[str]) -> None:
+        """Двойник кандидата `user` в пуле подборки: та же запись — категория, профиль и время
+        последнего сигнала, — под id `twin_id` и со стеком `stack`. Кандидата нет в пуле — нет
+        и двойника."""
+        for name in ("pool", "unconfirmed"):
+            members = self.stand.store.collection(name)
+            if user in members:
+                members[twin_id] = replace(members[user], candidate_id=twin_id, stack=stack)
 
     def fixed(self, candidate: Candidate, length: int, *, target: float | None = None) -> Run:
         """Базовая линия — фиксированный бланк с тем же покрытием тем: по кругу тем, в теме —

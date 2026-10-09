@@ -54,7 +54,7 @@ item_fit_ceiling_step: 0.05
 
 # Защита теста
 drift_shift: 1.0
-drift_cusum_h: 12.0
+drift_cusum_h: 10.0
 rt_min_responses: 30
 rt_hard_item_p: 0.5
 rt_fast_z: 2.33

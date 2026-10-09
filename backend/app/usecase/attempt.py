@@ -420,12 +420,14 @@ class CandidatePath:
         prior = self._prior(attempt.specialization_code)
         if attempt.purpose == AttemptPurpose.topic_block:
             observations = self._test_observations(attempt)
-            selection = self._skill_model.estimate(prior, observations)
+            level = selection = self._skill_model.estimate(prior, observations)
             blueprint = self._block_blueprint(attempt)
         else:
             observations = _observations(self._attempts.chain(attempt))
             threshold = self._mechanics.grade_thresholds[attempt.grade_code]
             selection = self._skill_model.estimate(selection_prior(prior, threshold), observations)
+            # Уровень темы до ответа — по тем же наблюдениям, но с априорным специализации.
+            level = self._skill_model.estimate(prior, observations)
             blueprint = self._blueprint(prior)
         shown_here = attempt.shown()
         params = self._calibration.current(
@@ -465,7 +467,7 @@ class CandidatePath:
             )
         seed = self._seeds.seed()
         instance = bank.get_family(option.code).instance(seed, self._runner)
-        before = self._skill_model.estimate(prior, observations).topic(option.topic)
+        before = level.topic(option.topic)
         return self._attempts.add_presentation(
             attempt,
             family_code=option.code,

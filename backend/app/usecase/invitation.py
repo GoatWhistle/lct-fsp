@@ -17,7 +17,6 @@ from app.domain.errors import CandidateNotFound, CompanyProfileRequired, Invitat
 from app.domain.invitation import (
     Invitation,
     InvitationBudget,
-    InvitationStatus,
     InvitationTerms,
     answered,
     budget_week,
@@ -25,7 +24,9 @@ from app.domain.invitation import (
     revoked,
     viewed,
 )
+from app.usecase.candidate import revoke_company_access
 from app.usecase.interface import (
+    ApplicationRepository,
     CandidateRepository,
     Clock,
     CompanyRepository,
@@ -45,6 +46,7 @@ class Invitations:
         self,
         uow: UnitOfWork,
         invitations: InvitationRepository,
+        applications: ApplicationRepository,
         candidates: CandidateRepository,
         companies: CompanyRepository,
         clock: Clock,
@@ -54,6 +56,7 @@ class Invitations:
     ) -> None:
         self._uow = uow
         self._invitations = invitations
+        self._applications = applications
         self._candidates = candidates
         self._companies = companies
         self._clock = clock
@@ -122,17 +125,18 @@ class Invitations:
     def revoke(self, candidate_id: uuid.UUID, invitation_id: uuid.UUID) -> Invitation:
         """Отозвать доступ компании по принятому приглашению; повторно — ничего не меняет, по
         неприятому — `InvitationNotAccepted`. Отзыв закрывает и другие принятые приглашения той же
-        компании этому кандидату: иначе любое из них раскрывало бы данные дальше."""
+        компании этому кандидату, и его отклики на её вакансии: иначе любое из них раскрывало бы
+        данные дальше."""
         with self._uow:
             now = self._clock.now()
-            result = revoked(self._own(candidate_id, invitation_id, now), now)
-            for other in self._invitations.by_candidate(candidate_id):
-                if (
-                    other.employer_id == result.employer_id
-                    and other.status is InvitationStatus.accepted
-                    and not other.is_revoked
-                ):
-                    self._invitations.save(revoked(other, now))
+            current = self._own(candidate_id, invitation_id, now)
+            result = revoked(current, now)
+            # Повторный отзыв ничего не меняет — и не закрывает доступ, открытый после первого.
+            if current.is_revoked:
+                return result
+            revoke_company_access(
+                self._invitations, self._applications, candidate_id, result.employer_id, now
+            )
             return result
 
     def _own(self, candidate_id: uuid.UUID, invitation_id: uuid.UUID, now: datetime) -> Invitation:

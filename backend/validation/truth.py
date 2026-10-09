@@ -11,9 +11,11 @@
 """
 
 import enum
+import json
 import math
 import random
 import uuid
+import zlib
 from dataclasses import dataclass, field
 
 from app.domain.acceptance import city_match, format_match, industry_match, salary_middle
@@ -140,6 +142,45 @@ class CandidateTruth:
 class Response:
     correct: bool
     seconds: float
+
+
+class Corruption(enum.StrEnum):
+    """Испорченное семейство M21 — только в скрытой истине: признаки банка его не выдают."""
+
+    # Ошибка эталона: у половины экземпляров эталон неверен, верный ответ засчитывается неверным.
+    key = "key"
+    # Ответ не зависит от уровня: P(верно) = 0,5.
+    flat = "flat"
+
+
+def corrupt(
+    response: Response, corruption: Corruption, instance: Instance | None, rng: random.Random
+) -> Response:
+    """Ответ на испорченное семейство. Неверный эталон — свойство экземпляра: какая половина
+    экземпляров испорчена, решает экземпляр целиком — текст, код, параметры и эталон. Одного текста
+    мало: у многих семейств он общий, а различаются параметры и код, и тогда испорчены были бы все
+    экземпляры или ни один. Без экземпляра — фиксированный бланк базовой линии — жребий на каждый
+    ответ: та же доля испорченных ответов, но не привязанная к экземпляру; M21 идёт только через
+    попытки, где экземпляр есть."""
+    match corruption:
+        case Corruption.flat:
+            return Response(rng.random() < 0.5, response.seconds)
+        case Corruption.key:
+            broken = (
+                zlib.crc32(_identity(instance).encode()) % 2 == 0
+                if instance is not None
+                else rng.random() < 0.5
+            )
+            return Response(response.correct and not broken, response.seconds)
+
+
+def _identity(instance: Instance) -> str:
+    return json.dumps(
+        [instance.prompt, instance.code, instance.answer, instance.params],
+        sort_keys=True,
+        default=str,
+        ensure_ascii=False,
+    )
 
 
 def guessing(instance: Instance, model: ResponseModel) -> float:

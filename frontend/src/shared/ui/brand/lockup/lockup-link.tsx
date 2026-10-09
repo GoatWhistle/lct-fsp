@@ -10,7 +10,7 @@ export interface LockupLinkProps {
   readonly size?: LockupSize
 }
 
-export function LockupLink({ to, compact = false, size = "sm" }: LockupLinkProps) {
+export function LockupLink({ to, compact = false, size = "md" }: LockupLinkProps) {
   const { t } = useTranslation()
   return (
     <Link to={to} className={styles.link} aria-label={t("app.byFsp")} viewTransition>

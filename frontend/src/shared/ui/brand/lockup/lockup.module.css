@@ -1,5 +1,5 @@
 .lockup {
-  --lockup-size: var(--font-size-heading);
+  --lockup-size: var(--font-size-heading-lg);
 
   display: inline-flex;
   align-items: center;
@@ -10,23 +10,41 @@
 }
 
 .small {
-  --lockup-size: var(--font-size-subheading);
+  --lockup-size: var(--font-size-heading);
 }
 
 .large {
-  --lockup-size: var(--font-size-heading-lg);
+  --lockup-size: var(--font-size-display-sm);
 
   gap: var(--space-12);
 }
 
 .mark {
-  block-size: 1.6em;
+  block-size: 1.25em;
 }
 
 .word {
+  display: inline-flex;
+  align-items: baseline;
   font-family: var(--font-mono);
   font-weight: var(--weight-semibold);
   letter-spacing: -0.04em;
+}
+
+.letterI {
+  position: relative;
+  display: inline-block;
+}
+
+.node {
+  position: absolute;
+  inset-block-start: -0.02em;
+  inset-inline-start: 50%;
+  inline-size: 0.24em;
+  block-size: 0.24em;
+  border-radius: var(--radius-round);
+  background-color: var(--brand-mark-blue);
+  translate: -50% 0;
 }
 
 .link {
@@ -39,4 +57,10 @@
 
 .compactMark {
   block-size: var(--icon-lg);
+}
+
+@media (max-width: 29.99rem) {
+  .lockup:not(.small) {
+    --lockup-size: var(--font-size-heading);
+  }
 }

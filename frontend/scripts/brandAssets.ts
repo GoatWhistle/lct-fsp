@@ -97,7 +97,9 @@ function ogHtml(colors: Palette, title: string, lead: string, byline: string): s
 body{width:${OG.width}px;height:${OG.height}px;background:${colors.graphite};color:${colors.smoke};font-family:Onest;overflow:hidden;position:relative}
 .top{position:absolute;left:72px;top:64px;display:flex;align-items:center;gap:14px}
 .fsp{height:58px}
-.word{font-family:JBM;font-weight:600;font-size:52px;letter-spacing:-0.04em}
+.word{font-family:JBM;font-weight:600;font-size:52px;letter-spacing:-0.04em;display:flex;align-items:baseline}
+.i{position:relative;display:inline-block}
+.i:after{content:"";position:absolute;left:50%;top:-1px;width:12px;height:12px;border-radius:50%;background:${colors.blue};transform:translateX(-50%)}
 .by{position:absolute;right:72px;top:84px;font-family:JBM;font-size:22px;color:${colors.ash}}
 .title{position:absolute;left:72px;top:206px;width:880px;font-family:JBM;font-weight:500;font-size:68px;line-height:1.06;letter-spacing:-0.03em}
 .lead{position:absolute;left:72px;top:400px;width:760px;font-size:26px;line-height:1.45;color:${colors.ash}}
@@ -106,7 +108,7 @@ body{width:${OG.width}px;height:${OG.height}px;background:${colors.graphite};col
 .band{position:absolute;left:61%;width:23%;top:0;bottom:0;border-radius:7px;background:rgba(99,85,255,0.45)}
 .node{position:absolute;left:72%;top:50%;width:30px;height:30px;border-radius:50%;background:${colors.bright};border:4px solid ${colors.graphite};transform:translate(-50%,-50%)}
 </style></head><body>
-<div class="top">${fspMarkSvg(colors).replace("<svg", '<svg class="fsp"')}<span class="word">calibr</span></div>
+<div class="top">${fspMarkSvg(colors).replace("<svg", '<svg class="fsp"')}<span class="word">cal<span class="i">ı</span>br</span></div>
 <div class="by">${byline}</div>
 <h1 class="title">${title}</h1>
 <p class="lead">${lead}</p>

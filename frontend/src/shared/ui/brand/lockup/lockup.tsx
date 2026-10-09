@@ -17,7 +17,22 @@ const SIZE_CLASS: Readonly<Record<LockupSize, string | undefined>> = {
   lg: styles.large,
 }
 
-const WORD = "calibr"
+const WORD_START = "cal"
+const WORD_STEM = "ı"
+const WORD_END = "br"
+
+export function Wordmark({ className }: { readonly className?: string | undefined }) {
+  return (
+    <span className={clsx(styles.word, className)} aria-hidden="true">
+      {WORD_START}
+      <span className={styles.letterI}>
+        {WORD_STEM}
+        <span className={styles.node} />
+      </span>
+      {WORD_END}
+    </span>
+  )
+}
 
 export function Lockup({ size = "md", withMark = true, className }: LockupProps) {
   const { t } = useTranslation()
@@ -28,9 +43,7 @@ export function Lockup({ size = "md", withMark = true, className }: LockupProps)
       aria-label={t("app.byFsp")}
     >
       {withMark && <FspMark className={styles.mark} />}
-      <span className={styles.word} aria-hidden="true">
-        {WORD}
-      </span>
+      <Wordmark />
     </span>
   )
 }

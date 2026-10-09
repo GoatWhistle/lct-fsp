@@ -1593,7 +1593,7 @@ export interface components {
              * @description Достижения ФСП — подтверждены, отдельно от самоописания: тип результата, дисциплина и год. Пусто — нет истории ФСП, это не штраф
              */
             fsp_achievements: components["schemas"]["FspAnonymizedAchievementOut"][];
-            /** @description ФИО, контакты и свободный текст — только после принятия приглашения вашей компании или отклика на её вакансию; `null` — карточка обезличена или профиль не заполнен */
+            /** @description ФИО, контакты, свободный текст и карточка опыта — только после принятия приглашения вашей компании или отклика на её вакансию; `null` — карточка обезличена или профиль не заполнен */
             disclosed: components["schemas"]["DisclosedOut"] | null;
             /**
              * Fsp Details
@@ -1835,7 +1835,8 @@ export interface components {
         };
         /**
          * DisclosedOut
-         * @description Раскрытая часть анкеты: ФИО, контакты и свободный текст. Ожидаемой зарплаты нет и здесь.
+         * @description Раскрытая часть анкеты: ФИО, контакты, свободный текст и карточка опыта. Ожидаемой
+         *     зарплаты нет и здесь.
          */
         DisclosedOut: {
             /** Full Name */
@@ -1855,6 +1856,16 @@ export interface components {
             job_roles: string[];
             /** Soft Skills */
             soft_skills: string[];
+            /**
+             * Experience
+             * @description Карточка опыта. Со слов кандидата: тестом и ФСП не подтверждено, на скор, место в выдаче, уровень и категорию не влияет
+             */
+            experience: components["schemas"]["ExperienceEntryOut"][];
+            /**
+             * Technology Years
+             * @description Годы по технологиям из записей опыта. Со слов кандидата: тестом и ФСП не подтверждено, на скор, место в выдаче, уровень и категорию не влияет
+             */
+            technology_years: components["schemas"]["TechnologyYearsOut"][];
         };
         /**
          * DraftField
@@ -1881,6 +1892,74 @@ export interface components {
              * @description Когда действие станет доступно — у ошибок правила ожидания
              */
             available_at?: string | null;
+        };
+        /**
+         * ExperienceEntryIn
+         * @description Запись опыта. Лимиты длины и числа записей — `experience_*` в механиках.
+         */
+        ExperienceEntryIn: {
+            /**
+             * Place
+             * @description Компания или проект
+             */
+            place: string;
+            /**
+             * Role
+             * @description Кем работал
+             * @default
+             */
+            role: string;
+            /**
+             * Start
+             * @description Начало, `ГГГГ-ММ`; не в будущем
+             */
+            start: string;
+            /**
+             * End
+             * @description Конец, `ГГГГ-ММ`, не раньше начала; `null` — по сейчас
+             */
+            end?: string | null;
+            /**
+             * Stack
+             * @description Коды технологий из `/api/catalog/technologies`
+             */
+            stack?: string[];
+            /**
+             * Summary
+             * @description Что делал
+             * @default
+             */
+            summary: string;
+        };
+        /** ExperienceEntryOut */
+        ExperienceEntryOut: {
+            /**
+             * Place
+             * @description Компания или проект
+             */
+            place: string;
+            /** Role */
+            role: string;
+            /**
+             * Start
+             * @description `ГГГГ-ММ`
+             */
+            start: string;
+            /**
+             * End
+             * @description `ГГГГ-ММ`; `null` — по сейчас
+             */
+            end: string | null;
+            /**
+             * Stack
+             * @description По названию технологии
+             */
+            stack: components["schemas"]["CatalogRef"][];
+            /**
+             * Summary
+             * @description Что делал
+             */
+            summary: string;
         };
         /** FeedbackOut */
         FeedbackOut: {
@@ -2714,6 +2793,11 @@ export interface components {
             /** Soft Skills */
             soft_skills?: string[];
             /**
+             * Experience
+             * @description Карточка опыта. Со слов кандидата: тестом и ФСП не подтверждено, на скор, место в выдаче, уровень и категорию не влияет
+             */
+            experience?: components["schemas"]["ExperienceEntryIn"][];
+            /**
              * Work Formats
              * @description Допустимые форматы работы, хотя бы один
              */
@@ -2817,6 +2901,16 @@ export interface components {
              */
             soft_skills: string[];
             /**
+             * Experience
+             * @description Карточка опыта. Со слов кандидата: тестом и ФСП не подтверждено, на скор, место в выдаче, уровень и категорию не влияет. Раскрывается работодателю только после принятия приглашения или отклика
+             */
+            experience: components["schemas"]["ExperienceEntryOut"][];
+            /**
+             * Technology Years
+             * @description Годы по технологиям — посчитаны из записей опыта на сегодня, руками не вводятся; больше лет — раньше. Со слов кандидата: тестом и ФСП не подтверждено, на скор, место в выдаче, уровень и категорию не влияет. Раскрывается работодателю только после принятия приглашения или отклика
+             */
+            technology_years: components["schemas"]["TechnologyYearsOut"][];
+            /**
              * Salary From
              * @description Ожидаемая зарплата «от». Рубли в месяц до вычета НДФЛ (гросс). Работодателю не показывается: по ней считается вероятность принятия приглашения
              */
@@ -2911,6 +3005,11 @@ export interface components {
              */
             soft_skills: string[];
             /**
+             * Experience
+             * @description Черновые записи опыта: периоды из раздела опыта, технологии справочника из текста записи, роль из словаря, место — заголовок записи; «что делал» пусто. Всегда неуверенные — проверьте их
+             */
+            experience: components["schemas"]["ExperienceEntryOut"][];
+            /**
              * Confidence
              * @description Уверенность по распознанным полям в [0, 1]; `null` — разбор её не считает. Нераспознанных полей здесь нет
              */
@@ -2929,7 +3028,7 @@ export interface components {
          * ResumeField
          * @enum {string}
          */
-        ResumeField: "full_name" | "contact_email" | "contact_phone" | "telegram" | "stack" | "job_roles" | "experience_years" | "soft_skills";
+        ResumeField: "full_name" | "contact_email" | "contact_phone" | "telegram" | "stack" | "job_roles" | "experience_years" | "soft_skills" | "experience";
         /**
          * Role
          * @enum {string}
@@ -3392,6 +3491,15 @@ export interface components {
              * @description Коды тем, на которые указывает технология
              */
             topics: string[];
+        };
+        /** TechnologyYearsOut */
+        TechnologyYearsOut: {
+            technology: components["schemas"]["CatalogRef"];
+            /**
+             * Years
+             * @description Объединение периодов записей с технологией, лет, вниз до половины года
+             */
+            years: number;
         };
         /**
          * TestResultOut
@@ -4666,6 +4774,14 @@ export interface operations {
              *     `unknown_industry` — Такой сферы бизнеса нет в справочнике
              *
              *     `city_required` — Укажите город — для офиса и гибрида он обязателен
+             *
+             *     `experience_place_required` — Укажите в записи опыта компанию или проект
+             *
+             *     `experience_period_invalid` — В записи опыта начало позже конца
+             *
+             *     `experience_start_in_future` — Запись опыта не может начинаться в будущем
+             *
+             *     `experience_too_long` — Карточка опыта больше лимита: слишком много записей, технологий в записи или текста в поле
              */
             422: {
                 headers: {

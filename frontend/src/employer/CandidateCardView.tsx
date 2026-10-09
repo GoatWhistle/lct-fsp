@@ -1,5 +1,6 @@
 import type { CandidateCard } from '../api/client'
 import { fspResultWords } from '../candidate/fsp'
+import { ExperienceCard } from '../components/ExperienceCard'
 import { hideableWords, levelWords, thetaWithError, yearsWords } from '../candidate/words'
 import { gradeStatusWords, workFormatWord } from './words'
 
@@ -38,6 +39,7 @@ export function CandidateCardView({ card }: { card: CandidateCard }) {
               ))}
             </ul>
           )}
+          <ExperienceCard experience={disclosed.experience} technologyYears={disclosed.technology_years} />
         </div>
       )}
       <p className="muted">
@@ -89,7 +91,10 @@ export function CandidateCardView({ card }: { card: CandidateCard }) {
       )}
       <FspAchievements card={card} />
       {!disclosed && (
-        <p className="hint">Имя и контакты откроются, когда кандидат примет приглашение вашей компании.</p>
+        <p className="hint">
+          Имя, контакты и опыт со слов кандидата откроются, когда кандидат примет приглашение вашей компании
+          или откликнется на её вакансию.
+        </p>
       )}
     </div>
   )

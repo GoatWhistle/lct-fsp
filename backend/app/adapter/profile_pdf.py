@@ -2,7 +2,8 @@
 PDF-профиль: у всех один вид и один порядок разделов.
 
 Сначала — что подтвердил тест платформы (категория и профиль навыков), затем — достижения ФСП,
-затем — что кандидат сказал о себе сам: читатель сразу видит уровни доверия (mechanics.md, §11).
+затем — что кандидат сказал о себе сам, и последней — карточка опыта: читатель сразу видит уровни
+доверия (mechanics.md, §11).
 Что показать, решает сценарий: рендер выводит проекцию `ProfileSheet` как есть.
 
 Шрифт PT Sans лежит рядом под лицензией OFL — кириллица не зависит от шрифтов системы. Глифов
@@ -25,6 +26,7 @@ from app.domain.candidate import (
     SelfReported,
     SkillProfile,
 )
+from app.domain.experience import ExperienceEntry, Month, TechnologyYears
 from app.domain.fsp import ConfirmedAchievement, FspResult
 from app.domain.skill import LevelBand
 from app.domain.work import WorkFormat
@@ -83,6 +85,7 @@ class FpdfProfileRenderer:
         _verified(pdf, sheet.category, sheet.skill_profile, sheet.grade_confidence)
         _fsp(pdf, sheet.fsp_achievements)
         _self_reported(pdf, sheet.self_reported, disclosed)
+        _experience(pdf, disclosed.experience, sheet.technology_years)
         return bytes(pdf.output())
 
 
@@ -245,6 +248,62 @@ def _self_reported(pdf: _Document, profile: SelfReported, disclosed: Disclosed) 
         pdf.ln(3)
         _text(pdf, "О себе", size=9, style="B", color=MUTED, height=5)
         _text(pdf, disclosed.about, size=10, height=5)
+
+
+def _experience(
+    pdf: _Document, entries: Sequence[ExperienceEntry], years: Sequence[TechnologyYears]
+) -> None:
+    """Карточка опыта; пустая — блока нет."""
+    if not entries:
+        return
+    _section(pdf, "Опыт (со слов кандидата)")
+    for entry in entries:
+        _text(pdf, period_words(entry.start, entry.end), size=9, color=MUTED, height=4.5)
+        title = " · ".join(part for part in (entry.role, entry.place) if part)
+        _text(pdf, title, size=11, style="B", height=5.5)
+        if entry.stack:
+            _text(pdf, ", ".join(t.name for t in entry.stack), size=10, height=5)
+        if entry.summary:
+            _text(pdf, entry.summary, size=10, height=5)
+        pdf.ln(2)
+    if years:
+        _facts(
+            pdf,
+            [
+                (
+                    "Годы по технологиям",
+                    ", ".join(f"{y.technology.name} — {years_words(y.years)}" for y in years),
+                )
+            ],
+        )
+    pdf.ln(1)
+    _text(
+        pdf,
+        "Записи и годы по технологиям — со слов кандидата: тестом и ФСП не подтверждены и на "
+        "оценку уровня не влияют. Годы считаются из периодов записей без двойного счёта "
+        "пересечений, вниз до полугода.",
+        size=8.5,
+        color=MUTED,
+        height=4,
+    )
+
+
+def period_words(start: Month, end: Month | None) -> str:
+    def month(m: Month) -> str:
+        return f"{m.month:02d}.{m.year}"
+
+    return f"{month(start)} — {month(end) if end else 'по сейчас'}"
+
+
+def years_words(years: float) -> str:
+    """Годы, кратные половине: «меньше полугода», «полгода», «1,5 года», «5 лет»."""
+    if years < 0.5:
+        return "меньше полугода"
+    if years == 0.5:
+        return "полгода"
+    if years != int(years):
+        return f"{years:.1f}".replace(".", ",") + " года"
+    return experience_words(int(years))
 
 
 def _city_words(profile: SelfReported) -> str:

@@ -204,6 +204,12 @@ class Mechanics(BaseModel):
     resume_max_lightness: float = Field(gt=0, le=1)
     resume_draft_confident: float = Field(ge=0, le=1)
 
+    # Карточка опыта
+    experience_entries_max: int = Field(gt=0)
+    experience_line_max: int = Field(gt=0)
+    experience_summary_max: int = Field(gt=0)
+    experience_stack_max: int = Field(gt=0)
+
     @field_validator("need_importance_weights")
     @classmethod
     def weight_for_every_importance(cls, value: dict[str, float]) -> dict[str, float]:

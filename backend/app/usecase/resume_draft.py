@@ -14,6 +14,7 @@ import uuid
 
 from app.domain.catalog import Catalog
 from app.domain.errors import ResumeTooLarge
+from app.domain.experience import ExperienceLimits
 from app.domain.need_draft import cleaned
 from app.domain.resume_draft import (
     EMPTY_RESUME,
@@ -47,6 +48,7 @@ class ResumeDrafts:
         rule: GradeHintRule,
         max_bytes: int,
         confident: float,
+        experience_limits: ExperienceLimits,
     ) -> None:
         self._uow = uow
         self._catalog = catalog
@@ -57,6 +59,7 @@ class ResumeDrafts:
         self._rule = rule
         self._max_bytes = max_bytes
         self._confident = confident
+        self._experience_limits = experience_limits
 
     def parse(self, pdf: bytes) -> CheckedResumeDraft:
         """Черновик анкеты в пределах справочника. Ответ адаптера не того типа — пустой
@@ -71,13 +74,22 @@ class ResumeDrafts:
                 specializations=tuple(self._catalog.specializations()),
                 technologies=tuple(self._catalog.technologies()),
             )
-        result = self._understanding.resume(text, catalog, self._clock.now().date())
+        today = self._clock.now().date()
+        result = self._understanding.resume(text, catalog, today)
         if not isinstance(result, ResumeDraft):
             result = EMPTY_RESUME
-        return checked_resume(result, catalog, confident=self._confident, rule=self._rule)
+        return checked_resume(
+            result,
+            catalog,
+            confident=self._confident,
+            rule=self._rule,
+            today=today,
+            experience_limits=self._experience_limits,
+        )
 
     def grade_hint(self, candidate_id: uuid.UUID) -> GradeHint | None:
-        """Подсказка по сохранённому профилю; профиля нет — подсказки нет."""
+        """Подсказка по сохранённому профилю; профиля нет — подсказки нет. Карточка опыта в неё
+        не входит: подсказка — по стажу и ролям."""
         with self._uow:
             profile = self._candidates.get(candidate_id).profile
             grades = tuple(self._catalog.grades())

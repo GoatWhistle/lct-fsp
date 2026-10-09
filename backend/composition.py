@@ -17,6 +17,7 @@ from dataclasses import dataclass
 
 from app.adapter.adaptive import MaxInformationSelector
 from app.adapter.calibration import EloCalibration
+from app.adapter.drift import CusumDriftDetector
 from app.adapter.text_model import Completion, ModelTextUnderstanding, WithFallback
 from app.adapter.text_rules import RulesTextUnderstanding, Synonyms
 from app.domain.bank.runner import CodeRunner
@@ -153,6 +154,13 @@ def elo_calibration(repository: CalibrationRepository, mechanics: Mechanics) -> 
     )
 
 
+def drift_detector(repository: CalibrationRepository, mechanics: Mechanics) -> CusumDriftDetector:
+    """Детектор дрейфа с параметрами из конфига механик."""
+    return CusumDriftDetector(
+        repository, drift_shift=mechanics.drift_shift, drift_cusum_h=mechanics.drift_cusum_h
+    )
+
+
 @dataclass(frozen=True)
 class Repositories[U: UnitOfWork]:
     """Фабрики репозиториев от единицы работы: репозиторий пишет в её транзакцию."""
@@ -211,7 +219,9 @@ def build_usecases[U: UnitOfWork](
         )
 
     def answer_calibration(uow: U) -> AnswerCalibration:
-        return AnswerCalibration(uow, calibration(uow))
+        return AnswerCalibration(
+            uow, calibration(uow), drift_detector(repositories.calibration(uow), mechanics)
+        )
 
     def selections(uow: U) -> Selections:
         return Selections(

@@ -1,4 +1,4 @@
-import { GradeRuler } from "@/entities/measure"
+import { GradeRuler, TrustBadge } from "@/entities/measure"
 import type { CandidatePath } from "@/shared/api"
 import { useFormatters, useTranslation } from "@/shared/i18n"
 import { Card, IconLabel, StatusBadge } from "@/shared/ui"
@@ -36,6 +36,7 @@ export function CategoryPanel({ path, motionIndex, className }: CategoryPanelPro
         </div>
       </div>
       {level === null ? null : <GradeRuler level={level} />}
+      {path.category.verified_at ? <TrustBadge source="verification" /> : null}
       <GradeUp path={path} />
     </Card>
   )

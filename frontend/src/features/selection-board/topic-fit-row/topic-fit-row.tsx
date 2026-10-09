@@ -39,6 +39,7 @@ export function TopicFitRow({ topic, index }: TopicFitRowProps) {
           {t("explain.contribution")} <strong>{format.percent(topic.contribution, 1)}</strong>
         </span>
         {topic.fsp_confirmed ? <TrustBadge source="fsp" /> : null}
+        {topic.verification_confirmed ? <TrustBadge source="verification" /> : null}
         {topic.regular_task ? <TrustBadge source="regular_task" /> : null}
       </div>
     </li>

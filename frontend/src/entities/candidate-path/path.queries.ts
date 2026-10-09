@@ -17,14 +17,16 @@ export function useSetPath(): (path: CandidatePath) => void {
 }
 
 export function isInProgress(path: CandidatePath): boolean {
-  return path.stage === "test" || path.topic_block !== null
+  return path.stage === "test" || path.topic_block !== null || !!path.verification?.progress
 }
 
-export function useStartAttempt() {
+export function useStartAttempt(focusConsent = false) {
   const setPath = useSetPath()
   return useMutation({
     mutationFn: (grade: string) =>
-      unwrap(api.POST("/api/candidate/path/attempts", { body: { grade } })),
+      unwrap(
+        api.POST("/api/candidate/path/attempts", { body: { grade, focus_consent: focusConsent } }),
+      ),
     onSuccess: setPath,
   })
 }

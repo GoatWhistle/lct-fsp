@@ -20,6 +20,8 @@ type Outcome =
   | "none"
   | "kept"
   | "block"
+  | "verification"
+  | "mismatch"
 
 const OUTCOME_ICON: Readonly<Record<Outcome, IconName>> = {
   stepDown: "chevron-down",
@@ -30,9 +32,14 @@ const OUTCOME_ICON: Readonly<Record<Outcome, IconName>> = {
   none: "declined",
   kept: "minus",
   block: "topic",
+  verification: "verification",
+  mismatch: "alert",
 }
 
 function outcomeOf(entry: HistoryEntry): Outcome {
+  if (entry.outcome === "verification") return "verification"
+  if (entry.outcome === "confirmed") return "confirmed"
+  if (entry.outcome === "mismatch") return "mismatch"
   if (entry.event === "step_down") return "stepDown"
   if (entry.outcome === "assigned") {
     if (entry.purpose === "grade_up") return "raised"

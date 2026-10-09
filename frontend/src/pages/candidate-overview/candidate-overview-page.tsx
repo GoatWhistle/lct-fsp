@@ -9,6 +9,7 @@ import {
   ProfilePanel,
   SkillPanel,
 } from "@/features/candidate-overview"
+import { VerificationCard } from "@/features/test-verification"
 import { useDocumentTitle, useTranslation } from "@/shared/i18n"
 import { LoadError, PageBody, PageHeader, Skeleton } from "@/shared/ui"
 import styles from "./candidate-overview-page.module.css"
@@ -54,6 +55,7 @@ export function CandidateOverviewPage() {
           <div className={styles.grid}>
             <div className={styles.side}>
               <CategoryPanel path={data} motionIndex={0} />
+              <VerificationCard path={data} />
               {data.history.length === 0 ? null : (
                 <HistoryPanel history={data.history} motionIndex={4} className={styles.history} />
               )}

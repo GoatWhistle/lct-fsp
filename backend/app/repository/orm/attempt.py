@@ -43,6 +43,10 @@ class TestAttempt(Base):
         CheckConstraint(
             "(purpose = 'topic_block') = (topic_code IS NOT NULL)", name="topic_block_topic"
         ),
+        # Срок — ровно у проверочного блока.
+        CheckConstraint(
+            "(purpose = 'verification') = (deadline IS NOT NULL)", name="verification_deadline"
+        ),
     )
     __test__ = False  # имя начинается с Test — pytest не должен собирать класс как тест
 
@@ -86,6 +90,21 @@ class TestAttempt(Base):
     # Присвоенный или предложенный для дотеста грейд — по `outcome`.
     outcome_grade_code: Mapped[str | None] = mapped_column(ForeignKey("grades.code"))
     retest_after: Mapped[datetime | None]
+    # Защита теста (mechanics.md, §8). Согласие на счётчики вставки и потери фокуса.
+    focus_consent: Mapped[bool] = mapped_column(default=False, server_default="false")
+    # Наблюдения попытки вне оценки и профиля: результат ждёт проверочного блока или разошёлся
+    # с ним.
+    withheld: Mapped[bool] = mapped_column(default=False, server_default="false")
+    # Проверочный блок: какую попытку пути он проверяет; NULL — добровольный блок.
+    verifies_attempt_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("test_attempts.id", ondelete="CASCADE")
+    )
+    # Срок проверочного блока по часам сервера.
+    deadline: Mapped[datetime | None]
+    # Итог проверочного блока: ожидаемое по основной оценке число верных, верных, заданий.
+    expected_correct: Mapped[float | None]
+    correct_count: Mapped[int | None]
+    planned_items: Mapped[int | None]
 
     presentations: Mapped[list["Presentation"]] = relationship(
         order_by="Presentation.position", back_populates="attempt"
@@ -127,6 +146,13 @@ class Presentation(Base):
     # переоценивают параметры семейства: ответ не сравнивается с оценкой, в которую вошёл сам.
     topic_theta_rest: Mapped[float | None]
     topic_theta_rest_sd: Mapped[float | None]
+    # Счётчики событий за время задания — только с согласия кандидата (mechanics.md, §8).
+    paste_events: Mapped[int | None]
+    focus_losses: Mapped[int | None]
+    # Флаг времени — пишется при остановке попытки; NULL — не проверялось.
+    time_flag: Mapped[bool | None]
+    # Семейство скомпрометировано за время попытки: ответ вне оценки и профиля.
+    dropped: Mapped[bool] = mapped_column(default=False, server_default="false")
 
     attempt: Mapped[TestAttempt] = relationship(back_populates="presentations")
 
@@ -137,6 +163,9 @@ class FamilyStatus(enum.StrEnum):
     # Опорная сложность оказалась легче экспертной больше допустимого: утечка во время разогрева
     # или ошибка эксперта. Из выдачи до ручной проверки (mechanics.md, §7).
     review = "review"
+    # Детектор дрейфа: семейство решают чаще, чем ожидается по уровню отвечавших, — утечка. Из
+    # выдачи, банк получает задачу на замену (mechanics.md, §8).
+    compromised = "compromised"
 
 
 class FamilyCalibration(Base):
@@ -167,6 +196,9 @@ class FamilyCalibration(Base):
         ),
         default=FamilyStatus.active,
     )
+    # Статистика CUSUM детектора дрейфа от опорных параметров (mechanics.md, §8).
+    drift_cusum: Mapped[float] = mapped_column(default=0.0, server_default="0")
+    compromised_at: Mapped[datetime | None]
 
 
 class ScaleLink(Base):
@@ -206,6 +238,9 @@ class CandidateCategory(Base):
     grade_code: Mapped[str] = mapped_column(ForeignKey("grades.code"))
     attempt_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("test_attempts.id"))
     assigned_at: Mapped[datetime]
+    # Уровень подтверждён проверочным блоком (mechanics.md, §8); смена вверх без блока снимает,
+    # переход вниз сохраняет: блок подтвердил уровень выше.
+    verified_at: Mapped[datetime | None]
 
     specialization: Mapped[Specialization] = relationship()
     grade: Mapped[Grade] = relationship()

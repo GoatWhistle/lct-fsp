@@ -14,6 +14,7 @@
 модель ответа `validation.truth`; часы стенда идут на время его ответа.
 """
 
+import copy
 import math
 import random
 import uuid
@@ -21,9 +22,11 @@ from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass, replace
 from datetime import timedelta
 
+from app.adapter.clock import SimulatedClock
 from app.adapter.code_runner import InProcessCodeRunner
+from app.adapter.seed import DerivedSeeds
 from app.domain.adaptive import Blueprint, Choice, Option
-from app.domain.attempt import AttemptOutcome, Stage
+from app.domain.attempt import Answer, AttemptOutcome, AttemptPurpose, Stage
 from app.domain.bank import Family, Instance, families_for_topics, get_family
 from app.domain.calibration import CalibratedFamily, Parameters
 from app.domain.determination import grades_by_threshold
@@ -31,6 +34,7 @@ from app.domain.selection import PoolCandidate, UnconfirmedCandidate
 from app.domain.skill import Normal, Observation, SkillEstimate, sigmoid
 from app.repository.memory.calibration import MemoryCalibrationRepository
 from app.repository.memory.unit_of_work import MemoryStore
+from app.usecase.calibration import AnswerCalibration
 from app.usecase.interface import ItemSelector
 from app.usecase.skill_profile import specialization_prior
 from composition import elo_calibration, item_selector
@@ -136,6 +140,18 @@ class Determination:
     user: uuid.UUID
     grade: str | None
     overall: Normal
+    # Результат подозрительный и ждёт проверочного блока — его грейд (mechanics.md, §8).
+    pending: str | None = None
+
+
+@dataclass(frozen=True)
+class Verified:
+    """Итог проверочного блока: совпал ли, грейд категории после него, верных из заданий."""
+
+    confirmed: bool
+    grade: str | None
+    correct: int
+    items: int
 
 
 class RecordingSelector:
@@ -165,7 +181,8 @@ class Market:
     """Банк одной специализации на своём стенде и поток кандидатов с известной истиной.
 
     Калибровку после ответа стенд вызывает, как контроллер; `calibrate = False` замораживает
-    банк — сценарий калибровки больше не вызывается.
+    банк — сценарий калибровки больше не вызывается. `watch` — на замороженном банке всё равно
+    вести детектор дрейфа (§8).
     """
 
     def __init__(
@@ -177,6 +194,7 @@ class Market:
     ) -> None:
         self.specialization = specialization
         self.mechanics = mechanics
+        self.seed = seed
         self.rng = random.Random(seed)
         self.selector = RecordingSelector(item_selector(mechanics))
         self.stand = build_stand(mechanics, seed=seed, selector=self.selector)
@@ -192,7 +210,28 @@ class Market:
         # Испорченные семейства M21 — скрытая истина: портят ответы кандидатов с полной истиной.
         self.corrupted: dict[str, Corruption] = {}
         self.calibrate = True
+        self.watch = False
+        # Кто отвечает вместо модели ответа истины: например, настоящая LLM (D7).
+        self.responder: Callable[[str, Instance], Response] | None = None
         self._users = 0
+
+    def fork(self, seed: int, mechanics: Mechanics | None = None) -> "Market":
+        """Независимая копия рынка с прогретым банком: хранилище копируется, часы — с того же
+        момента, seed выбора и ответов — свои. Истина семейств та же. `mechanics` — другие
+        числа механик на том же банке."""
+        other = Market(
+            self.specialization, mechanics or self.mechanics, self.seed, self.response_model
+        )
+        other.stand = build_stand(
+            other.mechanics,
+            store=copy.deepcopy(self.stand.store),
+            clock=SimulatedClock(self.stand.clock.now()),
+            seeds=DerivedSeeds(seed),
+            selector=other.selector,
+        )
+        other.rng = random.Random(seed)
+        other.calibrate, other.watch, other._users = self.calibrate, self.watch, self._users
+        return other
 
     def candidate(self) -> Candidate:
         """Уровни шире априорного оценщика; заявка — истинный грейд, на один выше или ниже."""
@@ -222,13 +261,11 @@ class Market:
     ) -> Response:
         """Ответ и время кандидата с полной истиной на свежий экземпляр; без экземпляра —
         угадывание по первому экземпляру семейства: вид ответа у семейства один."""
-        if instance is not None:
-            guess = guessing(instance, self.response_model)
-        elif family_code in self._guess:
-            guess = self._guess[family_code]
-        else:
-            first = get_family(family_code).instance(0, InProcessCodeRunner())
-            guess = self._guess[family_code] = guessing(first, self.response_model)
+        guess = (
+            guessing(instance, self.response_model)
+            if instance is not None
+            else self.guess_of(family_code)
+        )
         response = respond(
             truth,
             family_code,
@@ -242,6 +279,13 @@ class Market:
         if corruption is None:
             return response
         return corrupt(response, corruption, instance, self.rng)
+
+    def guess_of(self, family_code: str) -> float:
+        """Угадывание по первому экземпляру семейства: вид ответа у семейства один."""
+        if family_code not in self._guess:
+            first = get_family(family_code).instance(0, InProcessCodeRunner())
+            self._guess[family_code] = guessing(first, self.response_model)
+        return self._guess[family_code]
 
     def attempt(self, candidate: Candidate, *, stand: Stand | None = None) -> Run:
         """Тест на заявленный грейд — одна попытка до остановки, без дотестов каскада.
@@ -261,8 +305,45 @@ class Market:
                 case AttemptOutcome.offered:
                     assert run.outcome_grade is not None
                     grade = run.outcome_grade
+                case AttemptOutcome.verification:
+                    return Determination(user, None, run.overall, run.outcome_grade)
                 case _:
                     return Determination(user, None, run.overall)
+
+    def verify(self, user: uuid.UUID, truth: CandidateTruth | None = None) -> Verified:
+        """Проверочный блок кандидата `user` через сценарии, как контроллер: старт, задания и
+        ответы до остановки. Отвечает `truth` — можно другим персонажем, чем в тесте: так меряется
+        блок без помощника, — или `responder`, если он задан. Время ответа идёт по часам стенда:
+        не успел к сроку — неверно."""
+        stand = self.stand
+        paths = stand.candidate_path()
+        calibrations = stand.answer_calibration()
+        view = paths.start_verification(user)
+        while view.verification is not None and view.verification.progress is not None:
+            item = paths.current_item(user)
+            if self.responder is not None:
+                reply = self.responder(item.family_code, item.instance)
+            else:
+                assert truth is not None, "в блоке отвечает истина или `responder`"
+                reply = self.answer(truth, item.family_code, item.instance)
+            stand.clock.advance(timedelta(seconds=reply.seconds))
+            response = item.instance.answer if reply.correct else WRONG
+            answered = paths.answer(user, presentation_id=item.presentation_id, response=response)
+            self._after(calibrations, answered.answer)
+            view = answered.view
+        with stand.uow:
+            blocks = [
+                a for a in stand.attempts.attempts(user) if a.purpose == AttemptPurpose.verification
+            ]
+            category = stand.attempts.state(user).category
+        block = blocks[-1]
+        assert block.correct_count is not None and block.planned_items is not None
+        return Verified(
+            block.outcome == AttemptOutcome.confirmed,
+            category.grade.code if category else None,
+            block.correct_count,
+            block.planned_items,
+        )
 
     def enlist(
         self, user: uuid.UUID, *, stack: frozenset[str] = frozenset(), claimed: str | None = None
@@ -411,7 +492,11 @@ class Market:
         view = paths.start_attempt(user, grade=grade)
         while view.stage == Stage.test:
             item = paths.current_item(user)
-            if candidate.truth is None:
+            if self.responder is not None:
+                reply = self.responder(item.family_code, item.instance)
+                stand.clock.advance(timedelta(seconds=reply.seconds))
+                correct = reply.correct
+            elif candidate.truth is None:
                 correct = self.respond(candidate, item.family_code)
             else:
                 reply = self.answer(candidate.truth, item.family_code, item.instance)
@@ -419,9 +504,8 @@ class Market:
                 correct = reply.correct
             response = item.instance.answer if correct else WRONG
             answered = paths.answer(user, presentation_id=item.presentation_id, response=response)
-            assert answered.answer.correct == correct, item.family_code
-            if self.calibrate:
-                calibrations.calibrate(answered.answer)
+            assert answered.answer is not None and answered.answer.correct == correct
+            self._after(calibrations, answered.answer)
             view = answered.view
         with stand.uow:
             attempt = stand.attempts.state(user).attempt
@@ -437,6 +521,15 @@ class Market:
                 p.answered().observation() for p in attempt.presentations if p.correct is not None
             ),
         )
+
+    def _after(self, calibrations: AnswerCalibration, answer: Answer | None) -> None:
+        """После ответа — как контроллер: калибровка или, на замороженном банке, детектор."""
+        if answer is None:
+            return
+        if self.calibrate:
+            calibrations.calibrate(answer)
+        elif self.watch:
+            calibrations.watch(answer)
 
     def _overall(self, level: dict[str, float]) -> float:
         return sum(w * level[t] for t, w in zip(self.prior.topics, self.prior.weights, strict=True))

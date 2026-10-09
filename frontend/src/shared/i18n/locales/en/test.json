@@ -29,5 +29,20 @@
     "moved": "{{item}} is now in position {{position}}",
     "dropped": "{{item}} dropped in position {{position}}"
   },
-  "loading": "Preparing the task"
+  "loading": "Preparing the task",
+  "protection": {
+    "title": "Verification block",
+    "consent": "Allow counting pastes and tab focus losses",
+    "consentHint": "Counters only, without content or screen recording. They do not affect your score but may suggest verification. The test works the same without consent.",
+    "remaining": "Time left: {{time}}",
+    "deadline": "The block ends at {{date}}. Unanswered tasks count as incorrect.",
+    "required": "Confirm your {{grade}} result with a short timed block on the same topics. Protection signals do not lower your category and are hidden from employers.",
+    "voluntary": "Confirm your level with a short timed block. A matching result is shown to employers as verified. A mismatch does not change your category.",
+    "mismatch": "About {{expected, number}} correct answers were expected out of {{items, number}}, received {{correct, number}}. The block did not match the test.",
+    "available": "You can retry from {{date}}.",
+    "resume": "Resume verification",
+    "start": "Start verification",
+    "lowerText": "Or start a new test for {{grade}} from scratch.",
+    "lowerAction": "{{grade}} test"
+  }
 }

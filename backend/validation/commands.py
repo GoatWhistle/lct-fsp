@@ -12,6 +12,10 @@
   правилами или моделью из записи её ответов (`validation.recorded`);
 - `write_market` — синтетический рынок D1 или D2 файлами: истина, наблюдаемое, потребности и
   эталон пар (`validation.population`);
+- `tune_drift` — подбор порога детектора дрейфа `drift_cusum_h` на D3 по правилу плана
+  (`validation.protection`);
+- `record_llm` — M16 (б), D7: живой прогон модели через тест с записью ответов в репо
+  (`validation.llm_attack`); отчёт потом пересобирается из записи без сети.
 - `b3` — пары B3 по наборам: сколько вызовов модели и во что обойдётся живой прогон, а с
   `--record` — сам прогон с записью ответов в кэш (`validation.baselines`);
 - `train_acceptance` — обучение модели принятия на своём сиде: файл модели в репо и базовые линии
@@ -51,6 +55,9 @@ from validation.acceptance import (
 from validation.baselines import B3_SYSTEM, Document, LlmRanker, ScoreCache, record
 from validation.isolated import IsolatedCompletion
 from validation.item_fit import D3, TUNING_WARM, tune
+from validation.llm_attack import ATTEMPTS, SPECIALIZATIONS, Answering, LlmAttempt, run_attempts
+from validation.llm_attack import PARAMS as D7_PARAMS
+from validation.llm_attack import recording_path as llm_recording_path
 from validation.main import B3_DIR, b3_cache_path, baseline_source, build_stand, catalog
 from validation.market import (
     SEED,
@@ -64,9 +71,20 @@ from validation.market import (
 from validation.metrics import cohen_kappa, median, pearson
 from validation.parsing import LabeledText, load_labeled, parsing_table, run_parsing
 from validation.population import D1, DATASETS, Generator, GeneratorParams, write
-from validation.recorded import Recording, Replay
+from validation.protection import D3 as DRIFT_D3
+from validation.protection import (
+    DRIFT_GRID,
+    ProtectionJob,
+    ProtectionScale,
+    flagged_share,
+    run_protection,
+    tune_threshold,
+    warmed,
+)
+from validation.recorded import Answer, Recording, Replay
 from validation.recorded import record as record_model
 from validation.report import (
+    PLAN_PROTECTION,
     PLAN_SCALE,
     REPORT,
     SETS,
@@ -86,6 +104,9 @@ RECORDED_DIR = DATA_DIR / "recorded"
 # Таймаут модели в отчёте — как у прода по умолчанию; запись идёт с запасом, без отката.
 MODEL_TIMEOUT = Settings.model_fields["text_understanding_timeout_seconds"].default
 RECORD_TIMEOUT = 600.0
+
+# Модель D7 по имени сборки: Claude Sonnet через Agent SDK.
+D7_MODEL = "agent_sdk"
 
 # Каталог наборов D1 и D2: файлы воспроизводятся по seed и в репо не хранятся.
 MARKET_DIR = DATA_DIR / "market"
@@ -421,6 +442,67 @@ def write_market(
     )
 
 
+def tune_drift(mechanics: Mechanics, scale: ProtectionScale) -> float | None:
+    """Подбор `drift_cusum_h` на D3: честный поток по каждой специализации, пик CUSUM семейства
+    в окне `honest_responses` ответов; значение — наименьшее из сетки с FPR не выше 0,05."""
+    specializations = [s.code for s in load_catalog(CATALOG_FILE).specializations]
+    jobs = [ProtectionJob(DRIFT_D3, code, mechanics, scale, full=False) for code in specializations]
+    with _pool() as pool:
+        drift = [d for run in pool.map(run_protection, jobs) for d in run.honest_drift]
+    print(f"Подбор drift_cusum_h: D3, сид {DRIFT_D3.seed}, семейств {len(drift)}")
+    print("| drift_cusum_h | FPR |")
+    print("|---|---|")
+    for h in DRIFT_GRID:
+        print(f"| {h:.1f} | {flagged_share(drift, h, scale.honest_responses):.3f} |")
+    chosen = tune_threshold(drift, scale.honest_responses)
+    print(f"\nвыбрано drift_cusum_h = {chosen}")
+    return chosen
+
+
+def _record_chunk(
+    job: tuple[Mechanics, str, range, str, dict[str, Answer]],
+) -> tuple[dict[str, Answer], list[LlmAttempt], str | None]:
+    """Попытки модели одной специализации — задача пула процессов: свой прогретый банк, ответы
+    из записи, недостающие — у живой модели."""
+    mechanics, code, indices, model, known = job
+    m = warmed(D7_PARAMS, code, mechanics, PLAN_PROTECTION.warm)
+    live = named_completion(model, RECORD_TIMEOUT)
+    answering = Answering(known, live)
+    attempts = run_attempts(m, code, indices, answering)
+    return answering.added, attempts, getattr(live, "model", None)
+
+
+def record_llm(mechanics: Mechanics, model: str, workers: int) -> None:
+    """D7: попытки модели по специализациям D7 — `workers` процессов; запись дописывается после
+    каждой задачи. Уже записанные ответы модель не спрашивают."""
+    recording = Recording(llm_recording_path(RECORDED_DIR, model))
+    chunk = max(1, ATTEMPTS * len(SPECIALIZATIONS) // max(1, workers))
+    jobs = [
+        (
+            mechanics,
+            code,
+            range(start, min(start + chunk, ATTEMPTS)),
+            model,
+            dict(recording.answers),
+        )
+        for code in SPECIALIZATIONS
+        for start in range(0, ATTEMPTS, chunk)
+    ]
+    found: list[LlmAttempt] = []
+    with ProcessPoolExecutor(max(1, workers)) as pool:
+        for added, attempts, name in pool.map(_record_chunk, jobs):
+            if recording.model and name and recording.model != name:
+                raise SystemExit(f"{recording.path.name} — ответы {recording.model}, а не {name}")
+            recording.model = recording.model or name
+            for key, answer in added.items():
+                recording.add(key, answer)
+            recording.save()
+            found += attempts
+            print(f"записано ответов: {len(added)}, попыток: {len(attempts)}", flush=True)
+    flagged = sum(a.flagged for a in found)
+    print(f"D7: попыток {len(found)}, помечено {flagged}, запись — {recording.path}")
+
+
 def train_acceptance(mechanics: Mechanics, model_file: Path) -> None:
     """Модель принятия одной командой: набор с сидом `TRAIN_SEED` и параметрами D1, прогон
     определений и подборок по специализациям в пуле процессов, пары с решениями кандидатов,
@@ -470,7 +552,18 @@ def main() -> None:
     parser.add_argument(
         "command",
         nargs="?",
-        choices=("report", "honesty", "tune", "fit", "parsing", "market", "acceptance", "b3"),
+        choices=(
+            "report",
+            "honesty",
+            "tune",
+            "fit",
+            "parsing",
+            "market",
+            "acceptance",
+            "drift",
+            "llm",
+            "b3",
+        ),
     )
     parser.add_argument(
         "--seed",
@@ -509,7 +602,7 @@ def main() -> None:
     parser.add_argument(
         "--model",
         help="для parsing: модель разбора по имени, как TEXT_UNDERSTANDING; без него — правила; "
-        "для b3 — модель B3 по имени, по умолчанию agent_sdk",
+        "для llm, report и b3 — модель, по умолчанию agent_sdk",
     )
     parser.add_argument(
         "--record",
@@ -517,7 +610,12 @@ def main() -> None:
         default=0,
         metavar="N",
         help="для parsing с --model: дописать недостающие ответы модели в запись, N потоков; "
-        "для b3 — спросить модель о парах без ответа в кэше, N потоков",
+        "для llm — живой прогон D7, для b3 — недостающие пары, N процессов",
+    )
+    parser.add_argument(
+        "--no-protection",
+        action="store_true",
+        help="report: без экспериментов защиты M14–M17 — быстрее",
     )
     parser.add_argument(
         "--timeout",
@@ -562,6 +660,12 @@ def main() -> None:
             )
         case "market":
             write_market(mechanics, args.set, args.seed, args.candidates, args.out)
+        case "drift":
+            tune_drift(mechanics, PLAN_PROTECTION)
+        case "llm":
+            if not args.record:
+                raise SystemExit("llm — живой прогон: укажите --record N")
+            record_llm(mechanics, args.model or D7_MODEL, args.record)
         case "acceptance":
             train_acceptance(mechanics, Settings().acceptance_model_file)
         case "b3":
@@ -580,9 +684,16 @@ def main() -> None:
                     if v is not None
                 }
             )
+            path = llm_recording_path(RECORDED_DIR, args.model or D7_MODEL)
             # Кэш B3 — пары прогона по плану: у короткого прогона другие пулы и двойники.
             b3_dir = B3_DIR if scale == PLAN_SCALE else None
-            runs = collect(mechanics, scale, baselines=baseline_source(b3_dir=b3_dir))
+            runs = collect(
+                mechanics,
+                scale,
+                baselines=baseline_source(b3_dir=b3_dir),
+                protection=None if args.no_protection else PLAN_PROTECTION,
+                llm=Recording(path) if path.exists() else None,
+            )
             if scale == PLAN_SCALE and write_d4(runs):
                 print("выборка D4 и форма разметки → validation/data/d4/")
             write_report(runs, args.report)

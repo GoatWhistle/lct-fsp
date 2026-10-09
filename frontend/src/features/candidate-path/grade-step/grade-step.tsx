@@ -3,7 +3,7 @@ import { useGradeHint, useStartAttempt } from "@/entities/candidate-path"
 import { gradeIcon, useGrades } from "@/entities/catalog"
 import type { Survey } from "@/shared/api"
 import { useCatalogNames, useErrorText, useTranslation } from "@/shared/i18n"
-import { Banner, Button, Card, ChoiceTiles, Form, IconLabel, Skeleton } from "@/shared/ui"
+import { Banner, Button, Card, Checkbox, ChoiceTiles, Form, IconLabel, Skeleton } from "@/shared/ui"
 import styles from "../../../shared/styles/layout.module.css"
 
 const TEST_MIN_ITEMS = 12
@@ -16,7 +16,7 @@ export interface GradeStepProps {
 }
 
 function HowPanel() {
-  const { t } = useTranslation("path")
+  const { t } = useTranslation(["path", "test"])
   return (
     <Card level="inner" title={t("how.title")}>
       <ul className={styles.points}>
@@ -40,12 +40,13 @@ function HowPanel() {
 }
 
 export function GradeStep({ survey, onChangeDirection, onStarted }: GradeStepProps) {
-  const { t } = useTranslation("path")
+  const { t } = useTranslation(["path", "test"])
   const names = useCatalogNames()
   const errorText = useErrorText()
   const grades = useGrades()
   const hint = useGradeHint()
-  const start = useStartAttempt()
+  const [consent, setConsent] = useState(false)
+  const start = useStartAttempt(consent)
   const [chosen, setChosen] = useState<string | null>(null)
   const hinted = hint.data ?? null
   const value = chosen ?? hinted?.grade.code ?? null
@@ -90,6 +91,12 @@ export function GradeStep({ survey, onChangeDirection, onStarted }: GradeStepPro
           </div>
           <HowPanel />
         </div>
+        <Checkbox
+          checked={consent}
+          onChange={setConsent}
+          label={t("test:protection.consent")}
+          hint={t("test:protection.consentHint")}
+        />
         {start.isError && <Banner tone="critical" title={errorText(start.error)} />}
         <div className={styles.actions}>
           <Button

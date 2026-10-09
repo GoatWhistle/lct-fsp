@@ -96,9 +96,12 @@ def _signals(
     topics: Sequence[str],
     fsp: FspEvidence | None,
 ) -> _Signals:
+    weights = {
+        SignalSource.test: mechanics.trust_weight_test,
+        SignalSource.verification: mechanics.trust_weight_verification,
+    }
     tests = [
-        p.observation(mechanics.trust_weight_test)
-        for p in attempts.answered(user_id, specialization_code)
+        p.observation(weights[p.source]) for p in attempts.answered(user_id, specialization_code)
     ]
     rules = task_rules(mechanics)
     answered = [a for a in tasks.answered(user_id, specialization_code) if a.counted]

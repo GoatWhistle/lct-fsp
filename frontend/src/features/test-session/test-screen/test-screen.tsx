@@ -7,6 +7,8 @@ import { AnswerPanel } from "../answer-panel/answer-panel"
 import { ConditionPanel } from "../condition-panel/condition-panel"
 import { useAnswer, useTestItem } from "../test.queries"
 import { TestBar } from "../test-bar/test-bar"
+import { useFocusCounters } from "../use-focus-counters"
+import { VerificationTimer } from "../verification-timer/verification-timer"
 import styles from "./test-screen.module.css"
 
 const INTRO_KEY = "calibr-test-intro"
@@ -47,6 +49,7 @@ function Workspace({
 }) {
   const { t } = useTranslation("test")
   const answer = useAnswer(onFinished)
+  const takeCounters = useFocusCounters(item.focus_consent, item.id)
   return (
     <Swap swapKey={item.id} as="div" className={styles.swap}>
       <SplitPane
@@ -55,13 +58,17 @@ function Workspace({
         start={<ConditionPanel item={item} />}
         end={
           <div className={styles.end}>
-            <Intro />
+            {item.verification && item.deadline ? (
+              <VerificationTimer deadline={item.deadline} onFinished={onFinished} />
+            ) : (
+              <Intro />
+            )}
             <AnswerPanel
               key={item.id}
               item={item}
               pending={answer.isPending}
               error={answer.error}
-              onSubmit={(response) => answer.mutate({ id: item.id, response })}
+              onSubmit={(response) => answer.mutate({ id: item.id, response, ...takeCounters() })}
             />
           </div>
         }
@@ -74,9 +81,10 @@ export function TestScreen({ path, exitTo, onFinished }: TestScreenProps) {
   const { t } = useTranslation("test")
   const names = useCatalogNames()
   const item = useTestItem()
-  const block = path.topic_block !== null
-  const title =
-    path.topic_block !== null
+  const block = path.topic_block !== null || !!path.verification?.progress
+  const title = path.verification?.progress
+    ? t("protection.title")
+    : path.topic_block !== null
       ? `${t("titleBlock")}: ${names.topic(path.topic_block.topic)}`
       : t("title", { grade: names.grade(path.attempt?.grade ?? "") })
   const number =

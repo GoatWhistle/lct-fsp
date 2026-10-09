@@ -48,12 +48,15 @@
       "offered": "Not enough confidence for {{grade}}, {{outcome}} offered",
       "none": "No category assigned",
       "kept": "{{grade}} not confirmed, category unchanged",
-      "block": "Topic block completed"
+      "block": "Topic block completed",
+      "verification": "Awaiting verification",
+      "mismatch": "Verification did not match the test"
     },
     "purpose": {
       "determination": "Category placement, {{grade}} test",
       "grade_up": "Step up attempt, {{grade}} test",
-      "topic_block": "Topic block"
+      "topic_block": "Topic block",
+      "verification": "Verification block"
     }
   },
   "feedback": {

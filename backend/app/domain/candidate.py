@@ -80,6 +80,11 @@ class Category:
     specialization: CatalogRef
     grade: CatalogRef
     assigned_at: datetime
+    # Уровень категории подтверждён проверочным блоком (§8) — единственная пометка защиты
+    # теста, которую видит работодатель.
+    verified_at: datetime | None = None
+    # Попытка, чья оценка стоит за категорией.
+    attempt_id: uuid.UUID | None = None
 
 
 class GradeStatusKind(enum.StrEnum):

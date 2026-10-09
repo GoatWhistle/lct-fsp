@@ -16,16 +16,18 @@ export function useTestItem() {
 export interface AnswerInput {
   readonly id: string
   readonly response: string
+  readonly paste_events: number
+  readonly focus_losses: number
 }
 
 export function useAnswer(onFinished: (path: CandidatePath) => void) {
   const client = useQueryClient()
   const setPath = useSetPath()
   return useMutation({
-    mutationFn: ({ id, response }: AnswerInput) =>
+    mutationFn: ({ id, response, ...counters }: AnswerInput) =>
       unwrap(
         api.POST("/api/candidate/path/item/answer", {
-          body: { presentation_id: id, response },
+          body: { presentation_id: id, response, ...counters },
         }),
       ),
     onSuccess: async (path) => {

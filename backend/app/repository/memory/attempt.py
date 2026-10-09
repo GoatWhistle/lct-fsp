@@ -16,7 +16,8 @@ import itertools
 import uuid
 import zlib
 from collections import Counter
-from collections.abc import Hashable, Iterator, Mapping, Sequence
+from collections.abc import Collection, Hashable, Iterator, Mapping, Sequence
+from dataclasses import replace
 from datetime import datetime
 from typing import Any
 
@@ -79,11 +80,11 @@ class MemoryAttemptRepository:
         self, user_id: uuid.UUID, specialization_code: str
     ) -> Sequence[AnsweredPresentation]:
         return [
-            p.answered()
+            p.answered(a.source)
             for a in self._of_user(user_id)
-            if a.specialization_code == specialization_code
+            if a.specialization_code == specialization_code and not a.withheld
             for p in a.presentations
-            if p.answered_at is not None
+            if p.answered_at is not None and not p.dropped
         ]
 
     # Порт записи `AttemptRepository`.
@@ -130,6 +131,10 @@ class MemoryAttemptRepository:
         now: datetime,
         purpose: AttemptPurpose = AttemptPurpose.determination,
         topic_code: str | None = None,
+        *,
+        focus_consent: bool = False,
+        verifies: Attempt | None = None,
+        deadline: datetime | None = None,
     ) -> Attempt:
         mine = self._store.collection("user_attempts").setdefault(user_id, [])
         attempt = Attempt(
@@ -143,6 +148,9 @@ class MemoryAttemptRepository:
             started_at=now,
             purpose=purpose,
             topic_code=topic_code,
+            focus_consent=focus_consent,
+            verifies_attempt_id=verifies.id if verifies else None,
+            deadline=deadline,
         )
         self._attempts()[attempt.id] = attempt
         mine.append(attempt)
@@ -152,6 +160,9 @@ class MemoryAttemptRepository:
 
     def attempts(self, user_id: uuid.UUID) -> list[Attempt]:
         return list(self._of_user(user_id))
+
+    def attempt(self, attempt_id: uuid.UUID) -> Attempt:
+        return self._attempts()[attempt_id]
 
     def add_presentation(
         self,
@@ -199,6 +210,28 @@ class MemoryAttemptRepository:
             by_finish = self._store.collection(FINISHED)
             _insort(by_finish, attempt.specialization_code, attempt, attempt.finished_at)
 
+    def save_protection(self, presentations: Sequence[Presentation]) -> None:
+        """Запись — те же объекты в хранилище: флаги уже на месте."""
+
+    def withhold(self, attempts: Sequence[Attempt], withheld: bool) -> None:
+        for attempt in attempts:
+            attempt.withheld = withheld
+
+    def response_times(
+        self, family_codes: Collection[str], exclude_attempt_id: uuid.UUID
+    ) -> dict[str, list[float]]:
+        by_family = self._store.collection(FAMILY_PRESENTATIONS)
+        return {
+            code: [
+                p.response_time_ms / 1000
+                for p in by_family.get(code, [])
+                if p.correct
+                and p.response_time_ms is not None
+                and p.attempt_id != exclude_attempt_id
+            ]
+            for code in family_codes
+        }
+
     def save_rest_levels(self, presentations: Sequence[Presentation]) -> None:
         """Запись — те же объекты в хранилище: оценки уже на месте. Предъявления встают в счёт
         ответов семейства с итоговой оценкой."""
@@ -215,6 +248,7 @@ class MemoryAttemptRepository:
             attempt.outcome_grade_code,
             ChangeKind.determined,
             now,
+            attempt.id,
         )
 
     def raise_category(self, attempt: Attempt, now: datetime) -> None:
@@ -225,11 +259,24 @@ class MemoryAttemptRepository:
             attempt.outcome_grade_code,
             ChangeKind.up,
             now,
+            attempt.id,
         )
 
     def lower_category(self, user_id: uuid.UUID, grade_code: str, now: datetime) -> None:
         current: candidate.Category = self._store.collection("categories")[user_id]
-        self._set_category(user_id, current.specialization.code, grade_code, ChangeKind.down, now)
+        self._set_category(
+            user_id,
+            current.specialization.code,
+            grade_code,
+            ChangeKind.down,
+            now,
+            current.attempt_id,
+            current.verified_at,
+        )
+
+    def verify_category(self, user_id: uuid.UUID, at: datetime | None) -> None:
+        categories = self._store.collection("categories")
+        categories[user_id] = replace(categories[user_id], verified_at=at)
 
     def category_changes(self, user_id: uuid.UUID) -> list[CategoryChange]:
         return list(self._store.collection("category_changes").get(user_id, []))
@@ -328,12 +375,16 @@ class MemoryAttemptRepository:
         grade_code: str,
         kind: ChangeKind,
         now: datetime,
+        attempt_id: uuid.UUID | None,
+        verified_at: datetime | None = None,
     ) -> None:
         grade = self._grades[grade_code]
         self._store.collection("categories")[user_id] = candidate.Category(
             specialization=self._ref(specialization_code),
             grade=CatalogRef(grade.code, grade.name),
             assigned_at=now,
+            verified_at=verified_at,
+            attempt_id=attempt_id,
         )
         changes = self._store.collection("category_changes")
         changes.setdefault(user_id, []).append(CategoryChange(grade_code, kind, now))

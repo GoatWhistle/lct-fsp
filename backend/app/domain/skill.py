@@ -17,9 +17,10 @@ YEAR = timedelta(days=365.25)
 
 
 class SignalSource(enum.StrEnum):
-    """Уровень доверия, из которого пришло наблюдение (§11). Проверочный блок встанет рядом."""
+    """Уровень доверия, из которого пришло наблюдение (§11)."""
 
     fsp = "fsp"
+    verification = "verification"
     test = "test"
     regular_task = "regular_task"
 
@@ -117,6 +118,10 @@ class SkillEstimate(Protocol):
     def topics(self) -> tuple[str, ...]: ...
 
     def topic(self, topic: str) -> Normal: ...
+
+    def covariance(self, topic: str, other: str) -> float:
+        """Ковариация уровней двух тем; для одной темы — дисперсия её уровня."""
+        ...
 
     def overall(self) -> Normal: ...
 

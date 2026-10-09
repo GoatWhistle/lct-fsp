@@ -25,6 +25,7 @@ function topic(
     verdict,
     low_data: false,
     regular_task: false,
+    verification_confirmed: false,
     fsp_confirmed: code === "backend.algorithms",
   }
 }

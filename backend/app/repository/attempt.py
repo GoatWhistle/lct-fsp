@@ -5,7 +5,7 @@
 """
 
 import uuid
-from collections.abc import Mapping, Sequence
+from collections.abc import Collection, Mapping, Sequence
 from datetime import datetime
 
 from sqlalchemy import distinct, func, select
@@ -29,7 +29,9 @@ from app.repository.catalog import ref_of, topic_of
 from app.repository.orm import SkillProfile, SkillProfileTopic, User
 
 
-def answered_of(row: models.Presentation) -> AnsweredPresentation:
+def answered_of(
+    row: models.Presentation, source: SignalSource = SignalSource.test
+) -> AnsweredPresentation:
     if row.correct is None or row.answered_at is None:
         raise ValueError("наблюдение — только отвеченное предъявление")
     return AnsweredPresentation(
@@ -40,6 +42,7 @@ def answered_of(row: models.Presentation) -> AnsweredPresentation:
         difficulty=row.difficulty,
         correct=row.correct,
         answered_at=row.answered_at,
+        source=source,
     )
 
 
@@ -63,6 +66,10 @@ def _presentation_of(row: models.Presentation) -> Presentation:
         response_time_ms=row.response_time_ms,
         topic_theta_rest=row.topic_theta_rest,
         topic_theta_rest_sd=row.topic_theta_rest_sd,
+        paste_events=row.paste_events,
+        focus_losses=row.focus_losses,
+        time_flag=row.time_flag,
+        dropped=row.dropped,
     )
 
 
@@ -88,6 +95,13 @@ def _attempt_of(row: models.TestAttempt, *, presentations: bool = True) -> Attem
         outcome_grade_code=row.outcome_grade_code,
         retest_after=row.retest_after,
         presentations=[_presentation_of(p) for p in row.presentations] if presentations else [],
+        focus_consent=row.focus_consent,
+        withheld=row.withheld,
+        verifies_attempt_id=row.verifies_attempt_id,
+        deadline=row.deadline,
+        expected_correct=row.expected_correct,
+        correct_count=row.correct_count,
+        planned_items=row.planned_items,
     )
 
 
@@ -104,17 +118,27 @@ class SqlAttemptReader:
     def answered(
         self, user_id: uuid.UUID, specialization_code: str
     ) -> Sequence[AnsweredPresentation]:
-        rows = self.session.scalars(
-            select(models.Presentation)
-            .join(models.TestAttempt)
+        rows = self.session.execute(
+            select(models.Presentation, models.TestAttempt.purpose)
+            .join(models.TestAttempt, models.Presentation.attempt_id == models.TestAttempt.id)
             .where(
                 models.TestAttempt.user_id == user_id,
                 models.TestAttempt.specialization_code == specialization_code,
+                models.TestAttempt.withheld.is_(False),
                 models.Presentation.answered_at.is_not(None),
+                models.Presentation.dropped.is_(False),
             )
             .order_by(models.TestAttempt.number, models.Presentation.position)
-        )
-        return [answered_of(row) for row in rows]
+        ).all()
+        return [
+            answered_of(
+                row,
+                SignalSource.verification
+                if purpose == AttemptPurpose.verification
+                else SignalSource.test,
+            )
+            for row, purpose in rows
+        ]
 
 
 class SqlAttemptRepository(SqlAttemptReader):
@@ -149,7 +173,9 @@ class SqlAttemptRepository(SqlAttemptReader):
             select(models.TestAttempt)
             .where(
                 models.TestAttempt.user_id == user_id,
-                models.TestAttempt.purpose != AttemptPurpose.topic_block,
+                models.TestAttempt.purpose.not_in(
+                    (AttemptPurpose.topic_block, AttemptPurpose.verification)
+                ),
             )
             .order_by(models.TestAttempt.number.desc())
             .limit(1)
@@ -160,7 +186,11 @@ class SqlAttemptRepository(SqlAttemptReader):
             attempt=_attempt_of(attempt) if attempt else None,
             category=(
                 candidate.Category(
-                    ref_of(category.specialization), ref_of(category.grade), category.assigned_at
+                    ref_of(category.specialization),
+                    ref_of(category.grade),
+                    category.assigned_at,
+                    category.verified_at,
+                    category.attempt_id,
                 )
                 if category
                 else None
@@ -198,6 +228,10 @@ class SqlAttemptRepository(SqlAttemptReader):
         now: datetime,
         purpose: AttemptPurpose = AttemptPurpose.determination,
         topic_code: str | None = None,
+        *,
+        focus_consent: bool = False,
+        verifies: Attempt | None = None,
+        deadline: datetime | None = None,
     ) -> Attempt:
         row = models.TestAttempt(
             user_id=user_id,
@@ -209,6 +243,9 @@ class SqlAttemptRepository(SqlAttemptReader):
             started_at=now,
             purpose=purpose,
             topic_code=topic_code,
+            focus_consent=focus_consent,
+            verifies_attempt_id=verifies.id if verifies else None,
+            deadline=deadline,
         )
         self.session.add(row)
         self.session.flush()
@@ -221,6 +258,9 @@ class SqlAttemptRepository(SqlAttemptReader):
             .order_by(models.TestAttempt.number)
         )
         return [_attempt_of(row, presentations=False) for row in rows]
+
+    def attempt(self, attempt_id: uuid.UUID) -> Attempt:
+        return _attempt_of(self.session.get_one(models.TestAttempt, attempt_id))
 
     def add_presentation(
         self,
@@ -260,6 +300,8 @@ class SqlAttemptRepository(SqlAttemptReader):
         row.correct = presentation.correct
         row.answered_at = presentation.answered_at
         row.response_time_ms = presentation.response_time_ms
+        row.paste_events = presentation.paste_events
+        row.focus_losses = presentation.focus_losses
         self.session.flush()
 
     def finish_attempt(self, attempt: Attempt) -> None:
@@ -270,7 +312,40 @@ class SqlAttemptRepository(SqlAttemptReader):
         row.outcome = attempt.outcome
         row.outcome_grade_code = attempt.outcome_grade_code
         row.retest_after = attempt.retest_after
+        row.expected_correct = attempt.expected_correct
+        row.correct_count = attempt.correct_count
+        row.planned_items = attempt.planned_items
         self.session.flush()
+
+    def save_protection(self, presentations: Sequence[Presentation]) -> None:
+        for presentation in presentations:
+            row = self.session.get_one(models.Presentation, presentation.id)
+            row.time_flag = presentation.time_flag
+            row.dropped = presentation.dropped
+        self.session.flush()
+
+    def withhold(self, attempts: Sequence[Attempt], withheld: bool) -> None:
+        for attempt in attempts:
+            self.session.get_one(models.TestAttempt, attempt.id).withheld = withheld
+            attempt.withheld = withheld
+        self.session.flush()
+
+    def response_times(
+        self, family_codes: Collection[str], exclude_attempt_id: uuid.UUID
+    ) -> dict[str, list[float]]:
+        rows = self.session.execute(
+            select(models.Presentation.family_code, models.Presentation.response_time_ms).where(
+                models.Presentation.family_code.in_(family_codes),
+                models.Presentation.attempt_id != exclude_attempt_id,
+                models.Presentation.correct.is_(True),
+                models.Presentation.response_time_ms.is_not(None),
+            )
+        ).all()
+        times: dict[str, list[float]] = {code: [] for code in family_codes}
+        for code, ms in rows:
+            if ms is not None:
+                times[code].append(ms / 1000)
+        return times
 
     def save_rest_levels(self, presentations: Sequence[Presentation]) -> None:
         for presentation in presentations:
@@ -307,6 +382,7 @@ class SqlAttemptRepository(SqlAttemptReader):
             attempt.id,
             now,
         )
+        row.verified_at = None
         self._log_change(
             attempt.user_id, row.specialization_code, row.grade_code, ChangeKind.up, attempt.id, now
         )
@@ -317,6 +393,10 @@ class SqlAttemptRepository(SqlAttemptReader):
         self._log_change(
             user_id, row.specialization_code, grade_code, ChangeKind.down, row.attempt_id, now
         )
+
+    def verify_category(self, user_id: uuid.UUID, at: datetime | None) -> None:
+        self.session.get_one(models.CandidateCategory, user_id).verified_at = at
+        self.session.flush()
 
     def category_changes(self, user_id: uuid.UUID) -> list[CategoryChange]:
         rows = self.session.scalars(

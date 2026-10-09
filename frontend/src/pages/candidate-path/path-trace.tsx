@@ -11,6 +11,7 @@ const STAGE_INDEX: Readonly<Record<CandidatePath["stage"], number>> = {
   offer: 2,
   no_category: 3,
   category: 4,
+  verification: 3,
 }
 
 export function PathTrace({ path }: { readonly path: CandidatePath }) {

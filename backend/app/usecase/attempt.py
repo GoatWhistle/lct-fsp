@@ -5,6 +5,11 @@
 `topic_block_items` заданий по семействам одной темы, ответы идут в профиль навыков, категория,
 грейд и часы смены грейда не меняются. У кандидата одна незавершённая попытка — теста или блока.
 
+Защита теста (§8) — на остановке попытки пути: ответы на скомпрометированные семейства выпадают
+из оценки, ответы получают флаги времени, и результат, который повышает категорию или присваивает
+её впервые, при сработавших сигналах откладывается до проверочного блока — короткого блока на
+время из невиданных семейств. Блок — тоже попытка с той же парой «задание / ответ», вне пути.
+
 Опрос — направление: специализация справочника, «отрасль» в ТЗ. Сферы бизнеса в опрос не
 входят — это необязательное предпочтение в профиле кандидата.
 
@@ -40,6 +45,9 @@ from app.domain.attempt import (
     Presentation,
     Stage,
     TopicBlockProgress,
+    VerificationProgress,
+    VerificationResult,
+    VerificationView,
     grade_up_available_at,
     path_history,
     stage_of,
@@ -58,6 +66,7 @@ from app.domain.determination import (
     decide_up,
     grade_above,
     grade_below,
+    grades_by_threshold,
 )
 from app.domain.errors import (
     AttemptInProgress,
@@ -74,8 +83,21 @@ from app.domain.errors import (
     TopicNotInCategory,
     UnknownGrade,
     UnknownSpecialization,
+    VerificationPending,
+    VerificationTooEarly,
+    VerificationUnavailable,
 )
-from app.domain.skill import Normal, Observation, Prior, SkillEstimate
+from app.domain.protection import (
+    AttemptSignals,
+    ResponseTimes,
+    SuspicionRule,
+    suspicion,
+    time_flag,
+    verification_choice,
+    verification_expectation,
+    verification_verdict,
+)
+from app.domain.skill import Normal, Observation, Prior, SkillEstimate, sigmoid
 from app.usecase.interface import (
     AttemptRepository,
     Calibration,
@@ -179,15 +201,19 @@ class CandidatePath:
         self._priors: dict[str, Prior] = {}
 
     def path(self, user_id: uuid.UUID) -> PathView:
-        """Шаг пути и итоги теста — без записи."""
+        """Шаг пути и итоги теста. Пишет, только если срок проверочного блока прошёл: блок
+        останавливается при первом обращении кандидата."""
         with self._uow:
-            return self._view(self._attempts.state(user_id), self._clock.now(), user_id)
+            now = self._clock.now()
+            self._expire_verification(user_id, now)
+            return self._view(self._attempts.state(user_id), now, user_id)
 
     def submit_survey(self, user_id: uuid.UUID, *, specialization: str) -> PathView:
         """Опрос доступен до начала теста, повторный заменяет прежний."""
         with self._uow:
             self._attempts.lock_candidate(user_id)
             now = self._clock.now()
+            self._expire_verification(user_id, now)
             if stage_of(self._attempts.state(user_id), now) not in (Stage.survey, Stage.grade):
                 raise StepUnavailable()
             topics = self._attempts.specialization_topics(specialization)
@@ -198,18 +224,25 @@ class CandidatePath:
             self._attempts.add_survey(user_id, specialization, now)
             return self._view(self._attempts.state(user_id), now, user_id)
 
-    def start_attempt(self, user_id: uuid.UUID, *, grade: str) -> PathView:
+    def start_attempt(
+        self, user_id: uuid.UUID, *, grade: str, focus_consent: bool = False
+    ) -> PathView:
         """Тест на заявленный грейд, дотест каскада на предложенный или, при категории, попытка
         на грейд выше; возвращает шаг пути на тот же момент.
 
         Попытка вверх — с чистого листа: дотестом она не продолжает ничью оценку. Раньше срока
-        по правилу ожидания (§4) она не начинается — ошибка несёт дату, когда можно.
+        по правилу ожидания (§4) она не начинается — ошибка несёт дату, когда можно. Пока её
+        прошлый результат ждёт проверочного блока, она не начинается вовсе. Определение, чей
+        результат ждёт блока, можно оставить и начать заново на грейд ниже (§8).
+
+        `focus_consent` — согласие на счётчики вставки и потери фокуса в этой попытке (§8).
         """
         with self._uow:
             self._attempts.lock_candidate(user_id)
             if grade not in self._mechanics.grade_thresholds:
                 raise UnknownGrade()
             now = self._clock.now()
+            self._expire_verification(user_id, now)
             state = self._attempts.state(user_id)
             stage = stage_of(state, now)
             purpose = AttemptPurpose.determination
@@ -219,9 +252,21 @@ class CandidatePath:
                 if grade != state.attempt.outcome_grade_code:
                     raise GradeNotOffered()
                 survey, continues = self._attempts.survey(state.attempt.survey_id), state.attempt
+            elif stage == Stage.verification and state.attempt is not None:
+                if self._attempts.attempt_in_progress(user_id) is not None:
+                    raise AttemptInProgress()
+                pending = state.attempt.outcome_grade_code
+                assert pending is not None
+                ranked = grades_by_threshold(self._mechanics.grade_thresholds)
+                if ranked.index(grade) >= ranked.index(pending):
+                    raise VerificationPending()
+                # С чистого листа: отложенный результат дотестом не продолжается.
+                survey, continues = self._attempts.survey(state.attempt.survey_id), None
             elif stage == Stage.category and state.category is not None:
                 if self._attempts.attempt_in_progress(user_id) is not None:
                     raise AttemptInProgress()
+                if state.attempt is not None and state.attempt.pending_verification:
+                    raise VerificationPending()
                 up = self._grade_up(
                     state.category.grade.code,
                     self._path_attempts(user_id),
@@ -239,14 +284,53 @@ class CandidatePath:
             else:
                 raise StepUnavailable()
 
-            attempt = self._attempts.add_attempt(user_id, survey, grade, continues, now, purpose)
+            attempt = self._attempts.add_attempt(
+                user_id, survey, grade, continues, now, purpose, focus_consent=focus_consent
+            )
             prior = self._prior(attempt.specialization_code)
             if not self._remaining(attempt, prior):
                 # Дотест, в котором спрашивать нечего, оценку не меняет — его итог известен сразу.
                 chain = self._attempts.chain(attempt)
-                observations = _observations(chain)
+                observations = self._chain_observations(chain)
                 estimate = self._skill_model.estimate(prior, observations)
-                self._finish(attempt, chain, prior, estimate, observations, now)
+                self._finish(attempt, chain, prior, estimate, now)
+            return self._view(self._attempts.state(user_id), now, user_id)
+
+    def start_verification(self, user_id: uuid.UUID) -> PathView:
+        """Проверочный блок (§8): по результату, который его ждёт, или добровольно — по уровню
+        категории, ещё не подтверждённому блоком. Срок — `verification_time_limit_minutes` по
+        часам сервера от старта. Первый блок по отложенному результату — сразу, повтор после
+        расхождения и добровольный — не раньше `verification_retest_days` от старта прошлого
+        блока: раньше ошибка несёт дату, когда можно."""
+        with self._uow:
+            self._attempts.lock_candidate(user_id)
+            now = self._clock.now()
+            self._expire_verification(user_id, now)
+            state = self._attempts.state(user_id)
+            if self._attempts.attempt_in_progress(user_id) is not None:
+                raise AttemptInProgress()
+            view = self._verification_view(state, user_id, now)
+            if view is None:
+                raise VerificationUnavailable()
+            if view.available_at is not None:
+                raise VerificationTooEarly(view.available_at)
+            target = self._verification_target(state)
+            assert target is not None and state.survey is not None
+            prior = self._prior(target.specialization_code)
+            if not self._calibration.current(_bank(prior)):
+                raise VerificationUnavailable()
+            grade = view.grade or (state.category.grade.code if state.category else None)
+            assert grade is not None
+            self._attempts.add_attempt(
+                user_id,
+                state.survey,
+                grade,
+                None,
+                now,
+                AttemptPurpose.verification,
+                verifies=target if target.pending_verification else None,
+                deadline=now + timedelta(minutes=self._mechanics.verification_time_limit_minutes),
+            )
             return self._view(self._attempts.state(user_id), now, user_id)
 
     def start_topic_block(self, user_id: uuid.UUID, *, topic: str) -> PathView:
@@ -256,6 +340,7 @@ class CandidatePath:
         with self._uow:
             self._attempts.lock_candidate(user_id)
             now = self._clock.now()
+            self._expire_verification(user_id, now)
             state = self._attempts.state(user_id)
             category = state.category
             if category is None:
@@ -292,13 +377,21 @@ class CandidatePath:
 
     def step_down(self, user_id: uuid.UUID) -> PathView:
         """Переход на грейд ниже — без теста и без ожидания (§4): правило уверенности для
-        младшего грейда уже выполнено той же оценкой. Заданий не показывает, банк не тратит."""
+        младшего грейда уже выполнено той же оценкой. Заданий не показывает, банк не тратит.
+
+        Пока попытка вверх ждёт проверочного блока или идёт любая попытка, перехода нет: иначе
+        подтверждённый блок поднял бы категорию с нового грейда сразу на грейд попытки."""
         with self._uow:
             self._attempts.lock_candidate(user_id)
             now = self._clock.now()
+            self._expire_verification(user_id, now)
             state = self._attempts.state(user_id)
             if stage_of(state, now) != Stage.category or state.category is None:
                 raise StepUnavailable()
+            if self._attempts.attempt_in_progress(user_id) is not None:
+                raise AttemptInProgress()
+            if state.attempt is not None and state.attempt.pending_verification:
+                raise VerificationPending()
             lower = grade_below(state.category.grade.code, self._mechanics.grade_thresholds)
             if lower is None:
                 raise NoLowerGrade()
@@ -313,23 +406,24 @@ class CandidatePath:
         ним никто не угадает следующее семейство, в тестах они воспроизводимы.
 
         Блок, у темы которого после прошлого ответа не осталось семейств в выдаче, — калибровка
-        вывела их, — останавливается здесь же: иначе он висел бы незавершённой попыткой.
+        вывела их, — останавливается здесь же: иначе он висел бы незавершённой попыткой. Так же
+        останавливается проверочный блок, чей срок прошёл.
         """
         with self._uow:
             self._attempts.lock_candidate(user_id)
+            now = self._clock.now()
             attempt = self._attempt_in_progress(user_id)
             presentation = attempt.pending()
             prior = self._prior(attempt.specialization_code)
+            expired = self._expired(attempt, now)
             stuck = (
-                presentation is None
-                and attempt.purpose == AttemptPurpose.topic_block
-                and not self._remaining(attempt, prior)
+                presentation is None and not attempt.on_path and not self._remaining(attempt, prior)
             )
-            if stuck:
-                self._finish_block(attempt, prior, self._clock.now())
+            if expired or stuck:
+                self._finish_side(attempt, prior, now)
             else:
                 if presentation is None:
-                    presentation = self._present(attempt, self._clock.now())
+                    presentation = self._present(attempt, now)
                 return self._item(attempt, presentation)
         # Остановка блока зафиксирована — заданий больше нет.
         raise NoTestInProgress()
@@ -346,21 +440,36 @@ class CandidatePath:
             presentation.seed, self._runner
         )
         block = attempt.purpose == AttemptPurpose.topic_block
+        verification = attempt.purpose == AttemptPurpose.verification
         return Item(
             presentation.id,
             presentation.position + 1,
             topic,
             presentation.family_code,
             instance,
-            max_items=(
-                self._mechanics.topic_block_items if block else self._mechanics.test_max_items
-            ),
+            max_items=self._max_items(attempt),
             topic_block=block,
+            verification=verification,
+            deadline=attempt.deadline,
+            focus_consent=attempt.focus_consent,
         )
 
-    def answer(self, user_id: uuid.UUID, *, presentation_id: uuid.UUID, response: str) -> Answered:
+    def answer(
+        self,
+        user_id: uuid.UUID,
+        *,
+        presentation_id: uuid.UUID,
+        response: str,
+        paste_events: int = 0,
+        focus_losses: int = 0,
+    ) -> Answered:
         """Проверка ответа на бэкенде; верность на фронт не уходит. После ответа — проверка
         остановки: точность набрана или спрашивать больше нечего.
+
+        `paste_events` и `focus_losses` — счётчики событий за время задания; пишутся, только если
+        кандидат дал согласие на попытку, иначе отбрасываются (§8). Ответ проверочного блока
+        после срока не засчитывается: блок останавливается, задание — неверное, ответа для
+        калибровки нет.
 
         Калибровку (§7) сценарий не трогает: её по возвращённому ответу запускает вызывающий,
         отдельным сценарием `app.usecase.calibration` после фиксации ответа.
@@ -372,6 +481,10 @@ class CandidatePath:
             presentation = attempt.pending()
             if presentation is None or presentation.id != presentation_id:
                 raise ItemNotCurrent()
+            prior = self._prior(attempt.specialization_code)
+            if self._expired(attempt, now):
+                self._finish_side(attempt, prior, now)
+                return Answered(self._view(self._attempts.state(user_id), now, user_id), None)
             family = bank.get_family(presentation.family_code)
             correct = family.check(family.instance(presentation.seed, self._runner), response)
             presentation.response = response
@@ -381,21 +494,22 @@ class CandidatePath:
             # в минус.
             elapsed = (now - presentation.shown_at).total_seconds()
             presentation.response_time_ms = max(0, round(elapsed * 1000))
+            if attempt.focus_consent:
+                presentation.paste_events = max(0, paste_events)
+                presentation.focus_losses = max(0, focus_losses)
             self._attempts.save_answer(presentation)
 
-            prior = self._prior(attempt.specialization_code)
-            if attempt.purpose == AttemptPurpose.topic_block:
-                if len(attempt.presentations) >= self._mechanics.topic_block_items or (
-                    not self._remaining(attempt, prior)
-                ):
-                    self._finish_block(attempt, prior, now)
-            else:
+            if attempt.on_path:
                 chain = self._attempts.chain(attempt)
-                observations = _observations(chain)
+                observations = self._chain_observations(chain)
                 estimate = self._skill_model.estimate(prior, observations)
                 stop = should_stop(self._blueprint(prior), attempt.counts(), estimate.overall())
                 if stop or not self._remaining(attempt, prior):
-                    self._finish(attempt, chain, prior, estimate, observations, now)
+                    self._finish(attempt, chain, prior, estimate, now)
+            elif len(attempt.presentations) >= self._max_items(attempt) or (
+                not self._remaining(attempt, prior)
+            ):
+                self._finish_side(attempt, prior, now)
             view = self._view(self._attempts.state(user_id), now, user_id)
 
         return Answered(
@@ -416,19 +530,64 @@ class CandidatePath:
     def _present(self, attempt: Attempt, now: datetime) -> Presentation:
         """Следующее задание. Тест выбирает по оценке определения с априорным в пороге
         заявленного грейда; блок по теме — по оценке теста из всех ответов кандидата по
-        специализации, только среди семейств своей темы."""
+        специализации, только среди семейств своей темы; проверочный блок — по основной оценке,
+        из невиданных семейств с P(верно) около `verification_target_p` (§8)."""
         prior = self._prior(attempt.specialization_code)
+        if attempt.purpose == AttemptPurpose.verification:
+            return self._present_verification(attempt, prior, now)
         if attempt.purpose == AttemptPurpose.topic_block:
             observations = self._test_observations(attempt)
-            level = selection = self._skill_model.estimate(prior, observations)
+            selection = self._skill_model.estimate(prior, observations)
             blueprint = self._block_blueprint(attempt)
         else:
-            observations = _observations(self._attempts.chain(attempt))
+            observations = self._chain_observations(self._attempts.chain(attempt))
             threshold = self._mechanics.grade_thresholds[attempt.grade_code]
             selection = self._skill_model.estimate(selection_prior(prior, threshold), observations)
-            # Уровень темы до ответа — по тем же наблюдениям, но с априорным специализации.
-            level = self._skill_model.estimate(prior, observations)
             blueprint = self._blueprint(prior)
+        options, window = self._options(attempt, prior)
+        rng = random.Random(self._seeds.seed())
+        choice = self._selector.choose(blueprint, attempt.counts(), selection, options, window, rng)
+        if choice is None:
+            # Ответ останавливает попытку, когда спрашивать нечего, — сюда не доходит.
+            raise NoTestInProgress()
+        option = next(o for o in options if o.code == choice.code)
+        if choice.capped:
+            # В пустом окне под потолком нет ничего — это обычный холодный старт; в непустом —
+            # сигнал, что банк темы мал (§6).
+            log.log(
+                logging.WARNING if window else logging.INFO,
+                "Тема %s: под потолком показов семейств нет, взято наименее показанное %s "
+                "(%d попыток в окне)",
+                option.topic,
+                option.code,
+                window,
+            )
+        before = self._skill_model.estimate(prior, observations).topic(option.topic)
+        return self._show(attempt, option, before, now)
+
+    def _present_verification(self, attempt: Attempt, prior: Prior, now: datetime) -> Presentation:
+        """Задание проверочного блока: темы основной попытки, невиданные семейства первыми,
+        сложность — под `verification_target_p` при уровне основного теста (§8)."""
+        main = self._main_estimate(attempt, prior)
+        options, _ = self._options(attempt, prior)
+        rng = random.Random(self._seeds.seed())
+        code = verification_choice(
+            options,
+            {t: main.topic(t).mean for t in prior.topics},
+            attempt.counts(),
+            topics=prior.topics,
+            target_p=self._mechanics.verification_target_p,
+            top_k=self._mechanics.exposure_top_k,
+            rng=rng,
+        )
+        if code is None:
+            raise NoTestInProgress()
+        option = next(o for o in options if o.code == code)
+        return self._show(attempt, option, main.topic(option.topic), now)
+
+    def _options(self, attempt: Attempt, prior: Prior) -> tuple[list[Option], int]:
+        """Семейства в выдаче, ещё не показанные в попытке, с показами в окне и моментом, когда
+        кандидат видел их раньше; второе — попыток в окне показов."""
         shown_here = attempt.shown()
         params = self._calibration.current(
             [f for f in self._families(attempt, prior) if f.code not in shown_here]
@@ -448,26 +607,13 @@ class CandidatePath:
             )
             for code, p in params.items()
         ]
-        rng = random.Random(self._seeds.seed())
-        choice = self._selector.choose(blueprint, attempt.counts(), selection, options, window, rng)
-        if choice is None:
-            # Ответ останавливает попытку, когда спрашивать нечего, — сюда не доходит.
-            raise NoTestInProgress()
-        option = next(o for o in options if o.code == choice.code)
-        if choice.capped:
-            # В пустом окне под потолком нет ничего — это обычный холодный старт; в непустом —
-            # сигнал, что банк темы мал (§6).
-            log.log(
-                logging.WARNING if window else logging.INFO,
-                "Тема %s: под потолком показов семейств нет, взято наименее показанное %s "
-                "(%d попыток в окне)",
-                option.topic,
-                option.code,
-                window,
-            )
+        return options, window
+
+    def _show(
+        self, attempt: Attempt, option: Option, before: Normal, now: datetime
+    ) -> Presentation:
         seed = self._seeds.seed()
         instance = bank.get_family(option.code).instance(seed, self._runner)
-        before = level.topic(option.topic)
         return self._attempts.add_presentation(
             attempt,
             family_code=option.code,
@@ -486,13 +632,17 @@ class CandidatePath:
         chain: list[Attempt],
         prior: Prior,
         estimate: SkillEstimate,
-        observations: list[Observation],
         now: datetime,
     ) -> None:
-        """Остановка попытки: оценка теста по всему определению, решение (§4) и пересчёт
-        профиля навыков по всем ответам и достижениям ФСП (§11). Определение решает каскадом
-        вниз; попытка вверх — только правилом уверенности на свой грейд, провал категорию не
-        меняет."""
+        """Остановка попытки: оценка теста по всему определению, решение (§4), защита теста (§8)
+        и пересчёт профиля навыков по всем ответам и достижениям ФСП (§11). Определение решает
+        каскадом вниз; попытка вверх — только правилом уверенности на свой грейд, провал
+        категорию не меняет.
+
+        Ответы на семейства, скомпрометированные за время определения, помечаются выпавшими:
+        оценка шла уже без них. Ответы попытки получают флаги времени. Результат, который
+        присваивает категорию или повышает её, при сработавших сигналах не меняет категорию:
+        он ждёт проверочного блока, а наблюдения определения выходят из оценки и профиля."""
         overall = estimate.overall()
         thresholds = self._mechanics.grade_thresholds
         confidence = self._mechanics.grade_confidence
@@ -514,11 +664,16 @@ class CandidatePath:
             )
         attempt.finished_at = now
         attempt.overall = overall
-        answered = [p for a in chain for p in a.presentations if p.answered_at is not None]
+        dropped = self._drop_compromised(chain)
+        answered = [
+            p for a in chain for p in a.presentations if p.answered_at is not None and not p.dropped
+        ]
+        observations = [p.answered().observation() for p in answered]
         mine = [i for i, p in enumerate(answered) if p.attempt_id == attempt.id]
         rest = rest_levels(self._skill_model, prior, observations, mine)
         for i, level in zip(mine, rest, strict=True):
             answered[i].topic_theta_rest, answered[i].topic_theta_rest_sd = level.mean, level.sd
+        flagged = self._flag_times(attempt)
         match decision:
             case Assign(grade):
                 attempt.outcome, attempt.outcome_grade_code = AttemptOutcome.assigned, grade
@@ -529,14 +684,247 @@ class CandidatePath:
             case NoCategory():
                 attempt.outcome = AttemptOutcome.no_category
                 attempt.retest_after = now + timedelta(days=self._mechanics.no_category_retest_days)
+        # Присвоение и повышение — единственные исходы, которые меняют категорию: остальные
+        # проверять нечего.
+        if attempt.outcome == AttemptOutcome.assigned and self._suspicious(chain):
+            attempt.outcome = AttemptOutcome.verification
+            for link in chain:
+                link.withheld = True
         self._attempts.finish_attempt(attempt)
         self._attempts.save_rest_levels([answered[i] for i in mine])
+        self._attempts.save_protection([*dropped, *flagged])
+        if attempt.withheld:
+            self._attempts.withhold(chain, True)
         if attempt.outcome == AttemptOutcome.assigned:
-            if attempt.purpose == AttemptPurpose.grade_up:
-                self._attempts.raise_category(attempt, now)
-            else:
-                self._attempts.add_category(attempt, now)
+            self._apply(attempt, now, verified=False)
         self._refresh_profile(attempt, prior, now)
+
+    def _apply(self, attempt: Attempt, now: datetime, *, verified: bool) -> None:
+        """Категория по исходу попытки: присвоение определением или повышение попыткой вверх.
+        Новая оценка без проверочного блока снимает прежнюю пометку «подтверждён»."""
+        if attempt.purpose == AttemptPurpose.grade_up:
+            self._attempts.raise_category(attempt, now)
+        else:
+            self._attempts.add_category(attempt, now)
+        self._attempts.verify_category(attempt.user_id, now if verified else None)
+
+    def _drop_compromised(self, chain: Sequence[Attempt]) -> list[Presentation]:
+        """Ответы определения на семейства, которые детектор пометил, пока оно шло, — выпавшими
+        из оценки (§8). Уже остановленные определения не пересматриваются."""
+        answered = [p for a in chain for p in a.presentations if p.answered_at is not None]
+        compromised = self._calibration.compromised({p.family_code for p in answered})
+        dropped = [p for p in answered if p.family_code in compromised and not p.dropped]
+        for p in dropped:
+            p.dropped = True
+        return dropped
+
+    def _flag_times(self, attempt: Attempt) -> list[Presentation]:
+        """Флаги времени ответов попытки (§8): модель времени семейства — по верным ответам
+        других попыток; трудность — по оценке до ответа. В оценку время не входит."""
+        answered = [p for p in attempt.presentations if p.answered_at is not None]
+        hard_p = self._mechanics.rt_hard_item_p
+        # Модель времени нужна только там, где флаг возможен: верный ответ на трудное задание.
+        candidates = {p.family_code for p in answered if p.correct and _p_before(p) <= hard_p}
+        times = self._attempts.response_times(candidates, attempt.id)
+        models = {
+            code: ResponseTimes.fit(seconds, self._mechanics.rt_min_responses)
+            for code, seconds in times.items()
+        }
+        for p in answered:
+            assert p.correct is not None and p.response_time_ms is not None
+            p.time_flag = time_flag(
+                _p_before(p),
+                p.correct,
+                p.response_time_ms / 1000,
+                models.get(p.family_code),
+                hard_p=self._mechanics.rt_hard_item_p,
+                fast_z=self._mechanics.rt_fast_z,
+            )
+        return answered
+
+    def _suspicious(self, chain: Sequence[Attempt]) -> bool:
+        """Подозрительный результат (§8): сигналы — по всему определению, оно одно измерение."""
+        presentations = [p for a in chain for p in a.presentations]
+        consented = any(a.focus_consent for a in chain)
+        signals = AttemptSignals(
+            time_flags=sum(1 for p in presentations if p.time_flag),
+            focus_events=(sum(p.focus_events or 0 for p in presentations) if consented else None),
+        )
+        rule = SuspicionRule(
+            time_flags=self._mechanics.rt_flags_for_verification,
+            focus_events=self._mechanics.focus_events_for_verification,
+        )
+        return bool(suspicion(signals, rule))
+
+    def _finish_side(self, attempt: Attempt, prior: Prior, now: datetime) -> None:
+        """Остановка попытки вне пути: блока по теме или проверочного блока."""
+        if attempt.purpose == AttemptPurpose.verification:
+            self._finish_verification(attempt, prior, now)
+        else:
+            self._finish_block(attempt, prior, now)
+
+    def _finish_verification(self, block: Attempt, prior: Prior, now: datetime) -> None:
+        """Остановка проверочного блока — все задания отвечены, спрашивать нечего или прошёл
+        срок (§8). Неотвеченное к сроку — неверно: показанное без ответа и непоказанное до
+        `verification_items` с P(верно) = `verification_target_p`.
+
+        Совпал — отложенный результат присваивает или повышает категорию, наблюдения
+        определения возвращаются в оценку и профиль, категория — «уровень подтверждён»;
+        добровольный блок только ставит пометку. Расхождение — категория прежняя, отложенный
+        результат остаётся вне оценки и профиля. Наблюдения самого блока входят в профиль с
+        весом проверочного блока в обоих случаях."""
+        target = self._verification_target_of(block)
+        main = self._main_estimate(block, prior)
+        shown = [(p.topic_code, p.discrimination, p.difficulty) for p in block.presentations]
+        expired = self._expired(block, now)
+        unshown = max(0, self._mechanics.verification_items - len(shown)) if expired else 0
+        expectation = verification_expectation(
+            main, shown, unshown=unshown, target_p=self._mechanics.verification_target_p
+        )
+        correct = sum(1 for p in block.presentations if p.correct)
+        verdict = verification_verdict(
+            correct, expectation, mismatch_z=self._mechanics.verification_mismatch_z
+        )
+        block.finished_at = now
+        block.outcome = AttemptOutcome.confirmed if verdict.confirmed else AttemptOutcome.mismatch
+        block.outcome_grade_code = block.grade_code
+        block.expected_correct = verdict.expected
+        block.correct_count = verdict.correct
+        block.planned_items = verdict.items
+        answered = [p for p in block.presentations if p.answered_at is not None]
+        observations = [
+            *self._main_observations(block),
+            *(p.answered().observation() for p in answered),
+        ]
+        mine = range(len(observations) - len(answered), len(observations))
+        for p, level in zip(
+            answered, rest_levels(self._skill_model, prior, observations, mine), strict=True
+        ):
+            p.topic_theta_rest, p.topic_theta_rest_sd = level.mean, level.sd
+        self._attempts.finish_attempt(block)
+        self._attempts.save_rest_levels(answered)
+        if verdict.confirmed:
+            if target is not None and target.pending_verification:
+                chain = self._attempts.chain(target)
+                # Пока результат ждал блока, детектор мог пометить семейства: их ответы в
+                # профиль не возвращаются.
+                self._attempts.save_protection(self._drop_compromised(chain))
+                target.outcome = AttemptOutcome.assigned
+                self._attempts.finish_attempt(target)
+                self._attempts.withhold(chain, False)
+                self._apply(target, now, verified=True)
+            else:
+                self._attempts.verify_category(block.user_id, now)
+        self._refresh_profile(block, prior, now)
+
+    def _expire_verification(self, user_id: uuid.UUID, now: datetime) -> None:
+        """Проверочный блок, чей срок прошёл, останавливается при первом обращении кандидата —
+        под блокировкой кандидата: чтение пути и ответ не остановят блок дважды."""
+        attempt = self._attempts.attempt_in_progress(user_id)
+        if attempt is None or not self._expired(attempt, now):
+            return
+        self._attempts.lock_candidate(user_id)
+        attempt = self._attempts.attempt_in_progress(user_id)
+        if attempt is not None and self._expired(attempt, now):
+            self._finish_verification(attempt, self._prior(attempt.specialization_code), now)
+
+    @staticmethod
+    def _expired(attempt: Attempt, now: datetime) -> bool:
+        return (
+            attempt.deadline is not None and attempt.finished_at is None and now >= attempt.deadline
+        )
+
+    def _max_items(self, attempt: Attempt) -> int:
+        match attempt.purpose:
+            case AttemptPurpose.topic_block:
+                return self._mechanics.topic_block_items
+            case AttemptPurpose.verification:
+                return self._mechanics.verification_items
+            case _:
+                return self._mechanics.test_max_items
+
+    def _verification_target(self, state: PathState) -> Attempt | None:
+        """Что проверяет блок: результат попытки пути, который его ждёт, или попытка, чья оценка
+        стоит за категорией, — у добровольного блока."""
+        if state.attempt is not None and state.attempt.pending_verification:
+            return state.attempt
+        if state.category is not None and state.category.attempt_id is not None:
+            return self._attempts.attempt(state.category.attempt_id)
+        return None
+
+    def _verification_target_of(self, block: Attempt) -> Attempt | None:
+        if block.verifies_attempt_id is not None:
+            return self._attempts.attempt(block.verifies_attempt_id)
+        return self._verification_target(self._attempts.state(block.user_id))
+
+    def _main_observations(self, block: Attempt) -> list[Observation]:
+        """Наблюдения основного теста, с которым сравнивается блок: определение или попытка
+        вверх целиком, без выпавших ответов."""
+        target = self._verification_target_of(block)
+        if target is None:
+            return []
+        return self._chain_observations(self._attempts.chain(target))
+
+    def _main_estimate(self, block: Attempt, prior: Prior) -> SkillEstimate:
+        return self._skill_model.estimate(prior, self._main_observations(block))
+
+    def _verification_view(
+        self, state: PathState, user_id: uuid.UUID, now: datetime
+    ) -> VerificationView | None:
+        """Проверочный блок в кабинете: по результату, который его ждёт, или добровольный — у
+        категории без пометки «подтверждён». Повтор и добровольный — не раньше
+        `verification_retest_days` от старта прошлого блока."""
+        blocks = [
+            a for a in self._attempts.attempts(user_id) if a.purpose == AttemptPurpose.verification
+        ]
+        running = next((b for b in blocks if b.finished_at is None), None)
+        progress = None
+        if running is not None:
+            assert running.deadline is not None
+            in_progress = self._attempts.attempt_in_progress(user_id)
+            answered = 0
+            if in_progress is not None and in_progress.id == running.id:
+                answered = sum(1 for p in in_progress.presentations if p.answered_at is not None)
+            progress = VerificationProgress(
+                answered, self._mechanics.verification_items, running.deadline
+            )
+        pending = (
+            state.attempt
+            if state.attempt is not None and state.attempt.pending_verification
+            else None
+        )
+        if pending is not None:
+            grade: str | None = pending.outcome_grade_code
+            own = [b for b in blocks if b.verifies_attempt_id == pending.id]
+        elif state.category is not None and (state.category.verified_at is None or running):
+            grade = None
+            # Прошлые блоки проверяли другую оценку: итог — только с момента нынешней категории.
+            own = [b for b in blocks if b.started_at >= state.category.assigned_at]
+        else:
+            return None
+        finished = [b for b in own if b.finished_at is not None]
+        last = finished[-1] if finished else None
+        available_at = None
+        if running is None:
+            previous = own if pending is not None else blocks
+            if previous:
+                at = previous[-1].started_at + timedelta(
+                    days=self._mechanics.verification_retest_days
+                )
+                available_at = at if at > now else None
+        result = None
+        if last is not None:
+            assert last.finished_at is not None
+            assert last.expected_correct is not None and last.correct_count is not None
+            assert last.planned_items is not None
+            result = VerificationResult(
+                last.outcome == AttemptOutcome.confirmed,
+                last.expected_correct,
+                last.correct_count,
+                last.planned_items,
+                last.finished_at,
+            )
+        return VerificationView(grade, available_at, progress, result)
 
     def _finish_block(self, attempt: Attempt, prior: Prior, now: datetime) -> None:
         """Остановка блока по теме: оценка теста по всем ответам кандидата, итоговые оценки
@@ -599,6 +987,9 @@ class CandidatePath:
             attempts = self._path_attempts(user_id)
             changes = self._attempts.category_changes(user_id)
             grade_up = self._grade_up(grade, attempts, changes, now)
+            if state.attempt is not None and state.attempt.pending_verification:
+                # Пока прошлый результат ждёт проверочного блока, попытки вверх нет.
+                grade_up = None
             grade_down = grade_below(grade, self._mechanics.grade_thresholds)
             # Подсказка «грейд выше» — только пока она про доступную сейчас попытку вверх: после
             # перехода вниз или при сроке ожидания она устарела.
@@ -639,6 +1030,11 @@ class CandidatePath:
             history=history,
             # Блок идёт только при категории — на других шагах его не ищем.
             topic_block=self._block_progress(user_id) if stage == Stage.category else None,
+            verification=(
+                self._verification_view(state, user_id, now)
+                if stage in (Stage.category, Stage.verification)
+                else None
+            ),
         )
 
     def _block_progress(self, user_id: uuid.UUID) -> TopicBlockProgress | None:
@@ -700,6 +1096,16 @@ class CandidatePath:
             return bank.families_for_topics([attempt.topic_code])
         return _bank(prior)
 
+    def _chain_observations(self, chain: Sequence[Attempt]) -> list[Observation]:
+        """Оценка теста — по ответам всего определения с весом 1: дотест продолжает её. Ответы
+        на скомпрометированные семейства выпадают (§8): уже помеченные при остановке и те, что
+        детектор пометил, пока определение идёт."""
+        answered = [
+            p for a in chain for p in a.presentations if p.answered_at is not None and not p.dropped
+        ]
+        compromised = self._calibration.compromised({p.family_code for p in answered})
+        return [p.answered().observation() for p in answered if p.family_code not in compromised]
+
     def _test_observations(self, attempt: Attempt) -> list[Observation]:
         """Оценка теста для блока по теме: все ответы кандидата по специализации с весом 1 — тестов
         и блоков, по порядку ответа."""
@@ -725,15 +1131,10 @@ class CandidatePath:
         return blueprint_of(prior, self._mechanics)
 
 
+def _p_before(p: Presentation) -> float:
+    """P(верно) по оценке темы до ответа и параметрам семейства на момент показа."""
+    return sigmoid(p.discrimination * (p.topic_theta_before - p.difficulty))
+
+
 def _bank(prior: Prior) -> list[bank.Family]:
     return bank.families_for_topics(prior.topics)
-
-
-def _observations(chain: list[Attempt]) -> list[Observation]:
-    """Оценка теста — по ответам всего определения с весом 1: дотест продолжает её."""
-    return [
-        p.answered().observation()
-        for a in chain
-        for p in a.presentations
-        if p.answered_at is not None
-    ]

@@ -215,8 +215,10 @@ def respond(
         seconds = model.llm_median_seconds * math.exp(rng.gauss(0, model.llm_time_sd))
         return Response(rng.random() < p, seconds)
     p = guess + (1 - guess - model.slip) * sigmoid(params.discrimination * (truth.level[topic] - b))
-    if truth.persona == Persona.bank_leak and family in truth.leaked:
-        p = 1.0 if leaked_instance else p + model.leak_rho * (1 - p)
+    if truth.persona == Persona.bank_leak and leaked_instance:
+        p = 1.0
+    elif truth.persona == Persona.bank_leak and family in truth.leaked:
+        p = p + model.leak_rho * (1 - p)
     seconds = model.rt_median_seconds * math.exp(
         truth.speed + model.rt_difficulty_slope * b + rng.gauss(0, model.rt_noise_sd)
     )

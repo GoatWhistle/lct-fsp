@@ -489,6 +489,7 @@ def _entries_out(need: NeedSnapshot, entries: Sequence[SelectionEntry]) -> list[
                         low_data=fit.low_data,
                         regular_task=fit.regular_task,
                         fsp_confirmed=fit.fsp_confirmed,
+                        verification_confirmed=fit.verification_confirmed,
                     )
                     for fit in explanation.topics
                 ],

@@ -1,6 +1,6 @@
 import type { ReactNode } from "react"
 import { gradeIcon, specializationIcon } from "@/entities/catalog"
-import { GradeRuler, SkillList } from "@/entities/measure"
+import { GradeRuler, SkillList, TrustBadge } from "@/entities/measure"
 import type { CandidateCard as Card_ } from "@/shared/api"
 import { useCatalogNames, useTranslation } from "@/shared/i18n"
 import { Banner, Card, Chip, IconLabel } from "@/shared/ui"
@@ -52,6 +52,7 @@ function Summary({ card }: { readonly card: Card_ }) {
             {statusText}
           </IconLabel>
         )}
+        {card.category?.verified_at ? <TrustBadge source="verification" /> : null}
         {card.skill_profile === null ? null : (
           <GradeRuler level={card.skill_profile.overall} animate />
         )}

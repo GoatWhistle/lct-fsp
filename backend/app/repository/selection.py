@@ -82,6 +82,7 @@ class SqlCandidatePool:
                 SkillProfileTopic.theta_sd,
                 SkillProfileTopic.regular_task,
                 SkillProfileTopic.sources,
+                CandidateCategory.verified_at,
             )
             .join(GradeRow, GradeRow.code == CandidateCategory.grade_code)
             .join(
@@ -99,6 +100,7 @@ class SqlCandidatePool:
         topics: dict[uuid.UUID, dict[str, Normal]] = {}
         confirmed: dict[uuid.UUID, set[str]] = {}
         fsp_topics: dict[uuid.UUID, set[str]] = {}
+        verification_topics: dict[uuid.UUID, set[str]] = {}
         for (
             user_id,
             code,
@@ -112,6 +114,7 @@ class SqlCandidatePool:
             theta_sd,
             regular_task,
             sources,
+            verified_at,
         ) in levels:
             if user_id not in heads:
                 heads[user_id] = (
@@ -120,11 +123,14 @@ class SqlCandidatePool:
                     Normal(overall, overall_sd),
                 )
                 topics[user_id], confirmed[user_id], fsp_topics[user_id] = {}, set(), set()
+                verification_topics[user_id] = set()
             topics[user_id][topic] = Normal(theta, theta_sd)
             if regular_task:
                 confirmed[user_id].add(topic)
             if SignalSource.fsp in sources:
                 fsp_topics[user_id].add(topic)
+            if verified_at is not None and SignalSource.verification in sources:
+                verification_topics[user_id].add(topic)
 
         stacks = self._stacks(reach, technologies)
         expectations = self._expectations(reach)
@@ -147,6 +153,7 @@ class SqlCandidatePool:
                 regular_task_topics=frozenset(confirmed[user_id]),
                 claimed=claim.grade if (claim := claimed.get(user_id)) else None,
                 fsp_topics=frozenset(fsp_topics[user_id]),
+                verification_topics=frozenset(verification_topics[user_id]),
             )
             for user_id, (grade, last_signal_at, overall) in heads.items()
         ]
@@ -648,6 +655,7 @@ def explanation_json(explanation: Explanation) -> Json:
                 "low_data": t.low_data,
                 "regular_task": t.regular_task,
                 "fsp_confirmed": t.fsp_confirmed,
+                "verification_confirmed": t.verification_confirmed,
             }
             for t in explanation.topics
         ],
@@ -673,6 +681,8 @@ def explanation_of(data: Json) -> Explanation:
                 low_data=t["low_data"],
                 regular_task=t["regular_task"],
                 fsp_confirmed=t["fsp_confirmed"],
+                # Подборки до проверочного блока этого ключа не несут.
+                verification_confirmed=t.get("verification_confirmed", False),
             )
             for t in data["topics"]
         ),

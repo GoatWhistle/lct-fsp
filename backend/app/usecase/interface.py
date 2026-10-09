@@ -121,7 +121,10 @@ class AttemptReader(Protocol):
         self, user_id: uuid.UUID, specialization_code: str
     ) -> Sequence[AnsweredPresentation]:
         """Отвеченные предъявления кандидата по специализации во всех попытках — в порядке
-        ответа: по номеру попытки, внутри неё — по позиции."""
+        ответа: по номеру попытки, внутри неё — по позиции. Без наблюдений, которые не входят в
+        оценку и профиль (mechanics.md, §8): попыток, чей результат ждёт проверочного блока или
+        разошёлся с ним, и ответов на семейства, скомпрометированные за время попытки. Ответы
+        проверочного блока — с уровнем доверия `verification`."""
         ...
 
 
@@ -239,9 +242,18 @@ class AttemptRepository(AttemptReader, Protocol):
         now: datetime,
         purpose: AttemptPurpose = AttemptPurpose.determination,
         topic_code: str | None = None,
+        *,
+        focus_consent: bool = False,
+        verifies: Attempt | None = None,
+        deadline: datetime | None = None,
     ) -> Attempt:
         """Новая попытка; `continues` — попытка, чью оценку продолжает дотест каскада,
-        `topic_code` — тема блока по теме."""
+        `topic_code` — тема блока по теме, `focus_consent` — согласие на счётчики событий,
+        `verifies` и `deadline` — у проверочного блока: что он проверяет и его срок."""
+        ...
+
+    def attempt(self, attempt_id: uuid.UUID) -> Attempt:
+        """Попытка по id с предъявлениями."""
         ...
 
     def attempts(self, user_id: uuid.UUID) -> list[Attempt]:
@@ -266,11 +278,29 @@ class AttemptRepository(AttemptReader, Protocol):
         ...
 
     def save_answer(self, presentation: Presentation) -> None:
-        """Записывает ответ предъявления: response, correct, answered_at, response_time_ms."""
+        """Записывает ответ предъявления: response, correct, answered_at, response_time_ms и
+        счётчики событий."""
         ...
 
     def finish_attempt(self, attempt: Attempt) -> None:
-        """Записывает остановку: finished_at, оценку, исход, грейд исхода и дату повтора."""
+        """Записывает остановку: finished_at, оценку, исход, грейд исхода и дату повтора, у
+        проверочного блока — ожидаемое число верных, верных и заданий. Исход отложенного
+        результата меняется той же записью."""
+        ...
+
+    def save_protection(self, presentations: Sequence[Presentation]) -> None:
+        """Записывает флаги времени и выпавшие ответы предъявлений (mechanics.md, §8)."""
+        ...
+
+    def withhold(self, attempts: Sequence[Attempt], withheld: bool) -> None:
+        """Наблюдения попыток вне оценки и профиля или снова в них (mechanics.md, §8)."""
+        ...
+
+    def response_times(
+        self, family_codes: Collection[str], exclude_attempt_id: uuid.UUID
+    ) -> dict[str, list[float]]:
+        """Времена верных ответов на семейства, секунды, — без попытки `exclude_attempt_id`:
+        модель времени семейства (mechanics.md, §8)."""
         ...
 
     def save_rest_levels(self, presentations: Sequence[Presentation]) -> None:
@@ -288,6 +318,10 @@ class AttemptRepository(AttemptReader, Protocol):
 
     def lower_category(self, user_id: uuid.UUID, grade_code: str, now: datetime) -> None:
         """Грейд категории ниже — по той же оценке, без попытки; в журнал — смена вниз."""
+        ...
+
+    def verify_category(self, user_id: uuid.UUID, at: datetime | None) -> None:
+        """Пометка «уровень подтверждён проверочным блоком» с момента `at`; None — снять."""
         ...
 
     def category_changes(self, user_id: uuid.UUID) -> list[CategoryChange]:
@@ -362,6 +396,11 @@ class Calibration(Protocol):
         выдачи в ответе нет."""
         ...
 
+    def compromised(self, codes: Iterable[str]) -> set[str]:
+        """Семейства из `codes`, помеченные детектором дрейфа скомпрометированными: их ответы в
+        незавершённых попытках выпадают из оценки (mechanics.md, §8)."""
+        ...
+
     def lock(self, codes: Iterable[str]) -> None:
         """Блокировка строк семейств до конца единицы работы — по порядку кодов: так
         транзакции, которые берут несколько семейств, не ждут друг друга по кругу."""
@@ -385,6 +424,24 @@ class Calibration(Protocol):
     def expert_gaps(self, families: Sequence[bank.Family]) -> dict[str, ExpertGap]:
         """Семейства, чья опорная сложность разошлась с экспертной больше допустимого, в обе
         стороны: легче — выведены из выдачи, тяжелее — в выдаче с пометкой."""
+        ...
+
+
+class DriftDetector(Protocol):
+    """Детектор утечки семейства (mechanics.md, §8). Сейчас — risk-adjusted Bernoulli CUSUM от
+    опорных параметров (`app.adapter.drift`); порог и сдвиг реализация получает через
+    конструктор. Идёт после фиксации ответа, как калибровка: ответ кандидата не ждёт его."""
+
+    def observe(
+        self,
+        specialization: str,
+        family_code: str,
+        level_before: Normal,
+        correct: bool,
+        at: datetime,
+    ) -> bool:
+        """Шаг по ответу; True — семейство только что помечено скомпрометированным и выведено
+        из выдачи."""
         ...
 
 

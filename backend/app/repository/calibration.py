@@ -26,7 +26,9 @@ def _state_of(row: FamilyCalibration) -> CalibratedFamily:
         responses=row.responses,
         reference=reference,
         refitted_at=row.refitted_at,
-        in_rotation=row.status == FamilyStatus.active,
+        in_rotation=row.status != FamilyStatus.review,
+        drift=row.drift_cusum,
+        compromised_at=row.compromised_at,
     )
 
 
@@ -69,7 +71,12 @@ class SqlCalibrationRepository:
             row.reference_discrimination = family.reference.discrimination
             row.reference_difficulty = family.reference.difficulty
         row.refitted_at = family.refitted_at
-        row.status = FamilyStatus.active if family.in_rotation else FamilyStatus.review
+        row.drift_cusum = family.drift
+        row.compromised_at = family.compromised_at
+        if family.is_compromised:
+            row.status = FamilyStatus.compromised
+        else:
+            row.status = FamilyStatus.active if family.in_rotation else FamilyStatus.review
         self.session.flush()
 
     def links(self, specialization: str) -> tuple[Link, Link]:

@@ -201,6 +201,8 @@ class PoolCandidate:
     fsp_topics: frozenset[str] = frozenset()
     # Темы, по которым в профиль вошли ответы на регулярные задания.
     regular_task_topics: frozenset[str] = frozenset()
+    # Темы с наблюдениями проверочного блока — у категории, подтверждённой блоком (§8).
+    verification_topics: frozenset[str] = frozenset()
 
 
 @dataclass(frozen=True)
@@ -358,6 +360,8 @@ class TopicExplanation:
     regular_task: bool = False
     # Среди источников уровня темы — результат ФСП.
     fsp_confirmed: bool = False
+    # Уровень категории подтверждён проверочным блоком, и его задания были по теме.
+    verification_confirmed: bool = False
 
 
 @dataclass(frozen=True)
@@ -382,9 +386,10 @@ def explain(
     rules: SelectionRules,
     regular_task_topics: frozenset[str] = frozenset(),
     fsp_topics: frozenset[str] = frozenset(),
+    verification_topics: frozenset[str] = frozenset(),
 ) -> Explanation:
-    """Вклады из скора; `regular_task_topics` и `fsp_topics` — темы, уровень которых подтверждён
-    регулярным заданием и ФСП."""
+    """Вклады из скора; `regular_task_topics`, `fsp_topics` и `verification_topics` — темы,
+    уровень которых подтверждён регулярным заданием, ФСП и проверочным блоком."""
     return Explanation(
         topics=tuple(
             TopicExplanation(
@@ -397,6 +402,7 @@ def explain(
                 low_data=fit.level.sd > rules.low_data_sd,
                 regular_task=fit.topic in regular_task_topics,
                 fsp_confirmed=fit.topic in fsp_topics,
+                verification_confirmed=fit.topic in verification_topics,
             )
             for fit in match.topics
         ),
@@ -503,6 +509,7 @@ def arrange(
                         rules,
                         item.candidate.regular_task_topics,
                         item.candidate.fsp_topics,
+                        item.candidate.verification_topics,
                     ),
                     stale=is_stale(item.candidate.last_signal_at, now, rules.stale_after),
                 )

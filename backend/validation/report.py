@@ -49,7 +49,16 @@ from validation.baselines import (
 )
 from validation.e5 import MODEL as E5_MODEL
 from validation.e5 import REVISION as E5_REVISION
-from validation.figures import Panel, Series, ecdf_svg, reliability_svg
+from validation.figures import (
+    Curve,
+    CurvePanel,
+    Panel,
+    Series,
+    curves_svg,
+    ecdf_svg,
+    reliability_svg,
+)
+from validation.llm_attack import CLAIMED
 from validation.main import Catalog, catalog
 from validation.metrics import (
     cohen_kappa,
@@ -75,6 +84,27 @@ from validation.population import (
     label,
     snapshot,
 )
+from validation.protection import (
+    D3,
+    DRIFT_GRID,
+    LEAKS,
+    MAIN_LEAK,
+    MAIN_RHO,
+    RHOS,
+    SCHEMES,
+    AttackSummary,
+    Helper,
+    ProtectionJob,
+    ProtectionRun,
+    ProtectionScale,
+    Twins,
+    rank_of,
+    run_protection,
+    summarize,
+    tune_threshold,
+)
+from validation.protection import flagged_share as drift_flagged
+from validation.recorded import Recording
 from validation.simulate import (
     CORRUPTED_SHARE,
     Adaptivity,
@@ -105,6 +135,7 @@ SETS = ("d1", "d2")
 # M21 план считает только на D1.
 FIT_SETS = ("d1",)
 PLAN_SCALE = Scale()
+PLAN_PROTECTION = ProtectionScale()
 TOP = 10
 
 # Метрики плана: номер → название и раздел плана со ссылкой.
@@ -138,10 +169,10 @@ PENDING: dict[str, str] = {
     "M6": "нет рыночной симуляции приглашений",
     "M7": "нет файла модели принятия: `uv run python -m validation acceptance`",
     "M8": "нет проверки вкладов объяснений на выдачах стенда",
-    "M14": "нет атаки утечкой по схемам S1–S3",
-    "M15": "нет прогона детектора утечки",
-    "M16": "нет прогона LLM-помощника и D7",
-    "M17": "нет прогона проверочного блока",
+    "M14": "прогон без экспериментов защиты",
+    "M15": "прогон без экспериментов защиты",
+    "M16": "прогон без экспериментов защиты",
+    "M17": "прогон без экспериментов защиты",
     "M18": "нет набора D6",
     "M22": "нет прогона l_z попытки; разбор резюме — нет набора D6",
     "M23": "нет замера времени подборки на 1000 кандидатах",
@@ -176,6 +207,9 @@ class DatasetRuns:
     fit: dict[str, ItemFit] = field(default_factory=dict)
     # Отложенные пары модели принятия (M7) с решениями кандидатов.
     offers: tuple[Offer, ...] = ()
+    # Эксперименты защиты по специализациям (M14–M17); пусто — прогон без них.
+    protection: dict[str, ProtectionRun] = field(default_factory=dict)
+
     twins: tuple[Twin, ...] = ()
     # Базовая линия → (потребность, кандидат или двойник) → скор. Базовой линии без данных
     # здесь нет.
@@ -193,6 +227,9 @@ class Runs:
     scale: Scale
     specializations: tuple[str, ...]
     sets: dict[str, DatasetRuns]
+    protection_scale: ProtectionScale = PLAN_PROTECTION
+    # Честный поток детектора на D3 по специализациям — подбор `drift_cusum_h` (M15).
+    tuning: dict[str, ProtectionRun] = field(default_factory=dict)
     # Посчитанные разделы — `computed`.
     memo: dict[str, "Section"] = field(default_factory=dict, compare=False, repr=False)
 
@@ -239,17 +276,22 @@ def collect(
     specializations: Sequence[str] | None = None,
     workers: int | None = None,
     baselines: BaselineSource | None = None,
+    protection: ProtectionScale | None = PLAN_PROTECTION,
+    llm: Recording | None = None,
 ) -> Runs:
     """Задачи прогона в пуле процессов; результат от числа процессов не зависит: каждая задача
-    собирает свой стенд из сида набора. `baselines` — базовые линии B1–B3 по набору; без них
-    сравнение с ними — «ожидает данных»."""
+    собирает свой стенд из сида набора. `protection` — масштаб экспериментов защиты, None — без
+    них; `llm` — запись ответов модели для D7."""
     known = catalog()
     codes = tuple(specializations or known.specializations)
     before = mechanics.model_copy(update={"level_sd_inflation": 1.0})
     generated: dict[str, Dataset] = {}
     doubles: dict[str, tuple[Twin, ...]] = {}
     offered: dict[str, list[SyntheticNeed]] = {}
-    futures: dict[tuple[str, str, str], Future[SpecRun] | Future[Adaptivity] | Future[ItemFit]] = {}
+    futures: dict[
+        tuple[str, str, str],
+        Future[SpecRun] | Future[Adaptivity] | Future[ItemFit] | Future[ProtectionRun],
+    ] = {}
     with ProcessPoolExecutor(workers or max(1, (os.cpu_count() or 2) - 1)) as pool:
         for name in sets:
             generator, dataset, doubles[name] = prepared(name, mechanics, scale, codes, known)
@@ -274,6 +316,25 @@ def collect(
                 futures[name, code, "cold"] = pool.submit(run_cold, job)
                 if name in FIT_SETS:
                     futures[name, code, "fit"] = pool.submit(run_fit, job)
+                if protection is not None:
+                    futures[name, code, "protection"] = pool.submit(
+                        run_protection,
+                        ProtectionJob(
+                            DATASETS[name],
+                            code,
+                            mechanics,
+                            protection,
+                            tuple(t for t in job.truths if t.persona == Persona.llm_helper),
+                            llm_answers=dict(llm.answers) if llm and name == "d1" else None,
+                            llm_model=llm.model if llm else None,
+                        ),
+                    )
+        if protection is not None:
+            for code in codes:
+                futures["d3", code, "tuning"] = pool.submit(
+                    run_protection,
+                    ProtectionJob(D3, code, mechanics, protection, full=False),
+                )
         done = {key: f.result() for key, f in futures.items()}
 
     def part(name: str, kind: str) -> dict:  # type: ignore[type-arg]
@@ -294,6 +355,7 @@ def collect(
             part(name, "before"),
             part(name, "cold"),
             pairs,
+            protection=part(name, "protection") if protection is not None else {},
             fit=part(name, "fit") if name in FIT_SETS else {},
             twins=doubles[name],
             offers=tuple(make_offers(dataset, needs, scored, mechanics, HOLDOUT_PAIRS)),
@@ -301,7 +363,16 @@ def collect(
         if baselines is not None:
             data = score_baselines(data, known, baselines)
         found[name] = data
-    return Runs(mechanics, known, scale, codes, found)
+    tuning = {code: done["d3", code, "tuning"] for code in codes} if protection else {}
+    return Runs(
+        mechanics,
+        known,
+        scale,
+        codes,
+        found,
+        protection or PLAN_PROTECTION,
+        tuning,  # type: ignore[arg-type]
+    )
 
 
 def prepared(
@@ -1511,6 +1582,368 @@ def m13(runs: Runs) -> Section:
     return judged("M13", body, verdicts)
 
 
+# --- M14–M17: защита ---------------------------------------------------------------------------
+
+
+def _protection(data: DatasetRuns) -> list[ProtectionRun]:
+    return list(data.protection.values())
+
+
+def _attack(runs_: Sequence[ProtectionRun], scheme: str, leak: float, rho: float) -> list[Twins]:
+    return [
+        t
+        for run in runs_
+        for a in run.attacks
+        if (a.scheme, a.leak, a.rho) == (scheme, leak, rho)
+        for t in a.twins
+    ]
+
+
+def _leak_cell(summary: AttackSummary) -> str:
+    return f"{f(summary.gain, 2)} · {f(summary.excess, 2)}"
+
+
+@section("M14")
+def m14(runs: Runs) -> Section:
+    if not any(d.protection for d in runs.sets.values()):
+        return pending("M14")
+    mechanics = runs.mechanics
+    verdicts, parts, figures = {}, [], {}
+    for name, data in runs.sets.items():
+        found = _protection(data)
+        if not found:
+            continue
+        summaries = {
+            (scheme, leak, rho): summarize(_attack(found, scheme, leak, rho), mechanics)
+            for scheme in SCHEMES
+            for leak, rho in [(leak, MAIN_RHO) for leak in LEAKS]
+            + [(MAIN_LEAK, rho) for rho in RHOS]
+        }
+        twins = len(_attack(found, "S3", MAIN_LEAK, MAIN_RHO))
+        main = {s: summaries[s, MAIN_LEAK, MAIN_RHO] for s in SCHEMES}
+        s1, s2, s3 = main["S1"], main["S2"], main["S3"]
+        checks = [
+            ("избыточная доля S3 ≤ 0,10", s3.excess <= 0.10),
+            ("прирост S3 ≤ 0,25", s3.gain <= 0.25),
+            ("прирост S3 ≤ ½ S2", s3.gain <= s2.gain / 2),
+            ("прирост S3 ≤ ¼ S1", s3.gain <= s1.gain / 4),
+        ]
+        verdicts[name] = verdict_of(ok for _, ok in checks)
+        curve = table(
+            ["Схема", *(f"слито {round(leak * 100)} %" for leak in LEAKS)],
+            (
+                [scheme, *(_leak_cell(summaries[scheme, leak, MAIN_RHO]) for leak in LEAKS)]
+                for scheme in SCHEMES
+            ),
+        )
+        sensitivity = table(
+            ["Схема", *(f"ρ = {f(rho, 2)}" for rho in RHOS)],
+            (
+                [scheme, *(_leak_cell(summaries[scheme, MAIN_LEAK, rho]) for rho in RHOS)]
+                for scheme in SCHEMES
+            ),
+        )
+        detail = table(
+            ["Схема", "Прирост θ̄", "Выше двойника", "Повтор двойника выше", "Избыточная доля"],
+            (
+                [s, f(v.gain, 2), f(v.raised, 3), f(v.baseline, 3), f(v.excess, 3)]
+                for s, v in main.items()
+            ),
+        )
+        early = [run.early for run in found if run.early is not None]
+        leaked = sum(e.leaked for e in early)
+        clean = sum(e.clean for e in early)
+        caught = sum(e.leaked_caught for e in early)
+        clean_caught = sum(e.clean_caught for e in early)
+        figure = f"m14-{name}.svg"
+        figures[figure] = curves_svg(
+            f"M14, {name.upper()}: атака утечкой, ρ = {f(MAIN_RHO, 2)}",
+            [
+                CurvePanel(
+                    "Прирост θ̄ читера",
+                    "доля слитого банка",
+                    "прирост θ̄",
+                    [
+                        Curve(s, [(leak, summaries[s, leak, MAIN_RHO].gain) for leak in LEAKS])
+                        for s in SCHEMES
+                    ],
+                    threshold=0.25,
+                ),
+                CurvePanel(
+                    "Избыточная доля повышенных",
+                    "доля слитого банка",
+                    "доля",
+                    [
+                        Curve(s, [(leak, summaries[s, leak, MAIN_RHO].excess) for leak in LEAKS])
+                        for s in SCHEMES
+                    ],
+                    threshold=0.10,
+                ),
+            ],
+        )
+        parts.append(
+            f"**{name.upper()}.** Пар «читер — двойник» в условии: {twins}.\n\n"
+            f"Кривая атаки при ρ = {f(MAIN_RHO, 2)} — в ячейке прирост θ̄ · избыточная доля:\n\n"
+            f"{curve}\n\n![M14, {name.upper()}]({FIGURES}/{figure})\n\n"
+            f"Слито {round(MAIN_LEAK * 100)} %, ρ = {f(MAIN_RHO, 2)} — по чему судит порог:\n\n"
+            f"{detail}\n\n"
+            + "; ".join(f"{label_} — {mark(ok)}" for label_, ok in checks)
+            + f".\n\nЧувствительность к ρ при {round(MAIN_LEAK * 100)} %:\n\n{sensitivity}\n\n"
+            f"Утечка до калибровки — 20 % читеров со слитыми {round(MAIN_LEAK * 100)} % банка с "
+            f"самого прогрева: сверка опорной сложности с экспертной вывела из выдачи {caught} из "
+            f"{leaked} слитых семейств ({f(caught / leaked if leaked else math.nan, 2)}) и "
+            f"{clean_caught} из {clean} неслитых "
+            f"({f(clean_caught / clean if clean else math.nan, 2)})."
+        )
+    body = (
+        "Схемы: S1 — общий фиксированный тест, одни экземпляры у всех, грейд по доле верных с "
+        "отсечками B0; S2 — общий бланк семейств со своими экземплярами, оценка IRT и правило "
+        "уверенности; S3 — наш тест целиком: определение с каскадом, детектор дрейфа на потоке, "
+        "флаги и проверочный блок, грейд — категория после блока. Банк прогрет на честных и "
+        "заморожен, утечка — после разогрева; у S1 слита доля заданий бланка, у S2 и S3 — доля "
+        "семейств банка. Читер решает слитый экземпляр всегда, свежий экземпляр слитого семейства "
+        "— с p' = p + ρ(1 − p), остальное — как честный. На каждого читера — честный двойник с "
+        "той же истиной и повтор двойника; у S3 в потоке ещё два честных попутчика на читера — "
+        "читеров 20 %. Прирост θ̄ — среднее θ̂ читера минус θ̂ двойника; избыточная доля — доля "
+        "читеров с категорией выше двойника минус та же доля у повтора двойника. Порог — для S3 "
+        "при 30 % и ρ = 0,5.\n\n"
+        + "\n\n".join(parts)
+        + "\n\n**Разбор.** S3 сдерживает категорию лучше S2 — избыточная доля ниже, правило "
+        "уверенности и каскад не дают слабому приросту превратиться в грейд, — но прирост θ̄ у S3 "
+        "почти такой же, как у S2: утечку семейства в S3 должен снимать детектор дрейфа, а при "
+        "пороге, подобранном на D3, он слитые семейства почти не ловит (M15). Проверочный блок "
+        "читера не останавливает: сигналы блока — быстрые ответы и события вставки и фокуса, а "
+        "читер со слитым банком отвечает в обычном темпе. Невиданные кандидатом семейства блока — "
+        "не то же, что неслитые: при утечке 30 % банка часть заданий блока тоже слита. S1 сильнее "
+        "всех теряет на утечке — слитый экземпляр решается всегда, — поэтому порог «прирост S3 не "
+        "выше четверти S1» не проходит из-за абсолютного прироста S3, а не из-за S1."
+    )
+    return judged("M14", body, verdicts, figures)
+
+
+@section("M15")
+def m15(runs: Runs) -> Section:
+    if not any(d.protection for d in runs.sets.values()):
+        return pending("M15")
+    h = runs.mechanics.drift_cusum_h
+    window_leak = runs.protection_scale.leak_responses
+    window_honest = runs.protection_scale.honest_responses
+    verdicts, parts = {}, []
+    for name, data in runs.sets.items():
+        found = _protection(data)
+        if not found:
+            continue
+        leaked = [d for run in found for d in run.leak_drift if d.leaked]
+        honest = [d for run in found for d in run.honest_drift]
+        tpr = drift_flagged(leaked, h, window_leak)
+        fpr = drift_flagged(honest, h, window_honest)
+        verdicts[name] = verdict_of([tpr >= 0.80, fpr <= 0.05])
+        rows = [
+            [
+                runs.catalog.specializations[run.specialization].name,
+                f(drift_flagged([d for d in run.leak_drift if d.leaked], h, window_leak), 2),
+                str(sum(d.leaked for d in run.leak_drift)),
+                f(drift_flagged(run.honest_drift, h, window_honest), 3),
+                str(len(run.honest_drift)),
+            ]
+            for run in found
+        ]
+        short_leak = sum(d.responses < window_leak for d in leaked)
+        short_honest = sum(d.responses < window_honest for d in honest)
+        parts.append(
+            f"**{name.upper()}.** TPR — {f(tpr, 2)} ({len(leaked)} слитых семейств), FPR — "
+            f"{f(fpr, 3)} ({len(honest)} семейств).\n\n"
+            + table(
+                [
+                    "Специализация",
+                    "TPR",
+                    "Слитых семейств",
+                    "FPR",
+                    "Семейств в честном потоке",
+                ],
+                rows,
+            )
+            + f"\n\nНе набрали окна: слитых — {short_leak} из {len(leaked)} (меньше "
+            f"{window_leak} ответов), в честном потоке — {short_honest} из {len(honest)} (меньше "
+            f"{window_honest}). Не набравшее окна и не сработавшее семейство в долю не входит: "
+            "у него не было возможности сработать."
+        )
+    tuning = ""
+    if runs.tuning:
+        honest_d3 = [d for run in runs.tuning.values() for d in run.honest_drift]
+        chosen = tune_threshold(honest_d3, window_honest)
+        grid = [g for g in DRIFT_GRID if g <= max(h, chosen or h) + 1.0]
+        tuning = (
+            "\n\nПодбор порога на D3 (сид 7, только честные): наименьшее значение сетки с FPR не "
+            f"выше 0,05 — **{f(chosen, 1) if chosen is not None else 'нет'}**, в конфиге — "
+            f"{f(h, 1)}.\n\n"
+            + table(
+                ["`drift_cusum_h`", *(f(g, 1) for g in grid)],
+                [["FPR на D3", *(f(drift_flagged(honest_d3, g, window_honest), 3) for g in grid)]],
+            )
+        )
+    body = (
+        f"Детектор — risk-adjusted Bernoulli CUSUM от опорных параметров, `drift_cusum_h` = "
+        f"{f(h, 1)}, `drift_shift` = {f(runs.mechanics.drift_shift, 1)}. TPR — доля слитых "
+        f"семейств, у которых CUSUM превысил порог в первых "
+        f"{runs.protection_scale.leak_responses} ответах после утечки: поток попыток с 20 % "
+        f"читеров, слито {round(MAIN_LEAK * 100)} % банка, ρ = {f(MAIN_RHO, 2)}. FPR — доля "
+        f"семейств с тревогой за {runs.protection_scale.honest_responses} ответов, когда "
+        "отвечают только честные кандидаты набора. CUSUM считается по записанным ответам той же "
+        "функцией, что у детектора, без вывода семейств из выдачи: так один поток даёт результат "
+        "при любом пороге. Детектор работает только у семейств с опорными параметрами — после "
+        "переоценки, у якорей — замороженными. Порог плана: TPR не ниже 0,80, FPR не выше 0,05.\n\n"
+        + "\n\n".join(parts)
+        + tuning
+        + "\n\n"
+        "**Разбор.** Детектор не отличает утечку от ошибки самих опорных параметров. При 20 %"
+        " читеров и ρ = 0,5 слитое семейство становится легче в среднем на несколько "
+        "процентных пунктов доли верных — это сдвиг порядка 0,2–0,3 логита. Опорная сложность"
+        " после переоценки на `calibration_refit_min_responses` ответах ошибается на столько "
+        "же: RMSE около 0,25 (M12). Модель ответа стенда к тому же не 2PL — угадывание и "
+        "промахи, — и честное семейство с такой ошибкой копит CUSUM так же, как слитое. "
+        f"Порог, при котором ложных тревог за {window_honest} ответов не больше 5 %, — "
+        f"{f(h, 1)} вместо прежних 4, и при нём за {window_leak} ответов срабатывает малая доля "
+        "слитых семейств. Детектор ловит "
+        "крупную утечку — большую долю читеров или почти полное знание семейства; против "
+        "утечки, размазанной по многим кандидатам, нужен сигнал по кандидату, а не по "
+        "семейству — согласие попытки с моделью (M22)."
+    )
+    return judged("M15", body, verdicts)
+
+
+def _overestimated(helpers: Sequence[Helper], mechanics: Mechanics, attr: str) -> list[Helper]:
+    rank = rank_of(mechanics)
+    return [h for h in helpers if rank[getattr(h, attr)] > rank[h.truth]]
+
+
+@section("M16")
+def m16(runs: Runs) -> Section:
+    data = runs.sets.get("d1")
+    if data is None or not data.protection:
+        return pending("M16")
+    mechanics = runs.mechanics
+    found = _protection(data)
+    online = [h for run in found for h in run.helpers]
+    offline = [h for run in found for h in run.helpers_offline]
+    over = _overestimated(online, mechanics, "before")
+    flagged = sum(h.flagged for h in over) / len(over) if over else math.nan
+    after_with = len(_overestimated(online, mechanics, "after")) / len(online)
+    after_without = len(_overestimated(offline, mechanics, "after")) / len(offline)
+    ok = flagged >= 0.70
+    part_a = (
+        "**(а) Персонаж D1.** Помощник решает задание с P = σ(1,5 (1 − b*)) за время около "
+        f"25 секунд. Попыток: {len(online)}; категория выше истины до проверочного блока — "
+        f"{f(len(over) / len(online), 3)}; среди них помечено — **{f(flagged, 3)}** (порог — не "
+        f"ниже 0,70: {mark(ok)}). Завышение после блока: помощник доступен и в блоке — "
+        f"{f(after_with, 3)}; в блоке помощи нет — {f(after_without, 3)}. Если помощник доступен "
+        "и в блоке, блок его почти не ловит — это ожидаемое ограничение неподнадзорной "
+        "проверки.\n\n"
+        "**Разбор.** Завышение у помощника — у кандидатов с истинным уровнем стажёра и ниже: "
+        "помощник решает задания примерно до middle, и тест поднимает их до junior. Задания у "
+        "такой оценки лёгкие, честный ответ на них и так быстрый, и 25 секунд аномалией не "
+        "выглядят; флаг времени срабатывает только на верный ответ на трудное для кандидата "
+        "задание. Помечаются попытки, где тест успел дать помощнику трудные задания.\n\n"
+        + table(
+            ["Истинный грейд", "Попыток", "Завышено до блока", "Помечено", "Завышено после блока"],
+            _helper_rows(online, mechanics),
+        )
+    )
+    part_b = "**(б) D7 — Claude Sonnet через Claude Agent SDK.** " + _d7(runs)
+    body = part_a + "\n\n" + part_b
+    return Section("M16", body, f"(а) {PASSED if ok else FAILED}; (б) без порога", {}, {})
+
+
+def _helper_rows(helpers: Sequence[Helper], mechanics: Mechanics) -> list[list[str]]:
+    rank = rank_of(mechanics)
+    rows = []
+    for grade in [None, *grades_by_threshold(mechanics.grade_thresholds)]:
+        group = [h for h in helpers if h.truth == grade]
+        if not group:
+            continue
+        over = [h for h in group if rank[h.before] > rank[h.truth]]
+        rows.append(
+            [
+                grade or "ниже стажёра",
+                str(len(group)),
+                str(len(over)),
+                str(sum(h.flagged for h in over)),
+                str(sum(rank[h.after] > rank[h.truth] for h in group)),
+            ]
+        )
+    return rows
+
+
+def _d7(runs: Runs) -> str:
+    data = runs.sets.get("d1")
+    found = list(data.protection.values()) if data else []
+    attempts = [a for run in found for a in run.llm]
+    missing = sum(run.llm_missing for run in found)
+    if not attempts:
+        return f"{WAITING.capitalize()}: нет записи ответов модели — команда `llm --record`."
+    model = next((run.llm_model for run in found if run.llm_model), "модель")
+    counts = Counter((a.specialization, a.before, a.after, a.flagged) for a in attempts)
+    flagged = sum(a.flagged for a in attempts) / len(attempts)
+    rows = [
+        [
+            runs.catalog.specializations[code].name,
+            before or "без категории",
+            "да" if flag else "нет",
+            after or "без категории",
+            str(n),
+        ]
+        for (code, before, after, flag), n in sorted(
+            counts.items(), key=lambda item: (item[0][0], str(item[0][1]), str(item[0][2]))
+        )
+    ]
+    note = (
+        f" В записи не нашлось ответов на {missing} заданий — они засчитаны неверными, запись "
+        "надо дописать."
+        if missing
+        else ""
+    )
+    return (
+        f"Модель {model} из записи ответов, время — время ответа модели плюс 10 секунд на "
+        f"копирование. Попыток: {len(attempts)}, по {len(attempts) // 2} на специализацию, "
+        f"заявлен {CLAIMED}. Помечено и отправлено на проверочный блок — **{f(flagged, 2)}**. "
+        "Цифры — как есть, без порога: истинного уровня у модели нет. Модель отвечает "
+        "уверенно и быстро на трудные задания, поэтому флаги времени ставятся почти всегда, но "
+        "проверочный блок она решает так же, как тест, и категория после блока остаётся. Против "
+        "сильной модели неподнадзорный блок не защищает — это ограничение из mechanics.md, §8; "
+        "противовес — уровни доверия и ФСП."
+        + note
+        + "\n\n"
+        + table(
+            ["Специализация", "Грейд до блока", "Помечено", "Категория после блока", "Попыток"],
+            rows,
+        )
+    )
+
+
+@section("M17")
+def m17(runs: Runs) -> Section:
+    if not any(d.protection for d in runs.sets.values()):
+        return pending("M17")
+    verdicts, rows = {}, []
+    for name, data in runs.sets.items():
+        found = _protection(data)
+        if not found:
+            continue
+        attempts = sum(run.honest_blocks.attempts for run in found)
+        blocks = sum(run.honest_blocks.blocks for run in found)
+        mismatches = sum(run.honest_blocks.mismatches for run in found)
+        block_share, mismatch_share = blocks / attempts, mismatches / attempts
+        verdicts[name] = verdict_of([block_share <= 0.10, mismatch_share <= 0.01])
+        rows.append([name.upper(), str(attempts), f(block_share, 3), f(mismatch_share, 3)])
+    body = (
+        "Честные определения из потока S3 M14 (слито 30 %, ρ = 0,5): двойники и попутчики "
+        "читеров. Доля определений с проверочным блоком и доля расхождений среди всех честных "
+        "определений. Порог: блок не чаще 0,10, расхождение не чаще 0,01.\n\n"
+        + table(["Набор", "Честных определений", "С блоком", "Расхождение"], rows)
+    )
+    return judged("M17", body, verdicts)
+
+
 # --- M20, D4 -----------------------------------------------------------------------------------
 
 
@@ -1775,20 +2208,21 @@ def m19(runs: Runs) -> Section:
         ok.append(drop <= 0.2)
         rows.append([label_, f(one), f(two), f(drop, 2), mark(drop <= 0.2)])
     shifted = {
-        m: computed(runs, m).sets.get("d2", WAITING) for m in ("M1", "M2", "M3", "M4", "M9", "M10")
+        m: computed(runs, m).sets.get("d2", WAITING)
+        for m in ("M1", "M2", "M3", "M4", "M9", "M10", "M14", "M15")
     }
     failed = [m for m, v in shifted.items() if v == FAILED]
     rows += [[f"Порог {m} на D2", "", "", "", mark(v != FAILED)] for m, v in shifted.items()]
     body = (
         "Порог: пороги метрик M1–M4, M9, M10, M14, M15 выполняются и на D2; относительная "
-        "деградация nDCG@10 и точного совпадения грейда не больше 20 %. M14 и M15 ждут "
-        "данных.\n\n" + table(["Показатель", "D1", "D2", "Деградация", "Выполнено"], rows)
+        "деградация nDCG@10 и точного совпадения грейда не больше 20 %.\n\n"
+        + table(["Показатель", "D1", "D2", "Деградация", "Выполнено"], rows)
     )
     if failed or not all(ok):
         reasons = [*(f"порог {m} на D2" for m in failed)]
         reasons += ["деградация больше 20 %"] if not all(ok) else []
         return Section("M19", body, f"{FAILED}: {', '.join(reasons)}")
-    waiting = [m for m, v in shifted.items() if v == WAITING] + ["M14", "M15"]
+    waiting = [m for m, v in shifted.items() if v == WAITING]
     return Section("M19", body, f"{WAITING}: {', '.join(waiting)}")
 
 

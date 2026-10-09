@@ -75,9 +75,11 @@ EXPLANATION = Explanation(
 EXPLANATION_JSON = (
     '{"topics": [{"topic": "qa.api", "theta": 1.0, "theta_sd": 0.4, "probability": 0.9, '
     '"contribution": 0.6, "verdict": "confidently_above", "low_data": false, '
-    '"regular_task": false, "fsp_confirmed": true}], '
+    '"regular_task": false, "fsp_confirmed": true, "verification_confirmed": false}], '
     '"stack": {"matched": ["pytest"], "overlap": 1.0, "contribution": 0.15}}'
 )
+# Подборки, сохранённые до проверочного блока, — без его пометки.
+OLD_EXPLANATION_JSON = EXPLANATION_JSON.replace(', "verification_confirmed": false', "")
 
 BARE_SNAPSHOT = NeedSnapshot(
     **{
@@ -106,3 +108,4 @@ def test_need_snapshot_is_stored_in_the_saved_format(snapshot: NeedSnapshot, sto
 def test_explanation_is_stored_in_the_saved_format() -> None:
     assert dumped(explanation_json(EXPLANATION)) == EXPLANATION_JSON
     assert explanation_of(json.loads(EXPLANATION_JSON)) == EXPLANATION
+    assert explanation_of(json.loads(OLD_EXPLANATION_JSON)) == EXPLANATION

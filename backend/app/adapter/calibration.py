@@ -88,9 +88,14 @@ class EloCalibration:
             row = rows.get(family.code)
             if row is None:
                 result[family.code] = self.expert(family.grade)
-            elif row.in_rotation:
+            elif row.issued:
                 result[family.code] = row.parameters
         return result
+
+    def compromised(self, codes: Iterable[str]) -> set[str]:
+        """Семейства из `codes`, которые детектор дрейфа пометил скомпрометированными."""
+        rows = self._repository.parameters(list(codes))
+        return {code for code, row in rows.items() if row.is_compromised}
 
     def lock(self, codes: Iterable[str]) -> None:
         """Блокировка строк семейств до конца единицы работы — по порядку кодов: так транзакции,
@@ -143,7 +148,7 @@ class EloCalibration:
         rows = self._repository.parameters(anchors)
         answers = self._repository.anchor_answers(
             specialization,
-            [code for code in anchors if code not in rows or rows[code].in_rotation],
+            [code for code in anchors if code not in rows or rows[code].issued],
             self.calibration_link_window_attempts,
         )
         while True:

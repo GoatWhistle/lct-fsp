@@ -210,6 +210,33 @@ class TopicBlockTooEarly(DomainError):
         self.available_at = available_at
 
 
+class VerificationUnavailable(DomainError):
+    """Проверочный блок (mechanics.md, §8) проверять нечего: категории нет и результат не ждёт
+    блока, уровень уже подтверждён или в банке нет семейств для блока."""
+
+    code = "verification_unavailable"
+    message = "Проверочный блок сейчас не нужен"
+
+
+class VerificationTooEarly(DomainError):
+    """Повтор проверочного блока — не раньше срока: дата, с которой можно, — в `available_at`."""
+
+    code = "verification_too_early"
+    message = "Повторный проверочный блок пока недоступен"
+
+    def __init__(self, available_at: datetime) -> None:
+        super().__init__()
+        self.available_at = available_at
+
+
+class VerificationPending(DomainError):
+    """Результат попытки ждёт проверочного блока: попытка на тот же грейд или выше не
+    начинается, пока блок не пройден."""
+
+    code = "verification_pending"
+    message = "Сначала пройдите проверочный блок — результат прошлой попытки ждёт его"
+
+
 # Профиль кандидата.
 
 

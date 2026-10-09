@@ -4,7 +4,7 @@ import { useStartAttempt, useStepDown } from "@/entities/candidate-path"
 import { gradeIcon } from "@/entities/catalog"
 import type { CandidatePath } from "@/shared/api"
 import { useCatalogNames, useErrorText, useFormatters, useTranslation } from "@/shared/i18n"
-import { Banner, Button, ConfirmDialog, IconLabel, Menu, toast } from "@/shared/ui"
+import { Banner, Button, Checkbox, ConfirmDialog, IconLabel, Menu, toast } from "@/shared/ui"
 import { availableAt, TEST_ROUTE } from "../available-at"
 import styles from "./grade-change.module.css"
 
@@ -13,12 +13,13 @@ export interface GradeChangeProps {
 }
 
 export function GradeUp({ path }: GradeChangeProps) {
-  const { t } = useTranslation("overview")
+  const { t } = useTranslation(["overview", "test"])
   const names = useCatalogNames()
   const format = useFormatters()
   const errorText = useErrorText()
   const navigate = useNavigate()
-  const start = useStartAttempt()
+  const [consent, setConsent] = useState(false)
+  const start = useStartAttempt(consent)
   const up = path.grade_up
   if (up === null) return <p className={styles.note}>{t("gradeUp.top")}</p>
   const grade = names.grade(up.grade)
@@ -37,6 +38,12 @@ export function GradeUp({ path }: GradeChangeProps) {
     <div className={styles.up}>
       {hinted ? <Banner tone="info" icon="match" title={t("gradeUp.hint", { grade })} /> : null}
       <p className={styles.note}>{t("gradeUp.text", { grade })}</p>
+      <Checkbox
+        checked={consent}
+        onChange={setConsent}
+        label={t("test:protection.consent")}
+        hint={t("test:protection.consentHint")}
+      />
       <div className={styles.actions}>
         <Button
           icon={gradeIcon(up.grade)}
@@ -59,7 +66,7 @@ export function GradeUp({ path }: GradeChangeProps) {
 }
 
 export function StepDownMenu({ path }: GradeChangeProps) {
-  const { t } = useTranslation("overview")
+  const { t } = useTranslation(["overview", "test"])
   const names = useCatalogNames()
   const errorText = useErrorText()
   const stepDown = useStepDown()

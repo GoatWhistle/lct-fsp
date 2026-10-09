@@ -128,6 +128,9 @@ def database_url(postgres_server_url: str) -> Iterator[str]:
     alembic_cfg.attributes["configure_logger"] = False
     command.upgrade(alembic_cfg, "head")
     sync_catalog(Settings(_env_file=None, database_url=url))
+    with admin.connect() as conn:
+        # Зависший запрос падает с текстом, а не держит прогон часами.
+        conn.execute(text(f"ALTER DATABASE \"{name}\" SET statement_timeout TO '30s'"))
 
     yield url
 

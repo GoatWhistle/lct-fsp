@@ -192,7 +192,8 @@ class Mechanics(BaseModel):
     acceptance_model_learning_rate: float = Field(gt=0)
     acceptance_model_random_seed: int
     acceptance_model_thread_count: int = Field(gt=0)
-    salary_hint_rounding_rub: int
+    salary_hint_rounding_rub: int = Field(gt=0)
+    salary_hint_market_ratio: float = Field(gt=0)
     message_max_length: int = Field(gt=0)
 
     # Обратная связь

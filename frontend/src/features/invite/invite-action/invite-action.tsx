@@ -10,6 +10,7 @@ const OPEN: ReadonlySet<InvitationStatus> = new Set(["sent", "viewed", "accepted
 
 export interface InviteActionProps {
   readonly candidateId: string
+  readonly selectionId?: string | undefined
   readonly label: string
   readonly defaults: InviteDefaults
   readonly size?: ButtonSize
@@ -17,6 +18,7 @@ export interface InviteActionProps {
 
 export function InviteAction({
   candidateId,
+  selectionId,
   label,
   defaults,
   size = "compact",
@@ -63,6 +65,7 @@ export function InviteAction({
           open={open}
           onClose={() => setOpen(false)}
           candidateId={candidateId}
+          selectionId={selectionId}
           label={label}
           defaults={defaults}
           budget={budget}

@@ -2,6 +2,12 @@ import { useCallback } from "react"
 import { useTranslation } from "react-i18next"
 import { useFormatters } from "./use-formatters"
 
+export const SALARY_STEP = 10000
+
+export function isSalaryRange(from: number | null, to: number | null): boolean {
+  return from !== null && to !== null && from > 0 && to >= from
+}
+
 export function useMoneyRange(): (from: number | null, to: number | null) => string | null {
   const { t } = useTranslation()
   const format = useFormatters()

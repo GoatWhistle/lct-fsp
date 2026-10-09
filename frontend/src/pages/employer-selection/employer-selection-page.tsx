@@ -112,6 +112,7 @@ export function EmployerSelectionPage() {
           invite={(entry, current) => (
             <InviteAction
               candidateId={entry.candidate_id}
+              selectionId={current.id}
               label={anonymousId(entry.candidate_id)}
               defaults={{
                 description: current.need.title,

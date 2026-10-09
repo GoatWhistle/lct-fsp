@@ -7,7 +7,13 @@ import {
   useSelection,
   useToggleShortlist,
 } from "@/entities/selection"
-import type { CandidateFilters, Selection, SelectionEntry, Technology } from "@/shared/api"
+import type {
+  CandidateFilters,
+  Selection,
+  SelectionEntry,
+  SelectionOrder,
+  Technology,
+} from "@/shared/api"
 import { useMediaQuery } from "@/shared/hooks"
 import { useErrorText, useTranslation } from "@/shared/i18n"
 import {
@@ -62,11 +68,12 @@ export interface SelectionBoardProps {
 export function SelectionBoard({ selectionId, invite }: SelectionBoardProps) {
   const { t } = useTranslation("selection")
   const errorText = useErrorText()
-  const query = useSelection(selectionId)
+  const [params, setParams] = useSearchParams()
+  const order: SelectionOrder = params.get("order") === "match" ? "match" : "mutual"
+  const query = useSelection(selectionId, order)
   const apply = useApplyFilters(selectionId)
   const toggle = useToggleShortlist(selectionId)
   const technologies = useTechnologies()
-  const [params, setParams] = useSearchParams()
   const [filtersOpen, setFiltersOpen] = useState(false)
   const [shortlistOpen, setShortlistOpen] = useState(false)
   const wide = useMediaQuery("(min-width: 120rem)")
@@ -84,6 +91,19 @@ export function SelectionBoard({ selectionId, invite }: SelectionBoardProps) {
           const next = new URLSearchParams(prev)
           if (id === null) next.delete("candidate")
           else next.set("candidate", id)
+          return next
+        },
+        { replace: true },
+      ),
+    [setParams],
+  )
+  const setMatchOnly = useCallback(
+    (value: boolean) =>
+      setParams(
+        (prev) => {
+          const next = new URLSearchParams(prev)
+          if (value) next.set("order", "match")
+          else next.delete("order")
           return next
         },
         { replace: true },
@@ -134,6 +154,8 @@ export function SelectionBoard({ selectionId, invite }: SelectionBoardProps) {
         <SelectionBar
           selection={first}
           shortlistCount={shortlist.size}
+          matchOnly={order === "match"}
+          onMatchOnly={setMatchOnly}
           onOpenShortlist={() => setShortlistOpen(true)}
         />
         {wide ? null : (

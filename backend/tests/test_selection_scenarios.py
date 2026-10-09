@@ -8,7 +8,7 @@ import math
 import time
 import uuid
 from collections.abc import Callable, Iterator, Sequence
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
@@ -23,18 +23,22 @@ from app.adapter.acceptance_catboost import fit
 from app.adapter.catalog_file import load_catalog
 from app.adapter.clock import FrozenClock
 from app.adapter.seed import DerivedSeeds
+from app.domain.acceptance import FACTORS
 from app.domain.account import Role
 from app.domain.candidate import GradeStatus, GradeStatusKind
 from app.domain.catalog import CatalogRef, Grade, Specialization, Technology, Topic
-from app.domain.errors import NeedNotFound, SelectionNotFound
+from app.domain.errors import NeedNotFound, NotInSelection, SelectionNotFound
 from app.domain.fsp import FspResult
 from app.domain.invitation import OPEN, InvitationStatus
 from app.domain.selection import (
+    AcceptanceExplanation,
     AcceptanceFeatures,
     Expectations,
     Need,
+    Page,
     PoolCandidate,
     SelectionBlock,
+    SelectionOrder,
     UnconfirmedCandidate,
 )
 from app.domain.skill import Normal
@@ -94,12 +98,22 @@ class SalaryFit:
         self.seen.extend(features)
         return [self.probability(f) for f in features]
 
+    def explain(self, features: Sequence[AcceptanceFeatures]) -> list[AcceptanceExplanation | None]:
+        return [
+            AcceptanceExplanation(0.0, {**dict.fromkeys(FACTORS.values(), 0.0), "salary": z})
+            for z in map(self.logit, features)
+        ]
+
     @staticmethod
-    def probability(f: AcceptanceFeatures) -> float:
+    def logit(f: AcceptanceFeatures) -> float:
         if f.salary is None or f.expected_salary is None:
-            return 0.5
+            return 0.0
         middle = (f.salary.low + f.salary.high) / 2
-        return 1 / (1 + math.exp(-4 * (middle - f.expected_salary) / f.expected_salary))
+        return 4 * (middle - f.expected_salary) / f.expected_salary
+
+    @classmethod
+    def probability(cls, f: AcceptanceFeatures) -> float:
+        return 1 / (1 + math.exp(-cls.logit(f)))
 
 
 @dataclass
@@ -958,10 +972,16 @@ class FailingModel:
     def predict(self, features: Sequence[AcceptanceFeatures]) -> list[float | None]:
         raise Boom()
 
+    def explain(self, features: Sequence[AcceptanceFeatures]) -> list[AcceptanceExplanation | None]:
+        raise Boom()
+
 
 class OutOfRange:
     def predict(self, features: Sequence[AcceptanceFeatures]) -> list[float | None]:
         return [1.5] * len(features)
+
+    def explain(self, features: Sequence[AcceptanceFeatures]) -> list[AcceptanceExplanation | None]:
+        return [None] * len(features)
 
 
 @pytest.mark.parametrize("model", [FailingModel(), OutOfRange()])
@@ -1164,3 +1184,144 @@ def test_selections_with_candidate_are_within_window_and_by_time(
         (first.id, other),
         (second.id, h.employer),
     ]
+
+
+def salary_fit_page(h: Harness) -> tuple[uuid.UUID, Page]:
+    strong = dict.fromkeys(QA_TOPICS, (1.2, 0.3))
+    h.candidates(
+        [
+            CandidateSeed(levels=strong, stack=("pytest",), expectations=remote(600_000)),
+            CandidateSeed(expectations=remote(250_000)),
+            CandidateSeed(levels={"qa.api": (1.0, 0.4)}, expectations=remote(200_000)),
+            CandidateSeed(grade="junior", expectations=remote(150_000)),
+        ]
+    )
+    page = h.selections.build(
+        h.employer, h.need(NeedSeed(salary=SalaryRange(250_000, 350_000))), limit=20
+    )
+    return page.selection.id, page
+
+
+def test_match_order_sorts_each_block_by_match_only(make: Callable[..., Harness]) -> None:
+    h = make(SalaryFit())
+    selection_id, page = salary_fit_page(h)
+
+    mutual = h.selections.open(h.employer, selection_id, offset=0, limit=20)
+    match = h.selections.open(
+        h.employer, selection_id, offset=0, limit=20, order=SelectionOrder.match
+    )
+
+    assert mutual.entries == page.entries
+    assert [e.candidate_id for e in match.entries] != [e.candidate_id for e in mutual.entries]
+    assert [e.block for e in match.entries] == [e.block for e in mutual.entries]
+    for block in (SelectionBlock.exact, SelectionBlock.nearby):
+        scores = [e.match_score or 0.0 for e in match.entries if e.block == block]
+        assert scores == sorted(scores, reverse=True)
+    assert [e.position for e in match.entries] == list(range(1, len(match.entries) + 1))
+    for block in (SelectionBlock.exact, SelectionBlock.nearby):
+        assert [e.rank for e in match.entries if e.block == block] == list(
+            range(1, sum(e.block == block for e in match.entries) + 1)
+        )
+    # Сохранённая выдача от переключателя не меняется.
+    again = h.selections.open(h.employer, selection_id, offset=0, limit=20)
+    assert again.entries == mutual.entries
+    assert {e.candidate_id: e.acceptance_probability for e in match.entries} == {
+        e.candidate_id: e.acceptance_probability for e in mutual.entries
+    }
+
+
+def test_match_order_keeps_unconfirmed_block_last(make: Callable[..., Harness]) -> None:
+    h = make(SalaryFit())
+    h.candidates([CandidateSeed(expectations=remote(250_000)), CandidateSeed(grade="junior")])
+    h.unconfirmed(UnconfirmedSeed())
+    need = h.need(NeedSeed(salary=SalaryRange(250_000, 350_000)))
+    selection_id = h.selections.build(h.employer, need, limit=20).selection.id
+
+    page = h.selections.open(
+        h.employer, selection_id, offset=0, limit=20, order=SelectionOrder.match
+    )
+
+    assert page.entries[-1].block == SelectionBlock.unconfirmed
+    assert page.entries[-1].match_score is None
+
+
+def test_entries_carry_additive_explanation(make: Callable[..., Harness]) -> None:
+    h = make(SalaryFit())
+    _, page = salary_fit_page(h)
+
+    for entry in page.entries:
+        assert entry.acceptance is not None and entry.acceptance_probability is not None
+        why = entry.acceptance.explanation
+        assert 1 / (1 + math.exp(-why.logit)) == pytest.approx(entry.acceptance_probability)
+        assert why.base + sum(why.contributions.values()) == pytest.approx(why.logit, abs=1e-6)
+
+
+def test_salary_hint_for_entry_uses_stored_features(make: Callable[..., Harness]) -> None:
+    h = make(SalaryFit())
+    selection_id, page = salary_fit_page(h)
+    entry = next(
+        e for e in page.entries if e.acceptance and e.acceptance.features.expected_salary == 250_000
+    )
+
+    found = h.selections.salary_hint(
+        h.employer, selection_id, entry.candidate_id, SalaryRange(100_000, 150_000)
+    )
+
+    assert found is not None
+    assert found.evaluated == SalaryRange(100_000, 150_000)
+    assert found.probability < 0.6
+    assert found.range is not None
+    assert found.range.low % 10_000 == 0 and found.range.high % 10_000 == 0
+    assert (
+        SalaryFit.probability(
+            replace(entry.acceptance.features, salary=found.range)  # type: ignore[union-attr]
+        )
+        >= 0.6
+    )
+    # Ожидание кандидата в подсказке не отдаётся.
+    assert not hasattr(found, "expected_salary")
+
+
+def test_salary_hint_unreachable_target(make: Callable[..., Harness]) -> None:
+    h = make(SalaryFit())
+    selection_id, page = salary_fit_page(h)
+    # Кандидат ждёт 600 000, сетка кончается на трёх рыночных медианах грейда (около 575 000).
+    entry = next(
+        e for e in page.entries if e.acceptance and e.acceptance.features.expected_salary == 600_000
+    )
+
+    found = h.selections.salary_hint(
+        h.employer, selection_id, entry.candidate_id, SalaryRange(100_000, 150_000)
+    )
+
+    assert found is not None
+    assert found.range is None
+
+
+def test_salary_hint_of_foreign_candidate_is_not_in_selection(
+    make: Callable[..., Harness],
+) -> None:
+    h = make(SalaryFit())
+    selection_id, _ = salary_fit_page(h)
+
+    with pytest.raises(NotInSelection):
+        h.selections.salary_hint(h.employer, selection_id, uuid.uuid4(), SalaryRange(1, 2))
+
+
+def test_without_model_there_is_no_hint_and_no_error(make: Callable[..., Harness]) -> None:
+    h = make()
+    selection_id, page = salary_fit_page(h)
+
+    assert page.entries
+    for entry in page.entries:
+        assert entry.acceptance is None and entry.acceptance_probability is None
+        assert (
+            h.selections.salary_hint(
+                h.employer, selection_id, entry.candidate_id, SalaryRange(100_000, 150_000)
+            )
+            is None
+        )
+    match = h.selections.open(
+        h.employer, selection_id, offset=0, limit=20, order=SelectionOrder.match
+    )
+    assert [e.mutual_score for e in match.entries] == [e.match_score for e in match.entries]

@@ -71,6 +71,7 @@ from app.domain.regular_task import (
 from app.domain.resume_draft import ResumeDraft
 from app.domain.search import CandidateFacts, CandidateFilters
 from app.domain.selection import (
+    AcceptanceExplanation,
     AcceptanceFeatures,
     Need,
     PoolCandidate,
@@ -603,6 +604,11 @@ class AcceptanceModel(Protocol):
     def predict(self, features: Sequence[AcceptanceFeatures]) -> list[float | None]:
         """P(принятия) в [0, 1] по порядку `features`; `None` — модель не знает, в том числе у
         потребности без вилки."""
+        ...
+
+    def explain(self, features: Sequence[AcceptanceFeatures]) -> list[AcceptanceExplanation | None]:
+        """SHAP-объяснение P по порядку `features`, точно аддитивное в логите: база плюс вклады
+        равны логиту `predict`. `None` — там же, где `predict` отдаёт `None`."""
         ...
 
 

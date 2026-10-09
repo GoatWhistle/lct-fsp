@@ -713,6 +713,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/employer/selections/{selection_id}/candidates/{candidate_id}/salary-hint": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Вероятность принятия при вилке и подсказка по вилке
+         * @description Для формы приглашения: P(принятия) при вилке работодателя и самая низкая вилка, при которой P достигает целевой. Вилки в подсказке кратны шагу округления, P считается по округлённой вилке, ожидание кандидата не раскрывается. Нет файла модели — `available: false`, без ошибки.
+         */
+        get: operations["get_salary_hint_api_employer_selections__selection_id__candidates__candidate_id__salary_hint_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/employer/selections/{selection_id}/filters": {
         parameters: {
             query?: never;
@@ -1488,6 +1508,38 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /**
+         * AcceptanceExplanationOut
+         * @description Вклады точно аддитивны в логите: `base` плюс сумма вкладов равна `logit`, а P — его
+         *     сигмоида. Ожидания кандидата здесь нет, только вклад вилки в P.
+         */
+        AcceptanceExplanationOut: {
+            /**
+             * Base
+             * @description Логит P при средних признаках обучения
+             */
+            base: number;
+            /**
+             * Logit
+             * @description Логит P(принятия) строки
+             */
+            logit: number;
+            /** Factors */
+            factors: components["schemas"]["AcceptanceFactorOut"][];
+        };
+        /** AcceptanceFactorOut */
+        AcceptanceFactorOut: {
+            /**
+             * Factor
+             * @enum {string}
+             */
+            factor: "salary" | "grade" | "format" | "city" | "load" | "match" | "industry";
+            /**
+             * Contribution
+             * @description Вклад фактора в логит P: положительный повышает P, отрицательный снижает
+             */
+            contribution: number;
+        };
         /**
          * ActionKind
          * @enum {string}
@@ -3242,6 +3294,56 @@ export interface components {
          * @enum {string}
          */
         SalaryBasis: "gross";
+        /** SalaryHintOut */
+        SalaryHintOut: {
+            /**
+             * Available
+             * @description `false` — P нет (нет файла модели, у потребности не было вилки, кандидат в нижнем блоке): ни вероятности, ни подсказки
+             */
+            available: boolean;
+            /**
+             * Probability
+             * @description P(принятия) при вилке работодателя, округлённой до шага подсказки
+             */
+            probability: number | null;
+            /**
+             * Evaluated From
+             * @description «От» вилки, по которой посчитана P
+             */
+            evaluated_from: number | null;
+            /**
+             * Evaluated To
+             * @description «До» вилки, по которой посчитана P
+             */
+            evaluated_to: number | null;
+            /**
+             * Target Probability
+             * @description Целевая P(принятия)
+             */
+            target_probability: number | null;
+            /**
+             * Reachable
+             * @description Есть ли вилка, при которой P достигает цели, в пределах сетки подсказки
+             */
+            reachable: boolean;
+            /**
+             * Hint From
+             * @description «От» самой низкой вилки сетки с P не ниже цели; кратно шагу округления; `null` — цель недостижима
+             */
+            hint_from: number | null;
+            /**
+             * Hint To
+             * @description «До» той же вилки; кратно шагу округления
+             */
+            hint_to: number | null;
+            /**
+             * Rounding
+             * @description Шаг округления вилки в подсказке, ₽
+             */
+            rounding: number | null;
+            /** @description Все суммы платформы — до вычета НДФЛ (`gross`) */
+            readonly salary_basis: components["schemas"]["SalaryBasis"];
+        };
         /**
          * Scenario
          * @enum {string}
@@ -3368,7 +3470,14 @@ export interface components {
              * @description Давно не подтверждал уровень: сигналов не было дольше срока
              */
             stale: boolean;
+            /** @description SHAP-объяснение P(принятия); `null` — P нет */
+            acceptance_explanation: components["schemas"]["AcceptanceExplanationOut"] | null;
         };
+        /**
+         * SelectionOrder
+         * @enum {string}
+         */
+        SelectionOrder: "mutual" | "match";
         /** SelectionOut */
         SelectionOut: {
             /**
@@ -6147,6 +6256,8 @@ export interface operations {
                 offset?: number;
                 /** @description Сколько кандидатов вернуть */
                 limit?: number;
+                /** @description `mutual` — сохранённый порядок по S × P; `match` — только соответствие: внутри блока по S, места и ранги пересчитаны под показанный порядок */
+                order?: components["schemas"]["SelectionOrder"];
             };
             header?: never;
             path: {
@@ -6203,6 +6314,74 @@ export interface operations {
             };
         };
     };
+    get_salary_hint_api_employer_selections__selection_id__candidates__candidate_id__salary_hint_get: {
+        parameters: {
+            query: {
+                /** @description Рубли в месяц до вычета НДФЛ (гросс) */
+                salary_from: number;
+                /** @description Рубли в месяц до вычета НДФЛ (гросс) */
+                salary_to: number;
+            };
+            header?: never;
+            path: {
+                selection_id: string;
+                candidate_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SalaryHintOut"];
+                };
+            };
+            /** @description `not_authenticated` — Войдите, чтобы продолжить */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description `wrong_role` — Раздел доступен другой роли */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /**
+             * @description `selection_not_found` — Подборка не найдена
+             *
+             *     `not_in_selection` — Кандидата нет в выдаче подборки
+             */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description `invalid_salary_range` — Вилка — обе границы больше нуля, «от» не больше «до» */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
     refine_selection_api_employer_selections__selection_id__filters_put: {
         parameters: {
             query?: {
@@ -6210,6 +6389,8 @@ export interface operations {
                 offset?: number;
                 /** @description Сколько кандидатов вернуть */
                 limit?: number;
+                /** @description `mutual` — сохранённый порядок по S × P; `match` — только соответствие: внутри блока по S, места и ранги пересчитаны под показанный порядок */
+                order?: components["schemas"]["SelectionOrder"];
             };
             header?: never;
             path: {

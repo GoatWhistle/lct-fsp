@@ -43,6 +43,7 @@ from validation.population import (
     write,
 )
 from validation.truth import (
+    AcceptanceRule,
     CandidateTruth,
     Corruption,
     Persona,
@@ -253,9 +254,13 @@ def test_only_generator_and_labeling_know_where_truth_lives() -> None:
 
 
 def test_generator_names_sources_of_salaries_and_stacks() -> None:
+    """Зарплаты — `market_salary_median` конфига механик, источник — в его строке
+    parameters.md; стеки — в коде генератора."""
     source = BACKEND_DIR.joinpath("validation", "population.py").read_text(encoding="utf-8")
+    doc = (BACKEND_DIR.parent / "docs" / "parameters.md").read_text(encoding="utf-8")
+    (row,) = [line for line in doc.splitlines() if line.startswith("| `market_salary_median` |")]
 
-    assert "https://career.habr.com/salaries" in source
+    assert "https://career.habr.com/salaries" in row
     assert "https://survey.stackoverflow.co/2025/technology/" in source
 
 
@@ -332,8 +337,10 @@ def test_generator_numbers_are_documented_under_their_names() -> None:
     text = (BACKEND_DIR.parent / "docs" / "parameters.md").read_text(encoding="utf-8")
     section = text.split("## Синтетический рынок стенда валидации")[1].split("\n## ")[0]
     names = set(re.findall(r"^\| `([a-z0-9_]+)` \|", section, re.MULTILINE))
-    fields = {f.name for f in dataclasses.fields(GeneratorParams)} | {
-        f.name for f in dataclasses.fields(ResponseModel)
+    fields = {
+        f.name
+        for model in (GeneratorParams, ResponseModel, AcceptanceRule)
+        for f in dataclasses.fields(model)
     }
 
     assert names

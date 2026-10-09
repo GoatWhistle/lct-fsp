@@ -42,6 +42,7 @@ from settings import CATALOG_FILE, Mechanics
 from validation.main import Catalog
 from validation.market import SEED, Candidate, expert, true_parameters
 from validation.truth import (
+    AcceptanceRule,
     CandidateTruth,
     Persona,
     Response,
@@ -56,12 +57,8 @@ D2_SEED = 20261006
 # Время, на которое собраны потребности набора: от него не зависит ничего, кроме поля версии.
 NOW = datetime(2026, 1, 1, tzinfo=UTC)
 
-# Медианы зарплат по квалификации, ₽ в месяц на руки: «Хабр Карьера», калькулятор зарплат,
-# https://career.habr.com/salaries, 41 243 анкеты, открыто 2026-10-08. Калькулятор собирает
-# зарплату на руки (https://habr.com/ru/post/708198), платформа считает до НДФЛ — пересчёт по
-# ставке 13 %.
-SALARY_NET_MEDIAN = {"intern": 64_000, "junior": 88_000, "middle": 167_000, "senior": 288_000}
-NDFL = 0.13
+# Медианы зарплат по грейдам — `market_salary_median` конфига механик: прод и стенд читают одну
+# таблицу, источник — в docs/parameters.md.
 SALARY_ROUNDING = 5_000
 
 # Доля разработчиков, работающих с технологией, %: Stack Overflow Developer Survey 2025,
@@ -267,7 +264,16 @@ class GeneratorParams:
     # Доля семейств специализации, слитых читеру.
     leak_share: float = 0.3
     relocation_share: float = 0.2
+    # Доля кандидатов, отметивших интересные сферы бизнеса: 1–3 сферы справочника равновероятно.
+    industries_share: float = 0.4
     response: ResponseModel = field(default_factory=ResponseModel)
+    # Модель принятия (M7): правило решения кандидата о приглашении, загрузка открытыми
+    # приглашениями ~ Poisson(`acceptance_load_mean` · (0,5 + перцентиль S в подборке)) и пары
+    # обучения — top-K по S на потребность и доля случайных пар её подборки сверх них.
+    acceptance: AcceptanceRule = field(default_factory=AcceptanceRule)
+    acceptance_load_mean: float = 1.5
+    acceptance_train_top_k: int = 20
+    acceptance_random_share: float = 0.2
 
 
 D1 = GeneratorParams("d1", D1_SEED)
@@ -309,6 +315,7 @@ class ObservedCandidate:
     fsp_sub: str | None
     # Семейство банка специализации → ответ на его экземпляр.
     answers: dict[str, Response]
+    industries: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -355,9 +362,9 @@ def as_candidate(truth: CandidateTruth) -> Candidate:
     return Candidate(truth.level, truth.claimed, truth)
 
 
-def market_salary(grade: str | None, params: GeneratorParams) -> float:
-    """Медиана грейда до НДФЛ; ниже младшего грейда — медиана стажёра."""
-    return SALARY_NET_MEDIAN[grade or "intern"] / (1 - NDFL) * params.salary_scale
+def market_salary(grade: str | None, params: GeneratorParams, mechanics: Mechanics) -> float:
+    """Медиана грейда до НДФЛ со сдвигом набора; ниже младшего грейда — медиана стажёра."""
+    return mechanics.market_salary_median[grade or "intern"] * params.salary_scale
 
 
 def snapshot(need: SyntheticNeed, catalog: Catalog, mechanics: Mechanics) -> NeedSnapshot:
@@ -405,6 +412,7 @@ class Generator:
         self.mechanics = mechanics
         self.catalog = catalog
         self.grades = grades_by_threshold(mechanics.grade_thresholds)
+        self.catalog_industries = load_catalog(CATALOG_FILE).industries
         runner = InProcessCodeRunner()
         self.bank = {
             s: families_for_topics([t.code for t in spec.topics])
@@ -429,9 +437,12 @@ class Generator:
         registry: dict[str, list[dict[str, Any]]] = {}
         for code in self.catalog.specializations:
             truth_rng, seen_rng = self.rng(f"candidates:{code}"), self.rng(f"observed:{code}")
+            # Сферы — своим потоком: остальная истина набора от них не сдвигается.
+            industries_rng = self.rng(f"industries:{code}")
             own_needs = [n for n in needs if n.form.specialization == code]
             for persona in self.personas(truth_rng):
                 truth = self.truth(code, persona, truth_rng)
+                truth = replace(truth, industries=self.industries(industries_rng))
                 seen, achievements = self.observe(truth, own_needs, families, seen_rng)
                 truths.append(truth)
                 observed.append(seen)
@@ -457,21 +468,35 @@ class Generator:
         rng.shuffle(found)
         return found
 
+    def industries(self, rng: random.Random) -> frozenset[str]:
+        """Интересные сферы: отмечает доля `industries_share` кандидатов, 1–3 сферы."""
+        if rng.random() >= self.params.industries_share:
+            return frozenset()
+        known = sorted(i.code for i in self.catalog_industries)
+        return frozenset(rng.sample(known, rng.randint(1, 3)))
+
     def employers(self) -> tuple[Employer, ...]:
         rng = self.rng("employers")
         positions = _by_shares(self.params.salary_position_shares, self.params.employers)
         rng.shuffle(positions)
-        industries = sorted(i.code for i in load_catalog(CATALOG_FILE).industries)
+        industries = sorted(i.code for i in self.catalog_industries)
         return tuple(
             Employer(_uuid(rng), f"Компания {i + 1}", rng.choice(industries), position)
             for i, position in enumerate(positions)
         )
 
-    def needs(self, code: str, employers: Sequence[Employer]) -> list[SyntheticNeed]:
-        """Потребности специализации, грейды поровну."""
-        rng = self.rng(f"needs:{code}")
+    def needs(
+        self,
+        code: str,
+        employers: Sequence[Employer],
+        count: int | None = None,
+        stream: str = "needs",
+    ) -> list[SyntheticNeed]:
+        """Потребности специализации, грейды поровну. `count` и поток `stream` — для пар модели
+        принятия: свой поток не сдвигает потребности набора."""
+        rng = self.rng(f"{stream}:{code}")
         found = []
-        for i in range(self.params.needs_per_specialization):
+        for i in range(self.params.needs_per_specialization if count is None else count):
             grade = self.grades[i % len(self.grades)]
             employer = rng.choice(employers)
             form = self.need_form(code, grade, employer.name, employer.position, rng)
@@ -486,7 +511,7 @@ class Generator:
         spec = self.catalog.specializations[code]
         work_format = _weighted(rng, NEED_FORMATS)
         center = (
-            market_salary(grade, self.params)
+            market_salary(grade, self.params, self.mechanics)
             * dict(self.params.salary_position_factor)[position]
             * math.exp(rng.gauss(0, self.params.need_salary_sd))
         )
@@ -552,7 +577,9 @@ class Generator:
             level=level,
             grade=grade,
             claimed=claimed,
-            expected_salary=_rounded(market_salary(grade, p) * math.exp(rng.gauss(0, p.salary_sd))),
+            expected_salary=_rounded(
+                market_salary(grade, p, self.mechanics) * math.exp(rng.gauss(0, p.salary_sd))
+            ),
             work_formats=formats,
             city=city,
             relocation=rng.random() < p.relocation_share,
@@ -599,6 +626,7 @@ class Generator:
             relocation=truth.relocation,
             fsp_sub=truth.fsp_sub,
             answers=answers,
+            industries=tuple(sorted(truth.industries)),
         )
         return seen, achievements
 
@@ -750,6 +778,7 @@ def truth_json(t: CandidateTruth) -> dict[str, Any]:
         "speed": _r(t.speed),
         "leaked": sorted(t.leaked),
         "fsp_sub": t.fsp_sub,
+        "industries": sorted(t.industries),
     }
 
 
@@ -770,6 +799,7 @@ def truth_from_json(row: Mapping[str, Any]) -> CandidateTruth:
         speed=row["speed"],
         leaked=frozenset(row["leaked"]),
         fsp_sub=row["fsp_sub"],
+        industries=frozenset(row["industries"]),
     )
 
 
@@ -786,6 +816,7 @@ def observed_json(o: ObservedCandidate) -> dict[str, Any]:
         "city": o.city,
         "relocation": o.relocation,
         "fsp_sub": o.fsp_sub,
+        "industries": list(o.industries),
         # Семейство → [верно, секунды].
         "answers": {k: [int(r.correct), round(r.seconds, 1)] for k, r in o.answers.items()},
     }

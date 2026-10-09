@@ -173,7 +173,12 @@ docker compose run --rm --build tests
   `validation/data/market/d1` (`--set d2` — набор со сдвигом D2, `--seed`, `--candidates` — на
   специализацию, `--out`): истина в `truth/`, наблюдаемое в `observed/`, потребности,
   работодатели и эталон пар `pairs.jsonl`. Тот же seed — те же файлы байт в байт, в репо они не
-  хранятся.
+  хранятся;
+- `uv run python -m validation acceptance` — обучение модели принятия на своём сиде: набор с
+  параметрами D1 проходит тест и подборки, синтетические кандидаты решают по приглашениям, CatBoost
+  учится на 20 000 пар. Пишет `app/adapter/acceptance_model.cbm` — его загружает прод — и базовые
+  линии M7 в `validation/data/acceptance_baselines.json`; оба файла в репо. Только CPU, около
+  шести минут; тот же сид — тот же файл модели байт в байт.
 
 Банк заданий — тоже из `backend/`:
 

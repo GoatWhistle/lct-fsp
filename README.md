@@ -186,7 +186,7 @@ D1 — основной рынок, 3000 кандидатов и 100 потре�
 метрики разобраны в [ограничениях](#ограничения) и в самом отчёте.
 
 ```bash
-cd backend && uv run python -m validation
+cd backend && uv run --group validation python -m validation
 ```
 
 ## Запуск

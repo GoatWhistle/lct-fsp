@@ -6,47 +6,47 @@
 <text x="68.0" y="277.0" text-anchor="middle">0.1</text>
 <text x="178.0" y="277.0" text-anchor="middle">0.3</text>
 <text x="288.0" y="277.0" text-anchor="middle">0.5</text>
-<text x="64.0" y="264.0" text-anchor="end">-0.01</text>
-<text x="64.0" y="154.0" text-anchor="end">0.27</text>
-<text x="64.0" y="44.0" text-anchor="end">0.55</text>
-<line x1="68.0" y1="160.6" x2="288.0" y2="160.6" stroke="#9ca3af" stroke-dasharray="4 3"/>
+<text x="64.0" y="264.0" text-anchor="end">0.00</text>
+<text x="64.0" y="154.0" text-anchor="end">0.50</text>
+<text x="64.0" y="44.0" text-anchor="end">1.01</text>
+<line x1="68.0" y1="209.5" x2="288.0" y2="209.5" stroke="#9ca3af" stroke-dasharray="4 3"/>
 <text x="178.0" y="291.0" text-anchor="middle">доля слитого банка</text>
 <text x="38.0" y="154.0" text-anchor="middle" transform="rotate(-90 38.0 154.0)">прирост θ̄</text>
-<polyline fill="none" stroke="#b45309" stroke-width="1.5" points="68.0,262.0 178.0,255.2 288.0,264.0"/>
-<circle cx="68.0" cy="262.0" r="3" fill="#b45309"/>
-<circle cx="178.0" cy="255.2" r="3" fill="#b45309"/>
-<circle cx="288.0" cy="264.0" r="3" fill="#b45309"/>
-<polyline fill="none" stroke="#1d4ed8" stroke-width="1.5" points="68.0,207.3 178.0,117.8 288.0,63.5"/>
-<circle cx="68.0" cy="207.3" r="3" fill="#1d4ed8"/>
-<circle cx="178.0" cy="117.8" r="3" fill="#1d4ed8"/>
-<circle cx="288.0" cy="63.5" r="3" fill="#1d4ed8"/>
-<polyline fill="none" stroke="#047857" stroke-width="1.5" points="68.0,204.0 178.0,136.0 288.0,80.9"/>
-<circle cx="68.0" cy="204.0" r="3" fill="#047857"/>
-<circle cx="178.0" cy="136.0" r="3" fill="#047857"/>
-<circle cx="288.0" cy="80.9" r="3" fill="#047857"/>
+<polyline fill="none" stroke="#b45309" stroke-width="1.5" points="68.0,224.4 178.0,126.6 288.0,64.0"/>
+<circle cx="68.0" cy="224.4" r="3" fill="#b45309"/>
+<circle cx="178.0" cy="126.6" r="3" fill="#b45309"/>
+<circle cx="288.0" cy="64.0" r="3" fill="#b45309"/>
+<polyline fill="none" stroke="#1d4ed8" stroke-width="1.5" points="68.0,236.1 178.0,186.1 288.0,155.6"/>
+<circle cx="68.0" cy="236.1" r="3" fill="#1d4ed8"/>
+<circle cx="178.0" cy="186.1" r="3" fill="#1d4ed8"/>
+<circle cx="288.0" cy="155.6" r="3" fill="#1d4ed8"/>
+<polyline fill="none" stroke="#047857" stroke-width="1.5" points="68.0,236.2 178.0,187.1 288.0,164.0"/>
+<circle cx="68.0" cy="236.2" r="3" fill="#047857"/>
+<circle cx="178.0" cy="187.1" r="3" fill="#047857"/>
+<circle cx="288.0" cy="164.0" r="3" fill="#047857"/>
 <text x="356" y="38" font-weight="bold">Избыточная доля повышенных</text>
 <rect x="356" y="44" width="220" height="220" fill="none" stroke="#9ca3af"/>
 <text x="356.0" y="277.0" text-anchor="middle">0.1</text>
 <text x="466.0" y="277.0" text-anchor="middle">0.3</text>
 <text x="576.0" y="277.0" text-anchor="middle">0.5</text>
-<text x="352.0" y="264.0" text-anchor="end">-0.04</text>
-<text x="352.0" y="154.0" text-anchor="end">0.18</text>
-<text x="352.0" y="44.0" text-anchor="end">0.39</text>
-<line x1="356.0" y1="192.5" x2="576.0" y2="192.5" stroke="#9ca3af" stroke-dasharray="4 3"/>
+<text x="352.0" y="264.0" text-anchor="end">0.00</text>
+<text x="352.0" y="154.0" text-anchor="end">0.35</text>
+<text x="352.0" y="44.0" text-anchor="end">0.70</text>
+<line x1="356.0" y1="232.4" x2="576.0" y2="232.4" stroke="#9ca3af" stroke-dasharray="4 3"/>
 <text x="466.0" y="291.0" text-anchor="middle">доля слитого банка</text>
 <text x="326.0" y="154.0" text-anchor="middle" transform="rotate(-90 326.0 154.0)">доля</text>
-<polyline fill="none" stroke="#b45309" stroke-width="1.5" points="356.0,248.7 466.0,264.0 576.0,241.0"/>
-<circle cx="356.0" cy="248.7" r="3" fill="#b45309"/>
-<circle cx="466.0" cy="264.0" r="3" fill="#b45309"/>
-<circle cx="576.0" cy="241.0" r="3" fill="#b45309"/>
-<polyline fill="none" stroke="#1d4ed8" stroke-width="1.5" points="356.0,184.8 466.0,122.2 576.0,62.1"/>
-<circle cx="356.0" cy="184.8" r="3" fill="#1d4ed8"/>
-<circle cx="466.0" cy="122.2" r="3" fill="#1d4ed8"/>
-<circle cx="576.0" cy="62.1" r="3" fill="#1d4ed8"/>
-<polyline fill="none" stroke="#047857" stroke-width="1.5" points="356.0,216.7 466.0,179.7 576.0,146.5"/>
-<circle cx="356.0" cy="216.7" r="3" fill="#047857"/>
-<circle cx="466.0" cy="179.7" r="3" fill="#047857"/>
-<circle cx="576.0" cy="146.5" r="3" fill="#047857"/>
+<polyline fill="none" stroke="#b45309" stroke-width="1.5" points="356.0,218.2 466.0,124.9 576.0,64.0"/>
+<circle cx="356.0" cy="218.2" r="3" fill="#b45309"/>
+<circle cx="466.0" cy="124.9" r="3" fill="#b45309"/>
+<circle cx="576.0" cy="64.0" r="3" fill="#b45309"/>
+<polyline fill="none" stroke="#1d4ed8" stroke-width="1.5" points="356.0,228.4 466.0,186.5 576.0,154.9"/>
+<circle cx="356.0" cy="228.4" r="3" fill="#1d4ed8"/>
+<circle cx="466.0" cy="186.5" r="3" fill="#1d4ed8"/>
+<circle cx="576.0" cy="154.9" r="3" fill="#1d4ed8"/>
+<polyline fill="none" stroke="#047857" stroke-width="1.5" points="356.0,245.0 466.0,222.9 576.0,192.9"/>
+<circle cx="356.0" cy="245.0" r="3" fill="#047857"/>
+<circle cx="466.0" cy="222.9" r="3" fill="#047857"/>
+<circle cx="576.0" cy="192.9" r="3" fill="#047857"/>
 <rect x="34" y="320" width="10" height="10" fill="#b45309"/><text x="50" y="328">S1</text>
 <rect x="34" y="332" width="10" height="10" fill="#1d4ed8"/><text x="50" y="340">S2</text>
 <rect x="34" y="344" width="10" height="10" fill="#047857"/><text x="50" y="352">S3</text>

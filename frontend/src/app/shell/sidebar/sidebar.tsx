@@ -32,8 +32,10 @@ export function Sidebar({ user, unread, collapsed, onToggle }: SidebarProps) {
             {user.email}
           </span>
         )}
-        <div className={styles.tools}>
+        <div className={styles.account}>
           <AccountMenu user={user} iconOnly={collapsed} />
+        </div>
+        <div className={styles.tools}>
           <LocaleSwitch placement="top-start" />
           <ThemeSwitch placement="top-start" />
           <Button

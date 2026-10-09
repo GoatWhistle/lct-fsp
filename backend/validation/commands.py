@@ -6,12 +6,16 @@
   банке D1;
 - `tune_inflation` — подбор поправки погрешности `level_sd_inflation` на настроечном наборе D3
   по правилу плана валидации;
+- `fit` — подбор проверки согласия семейства с моделью `item_fit_*` на D3 по правилу плана
+  валидации: пять гипотез на банке с испорченными семействами (`validation.item_fit`);
 - `report_parsing` — M21, точность разбора потребности из текста по полям на размеченном наборе:
   правилами или моделью из записи её ответов (`validation.recorded`);
 - `write_market` — синтетический рынок D1 или D2 файлами: истина, наблюдаемое, потребности и
   эталон пар (`validation.population`);
 - `b3` — пары B3 по наборам: сколько вызовов модели и во что обойдётся живой прогон, а с
-  `--record` — сам прогон с записью ответов в кэш (`validation.baselines`).
+  `--record` — сам прогон с записью ответов в кэш (`validation.baselines`);
+- `train_acceptance` — обучение модели принятия на своём сиде: файл модели в репо и базовые линии
+  M7 рядом (`validation.acceptance`).
 
 Прогоны специализаций идут в пуле процессов; каждый процесс собирает свой стенд из seed прогона.
 """
@@ -20,6 +24,7 @@ import argparse
 import logging
 import os
 import statistics
+import uuid
 from collections import Counter
 from collections.abc import Sequence
 from concurrent.futures import ProcessPoolExecutor
@@ -33,8 +38,19 @@ from app.adapter.text_rules import load_synonyms
 from app.domain.determination import grades_by_threshold
 from composition import model_understanding, named_completion
 from settings import CATALOG_FILE, MECHANICS_FILE, SYNONYMS_FILE, Mechanics, Settings
+from validation.acceptance import (
+    TRAIN_PAIRS,
+    TRAIN_SEED,
+    make_offers,
+    offer_needs,
+    quality,
+    rows,
+    save_baselines,
+    train_on,
+)
 from validation.baselines import B3_SYSTEM, Document, LlmRanker, ScoreCache, record
 from validation.isolated import IsolatedCompletion
+from validation.item_fit import D3, TUNING_WARM, tune
 from validation.main import B3_DIR, b3_cache_path, baseline_source, build_stand, catalog
 from validation.market import (
     SEED,
@@ -47,7 +63,7 @@ from validation.market import (
 )
 from validation.metrics import cohen_kappa, median, pearson
 from validation.parsing import LabeledText, load_labeled, parsing_table, run_parsing
-from validation.population import DATASETS, Generator, GeneratorParams, write
+from validation.population import D1, DATASETS, Generator, GeneratorParams, write
 from validation.recorded import Recording, Replay
 from validation.recorded import record as record_model
 from validation.report import (
@@ -60,7 +76,7 @@ from validation.report import (
     write_d4,
     write_report,
 )
-from validation.simulate import Scale
+from validation.simulate import Job, Scale, Scored, run_offers
 
 # Набор D5 — тексты вакансий с разметкой; формат — validation/data/need_texts.md.
 DATA_DIR = Path(__file__).resolve().parent / "data"
@@ -329,7 +345,7 @@ def b3_pairs(
 ) -> tuple[GeneratorParams, list[tuple[Document, Document]], Counter[str]]:
     """Пары B3 набора `name` по плану и сколько их по видам: пул, двойники M3, двойники M5."""
     known = catalog()
-    dataset, doubles = prepared(name, mechanics, PLAN_SCALE, tuple(known.specializations), known)
+    _, dataset, doubles = prepared(name, mechanics, PLAN_SCALE, tuple(known.specializations), known)
     kinds = {str(tw.id): tw.kind.value for tw in doubles}
     found, counts = [], Counter[str]()
     for pairs in baseline_pairs(dataset, doubles, known).values():
@@ -405,13 +421,62 @@ def write_market(
     )
 
 
+def train_acceptance(mechanics: Mechanics, model_file: Path) -> None:
+    """Модель принятия одной командой: набор с сидом `TRAIN_SEED` и параметрами D1, прогон
+    определений и подборок по специализациям в пуле процессов, пары с решениями кандидатов,
+    CatBoost и базовые линии. Тот же сид — те же пары, та же модель и те же метрики."""
+    known = catalog()
+    params = replace(D1, name="acceptance", seed=TRAIN_SEED)
+    generator = Generator(params, mechanics, known)
+    dataset = generator.generate()
+    codes = list(known.specializations)
+    needs = offer_needs(generator, dataset, TRAIN_PAIRS)
+    stacks = {o.id: frozenset(o.stack) for o in dataset.observed}
+    jobs = [
+        Job(
+            params,
+            code,
+            mechanics,
+            Scale(),
+            tuple(t for t in dataset.truths if t.specialization == code),
+            (),
+            stacks,
+            full=False,
+            offer_needs=tuple(n for n in needs if n.form.specialization == code),
+        )
+        for code in codes
+    ]
+    scored: dict[uuid.UUID, tuple[Scored, ...]] = {}
+    with _pool() as pool:
+        for found in pool.map(run_offers, jobs):
+            scored |= found
+    offers = make_offers(dataset, needs, scored, mechanics, TRAIN_PAIRS)
+    if len(offers) < TRAIN_PAIRS:
+        raise SystemExit(f"пар {len(offers)} из {TRAIN_PAIRS}: мало потребностей пар")
+    model, baselines = train_on(offers, mechanics)
+    model.save(model_file)
+    save_baselines(baselines)
+    labels = [o.accepted for o in offers]
+    fitted = quality(model.predict_rows(rows(offers)), labels)
+    print(
+        f"Модель принятия: сид {TRAIN_SEED}, пар {len(offers)}, доля принятий "
+        f"{baselines.constant:.3f}; на обучающих парах ROC-AUC {fitted.roc_auc:.4f}, "
+        f"ECE {fitted.ece:.4f} → {model_file}"
+    )
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(prog="python -m validation")
     parser.add_argument(
-        "command", nargs="?", choices=("report", "honesty", "tune", "parsing", "market", "b3")
+        "command",
+        nargs="?",
+        choices=("report", "honesty", "tune", "fit", "parsing", "market", "acceptance", "b3"),
     )
     parser.add_argument(
-        "--seed", type=int, default=None, help="сид для honesty и market, по умолчанию плановый"
+        "--seed",
+        type=int,
+        default=None,
+        help="сид для honesty, fit и market, по умолчанию плановый",
     )
     parser.add_argument(
         "--candidates",
@@ -426,7 +491,10 @@ def main() -> None:
         "--pairs", type=int, default=None, help="пар повтора: honesty — 1500, report — 200"
     )
     parser.add_argument(
-        "--warm", type=int, default=None, help="report: ответов на семейство в прогреве (500)"
+        "--warm",
+        type=int,
+        default=None,
+        help="ответов на семейство в прогреве: report — 500, fit — 650",
     )
     parser.add_argument(
         "--compare", type=int, default=None, help="report: кандидатов сравнения M13 (300)"
@@ -478,6 +546,12 @@ def main() -> None:
             )
         case "tune":
             tune_inflation(mechanics, 1500 if args.candidates is None else args.candidates)
+        case "fit":
+            tune(
+                mechanics,
+                D3 if args.seed is None else replace(D3, seed=args.seed),
+                TUNING_WARM if args.warm is None else args.warm,
+            )
         case "parsing":
             report_parsing(
                 mechanics,
@@ -488,6 +562,8 @@ def main() -> None:
             )
         case "market":
             write_market(mechanics, args.set, args.seed, args.candidates, args.out)
+        case "acceptance":
+            train_acceptance(mechanics, Settings().acceptance_model_file)
         case "b3":
             b3(mechanics, SETS, args.record, args.model or "agent_sdk")
         case _:

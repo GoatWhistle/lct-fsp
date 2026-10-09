@@ -215,7 +215,7 @@ def test_report_rebuilds_from_b3_cache_without_model(tmp_path: Path) -> None:
     пара без ответа в кэше — ошибка, а не тихий пропуск."""
     known = catalog()
     for name in report.SETS:
-        dataset, doubles = prepared(name, MECHANICS, TINY, ("qa",), known)
+        _, dataset, doubles = prepared(name, MECHANICS, TINY, ("qa",), known)
         cache = ScoreCache(b3_cache_path(tmp_path, name), dataset.params.seed)
         pairs = [
             (n, r)

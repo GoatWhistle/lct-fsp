@@ -1,0 +1,49 @@
+{
+  "title": "Hiring IT specialists by measured skill",
+  "hero": {
+    "title": "Hiring that cannot be gamed",
+    "lead": "Candidates prove their level with an adaptive test and FSP achievements. Employers see skills with honest uncertainty and invite the right people themselves.",
+    "candidate": "I am looking for a job",
+    "employer": "I am hiring",
+    "login": "Sign in",
+    "haveAccount": "Already have an account?"
+  },
+  "how": {
+    "title": "How it works",
+    "test": {
+      "title": "The test measures your level",
+      "text": "The adaptive test picks tasks based on your answers and stops once the uncertainty is small."
+    },
+    "profile": {
+      "title": "The profile collects signals",
+      "text": "FSP, the verification block, the test, tasks and self-description carry different weight: the harder to fake, the more it counts."
+    },
+    "invite": {
+      "title": "The employer invites",
+      "text": "The shortlist explains every place. An invitation comes with a salary range, and contacts open only after you agree."
+    }
+  },
+  "candidate": {
+    "title": "For candidates",
+    "one": "Your category comes from the test, not from keywords in a résumé.",
+    "two": "A skill profile by topic: level with honest uncertainty.",
+    "three": "Employers find you. Your contacts stay hidden until you agree.",
+    "sample": "This is what a topic level looks like"
+  },
+  "employer": {
+    "title": "For employers",
+    "one": "Describe the need in plain words, and it is turned into topic requirements.",
+    "two": "The shortlist explains every place: topic contributions and trust sources.",
+    "three": "Invite with a salary range instead of sifting through blind applications.",
+    "sample": "This is what a match with your need looks like"
+  },
+  "fsp": {
+    "title": "FSP achievements count the most",
+    "text": "Results of supervised in-person competitions cannot be generated. Link your FSP ID and they join your skill profile at the highest trust level.",
+    "note": "No FSP history is fine too: your profile is built from the test with no penalty.",
+    "cta": "Sign in with FSP ID"
+  },
+  "footer": {
+    "made": "A hiring service for FSP participants and partners"
+  }
+}

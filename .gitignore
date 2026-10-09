@@ -33,3 +33,8 @@ frontend/dist/
 
 # Веса локальной модели для llama-server — не в репо
 models/
+
+.impeccable/
+frontend/dist-tokens/
+frontend/test-results/
+frontend/playwright-report/

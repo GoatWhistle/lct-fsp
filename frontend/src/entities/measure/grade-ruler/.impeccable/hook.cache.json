@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "sessions": {
+    "34bde4ff-bffe-4921-a30f-9a93b1476a3c": {
+      "updatedAt": 1791532676658,
+      "files": {
+        "w:\\Projects\\hacks\\new-lct\\frontend\\src\\entities\\level\\grade-ruler\\grade-ruler.module.css": {
+          "editCount": 1,
+          "findings": []
+        }
+      }
+    }
+  }
+}

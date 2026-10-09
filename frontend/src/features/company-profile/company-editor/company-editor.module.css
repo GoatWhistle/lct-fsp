@@ -1,0 +1,81 @@
+.editor {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, var(--panel-detail));
+  grid-template-areas:
+    "about preview"
+    "contacts preview"
+    "footer preview";
+  grid-template-rows: auto auto 1fr;
+  align-items: start;
+  gap: var(--space-24);
+}
+
+.about {
+  grid-area: about;
+}
+
+.contacts {
+  grid-area: contacts;
+}
+
+.footer {
+  grid-area: footer;
+  display: grid;
+  gap: var(--space-16);
+}
+
+.bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-12) var(--space-24);
+}
+
+.status {
+  composes: labelText from "../../../shared/styles/compose.module.css";
+  min-inline-size: 0;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-12);
+}
+
+.reset {
+  animation: var(--motion-fade-in);
+}
+
+.preview {
+  grid-area: preview;
+  position: sticky;
+  inset-block-start: calc(var(--sticky-top) + var(--space-24));
+}
+
+@media (min-width: 120rem) {
+  .editor {
+    grid-template-columns: minmax(0, 3fr) minmax(0, 2fr) minmax(0, var(--panel-detail));
+    grid-template-areas:
+      "about contacts preview"
+      "about footer preview";
+    grid-template-rows: auto 1fr;
+  }
+}
+
+@media (max-width: 63.99rem) {
+  .editor {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      "about"
+      "contacts"
+      "preview"
+      "footer";
+    grid-template-rows: none;
+  }
+
+  .preview {
+    position: static;
+  }
+}

@@ -4,16 +4,19 @@
 стек с потолком вклада. Ожидания — вход модели принятия приглашения (§13): зарплата, формат,
 город, переезд и интересные сферы бизнеса.
 
-Кому что видно: ФИО, контакты и свободный текст — «о себе», роли, софт-скиллы — работодатель
-получает только после раскрытия: принятого приглашения или отклика (§14). В свободный текст
-можно вписать имя или контакт. Ожидаемая зарплата работодателю не показывается никогда.
-Фото, возраст и вуз не собираются: это защищённые признаки (§17), обезличивать их не придётся.
+Кому что видно: ФИО, контакты и свободный текст — «о себе», роли, софт-скиллы, карточку опыта —
+работодатель получает только после раскрытия: принятого приглашения или отклика (§14). В
+свободный текст можно вписать имя или контакт. Ожидаемая зарплата работодателю не показывается
+никогда. Фото, возраст и вуз не собираются: это защищённые признаки (§17), обезличивать их не
+придётся.
 """
 
 import uuid
 from datetime import datetime
+from typing import Any
 
 from sqlalchemy import ARRAY, CheckConstraint, Column, ForeignKey, String, Table
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.domain.candidate import HideableField
@@ -72,6 +75,10 @@ class CandidateProfile(Base):
     about: Mapped[str] = mapped_column(String(3000))
     job_roles: Mapped[list[str]] = mapped_column(ARRAY(String(100)))
     soft_skills: Mapped[list[str]] = mapped_column(ARRAY(String(50)))
+    # Карточка опыта со слов кандидата: записи `{place, role, start, end, stack, summary}`,
+    # месяцы — `ГГГГ-ММ`, `end` — `null` «по сейчас», стек — коды технологий. Записи читаются
+    # только целиком с профилем, поэтому не отдельной таблицей; годы по технологиям не хранятся.
+    experience: Mapped[list[dict[str, Any]]] = mapped_column(JSONB, server_default="[]")
 
     # Видны в обезличенной карточке: структурные поля.
     experience_years: Mapped[int]

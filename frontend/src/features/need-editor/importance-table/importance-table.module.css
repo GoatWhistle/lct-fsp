@@ -1,0 +1,42 @@
+.table {
+  composes: stale from "../../../shared/styles/compose.module.css";
+  display: grid;
+  container-type: inline-size;
+  border-block-start: var(--hairline) solid var(--border-hairline);
+}
+
+.row {
+  composes: listRowCompact from "../../../shared/styles/rows.module.css";
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-16);
+}
+
+.topic {
+  display: grid;
+  gap: var(--space-4);
+  min-inline-size: 0;
+}
+
+.name {
+  composes: bodySmText from "../../../shared/styles/compose.module.css";
+  font-weight: var(--weight-medium);
+}
+
+.meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-8);
+}
+
+.source {
+  composes: captionText from "../../../shared/styles/compose.module.css";
+}
+
+@container (max-width: 29.99rem) {
+  .row > :nth-child(2) {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+}

@@ -25,7 +25,7 @@ from pypdf.generic import (
     NumberObject,
 )
 
-from app.adapter.profile_pdf import FONTS
+from app.adapter.brand.pdf_kit import FONTS
 
 TODAY = date(2026, 10, 8)
 
@@ -36,6 +36,10 @@ class Job:
     title: str
     company: str
     text: str
+    # Истина записи опыта: период `ГГГГ-ММ` (конец `None` — по сейчас) и технологии справочника
+    # в заголовке и тексте.
+    months: tuple[str, str | None]
+    stack: frozenset[str]
 
 
 @dataclass(frozen=True)
@@ -75,12 +79,16 @@ IVANOVA = Person(
             "ООО «Ромашка»",
             "Автотесты API на Python и pytest, нагрузочное тестирование в JMeter, проверки в "
             "PostgreSQL.",
+            ("2021-03", None),
+            frozenset({"python", "pytest", "jmeter", "postgresql"}),
         ),
         Job(
             "09.2019 — 02.2021",
             "Тестировщик",
             "АО «Лютик»",
             "Ручное тестирование веб-приложений, Postman, тест-дизайн.",
+            ("2019-09", "2021-02"),
+            frozenset({"postman"}),
         ),
     ),
     skills_line="Python, pytest, Postman, JMeter, PostgreSQL, Docker",
@@ -105,12 +113,16 @@ PETROV = Person(
             "Тимлид бэкенда",
             "ООО «Сервисы»",
             "Команда из пяти человек, FastAPI, Kafka, Redis, code review.",
+            ("2022-01", None),
+            frozenset({"fastapi", "kafka", "redis"}),
         ),
         Job(
             "июнь 2018 — декабрь 2021",
             "Python-разработчик",
             "ООО «Платёжка»",
             "Django, PostgreSQL, Celery на RabbitMQ, Docker.",
+            ("2018-06", "2021-12"),
+            frozenset({"python", "django", "postgresql", "rabbitmq", "docker"}),
         ),
     ),
     skills_line="Python, FastAPI, Django, PostgreSQL, Redis, Kafka, RabbitMQ, Docker, Kubernetes",
@@ -150,6 +162,8 @@ SMIRNOVA = Person(
             "Фронтенд-разработчик",
             "ООО «Интерфейсы»",
             "React и TypeScript, вёрстка, тесты на Jest.",
+            ("2023-01", None),
+            frozenset({"react", "typescript", "html-css", "jest"}),
         ),
     ),
     skills_line="JavaScript, TypeScript, React, HTML, CSS, Jest, Vite",
@@ -167,8 +181,8 @@ PEOPLE = (IVANOVA, PETROV, SMIRNOVA)
 def _pdf() -> FPDF:
     pdf = FPDF(format="A4")
     pdf.set_auto_page_break(auto=True, margin=15)
-    pdf.add_font("PT", "", str(FONTS / "PTSans-Regular.ttf"))
-    pdf.add_font("PT", "B", str(FONTS / "PTSans-Bold.ttf"))
+    pdf.add_font("PT", "", str(FONTS / "Onest-Regular.ttf"))
+    pdf.add_font("PT", "B", str(FONTS / "Onest-SemiBold.ttf"))
     pdf.set_font("PT", size=11)
     pdf.add_page()
     return pdf

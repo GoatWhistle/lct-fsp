@@ -135,6 +135,16 @@ class Placed:
 
 
 @dataclass(frozen=True)
+class Scored:
+    """Кандидат подборки со скором — точный или «близкий» блок: категория по тесту и S."""
+
+    candidate: uuid.UUID
+    # Грейд категории кандидата.
+    grade: str
+    match_score: float
+
+
+@dataclass(frozen=True)
 class SpecRun:
     dataset: str
     specialization: str
@@ -157,6 +167,8 @@ class SpecRun:
     # параметрам бланка.
     naive_cutoffs: dict[str, float] = field(default_factory=dict)
     adaptivity: Adaptivity | None = None
+    # Потребность пар модели принятия → кандидаты её подборки со скором.
+    offers: dict[uuid.UUID, tuple[Scored, ...]] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -172,6 +184,8 @@ class Job:
     twins: tuple[Twin, ...] = ()
     # Полный прогон — с B0, повтором, подборками и M13; иначе только определения (M4 до поправки).
     full: bool = True
+    # Потребности пар модели принятия (M7): подборка по каждой — кандидаты со скором.
+    offer_needs: tuple[SyntheticNeed, ...] = ()
 
 
 def warm_source(
@@ -253,8 +267,18 @@ def naive_cutoffs(m: Market, blank: Sequence[str]) -> dict[str, float]:
     }
 
 
-def run_spec(job: Job) -> SpecRun:
-    """Задача пула процессов: прогон специализации набора — см. описание модуля."""
+def _determined(
+    job: Job,
+) -> tuple[
+    Market,
+    Callable[[], Candidate],
+    tuple[Checkpoint, ...],
+    tuple[CandidateTruth, ...],
+    dict[uuid.UUID, uuid.UUID],
+    dict[uuid.UUID, Determined],
+]:
+    """Банк прогрет на честных кандидатах набора, каждый кандидат прошёл первичное определение:
+    стенд, поток прогрева, точки M12, кандидаты, их учётки и определения."""
     params, code, mechanics, scale = job.params, job.specialization, job.mechanics, job.scale
     m = Market(code, mechanics, params.seed, params.response)
     source = warm_source(params, code, mechanics)
@@ -266,6 +290,41 @@ def run_spec(job: Job) -> SpecRun:
         d = m.determine(as_candidate(t))
         users[t.id] = d.user
         first[t.id] = Determined(d.grade, d.overall)
+    return m, source, checkpoints, truths, users, first
+
+
+def offers(
+    m: Market, job: Job, truths: Sequence[CandidateTruth], users: dict[uuid.UUID, uuid.UUID]
+) -> dict[uuid.UUID, tuple[Scored, ...]]:
+    """Подборки по потребностям пар модели принятия — кандидаты точного и «близкого» блоков со
+    скором. Кандидаты уже в пуле стенда."""
+    by_user = {u: t for t, u in users.items()}
+    selections = m.stand.selections()
+    found = {}
+    for need in job.offer_needs:
+        page = selections.build_draft(EMPLOYER, need.form, limit=len(truths))
+        found[need.id] = tuple(
+            Scored(by_user[e.candidate_id], e.grade.code, e.match_score)
+            for e in page.entries
+            if e.match_score is not None
+        )
+    return found
+
+
+def run_offers(job: Job) -> dict[uuid.UUID, tuple[Scored, ...]]:
+    """Задача пула процессов для обучения модели принятия: только определения и подборки по
+    потребностям пар — без B0, повтора и M13."""
+    m, _, _, truths, users, _ = _determined(job)
+    for t in truths:
+        m.enlist(users[t.id], stack=job.stack[t.id], claimed=t.claimed)
+    return offers(m, job, truths, users)
+
+
+def run_spec(job: Job) -> SpecRun:
+    """Задача пула процессов: прогон специализации набора — см. описание модуля."""
+    params, mechanics, scale = job.params, job.mechanics, job.scale
+    m, source, checkpoints, truths, users, first = _determined(job)
+    code = job.specialization
     profiles = {t.id: _profile(m, users[t.id]) for t in truths}
     if not job.full:
         outcomes = {t.id: Outcome(first[t.id], None, profiles[t.id], ()) for t in truths}
@@ -299,8 +358,10 @@ def run_spec(job: Job) -> SpecRun:
 
     families = _families(m)
     adaptivity = compare(m, scale.compare, source)
-    # Двойники — после всех замеров банка: подборка берёт соль из того же источника seed, что и
-    # тест, и лишние подборки до M13 сдвинули бы его.
+    # Пары модели принятия — после замеров банка: их подборки не сдвигают сиды замеров выше.
+    offered = offers(m, job, truths, users)
+    # Двойники — последними: подборка берёт соль из того же источника seed, что и тест и пары
+    # принятия, и лишние подборки до них сдвинули бы их.
     own_twins = [tw for tw in job.twins if tw.source in users]
     for tw in own_twins:
         m.twin(users[tw.source], tw.id, frozenset(tw.observed.stack))
@@ -320,13 +381,14 @@ def run_spec(job: Job) -> SpecRun:
         mechanics.level_sd_inflation,
         outcomes,
         rankings,
-        placed,
-        twin_placed,
-        listed,
-        checkpoints,
-        families,
-        naive_cutoffs(m, blank),
-        adaptivity,
+        placed=placed,
+        twin_placed=twin_placed,
+        listed=listed,
+        checkpoints=checkpoints,
+        families=families,
+        naive_cutoffs=naive_cutoffs(m, blank),
+        adaptivity=adaptivity,
+        offers=offered,
     )
 
 
@@ -363,7 +425,7 @@ class FamilyFit:
     choice: bool
     corruption: Corruption | None
     refitted: bool
-    # RMSD выше `item_fit_rmsd_max` на переоценке: проверка согласия вывела семейство из выдачи.
+    # Проверка согласия после переоценки вывела семейство из выдачи (mechanics.md, §7).
     flagged: bool
 
 

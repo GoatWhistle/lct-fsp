@@ -1,0 +1,42 @@
+.list {
+  display: grid;
+}
+
+.title {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-8);
+}
+
+.title[data-new="true"] {
+  font-weight: var(--weight-bold);
+}
+
+.title[data-new="true"]::before {
+  content: "";
+  inline-size: var(--space-8);
+  block-size: var(--space-8);
+  border-radius: var(--radius-round);
+  background-color: var(--action-primary);
+  animation: var(--motion-pop-in);
+}
+
+.unread {
+  composes: monoText from "../../../shared/styles/compose.module.css";
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-4);
+  color: var(--text-accent);
+  animation: var(--motion-pop-in);
+}
+
+.basis {
+  composes: footnote from "../../../shared/styles/compose.module.css";
+  padding: var(--space-12) var(--space-12) var(--space-4);
+}
+
+.figure {
+  composes: labelText from "../../../shared/styles/compose.module.css";
+  align-self: center;
+  font-variant-numeric: var(--font-numeric);
+}

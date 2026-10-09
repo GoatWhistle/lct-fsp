@@ -1,0 +1,15 @@
+.thread {
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  min-block-size: var(--thread-min-height);
+  max-block-size: var(--thread-max-height);
+  border: var(--hairline) solid var(--border-hairline);
+  border-radius: var(--radius-inner);
+  overflow: clip;
+}
+
+.state {
+  display: grid;
+  align-content: center;
+  padding: var(--space-16);
+}

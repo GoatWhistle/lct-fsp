@@ -1,0 +1,21 @@
+.bar {
+  composes: stickyBar from "../../../shared/styles/compose.module.css";
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-12);
+  min-block-size: var(--header-height);
+  padding-inline: var(--space-16);
+  background-color: var(--surface-sidebar);
+}
+
+.tools {
+  display: flex;
+  gap: var(--space-4);
+}
+
+@media (min-width: 48rem) {
+  .bar {
+    display: none;
+  }
+}

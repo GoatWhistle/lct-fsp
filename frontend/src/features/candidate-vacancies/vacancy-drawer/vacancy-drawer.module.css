@@ -1,0 +1,24 @@
+.body {
+  display: grid;
+  gap: var(--space-24);
+}
+
+.tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-8);
+}
+
+.basis {
+  composes: footnote from "../../../shared/styles/compose.module.css";
+}
+
+.description {
+  composes: preWrap from "../../../shared/styles/layout.module.css";
+  max-inline-size: var(--prose-measure);
+  line-height: var(--line-height-body);
+}
+
+.note {
+  font-size: var(--font-size-body-sm);
+}

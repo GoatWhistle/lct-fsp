@@ -1,0 +1,54 @@
+{
+  "level": {
+    "confident": "уверенно {{grade}}",
+    "below": "ниже стажёра",
+    "internOrBelow": "стажёр или ниже",
+    "between": "между {{low}} и {{high}}"
+  },
+  "gradeWith": {
+    "intern": "стажёром",
+    "junior": "Junior",
+    "middle": "Middle",
+    "senior": "Senior"
+  },
+  "uncertainty": {
+    "small": "погрешность небольшая",
+    "medium": "погрешность заметная",
+    "large": "погрешность большая"
+  },
+  "ruler": {
+    "label": "Уровень: {{words}}, {{uncertainty}}",
+    "required": "требование",
+    "below": "Ниже"
+  },
+  "match": {
+    "label": "соответствие",
+    "aria": "Соответствие {{value}}",
+    "acceptance": "примет приглашение: {{value}}",
+    "segment": "{{topic}}: вероятность выполнить требование {{value}}",
+    "stack": "Стек по словам кандидата: {{value}} совпадает"
+  },
+  "verdict": {
+    "confidently_above": "уверенно выше",
+    "likely_above": "скорее выше",
+    "likely_below": "скорее ниже",
+    "below": "ниже",
+    "lowData": "данных мало"
+  },
+  "trust": {
+    "fsp": "ФСП",
+    "verification": "проверочный блок",
+    "test": "тест",
+    "regular_task": "регулярное задание",
+    "self": "по словам кандидата"
+  },
+  "percent": {
+    "above": "больше 99 %",
+    "below": "меньше 1 %"
+  },
+  "gradeStatus": {
+    "confirmed": "подтверждён тестом",
+    "below_claimed": "заявлен {{claimed}}, подтверждён {{confirmed}}",
+    "unconfirmed": "заявлен {{claimed}}, тест не пройден"
+  }
+}

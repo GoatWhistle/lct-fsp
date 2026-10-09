@@ -56,6 +56,7 @@ from app.domain.fsp import (
     FspSnapshot,
 )
 from app.domain.invitation import Invitation, InvitationTerms
+from app.domain.locale import Locale
 from app.domain.mail import Mail
 from app.domain.need import NeedRecord, NeedTerms
 from app.domain.need_draft import NeedDraft, OutOfCatalog
@@ -86,8 +87,9 @@ from app.domain.vacancy import Vacancy, VacancyTerms
 class SkillModel(Protocol):
     """Модель навыка (mechanics.md, §3): уровень по темам из априорного и наблюдений.
 
-    Сейчас — IRT 2PL с иерархическим априорным, модуль `app.adapter.irt`. Оценка детерминирована:
-    те же априорное и наблюдения в том же порядке дают ту же оценку.
+    Сейчас — IRT 2PL с иерархическим априорным, модуль `app.adapter.irt`, в сборке — за кэшем
+    префиксов наблюдений `app.adapter.skill_cache`. Оценка детерминирована: те же априорное и
+    наблюдения в том же порядке дают ту же оценку.
     """
 
     def initial(self, prior: Prior) -> SkillEstimate:
@@ -429,6 +431,10 @@ class CalibrationRepository(Protocol):
         ...
 
 
+class MailTemplates(Protocol):
+    def verification(self, to: str, link: str, ttl_hours: int, locale: Locale) -> Mail: ...
+
+
 class Mailer(Protocol):
     """Почта — внешняя система. Отправка не роняет сценарий: письмо, которое не ушло,
     кандидат запрашивает повторно."""
@@ -439,8 +445,8 @@ class Mailer(Protocol):
 class ProfilePdfRenderer(Protocol):
     """Рендер PDF-профиля. Показывает проекцию как есть: что в неё попало, решил сценарий."""
 
-    def render(self, sheet: ProfileSheet, *, now: datetime) -> bytes:
-        """PDF; `now` — дата формирования в подвале и метаданных."""
+    def render(self, sheet: ProfileSheet, *, now: datetime, locale: Locale = "ru") -> bytes:
+        """PDF; `now` — дата формирования в подвале и метаданных, `locale` — язык текстов."""
         ...
 
 
@@ -522,12 +528,14 @@ class CandidateRepository(Protocol):
 class AcceptanceModel(Protocol):
     """Модель принятия (mechanics.md, §13): P(кандидат примет приглашение) по признакам.
 
-    Отдаёт только P — скор соответствия, вклады и порядок считает домен. Сейчас модели нет:
-    заглушка `app.adapter.acceptance` отдаёт `None` — множитель 1, в выдаче `null`.
+    Отдаёт только P — скор соответствия, вклады и порядок считает домен. Сейчас — CatBoost из
+    файла модели (`app.adapter.acceptance_catboost`); файла нет — заглушка
+    `app.adapter.acceptance` отдаёт `None`: множитель 1, в выдаче `null`.
     """
 
     def predict(self, features: Sequence[AcceptanceFeatures]) -> list[float | None]:
-        """P(принятия) в [0, 1] по порядку `features`; `None` — модель не знает."""
+        """P(принятия) в [0, 1] по порядку `features`; `None` — модель не знает, в том числе у
+        потребности без вилки."""
         ...
 
 
@@ -538,6 +546,11 @@ class NeedReader(Protocol):
     def get(self, user_id: uuid.UUID, need_id: uuid.UUID) -> Need:
         """Потребность работодателя `user_id`; чужая или несуществующая — `NeedNotFound`: чужая
         для работодателя не существует, чтобы не раскрывать, что такая есть."""
+        ...
+
+    def company_industry(self, user_id: uuid.UUID) -> str | None:
+        """Сфера компании работодателя `user_id` — признак модели принятия; профиля компании нет —
+        None."""
         ...
 
 
@@ -589,6 +602,14 @@ class CandidatePool(Protocol):
     ) -> list[UnconfirmedCandidate]:
         """Без категории: последний опрос — `specialization`, заявлен ровно грейд `grade`. Стек —
         только из `technologies`. Порядок не важен."""
+        ...
+
+    def open_invitations(
+        self, candidate_ids: Collection[uuid.UUID], since: datetime
+    ) -> dict[uuid.UUID, int]:
+        """Загрузка кандидатов из `candidate_ids` — открытые приглашения: отправленные и
+        просмотренные, отправленные позже `since`, то есть не истёкшие (`Invitation.at`). Без
+        открытых в ответе нет."""
         ...
 
     def facts(self, candidate_ids: Collection[uuid.UUID]) -> list[CandidateFacts]:

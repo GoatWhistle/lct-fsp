@@ -1,0 +1,26 @@
+.formats {
+  composes: bareFieldset from "../../../shared/styles/compose.module.css";
+  display: grid;
+  gap: var(--space-8);
+}
+
+.legend {
+  composes: fieldLabel from "../../../shared/styles/compose.module.css";
+  margin-block-end: var(--space-8);
+  padding: 0;
+}
+
+.options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-8) var(--space-24);
+}
+
+.error {
+  composes: captionText from "../../../shared/styles/compose.module.css";
+  color: var(--text-danger);
+}
+
+.note {
+  composes: prose from "../../../shared/styles/layout.module.css";
+}

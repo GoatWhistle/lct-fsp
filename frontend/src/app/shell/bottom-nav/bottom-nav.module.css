@@ -1,0 +1,63 @@
+.bar {
+  position: fixed;
+  inset-inline: 0;
+  inset-block-end: 0;
+  z-index: var(--layer-sidebar);
+  display: flex;
+  justify-content: space-around;
+  min-block-size: var(--bottom-nav-height);
+  padding-block-end: env(safe-area-inset-bottom);
+  border-block-start: var(--hairline) solid var(--border-hairline);
+  background-color: var(--surface-card);
+}
+
+.link {
+  composes: captionText pressable from "../../../shared/styles/compose.module.css";
+  display: flex;
+  flex: 1 1 0;
+  flex-direction: column;
+  min-inline-size: 0;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-4);
+  min-block-size: var(--bottom-nav-height);
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  text-decoration: none;
+}
+
+.link[aria-current="page"] {
+  color: var(--text-accent);
+}
+
+.glyph {
+  position: relative;
+  display: inline-flex;
+}
+
+.dot {
+  composes: dot from "../../../shared/styles/compose.module.css";
+  position: absolute;
+  inset-block-start: calc(var(--space-4) * -0.5);
+  inset-inline-end: calc(var(--space-4) * -1);
+  background-color: var(--action-primary);
+}
+
+.label {
+  composes: truncate from "../../../shared/styles/compose.module.css";
+  max-inline-size: 100%;
+}
+
+.more {
+  display: flex;
+  flex: 1 1 0;
+  min-inline-size: 0;
+  align-items: center;
+  justify-content: center;
+}
+
+@media (min-width: 48rem) {
+  .bar {
+    display: none;
+  }
+}

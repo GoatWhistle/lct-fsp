@@ -1,0 +1,118 @@
+{
+  "status": {
+    "revoked": "access revoked",
+    "invitation": {
+      "sent": "sent",
+      "viewed": "viewed",
+      "accepted": "accepted",
+      "declined": "declined",
+      "expired": "expired"
+    },
+    "application": {
+      "sent": "new",
+      "viewed": "viewed",
+      "accepted": "accepted",
+      "declined": "declined",
+      "expired": "expired"
+    }
+  },
+  "budget": {
+    "label": "Invitations this week",
+    "left": "{{left}} of {{limit}} left",
+    "resets": "Resets on {{date}}, Moscow time"
+  },
+  "overview": {
+    "title": "Overview",
+    "newNeed": "New need",
+    "company": {
+      "title": "Fill in your company profile",
+      "text": "Candidates decide whether to accept an invitation by who sends it. Without a company profile you cannot invite, publish vacancies or tasks.",
+      "invitations": "Invitations to candidates",
+      "vacancies": "Vacancies with applications",
+      "tasks": "Regular tasks",
+      "action": "Fill in the profile"
+    },
+    "metrics": {
+      "label": "Key figures",
+      "applications": "New applications",
+      "messages": "New messages",
+      "toInvitations": "Go to invitations",
+      "toApplications": "Go to applications",
+      "toMessages": "Go to conversations"
+    },
+    "needs": {
+      "title": "Needs",
+      "all": "All needs",
+      "exact": "in category",
+      "nearby": "close",
+      "noSelection": "No shortlist built yet",
+      "built": "Shortlist of {{date}}",
+      "open": "Open shortlist",
+      "rebuild": "Rebuild",
+      "build": "Build shortlist",
+      "building": "Building shortlist",
+      "more": "{{count}} more",
+      "emptyTitle": "Describe who you are looking for",
+      "emptyText": "A need sets the category, the stack and topic importance. The shortlist is built from it and explains every place.",
+      "create": "Create a need"
+    },
+    "activity": {
+      "title": "Activity",
+      "all": "All",
+      "invitation": "Invitation to candidate {{tag}}",
+      "application": "Application for “{{vacancy}}”",
+      "emptyTitle": "Quiet for now",
+      "emptyText": "Sent invitations and applications to your vacancies will show up here."
+    },
+    "attention": {
+      "title": "Needs attention",
+      "applications_one": "{{count}} application awaits a reply",
+      "applications_other": "{{count}} applications await a reply",
+      "messages_one": "New messages in {{count}} conversation",
+      "messages_other": "New messages in {{count}} conversations",
+      "tasks_one": "{{count}} task awaits grading",
+      "tasks_other": "{{count}} tasks await grading",
+      "budget": "Invitation budget used up until {{date}}",
+      "emptyTitle": "Nothing urgent",
+      "emptyText": "Applications are handled, conversations are read, task answers are graded."
+    }
+  },
+  "invitations": {
+    "title": "Invitations and applications",
+    "lead": "Invitations you sent to candidates and applications to your vacancies.",
+    "tab": "Invitations",
+    "applicationsTab": "Applications",
+    "listLabel": "Sent invitations",
+    "budgetHint": "Applications to vacancies do not use the invitation budget.",
+    "candidate": "Candidate {{tag}}",
+    "unread_one": "{{count}} new",
+    "unread_other": "{{count}} new",
+    "back": "Back to the list",
+    "toNeeds": "Go to needs",
+    "emptyTitle": "No invitations yet",
+    "emptyText": "Invite a candidate from a need's shortlist or from their card.",
+    "pickTitle": "Pick an invitation",
+    "pickText": "Sent invitations are listed on the left. Open one to see its terms, deadlines and conversation.",
+    "missingTitle": "Invitation not found",
+    "missingText": "The link may be outdated. Pick an invitation from the list.",
+    "terms": {
+      "salary": "Salary range",
+      "contact": "Contact method",
+      "sent": "Sent",
+      "viewed": "Viewed",
+      "answered": "Answered",
+      "expires": "Reply by",
+      "notYet": "not yet"
+    },
+    "detail": {
+      "title": "Invitation to candidate {{tag}}",
+      "sentBy": "From {{company}}",
+      "card": "Candidate card",
+      "revokedTitle": "The candidate revoked access",
+      "revokedText": "Since {{date}} the card is anonymous again. The conversation goes on.",
+      "waiting": "Awaiting a reply until {{date}}, Moscow time",
+      "oneOpen": "Until the candidate replies, you cannot send them a second invitation.",
+      "description": "Invitation text"
+    }
+  }
+}

@@ -16,7 +16,8 @@ from fastapi import FastAPI
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.adapter import irt
-from app.adapter.acceptance import NoAcceptanceModel
+from app.adapter.acceptance import acceptance_model
+from app.adapter.brand.mail_templates import BrandMailTemplates
 from app.adapter.catalog_file import YamlCatalog
 from app.adapter.clock import SystemClock
 from app.adapter.code_runner import InProcessCodeRunner
@@ -28,6 +29,7 @@ from app.adapter.profile_pdf import FpdfProfileRenderer
 from app.adapter.resume_pdf import PypdfResumeText
 from app.adapter.seed import SecureSeeds
 from app.adapter.session import JwtSessions
+from app.adapter.skill_cache import PROCESS_ENTRIES, PrefixCachedSkillModel
 from app.adapter.text_llama import LlamaCompletion
 from app.adapter.text_model import Completion
 from app.adapter.text_rules import RulesTextUnderstanding, grade_hint_rule, load_synonyms
@@ -88,6 +90,7 @@ from composition import (
     build_platform_usecases,
     build_usecases,
     catalog_sync,
+    experience_limits,
     item_selector,
     model_understanding,
     named_completion,
@@ -159,6 +162,7 @@ def create_app(
     )
     app.state.engine = engine
     app.state.mechanics = mechanics
+    app.state.experience_limits = experience_limits(mechanics)
     session_factory = sessionmaker(engine)
     session_ttl = timedelta(hours=settings.session_ttl_hours)
     app.state.session_cookie = SessionCookie(
@@ -187,7 +191,8 @@ def create_app(
     app.state.profile_pdf_renderer = profile_pdf_renderer or FpdfProfileRenderer()
     app.state.clock = clock = clock or SystemClock()
     seeds = seeds or SecureSeeds()
-    skill_model = skill_model or irt
+    # Кэш префиксов один на приложение, приложение — одно на процесс.
+    skill_model = skill_model or PrefixCachedSkillModel(irt, max_entries=PROCESS_ENTRIES)
     # Алгоритмы механики получают параметры конфига через конструктор —
     # tests/test_mechanics_config.py сверяет их с config/mechanics.yaml.
     app.state.item_selector = selector = item_selector(mechanics)
@@ -216,7 +221,7 @@ def create_app(
         clock=clock,
         seeds=seeds,
         code_runner=InProcessCodeRunner(),
-        acceptance=acceptance or NoAcceptanceModel(),
+        acceptance=acceptance or acceptance_model(settings.acceptance_model_file),
         text_understanding=understanding,
     )
     app.state.calibration = usecases.calibration
@@ -247,6 +252,7 @@ def create_app(
         passwords=passwords or Argon2Passwords(),
         sessions=JwtSessions(settings.secret_key, session_ttl),
         mailer=mailer or SmtpMailer(settings.smtp_host, settings.smtp_port, settings.mail_from),
+        mail_templates=BrandMailTemplates(),
         clock=clock,
         links=VerificationLinks(settings.frontend_url, settings.email_token_ttl_hours),
         skill_model=skill_model,

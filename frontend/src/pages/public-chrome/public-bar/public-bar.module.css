@@ -1,0 +1,17 @@
+.bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-16);
+  min-block-size: var(--header-height);
+}
+
+.tools {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.login {
+  margin-inline-start: var(--space-8);
+}

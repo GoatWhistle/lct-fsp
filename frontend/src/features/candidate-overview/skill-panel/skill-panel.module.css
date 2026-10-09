@@ -1,0 +1,71 @@
+.fsp {
+  composes: tintBlock from "../../../shared/styles/blocks.module.css";
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-4) var(--space-12);
+}
+
+.list {
+  display: grid;
+}
+
+.row {
+  composes: ruledRow from "../../../shared/styles/compose.module.css";
+  display: grid;
+  gap: var(--space-8);
+  padding-block: var(--space-16);
+}
+
+.row:last-child {
+  padding-block-end: 0;
+}
+
+.rowHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-8) var(--space-16);
+}
+
+.name {
+  font-size: var(--font-size-body);
+  font-weight: var(--weight-medium);
+  line-height: var(--line-height-body);
+}
+
+.sources {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-8);
+}
+
+.widest {
+  composes: labelText from "../../../shared/styles/compose.module.css";
+}
+
+.more {
+  justify-self: start;
+  margin-block-start: calc(var(--space-8) * -1);
+}
+
+.refine {
+  composes: labelText from "../../../shared/styles/compose.module.css";
+  color: var(--text-secondary);
+}
+
+.block {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-12);
+  padding-block-start: var(--space-8);
+}
+
+.blockText {
+  composes: prose from "../../../shared/styles/layout.module.css";
+  flex: 1 1 var(--column-min);
+}

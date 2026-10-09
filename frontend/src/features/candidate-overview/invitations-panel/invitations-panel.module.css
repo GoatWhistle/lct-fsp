@@ -1,0 +1,51 @@
+.list {
+  display: grid;
+}
+
+.item {
+  composes: ruledRow from "../../../shared/styles/compose.module.css";
+  display: grid;
+  justify-items: start;
+  gap: var(--space-4);
+  padding-block: var(--space-8) var(--space-12);
+}
+
+.item:first-child {
+  border-block-start: 0;
+}
+
+.link {
+  composes: pressable from "../../../shared/styles/compose.module.css";
+  display: grid;
+  justify-self: stretch;
+  align-content: center;
+  gap: var(--space-4);
+  min-block-size: var(--target-min);
+  color: var(--text-primary);
+  text-decoration-line: none;
+}
+
+.company {
+  composes: bodySmText from "../../../shared/styles/compose.module.css";
+  font-weight: var(--weight-medium);
+}
+
+.link[data-new="true"] .company {
+  font-weight: var(--weight-bold);
+}
+
+.money {
+  font-family: var(--font-mono);
+  font-variant-numeric: var(--font-numeric);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .link:hover .company {
+    color: var(--text-accent);
+  }
+}
+
+.basis {
+  composes: captionText from "../../../shared/styles/compose.module.css";
+  color: var(--text-secondary);
+}

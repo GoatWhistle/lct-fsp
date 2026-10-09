@@ -1,0 +1,29 @@
+.list {
+  display: grid;
+}
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4) var(--space-16);
+  padding-block: var(--space-4);
+  border-block-start: var(--hairline) solid var(--border-hairline);
+}
+
+.row:first-child {
+  border-block-start: 0;
+}
+
+.state {
+  composes: labelText from "../../../shared/styles/compose.module.css";
+}
+
+.rules {
+  display: grid;
+  gap: var(--space-8);
+  padding-block-start: var(--space-12);
+  border-block-start: var(--hairline) solid var(--border-hairline);
+  font-size: var(--font-size-body-sm);
+}

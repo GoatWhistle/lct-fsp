@@ -1,0 +1,34 @@
+.pane {
+  display: grid;
+  align-content: start;
+  gap: var(--space-24);
+  padding: var(--space-40) var(--space-page-wide);
+  animation: var(--motion-rise-in);
+}
+
+.pane[data-tone="inverse"] {
+  background-color: var(--surface-focus);
+}
+
+.head {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-16);
+}
+
+.titles {
+  display: grid;
+  gap: var(--space-4);
+  min-inline-size: 0;
+}
+
+.title {
+  composes: labelText from "../../../styles/compose.module.css";
+  color: var(--text-tertiary);
+}
+
+@media (max-width: 63.99rem) {
+  .pane {
+    padding: var(--space-24) var(--space-page);
+  }
+}

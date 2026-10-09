@@ -1,0 +1,40 @@
+.art {
+  position: relative;
+  display: grid;
+  place-items: center;
+  aspect-ratio: 1;
+  inline-size: min(100%, var(--hero-art-size));
+  justify-self: center;
+}
+
+.face {
+  inline-size: 72%;
+  block-size: auto;
+  mask-image: var(--mask-vignette);
+  animation: var(--motion-fade-in);
+}
+
+.traces {
+  position: absolute;
+  inset: 0;
+  inline-size: 100%;
+  block-size: 100%;
+  overflow: visible;
+}
+
+.trace {
+  composes: traceLine from "../../../shared/styles/compose.module.css";
+  animation-delay: calc(var(--i) * var(--stagger) * 3);
+}
+
+.node {
+  fill: var(--text-secondary);
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: var(--motion-node-in);
+  animation-delay: calc(var(--dur-draw) + var(--i) * var(--stagger) * 3);
+}
+
+.node[data-accent="true"] {
+  fill: var(--text-accent);
+}

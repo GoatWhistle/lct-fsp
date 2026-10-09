@@ -17,7 +17,9 @@ from pathlib import Path
 
 import pytest
 
+from app.adapter.code_runner import InProcessCodeRunner
 from app.adapter.fsp_registry import FileFspRegistry
+from app.domain import bank
 from app.domain.catalog import CatalogRef
 from app.domain.importance import TopicImportance
 from app.domain.selection import NeedRequirement, NeedSnapshot
@@ -40,7 +42,16 @@ from validation.population import (
     pair_json,
     write,
 )
-from validation.truth import CandidateTruth, Persona, ResponseModel, relevance
+from validation.truth import (
+    AcceptanceRule,
+    CandidateTruth,
+    Corruption,
+    Persona,
+    Response,
+    ResponseModel,
+    corrupt,
+    relevance,
+)
 
 MECHANICS = Mechanics.from_yaml(Settings().mechanics_file)
 CATALOG = catalog()
@@ -243,9 +254,13 @@ def test_only_generator_and_labeling_know_where_truth_lives() -> None:
 
 
 def test_generator_names_sources_of_salaries_and_stacks() -> None:
+    """Зарплаты — `market_salary_median` конфига механик, источник — в его строке
+    parameters.md; стеки — в коде генератора."""
     source = BACKEND_DIR.joinpath("validation", "population.py").read_text(encoding="utf-8")
+    doc = (BACKEND_DIR.parent / "docs" / "parameters.md").read_text(encoding="utf-8")
+    (row,) = [line for line in doc.splitlines() if line.startswith("| `market_salary_median` |")]
 
-    assert "https://career.habr.com/salaries" in source
+    assert "https://career.habr.com/salaries" in row
     assert "https://survey.stackoverflow.co/2025/technology/" in source
 
 
@@ -277,6 +292,25 @@ def test_existing_stand_numbers_do_not_move() -> None:
         assert hashlib.sha256(text.encode()).hexdigest() == fingerprint
 
 
+def test_wrong_key_breaks_about_half_of_instances_even_with_shared_prompt() -> None:
+    """Ошибка эталона M21 — у половины экземпляров. У семейства с общим текстом экземпляры
+    различаются параметрами и кодом; по одному тексту испорчены были бы все или ни один."""
+    runner = InProcessCodeRunner()
+    family = next(
+        f
+        for f in bank.BANK
+        if len({f.instance(s, runner).prompt for s in range(20)}) == 1
+        and len({f.instance(s, runner).answer for s in range(20)}) > 10
+    )
+    right = Response(True, 1.0)
+    broken = [
+        not corrupt(right, Corruption.key, family.instance(s, runner), random.Random(0)).correct
+        for s in range(200)
+    ]
+
+    assert 0.35 < sum(broken) / len(broken) < 0.65
+
+
 def test_synthetic_candidate_takes_test_on_stand_with_its_response_time() -> None:
     generator = Generator(D1, MECHANICS, CATALOG)
     rng = random.Random(1)
@@ -303,8 +337,10 @@ def test_generator_numbers_are_documented_under_their_names() -> None:
     text = (BACKEND_DIR.parent / "docs" / "parameters.md").read_text(encoding="utf-8")
     section = text.split("## Синтетический рынок стенда валидации")[1].split("\n## ")[0]
     names = set(re.findall(r"^\| `([a-z0-9_]+)` \|", section, re.MULTILINE))
-    fields = {f.name for f in dataclasses.fields(GeneratorParams)} | {
-        f.name for f in dataclasses.fields(ResponseModel)
+    fields = {
+        f.name
+        for model in (GeneratorParams, ResponseModel, AcceptanceRule)
+        for f in dataclasses.fields(model)
     }
 
     assert names

@@ -47,6 +47,10 @@ calibration_refit_log_discrimination_prior_sd: 0.3
 calibration_link_window_attempts: 500
 item_fit_groups: 10
 item_fit_rmsd_max: 0.12
+item_fit_discrimination_min: 0.7
+item_fit_ceiling_gain_max: 1.0
+item_fit_ceiling_min: 0.3
+item_fit_ceiling_step: 0.05
 
 # Защита теста
 drift_shift: 1.0
@@ -93,6 +97,12 @@ need_draft_confident: 0.8
 invitation_weekly_budget: 20
 invitation_ttl_days: 7
 acceptance_target_probability: 0.6
+market_salary_median: {intern: 73563, junior: 101149, middle: 191954, senior: 331034}
+acceptance_model_iterations: 400
+acceptance_model_depth: 4
+acceptance_model_learning_rate: 0.05
+acceptance_model_random_seed: 20261008
+acceptance_model_thread_count: 4
 salary_hint_rounding_rub: 10000
 message_max_length: 4000
 
@@ -109,3 +119,9 @@ resume_max_content_bytes: 20971520
 resume_min_font_pt: 4.0
 resume_max_lightness: 0.9
 resume_draft_confident: 0.8
+
+# Карточка опыта
+experience_entries_max: 20
+experience_line_max: 200
+experience_summary_max: 2000
+experience_stack_max: 30

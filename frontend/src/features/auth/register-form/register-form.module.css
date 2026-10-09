@@ -1,0 +1,9 @@
+.submit {
+  display: grid;
+  gap: var(--space-8);
+}
+
+.reason {
+  composes: footnote from "../../../shared/styles/compose.module.css";
+  animation: var(--motion-fade-in);
+}

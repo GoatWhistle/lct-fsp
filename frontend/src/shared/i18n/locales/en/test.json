@@ -1,0 +1,33 @@
+{
+  "documentTitle": "Test",
+  "title": "{{grade}} test",
+  "titleBlock": "Topic block",
+  "progress": "Task {{number}}, at most {{max}}",
+  "progressBlock": "Task {{number}} of {{max}}",
+  "exit": "Leave",
+  "exitHint": "The test is saved and resumes from this task",
+  "condition": "Task",
+  "code": "Code for the task",
+  "answerTitle": "Your answer",
+  "intro": {
+    "adaptive": "The test picks tasks for your level and ends once your level is precise, usually before the limit.",
+    "noFeedback": "We do not show whether an answer is correct: this way the test cannot be gamed.",
+    "keys": "Keys 1–9 pick an option, Enter answers.",
+    "hide": "Got it"
+  },
+  "answer": {
+    "submit": "Answer",
+    "finish": "Answer and finish",
+    "pending": "Sending",
+    "value": "Answer",
+    "valueTitle": "Type the answer",
+    "valuePlaceholder": "One-line answer",
+    "choice": "Choose an option",
+    "order": "Put the options in the right order",
+    "orderHint": "Drag a row, or select it with Space and move it with the arrow keys.",
+    "picked": "{{item}} selected. Use the arrows to move it, Space to drop.",
+    "moved": "{{item}} is now in position {{position}}",
+    "dropped": "{{item}} dropped in position {{position}}"
+  },
+  "loading": "Preparing the task"
+}

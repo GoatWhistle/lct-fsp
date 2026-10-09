@@ -1,0 +1,3 @@
+.actions {
+  composes: actions from "../../../shared/styles/layout.module.css";
+}

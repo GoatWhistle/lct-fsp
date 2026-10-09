@@ -3,7 +3,6 @@ import { usePath } from "@/entities/candidate-path"
 import { useFspStatus } from "@/entities/profile"
 import {
   CategoryPanel,
-  FeedbackPanel,
   HistoryPanel,
   InvitationsPanel,
   ProfilePanel,
@@ -55,7 +54,6 @@ export function CandidateOverviewPage() {
             </div>
             <div className={styles.aside}>
               <VerificationCard path={data} />
-              <FeedbackPanel motionIndex={2} />
               <InvitationsPanel motionIndex={3} />
               {data.history.length === 0 ? null : (
                 <HistoryPanel history={data.history} motionIndex={4} />

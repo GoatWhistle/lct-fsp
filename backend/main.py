@@ -29,6 +29,7 @@ from app.adapter.profile_pdf import FpdfProfileRenderer
 from app.adapter.resume_pdf import PypdfResumeText
 from app.adapter.seed import SecureSeeds
 from app.adapter.session import JwtSessions
+from app.adapter.skill_cache import PROCESS_ENTRIES, PrefixCachedSkillModel
 from app.adapter.text_llama import LlamaCompletion
 from app.adapter.text_model import Completion
 from app.adapter.text_rules import RulesTextUnderstanding, grade_hint_rule, load_synonyms
@@ -190,7 +191,8 @@ def create_app(
     app.state.profile_pdf_renderer = profile_pdf_renderer or FpdfProfileRenderer()
     app.state.clock = clock = clock or SystemClock()
     seeds = seeds or SecureSeeds()
-    skill_model = skill_model or irt
+    # Кэш префиксов один на приложение, приложение — одно на процесс.
+    skill_model = skill_model or PrefixCachedSkillModel(irt, max_entries=PROCESS_ENTRIES)
     # Алгоритмы механики получают параметры конфига через конструктор —
     # tests/test_mechanics_config.py сверяет их с config/mechanics.yaml.
     app.state.item_selector = selector = item_selector(mechanics)

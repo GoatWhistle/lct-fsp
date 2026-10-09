@@ -44,6 +44,9 @@ FINISHED = "specialization_finished"
 FAMILY_PRESENTATIONS = "family_presentations"
 REST_READY = "family_rest_ready"
 FINISHED_SHOWN = "finished_shown"
+# Якорные ответы остановленной попытки, собранные один раз; итоговые оценки пишет
+# `save_rest_levels` — он сбрасывает порцию попытки.
+ANCHOR_PORTIONS = "anchor_portions"
 # Окно показов специализации: последний подсчёт и отметки изменений после него.
 EXPOSURE_CACHE = "exposure_cache"
 EXPOSURE_CHANGES = "exposure_changes"
@@ -236,7 +239,9 @@ class MemoryAttemptRepository:
         """Запись — те же объекты в хранилище: оценки уже на месте. Предъявления встают в счёт
         ответов семейства с итоговой оценкой."""
         ready = self._store.collection(REST_READY)
+        portions = self._store.collection(ANCHOR_PORTIONS)
         for p in presentations:
+            portions.pop(p.attempt_id, None)
             if p.topic_theta_rest is not None:
                 ready.setdefault(p.family_code, set()).add(p.id)
 

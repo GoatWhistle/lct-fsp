@@ -10,16 +10,20 @@ import itertools
 from collections.abc import Collection
 from datetime import datetime
 
-from app.domain.attempt import Presentation
+from app.domain import bank
+from app.domain.attempt import Attempt, Presentation
 from app.domain.calibration import AnchorAnswer, CalibratedFamily, Link, Parameters, Response
 from app.domain.skill import Normal
 from app.repository.memory.attempt import (
+    ANCHOR_PORTIONS,
     FAMILY_PRESENTATIONS,
     FINISHED,
     REST_READY,
     latest,
 )
 from app.repository.memory.unit_of_work import MemoryStore
+
+ANCHORS = frozenset(f.code for f in bank.BANK if f.anchor)
 
 
 class MemoryCalibrationRepository:
@@ -61,25 +65,23 @@ class MemoryCalibrationRepository:
         recent = itertools.islice(
             latest(self._store.collection(FINISHED), specialization), window_attempts
         )
-        answers = []
+        answers: list[AnchorAnswer] = []
         for attempt in recent:
-            for p in attempt.presentations:
-                if p.family_code not in wanted or p.correct is None:
-                    continue
-                rest = None
-                if p.topic_theta_rest is not None and p.topic_theta_rest_sd is not None:
-                    rest = Response(Normal(p.topic_theta_rest, p.topic_theta_rest_sd), p.correct)
-                answers.append(
-                    AnchorAnswer(
-                        family_code=p.family_code,
-                        params=Parameters(p.discrimination, p.difficulty),
-                        before=Response(
-                            Normal(p.topic_theta_before, p.topic_theta_sd_before), p.correct
-                        ),
-                        rest=rest,
-                    )
-                )
+            answers.extend(a for a in self._portion(attempt) if a.family_code in wanted)
         return answers
+
+    def _portion(self, attempt: Attempt) -> list[AnchorAnswer]:
+        """Якорные ответы попытки в порядке предъявлений; собираются один раз, пока
+        `save_rest_levels` не обновит итоговые оценки."""
+        portions = self._store.collection(ANCHOR_PORTIONS)
+        portion: list[AnchorAnswer] | None = portions.get(attempt.id)
+        if portion is None:
+            portion = portions[attempt.id] = [
+                _anchor_answer(p)
+                for p in attempt.presentations
+                if p.family_code in ANCHORS and p.correct is not None
+            ]
+        return portion
 
     def rest_answers(self, code: str) -> list[Response]:
         presentations: list[Presentation] = self._store.collection(FAMILY_PRESENTATIONS).get(
@@ -95,3 +97,16 @@ class MemoryCalibrationRepository:
 
     def ready_responses(self, code: str) -> int:
         return len(self._store.collection(REST_READY).get(code, ()))
+
+
+def _anchor_answer(p: Presentation) -> AnchorAnswer:
+    assert p.correct is not None
+    rest = None
+    if p.topic_theta_rest is not None and p.topic_theta_rest_sd is not None:
+        rest = Response(Normal(p.topic_theta_rest, p.topic_theta_rest_sd), p.correct)
+    return AnchorAnswer(
+        family_code=p.family_code,
+        params=Parameters(p.discrimination, p.difficulty),
+        before=Response(Normal(p.topic_theta_before, p.topic_theta_sd_before), p.correct),
+        rest=rest,
+    )

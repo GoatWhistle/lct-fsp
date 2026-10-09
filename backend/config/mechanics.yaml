@@ -105,6 +105,7 @@ acceptance_model_learning_rate: 0.05
 acceptance_model_random_seed: 20261008
 acceptance_model_thread_count: 4
 salary_hint_rounding_rub: 10000
+salary_hint_market_ratio: 3.0
 message_max_length: 4000
 
 # Обратная связь

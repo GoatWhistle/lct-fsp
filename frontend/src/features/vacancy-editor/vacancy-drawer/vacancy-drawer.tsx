@@ -9,6 +9,7 @@ import {
   ButtonLink,
   Dialog,
   Form,
+  SalaryInput,
   Select,
   TextArea,
   TextField,
@@ -16,7 +17,6 @@ import {
 } from "@/shared/ui"
 import { formOf, inputOf, toggleFormat, type VacancyForm, vacancyErrors } from "../vacancy-form"
 import { FormatTiles } from "./format-tiles"
-import { SalaryFields } from "./salary-fields"
 import styles from "./vacancy-drawer.module.css"
 
 const COMPANY_CODES = new Set(["company_required", "company_profile_required"])
@@ -115,7 +115,9 @@ export function VacancyDrawer({ open, vacancy, onClose }: VacancyDrawerProps) {
           onToggle={(format: WorkFormat) => patch({ formats: toggleFormat(form.formats, format) })}
           error={show("formats")}
         />
-        <SalaryFields
+        <SalaryInput
+          label={t("fields.salary")}
+          step={5000}
           from={form.salaryFrom}
           to={form.salaryTo}
           onChange={(salaryFrom, salaryTo) => patch({ salaryFrom, salaryTo })}

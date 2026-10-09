@@ -4,7 +4,7 @@
 заданий экспресс-теста; пусто у полного теста.
 
 Revision ID: a7c3e91b5d28
-Revises: e5b2d8c41f07
+Revises: a3d7c91e5b24
 Create Date: 2026-10-10 10:00:00.000000
 
 """
@@ -15,7 +15,7 @@ import sqlalchemy as sa
 from alembic import op
 
 revision: str = "a7c3e91b5d28"
-down_revision: str | Sequence[str] | None = "e5b2d8c41f07"
+down_revision: str | Sequence[str] | None = "a3d7c91e5b24"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 

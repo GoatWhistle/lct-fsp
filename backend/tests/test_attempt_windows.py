@@ -187,6 +187,26 @@ def test_link_window_is_ordered_by_stop(storage: Storage) -> None:
     assert len(answers) == 1
 
 
+def test_link_window_sees_rest_levels_saved_after_first_read(storage: Storage) -> None:
+    """Порция якорных ответов попытки не залеживается: итоговые оценки, записанные после первого
+    чтения окна, попадают в следующее."""
+    with storage.uow:
+        stopped = attempt(storage, 0, families=(ANCHOR.code,), answered=True)
+        stopped.finished_at = T0 + timedelta(minutes=10)
+        stopped.overall = Normal(0.0, 0.4)
+        stopped.outcome, stopped.outcome_grade_code = AttemptOutcome.assigned, "middle"
+        storage.attempts.finish_attempt(stopped)
+
+        before = storage.calibration.anchor_answers("qa", [ANCHOR.code], 1)
+        for p in stopped.presentations:
+            p.topic_theta_rest, p.topic_theta_rest_sd = 0.0, 0.5
+        storage.attempts.save_rest_levels(stopped.presentations)
+        after = storage.calibration.anchor_answers("qa", [ANCHOR.code], 1)
+
+    assert [a.rest for a in before] == [None]
+    assert [a.rest for a in after] != [None]
+
+
 def test_exposure_window_follows_other_attempts_not_own_shows(storage: Storage) -> None:
     """Повторный подсчёт окна для той же попытки: свои новые показы в окно не входят, показ в
     другой идущей попытке — входит."""

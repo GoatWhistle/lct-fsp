@@ -29,6 +29,7 @@ export { Form, type FormProps } from "./forms/form/form"
 export { NumberField, type NumberFieldProps } from "./forms/number-field/number-field"
 export { PasswordField, type PasswordFieldProps } from "./forms/password-field/password-field"
 export { RadioGroup, type RadioGroupProps, type RadioOption } from "./forms/radio-group/radio-group"
+export { SalaryInput, type SalaryInputProps } from "./forms/salary-input/salary-input"
 export { Segmented, type SegmentedOption, type SegmentedProps } from "./forms/segmented/segmented"
 export { Select, type SelectOption, type SelectProps } from "./forms/select/select"
 export {

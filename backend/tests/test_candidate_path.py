@@ -89,7 +89,12 @@ def test_full_path_to_category(seeds: Seeds, candidate: TestClient, db_engine: E
 
     started = start(candidate, "middle")
     assert started["stage"] == "test"
-    assert started["attempt"] == {"grade": "middle", "answered": 0, "max_items": 30}
+    assert started["attempt"] == {
+        "grade": "middle",
+        "answered": 0,
+        "max_items": 30,
+        "express": False,
+    }
 
     path = answer_items(candidate, seeds, everything)
 
@@ -212,7 +217,12 @@ def test_failed_grade_offers_dotest_that_continues_the_estimate(
     first = shown_families(db_engine)
     dotest = start(candidate, "junior")
 
-    assert dotest["attempt"] == {"grade": "junior", "answered": 0, "max_items": 30}
+    assert dotest["attempt"] == {
+        "grade": "junior",
+        "answered": 0,
+        "max_items": 30,
+        "express": False,
+    }
     # Невиданные семейства в банке есть — дотест не повторяет показанные в попытке на middle.
     item = candidate.get(ITEM).json()
     assert presented(seeds, item)[0].code not in first

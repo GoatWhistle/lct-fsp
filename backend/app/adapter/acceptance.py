@@ -3,7 +3,7 @@
 from collections.abc import Sequence
 from pathlib import Path
 
-from app.domain.selection import AcceptanceFeatures
+from app.domain.selection import AcceptanceExplanation, AcceptanceFeatures
 from app.usecase.interface import AcceptanceModel
 
 
@@ -12,6 +12,9 @@ class NoAcceptanceModel:
     выдуманные 100 %. Модель из файла — `app.adapter.acceptance_catboost`."""
 
     def predict(self, features: Sequence[AcceptanceFeatures]) -> list[float | None]:
+        return [None] * len(features)
+
+    def explain(self, features: Sequence[AcceptanceFeatures]) -> list[AcceptanceExplanation | None]:
         return [None] * len(features)
 
 

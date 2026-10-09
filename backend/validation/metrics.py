@@ -117,6 +117,58 @@ def ndcg_at(ranked: Sequence[int], pool: Sequence[int], k: int) -> float:
     return _dcg(ranked[:k]) / ideal if ideal else math.nan
 
 
+def quantile(values: Sequence[float], q: float) -> float:
+    """Квантиль с линейной интерполяцией между порядковыми статистиками; без значений — nan."""
+    if not values:
+        return math.nan
+    ordered = sorted(values)
+    at = q * (len(ordered) - 1)
+    low = math.floor(at)
+    high = min(low + 1, len(ordered) - 1)
+    return ordered[low] + (ordered[high] - ordered[low]) * (at - low)
+
+
+def ranks(values: Sequence[float]) -> list[float]:
+    """Ранги с 1; ничьи — средний ранг."""
+    order = sorted(range(len(values)), key=lambda i: values[i])
+    found = [0.0] * len(values)
+    i = 0
+    while i < len(order):
+        j = i
+        while j + 1 < len(order) and values[order[j + 1]] == values[order[i]]:
+            j += 1
+        for k in range(i, j + 1):
+            found[order[k]] = (i + j) / 2 + 1
+        i = j + 1
+    return found
+
+
+def spearman(xs: Sequence[float], ys: Sequence[float]) -> float:
+    """Ранговая корреляция Спирмена — Пирсон по рангам; без разброса — nan."""
+    if len(set(xs)) < 2 or len(set(ys)) < 2:
+        return math.nan
+    return pearson(ranks(xs), ranks(ys))
+
+
+def weighted_kappa(pairs: Sequence[tuple[int, int]], categories: int) -> float:
+    """Квадратично-взвешенная каппа на шкале 0…categories − 1; ожидаемое несогласие ноль — nan."""
+    n = len(pairs)
+    if not n:
+        return math.nan
+    scale = (categories - 1) ** 2
+
+    def weight(a: int, b: int) -> float:
+        return (a - b) ** 2 / scale
+
+    observed = sum(weight(a, b) for a, b in pairs) / n
+    left = [sum(a == c for a, _ in pairs) / n for c in range(categories)]
+    right = [sum(b == c for _, b in pairs) / n for c in range(categories)]
+    expected = sum(
+        left[a] * right[b] * weight(a, b) for a in range(categories) for b in range(categories)
+    )
+    return 1 - observed / expected if expected else math.nan
+
+
 def roc_auc(predicted: Sequence[float], labels: Sequence[int]) -> float:
     """ROC-AUC — вероятность, что у случайной пары «1 и 0» предсказание выше у единицы; ничьи —
     пополам. Средние ранги Манна — Уитни; без обоих классов — nan."""

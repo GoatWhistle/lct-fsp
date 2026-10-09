@@ -6,8 +6,11 @@ seed прогона. Сценарии из них собирает та же п�
 процессами не передаётся.
 """
 
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
+from typing import TYPE_CHECKING
 
 from app.adapter import irt
 from app.adapter.acceptance import NoAcceptanceModel
@@ -16,6 +19,7 @@ from app.adapter.clock import SimulatedClock
 from app.adapter.code_runner import InProcessCodeRunner
 from app.adapter.seed import DerivedSeeds
 from app.adapter.skill_cache import PROCESS_ENTRIES, PrefixCachedSkillModel
+from app.adapter.text_model import Completion
 from app.adapter.text_rules import RulesTextUnderstanding, load_synonyms
 from app.domain.catalog import Catalog as CatalogData
 from app.domain.catalog import FspDiscipline, Grade, Specialization, Technology
@@ -39,6 +43,10 @@ from app.usecase.need_draft import NeedDrafts
 from app.usecase.selection import Selections
 from composition import Repositories, Usecases, build_usecases, item_selector
 from settings import CATALOG_FILE, SYNONYMS_FILE, Mechanics
+
+if TYPE_CHECKING:
+    from validation.baselines import Encoder
+    from validation.report import BaselineSource
 
 # Начало времени стенда: попытки идут от него шагами часов.
 START = datetime(2026, 1, 1, tzinfo=UTC)
@@ -198,3 +206,39 @@ def _attempts(store: MemoryStore, known: Catalog, mechanics: Mechanics) -> Memor
         mechanics.grade_thresholds,
         mechanics.grade_confidence,
     )
+
+
+# Кэш ответов B3: `b3.<набор>.json`.
+B3_DIR = Path(__file__).resolve().parent / "data" / "recorded"
+
+
+def b3_cache_path(directory: Path, name: str) -> Path:
+    return directory / f"b3.{name}.json"
+
+
+def baseline_source(
+    encoder: "Encoder | None" = None,
+    *,
+    b3_dir: Path | None = B3_DIR,
+    live: Completion | None = None,
+) -> "BaselineSource":
+    """Базовые линии B1–B3 для отчёта. B2 — `encoder`, по умолчанию e5 локально; B3 — из кэша
+    ответов в `b3_dir`, а с `live` — с моделью, которая отвечает на пары без ответа. Нет файла
+    кэша и модели — B3 на наборе нет, сравнение с ней ждёт данных."""
+    # Модули базовых линий импортируют справочник стенда отсюда — импорт при сборке.
+    from validation.baselines import Baseline, Bm25, Embeddings, LlmRanker, ScoreCache
+    from validation.e5 import E5Encoder
+
+    embeddings = Embeddings(encoder or E5Encoder())
+    caches: dict[str, ScoreCache] = {}
+
+    def build(name: str, seed: int, corpus: Sequence[str]) -> list[Baseline]:
+        found: list[Baseline] = [Bm25(corpus), embeddings]
+        if b3_dir is not None:
+            path = b3_cache_path(b3_dir, name)
+            if path.exists() or live is not None:
+                cache = caches.setdefault(name, ScoreCache(path, seed))
+                found.append(LlmRanker(cache, live))
+        return found
+
+    return build

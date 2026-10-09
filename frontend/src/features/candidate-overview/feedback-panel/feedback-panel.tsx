@@ -1,8 +1,7 @@
-import { useState } from "react"
 import { useFeedback } from "@/entities/profile"
 import type { FeedbackHint } from "@/shared/api"
 import { useFormatters, useTranslation } from "@/shared/i18n"
-import { Button, Dialog, IconLabel, LoadError, Skeleton, Stat } from "@/shared/ui"
+import { IconLabel, LoadError, Skeleton, Stat } from "@/shared/ui"
 import styles from "./feedback-panel.module.css"
 import { HintRow } from "./hint-row"
 
@@ -39,12 +38,12 @@ function Placement() {
   )
 }
 
-function useHints(): readonly FeedbackHint[] {
+export function useHints(): readonly FeedbackHint[] {
   const feedback = useFeedback()
   return (feedback.data?.hints ?? []).filter((hint) => hint.action.kind !== "link_fsp")
 }
 
-function FeedbackContent() {
+export function FeedbackContent() {
   const { t } = useTranslation("overview")
   const feedback = useFeedback()
   const hints = useHints()
@@ -67,28 +66,6 @@ function FeedbackContent() {
           ))}
         </ul>
       )}
-    </>
-  )
-}
-
-export function FeedbackButton() {
-  const { t } = useTranslation("overview")
-  const [open, setOpen] = useState(false)
-  const hints = useHints()
-  if (hints.length === 0) return null
-  return (
-    <>
-      <Button variant="secondary" icon="match" onClick={() => setOpen(true)}>
-        {t("feedback.open", { count: hints.length })}
-      </Button>
-      <Dialog
-        open={open}
-        onClose={() => setOpen(false)}
-        title={t("feedback.title")}
-        description={t("feedback.lead")}
-      >
-        <FeedbackContent />
-      </Dialog>
     </>
   )
 }

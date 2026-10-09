@@ -1,0 +1,40 @@
+.card {
+  display: flex;
+  flex-direction: column;
+}
+
+.heading {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-8);
+}
+
+.prompt {
+  composes: preWrap from "../../../shared/styles/layout.module.css";
+  max-inline-size: var(--prose-measure);
+  line-height: var(--line-height-body);
+  text-wrap: pretty;
+}
+
+.topics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-8);
+}
+
+.footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-12);
+  margin-block-start: auto;
+  padding-block-start: var(--space-16);
+}
+
+.stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4) var(--space-16);
+  font-size: var(--font-size-body-sm);
+}

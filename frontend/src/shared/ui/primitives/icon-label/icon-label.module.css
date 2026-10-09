@@ -1,0 +1,30 @@
+.label {
+  display: inline-flex;
+  align-items: flex-start;
+  gap: var(--space-8);
+  min-inline-size: 0;
+}
+
+.glyph {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  min-block-size: 1lh;
+}
+
+.text {
+  min-inline-size: 0;
+  overflow-wrap: anywhere;
+}
+
+.label[data-tone="secondary"] {
+  color: var(--text-secondary);
+}
+
+.label[data-tone="accent"] {
+  color: var(--text-accent);
+}
+
+.label[data-tone="danger"] {
+  color: var(--text-danger);
+}

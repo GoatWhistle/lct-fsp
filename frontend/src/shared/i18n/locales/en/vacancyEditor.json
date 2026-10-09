@@ -1,0 +1,63 @@
+{
+  "title": "Vacancies",
+  "lead": "A published vacancy is visible to every candidate of the specialization. An application shows you the contacts at once and does not use the invitation budget.",
+  "create": "New vacancy",
+  "needCompany": "Vacancies are published by a company: fill in its profile first so candidates see whose vacancy it is.",
+  "toCompany": "Fill in the company profile",
+  "tabs": {
+    "published": "Published",
+    "archived": "Withdrawn"
+  },
+  "empty": {
+    "published": {
+      "title": "No published vacancies",
+      "text": "Describe the position and set a salary range, and candidates of the specialization will see it in their list."
+    },
+    "archived": {
+      "title": "No withdrawn vacancies",
+      "text": "Vacancies you withdraw from publication end up here. Their applications are kept."
+    }
+  },
+  "createTitle": "New vacancy",
+  "editTitle": "Edit vacancy",
+  "drawerLead": "Candidates see the position, category, format and salary range. The description is shown as is.",
+  "publish": "Publish",
+  "save": "Save",
+  "saving": "Saving",
+  "fields": {
+    "title": "Position",
+    "titlePlaceholder": "For example, backend developer for the payments team",
+    "specialization": "Specialization",
+    "grade": "Grade",
+    "formats": "Work format",
+    "salary": "Salary range",
+    "description": "Description",
+    "descriptionHint": "Tasks, team, conditions. Candidates decide based on this text."
+  },
+  "errors": {
+    "title": "Enter the position.",
+    "specialization": "Pick a specialization.",
+    "grade": "Pick a grade.",
+    "formats": "Select at least one format.",
+    "salary": "A salary range is required: both bounds above zero, “from” not above “to”."
+  },
+  "toast": {
+    "published": "Vacancy published",
+    "saved": "Changes saved",
+    "archived": "Vacancy withdrawn"
+  },
+  "card": {
+    "publishedAt": "Published on {{date}}",
+    "archivedAt": "Withdrawn on {{date}}",
+    "edit": "Edit",
+    "archive": "Withdraw",
+    "applications_one": "{{count}} application",
+    "applications_other": "{{count}} applications",
+    "noApplications": "No applications yet"
+  },
+  "archive": {
+    "title": "Withdraw the vacancy?",
+    "text": "The vacancy leaves the public list and nobody can apply to it. Submitted applications stay. Publication cannot be restored.",
+    "action": "Withdraw"
+  }
+}

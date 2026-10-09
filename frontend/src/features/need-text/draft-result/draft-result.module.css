@@ -1,0 +1,47 @@
+.result {
+  animation: var(--motion-rise-in);
+}
+
+.fields {
+  display: grid;
+  border-block-start: var(--hairline) solid var(--border-hairline);
+}
+
+.field {
+  composes: listRowCompact from "../../../shared/styles/rows.module.css";
+  grid-template-columns: var(--draft-label-column) minmax(0, 1fr);
+  align-items: center;
+  gap: var(--space-16);
+}
+
+.value {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-12);
+  min-inline-size: 0;
+}
+
+.label {
+  composes: bodySmText from "../../../shared/styles/compose.module.css";
+}
+
+.hint {
+  composes: captionText from "../../../shared/styles/compose.module.css";
+  color: var(--text-tertiary);
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-8);
+}
+
+.flag {
+  composes: captionText from "../../../shared/styles/compose.module.css";
+}
+
+.actions {
+  composes: actions from "../../../shared/styles/layout.module.css";
+  margin-block-start: var(--space-8);
+}

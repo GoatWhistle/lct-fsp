@@ -1,0 +1,9 @@
+.panel {
+  position: sticky;
+  inset-block-start: calc(var(--sticky-top) + var(--space-16));
+}
+
+.body {
+  display: grid;
+  gap: var(--space-16);
+}

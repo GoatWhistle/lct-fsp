@@ -18,6 +18,7 @@ from app.adapter.catalog_file import load_catalog
 from app.adapter.clock import SimulatedClock
 from app.adapter.code_runner import InProcessCodeRunner
 from app.adapter.seed import DerivedSeeds
+from app.adapter.skill_cache import PROCESS_ENTRIES, PrefixCachedSkillModel
 from app.adapter.text_model import Completion
 from app.adapter.text_rules import RulesTextUnderstanding, load_synonyms
 from app.domain.catalog import Catalog as CatalogData
@@ -59,6 +60,10 @@ class Catalog:
     grades: dict[str, Grade]
     technologies: dict[str, Technology]
     fsp_disciplines: dict[str, FspDiscipline]
+
+
+# Модель навыка с кэшем префиксов — одна на процесс: её делят все стенды процесса.
+SKILL_MODEL = PrefixCachedSkillModel(irt, max_entries=PROCESS_ENTRIES)
 
 
 def catalog(loaded: CatalogData | None = None) -> Catalog:
@@ -152,7 +157,7 @@ def build_stand(
     clock = clock or SimulatedClock(start)
     seeds = seeds or DerivedSeeds(seed)
     selector = selector or item_selector(mechanics)
-    skill_model = skill_model or irt
+    skill_model = skill_model or SKILL_MODEL
     acceptance = acceptance or NoAcceptanceModel()
     understanding = understanding or RulesTextUnderstanding(load_synonyms(SYNONYMS_FILE))
     loaded = load_catalog(CATALOG_FILE)

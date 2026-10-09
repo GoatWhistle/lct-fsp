@@ -1,0 +1,6 @@
+.resend {
+  display: grid;
+  justify-items: start;
+  gap: var(--space-12);
+  font-variant-numeric: var(--font-numeric);
+}

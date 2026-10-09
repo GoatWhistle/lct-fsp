@@ -1,0 +1,47 @@
+.body {
+  display: grid;
+  gap: var(--space-16);
+}
+
+.links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-8) var(--space-20);
+}
+
+.link {
+  display: inline-flex;
+  align-items: center;
+  padding-block: var(--space-12);
+  color: var(--text-accent);
+  text-decoration: none;
+  transition: var(--transition-control);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .link:hover {
+    text-decoration: underline;
+  }
+}
+
+.about {
+  composes: secondaryText from "../../../shared/styles/compose.module.css";
+  max-inline-size: var(--prose-measure);
+  white-space: pre-wrap;
+}
+
+.group {
+  display: grid;
+  gap: var(--space-8);
+}
+
+.label {
+  composes: labelText from "../../../shared/styles/compose.module.css";
+  color: var(--text-tertiary);
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-8);
+}

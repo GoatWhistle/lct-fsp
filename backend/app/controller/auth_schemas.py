@@ -5,12 +5,14 @@ import uuid
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
 from app.domain.account import Role
+from app.domain.locale import DEFAULT_LOCALE, Locale
 
 
 class RegisterIn(BaseModel):
     email: EmailStr
     password: str = Field(min_length=8, max_length=128, description="Не короче 8 символов")
     role: Role = Field(description="Кандидат или работодатель; сменить потом нельзя")
+    locale: Locale = Field(default=DEFAULT_LOCALE, description="Язык письма подтверждения")
 
 
 class LoginIn(BaseModel):
@@ -24,6 +26,7 @@ class VerifyEmailIn(BaseModel):
 
 class ResendVerificationIn(BaseModel):
     email: EmailStr
+    locale: Locale = Field(default=DEFAULT_LOCALE, description="Язык письма подтверждения")
 
 
 class UserOut(BaseModel):

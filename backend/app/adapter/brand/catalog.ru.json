@@ -1,0 +1,84 @@
+{
+  "specialization": {
+    "backend": "Бэкенд",
+    "frontend": "Фронтенд",
+    "data-ml": "Данные и ML",
+    "qa": "QA",
+    "devops": "DevOps"
+  },
+  "grade": {
+    "intern": "Стажёр",
+    "junior": "Junior",
+    "middle": "Middle",
+    "senior": "Senior",
+    "belowIntern": "ниже стажёра"
+  },
+  "topic": {
+    "backend.programming": "Язык программирования и стандартная библиотека",
+    "backend.algorithms": "Алгоритмы и структуры данных",
+    "backend.databases": "Базы данных и SQL",
+    "backend.api": "HTTP и проектирование API",
+    "backend.concurrency": "Конкурентность и асинхронность",
+    "backend.distributed": "Очереди, кэши и распределённые системы",
+    "backend.testing": "Тестирование",
+    "backend.security": "Безопасность приложений",
+    "frontend.javascript": "JavaScript и TypeScript",
+    "frontend.markup": "HTML, CSS и вёрстка",
+    "frontend.frameworks": "Компонентные фреймворки и состояние",
+    "frontend.browser": "Браузер, сеть и производительность",
+    "frontend.algorithms": "Алгоритмы и структуры данных",
+    "frontend.testing": "Тестирование интерфейсов",
+    "data-ml.math": "Математика, вероятности и статистика",
+    "data-ml.sql": "SQL и обработка данных",
+    "data-ml.python": "Python для анализа данных",
+    "data-ml.ml": "Классическое машинное обучение",
+    "data-ml.deep-learning": "Глубокое обучение",
+    "data-ml.mlops": "Внедрение и эксплуатация моделей",
+    "qa.theory": "Теория тестирования и тест-дизайн",
+    "qa.api": "Тестирование API",
+    "qa.automation": "Автоматизация тестирования",
+    "qa.databases": "Базы данных и SQL",
+    "qa.performance": "Нагрузочное тестирование",
+    "devops.linux": "Linux и сети",
+    "devops.containers": "Контейнеры и оркестрация",
+    "devops.ci-cd": "CI/CD",
+    "devops.iac": "Инфраструктура как код",
+    "devops.observability": "Мониторинг и логирование",
+    "devops.scripting": "Скрипты и автоматизация"
+  },
+  "industry": {
+    "fintech": "Финтех и банки",
+    "e-commerce": "Электронная коммерция и ритейл",
+    "government": "Госсектор",
+    "telecom": "Телеком",
+    "industry": "Промышленность и энергетика",
+    "healthcare": "Медицина",
+    "education": "Образование",
+    "media": "Медиа, игры и развлечения",
+    "logistics": "Транспорт и логистика",
+    "it-products": "ИТ-продукты и аутсорс"
+  },
+  "discipline": {
+    "algorithmic": "Алгоритмическое программирование",
+    "product": "Продуктовое программирование",
+    "security": "Программирование систем информационной безопасности",
+    "robotics": "Программирование робототехники",
+    "uav": "Программирование беспилотных авиационных систем"
+  },
+  "workFormat": {
+    "office": "Офис",
+    "hybrid": "Гибрид",
+    "remote": "Удалённо"
+  },
+  "fspResult": {
+    "winner": "Победитель",
+    "prize": "Призёр",
+    "finalist": "Финалист",
+    "participant": "Участник отбора"
+  },
+  "importance": {
+    "key": "Ключевая",
+    "important": "Важная",
+    "nice": "Желательная"
+  }
+}

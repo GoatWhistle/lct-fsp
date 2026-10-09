@@ -1,0 +1,34 @@
+.layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  align-items: start;
+  gap: var(--space-32);
+}
+
+.input {
+  position: sticky;
+  inset-block-start: calc(var(--sticky-top) + var(--space-24));
+}
+
+.form {
+  display: grid;
+  gap: var(--space-20);
+}
+
+.actions {
+  composes: actions from "../../../shared/styles/layout.module.css";
+}
+
+.empty {
+  min-block-size: var(--empty-panel-height);
+}
+
+@media (max-width: 63.99rem) {
+  .layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .input {
+    position: static;
+  }
+}

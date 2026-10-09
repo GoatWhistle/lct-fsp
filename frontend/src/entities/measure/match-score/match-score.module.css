@@ -1,0 +1,75 @@
+.match {
+  --match-value-size: var(--font-size-heading);
+  --match-bar-height: var(--space-8);
+
+  display: grid;
+  gap: var(--space-8);
+  min-inline-size: 0;
+}
+
+.match[data-size="lg"] {
+  --match-value-size: var(--font-size-display-sm);
+  --match-bar-height: var(--space-12);
+}
+
+.match[data-size="sm"] {
+  --match-value-size: var(--font-size-subheading);
+  --match-bar-height: var(--space-4);
+
+  gap: var(--space-4);
+}
+
+.figure {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-8);
+}
+
+.value {
+  font-family: var(--font-mono);
+  font-size: var(--match-value-size);
+  font-weight: var(--weight-medium);
+  line-height: 1;
+  letter-spacing: var(--tracking-heading);
+}
+
+.label {
+  composes: labelText from "../../../shared/styles/compose.module.css";
+  color: var(--text-secondary);
+}
+
+.bar {
+  display: flex;
+  gap: var(--hairline);
+  block-size: var(--match-bar-height);
+}
+
+.slot {
+  composes: dataTrack from "../track.module.css";
+  flex-basis: 0;
+}
+
+.fill {
+  position: absolute;
+  inset: 0;
+  background-color: var(--data-level);
+  transform: scaleX(var(--fill));
+  transform-origin: left center;
+}
+
+.fill[data-importance="important"] {
+  opacity: 0.72;
+}
+
+.fill[data-importance="nice"] {
+  opacity: 0.48;
+}
+
+.fill[data-importance="self"] {
+  background-color: var(--data-muted);
+}
+
+.match[data-animate="true"] .fill {
+  animation: var(--motion-grow-x);
+  animation-delay: calc(var(--i) * var(--stagger));
+}

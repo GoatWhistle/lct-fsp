@@ -11,15 +11,17 @@
 """
 
 import enum
+import json
 import math
 import random
 import uuid
 import zlib
 from dataclasses import dataclass, field
 
+from app.domain.acceptance import city_match, format_match, industry_match, salary_middle
 from app.domain.bank import AnswerFormat, Instance
 from app.domain.calibration import Parameters
-from app.domain.selection import NeedSnapshot
+from app.domain.selection import AcceptanceFeatures, NeedSnapshot
 from app.domain.skill import sigmoid
 from app.domain.work import WorkFormat
 
@@ -62,6 +64,51 @@ class ResponseModel:
 
 
 @dataclass(frozen=True)
+class AcceptanceRule:
+    """Правило решения синтетического кандидата о приглашении (mechanics.md, §13): логит P —
+    логит скрытой склонности `CandidateTruth.acceptance` плюс сдвиг и слагаемые наблюдаемых
+    факторов пары; решение — Бернулли. Модель принятия учится на решениях, склонности не видит.
+    Имена — строки раздела «Синтетический рынок» в parameters.md; веса зафиксированы до первого
+    обучения и под порог M7 не подгоняются."""
+
+    # c₀ — средняя доля принятий на обучающих парах около 40 %.
+    acceptance_w_intercept: float = 3.23
+    # Вилка: x = ln(середина вилки / ожидание кандидата); вклад — `below` · x при x < 0,
+    # `above` · x при x ≥ 0: недоплата отталкивает сильнее, чем переплата притягивает.
+    acceptance_w_salary_below: float = 5.0
+    acceptance_w_salary_above: float = 2.0
+    # Формат потребности не среди готовых кандидату.
+    acceptance_w_format: float = -1.5
+    # Город не совпал: не готов к переезду и готов; удалённой потребности город не важен.
+    acceptance_w_city: float = -2.0
+    acceptance_w_city_relocation: float = -0.5
+    # Сфера компании среди интересных кандидату.
+    acceptance_w_industry: float = 0.5
+    # За каждое открытое приглашение.
+    acceptance_w_load: float = -0.4
+
+    def logit(self, acceptance: float, features: AcceptanceFeatures) -> float:
+        middle, expected = salary_middle(features), features.expected_salary
+        if middle is None or expected is None:
+            raise ValueError("правило решения — только для пары с вилкой и ожиданием")
+        x = math.log(middle / expected)
+        city = city_match(features)
+        return (
+            math.log(acceptance / (1 - acceptance))
+            + self.acceptance_w_intercept
+            + (self.acceptance_w_salary_below if x < 0 else self.acceptance_w_salary_above) * x
+            + (self.acceptance_w_format if format_match(features) == 0 else 0.0)
+            + (self.acceptance_w_city if city == 0 else 0.0)
+            + (self.acceptance_w_city_relocation if city == 0.5 else 0.0)
+            + self.acceptance_w_industry * industry_match(features)
+            + self.acceptance_w_load * features.open_invitations
+        )
+
+    def probability(self, acceptance: float, features: AcceptanceFeatures) -> float:
+        return sigmoid(self.logit(acceptance, features))
+
+
+@dataclass(frozen=True)
 class CandidateTruth:
     """Скрытая истина кандидата. Уровни — θ*_t = θ*_s + δ*_t по темам его специализации."""
 
@@ -87,6 +134,8 @@ class CandidateTruth:
     leaked: frozenset[str] = field(default=frozenset())
     # ФСП ID в реестре; None — без истории ФСП.
     fsp_sub: str | None = None
+    # Интересные сферы бизнеса — коды; не отметил — пусто.
+    industries: frozenset[str] = field(default=frozenset())
 
 
 @dataclass(frozen=True)
@@ -108,19 +157,30 @@ def corrupt(
     response: Response, corruption: Corruption, instance: Instance | None, rng: random.Random
 ) -> Response:
     """Ответ на испорченное семейство. Неверный эталон — свойство экземпляра: какая половина
-    экземпляров испорчена, решает их текст. Без экземпляра — фиксированный бланк базовой линии —
-    жребий на каждый ответ: та же доля испорченных ответов, но не привязанная к экземпляру; M21
-    идёт только через попытки, где экземпляр есть."""
+    экземпляров испорчена, решает экземпляр целиком — текст, код, параметры и эталон. Одного текста
+    мало: у многих семейств он общий, а различаются параметры и код, и тогда испорчены были бы все
+    экземпляры или ни один. Без экземпляра — фиксированный бланк базовой линии — жребий на каждый
+    ответ: та же доля испорченных ответов, но не привязанная к экземпляру; M21 идёт только через
+    попытки, где экземпляр есть."""
     match corruption:
         case Corruption.flat:
             return Response(rng.random() < 0.5, response.seconds)
         case Corruption.key:
             broken = (
-                zlib.crc32(instance.prompt.encode()) % 2 == 0
+                zlib.crc32(_identity(instance).encode()) % 2 == 0
                 if instance is not None
                 else rng.random() < 0.5
             )
             return Response(response.correct and not broken, response.seconds)
+
+
+def _identity(instance: Instance) -> str:
+    return json.dumps(
+        [instance.prompt, instance.code, instance.answer, instance.params],
+        sort_keys=True,
+        default=str,
+        ensure_ascii=False,
+    )
 
 
 def guessing(instance: Instance, model: ResponseModel) -> float:

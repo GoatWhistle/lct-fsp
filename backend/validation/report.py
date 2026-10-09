@@ -24,8 +24,17 @@ from pathlib import Path
 from app.domain.determination import grades_by_threshold
 from app.domain.selection import NeedSnapshot, SelectionBlock
 from app.usecase.skill_profile import specialization_prior
-from settings import BACKEND_DIR, Mechanics
+from settings import BACKEND_DIR, Mechanics, Settings
 from validation import d4
+from validation.acceptance import (
+    HOLDOUT_PAIRS,
+    Offer,
+    evaluate,
+    load_baselines,
+    load_model,
+    make_offers,
+    offer_needs,
+)
 from validation.baselines import (
     B3_SYSTEM,
     BM25_B,
@@ -62,6 +71,7 @@ from validation.population import (
     Generator,
     Pair,
     Person,
+    SyntheticNeed,
     label,
     snapshot,
 )
@@ -126,7 +136,7 @@ METRICS: dict[str, tuple[str, str]] = {
 # Чего не хватает метрикам, которые этот прогон не считает.
 PENDING: dict[str, str] = {
     "M6": "нет рыночной симуляции приглашений",
-    "M7": "нет модели принятия и отложенной синтетики",
+    "M7": "нет файла модели принятия: `uv run python -m validation acceptance`",
     "M8": "нет проверки вкладов объяснений на выдачах стенда",
     "M14": "нет атаки утечкой по схемам S1–S3",
     "M15": "нет прогона детектора утечки",
@@ -164,6 +174,8 @@ class DatasetRuns:
     pairs: dict[tuple[uuid.UUID, uuid.UUID], Pair]
     # M21 — банк с испорченными семействами; только у набора, на котором его считает план.
     fit: dict[str, ItemFit] = field(default_factory=dict)
+    # Отложенные пары модели принятия (M7) с решениями кандидатов.
+    offers: tuple[Offer, ...] = ()
     twins: tuple[Twin, ...] = ()
     # Базовая линия → (потребность, кандидат или двойник) → скор. Базовой линии без данных
     # здесь нет.
@@ -236,11 +248,13 @@ def collect(
     before = mechanics.model_copy(update={"level_sd_inflation": 1.0})
     generated: dict[str, Dataset] = {}
     doubles: dict[str, tuple[Twin, ...]] = {}
+    offered: dict[str, list[SyntheticNeed]] = {}
     futures: dict[tuple[str, str, str], Future[SpecRun] | Future[Adaptivity] | Future[ItemFit]] = {}
     with ProcessPoolExecutor(workers or max(1, (os.cpu_count() or 2) - 1)) as pool:
         for name in sets:
-            dataset, doubles[name] = prepared(name, mechanics, scale, codes, known)
+            generator, dataset, doubles[name] = prepared(name, mechanics, scale, codes, known)
             generated[name] = dataset
+            offered[name] = offer_needs(generator, dataset, HOLDOUT_PAIRS)
             stacks = {o.id: frozenset(o.stack) for o in dataset.observed}
             for code in codes:
                 job = Job(
@@ -251,10 +265,11 @@ def collect(
                     tuple(t for t in dataset.truths if t.specialization == code),
                     tuple(n for n in dataset.needs if n.form.specialization == code),
                     stacks,
-                    tuple(tw for tw in doubles[name] if tw.observed.specialization == code),
+                    twins=tuple(tw for tw in doubles[name] if tw.observed.specialization == code),
+                    offer_needs=tuple(n for n in offered[name] if n.form.specialization == code),
                 )
                 futures[name, code, "runs"] = pool.submit(run_spec, job)
-                light = replace(job, mechanics=before, full=False)
+                light = replace(job, mechanics=before, full=False, offer_needs=())
                 futures[name, code, "before"] = pool.submit(run_spec, light)
                 futures[name, code, "cold"] = pool.submit(run_cold, job)
                 if name in FIT_SETS:
@@ -270,14 +285,18 @@ def collect(
         pairs = {
             (p.need, p.candidate): p for p in label(dataset.truths, dataset.needs, known, mechanics)
         }
+        runs_ = part(name, "runs")
+        scored = {need: s for run in runs_.values() for need, s in run.offers.items()}
+        needs = [n for n in offered[name] if n.form.specialization in codes]
         data = DatasetRuns(
             dataset,
-            part(name, "runs"),
+            runs_,
             part(name, "before"),
             part(name, "cold"),
             pairs,
-            part(name, "fit") if name in FIT_SETS else {},
+            fit=part(name, "fit") if name in FIT_SETS else {},
             twins=doubles[name],
+            offers=tuple(make_offers(dataset, needs, scored, mechanics, HOLDOUT_PAIRS)),
         )
         if baselines is not None:
             data = score_baselines(data, known, baselines)
@@ -287,19 +306,21 @@ def collect(
 
 def prepared(
     name: str, mechanics: Mechanics, scale: Scale, codes: Sequence[str], known: Catalog
-) -> tuple[Dataset, tuple[Twin, ...]]:
-    """Набор `name` в масштабе прогона — только специализации `codes` — и его двойники."""
+) -> tuple[Generator, Dataset, tuple[Twin, ...]]:
+    """Набор `name` в масштабе прогона — только специализации `codes`, — его генератор и
+    двойники."""
     params = DATASETS[name]
     if scale.candidates is not None:
         params = replace(params, candidates_per_specialization=scale.candidates)
-    dataset = Generator(params, mechanics, known).generate()
+    generator = Generator(params, mechanics, known)
+    dataset = generator.generate()
     dataset = replace(
         dataset,
         observed=tuple(o for o in dataset.observed if o.specialization in codes),
         truths=tuple(t for t in dataset.truths if t.specialization in codes),
         needs=tuple(n for n in dataset.needs if n.form.specialization in codes),
     )
-    return dataset, twins(dataset, known)
+    return generator, dataset, twins(dataset, known)
 
 
 def baseline_pairs(
@@ -1681,6 +1702,60 @@ def baselines_note(runs: Runs) -> str:
     )
 
 
+# --- M7 ----------------------------------------------------------------------------------------
+
+
+@section("M7")
+def m7(runs: Runs) -> Section:
+    model, baselines = load_model(Settings().acceptance_model_file), load_baselines()
+    if model is None or baselines is None:
+        return pending("M7")
+    verdicts, parts = {}, []
+    for name, data in runs.sets.items():
+        if not data.offers:
+            continue
+        e = evaluate(model, baselines, data.offers)
+        mono = e.monotonicity
+        verdicts[name] = verdict_of(
+            [e.model.roc_auc >= 0.75, e.model.ece <= 0.05, mono.share == 1.0]
+        )
+        parts.append(
+            f"**{name.upper()}.** Пар {e.pairs}, доля принятий {f(e.accepted)}.\n\n"
+            + table(
+                ["Модель", "ROC-AUC", "ECE"],
+                [
+                    ["CatBoost", f"**{f(e.model.roc_auc)}**", f"**{f(e.model.ece)}**"],
+                    [
+                        "Логистическая регрессия по вилке к ожиданию",
+                        f(e.logistic.roc_auc),
+                        f(e.logistic.ece),
+                    ],
+                    [
+                        "Константа — доля принятий обучения",
+                        f(e.constant.roc_auc),
+                        f(e.constant.ece),
+                    ],
+                ],
+            )
+            + f"\n\nМонотонность: вилка — {mono.salary_ok} из {mono.salary_total} соседних точек "
+            f"сетки, загрузка — {mono.load_ok} из {mono.load_total}; всего "
+            f"**{f(math.floor(1000 * mono.share) / 10, 1)} %**."
+        )
+    if not parts:
+        return pending("M7")
+    body = (
+        "Модель — CatBoost из файла `backend/app/adapter/acceptance_model.cbm`, обученная "
+        "командой `uv run python -m validation acceptance` на своём сиде; базовые линии — на тех "
+        "же обучающих парах. Отложенные пары — подборки по потребностям набора: top-K по S и "
+        "случайные кандидаты сверх них, решения — по правилу синтетического кандидата из скрытой "
+        "склонности, которой модель не видит. ECE — 10 равных корзин. Сетка монотонности — "
+        "отношение середины вилки к ожиданию 0,5–2,0 шагом 0,05 и открытые приглашения 0–10 на "
+        "первых 50 парах. Порог: ROC-AUC не ниже 0,75, ECE не выше 0,05, монотонность в 100 % "
+        "точек.\n\n" + "\n\n".join(parts)
+    )
+    return judged("M7", body, verdicts)
+
+
 # --- M19 ---------------------------------------------------------------------------------------
 
 
@@ -1741,7 +1816,7 @@ def flagged_share(families: Iterable[FamilyFit]) -> Share:
 
 @section("M21")
 def m21(runs: Runs) -> Section:
-    limit = runs.mechanics.item_fit_rmsd_max
+    mech = runs.mechanics
     verdicts, parts = {}, []
     for name, data in runs.sets.items():
         if not data.fit:
@@ -1824,21 +1899,23 @@ def m21(runs: Runs) -> Section:
     if not parts:
         return Section("M21", "Нужен прогон D1 с испорченными семействами.", WAITING)
     body = (
-        f"Семейство отмечено, если на пакетной переоценке RMSD согласия с моделью за вычетом шума "
-        f"выборки выше `item_fit_rmsd_max` = {f(limit, 2)} — тогда оно выводится из выдачи. Банк "
+        "Семейство отмечено, если проверка согласия после пакетной переоценки выводит его из "
+        f"выдачи: переоценённая â ниже `item_fit_discrimination_min` = "
+        f"{f(mech.item_fit_discrimination_min, 2)} или модель с потолком объясняет ответы лучше "
+        f"2PL больше чем на `item_fit_ceiling_gain_max` = {f(mech.item_fit_ceiling_gain_max, 2)} "
+        "нат ([mechanics.md](mechanics.md) §7); оба числа подобраны на D3 командой `fit`. Банк "
         "набора плюс испорченные семейства — только в скрытой истине: ошибка эталона — у половины "
         "экземпляров верный ответ засчитывается неверным; ответ не зависит от уровня — "
         "P(верно) = 0,5. Банк прогревается на честных кандидатах набора, переоценка — на "
-        f"`calibration_refit_min_responses` = {runs.mechanics.calibration_refit_min_responses} "
+        f"`calibration_refit_min_responses` = {mech.calibration_refit_min_responses} "
         "ответах на семейство; якоря не портятся и в доли не входят. RMSE общего уровня — у "
         f"честных кандидатов набора ({runs.scale.fit} на специализацию) на замороженном банке "
         "в трёх состояниях, на одних и тех же случайных числах ответа: испорченные в выдаче; "
         "выдача, как её оставила переоценка, — проверки согласия и дрейфа, с их ложными "
         "срабатываниями; сверх того выведены все испорченные.\n\n"
-        "Поправка на шум выборки введена после пробного прогона D1 по одной специализации: без "
-        "неё проверка выводила около 18 % исправных семейств, и RMSE уровня после вывода рос "
-        "([mechanics.md](mechanics.md) §7, журнал изменений плана). Поэтому FPR на D1 — не "
-        "независимая проверка поправки.\n\n"
+        "Результаты прежней проверки — RMSD против переоценённых (a, b) — на D1 видели до выбора "
+        "новой (журнал изменений плана); новая и её числа выбраны на D3 по правилу, записанному "
+        "до прогона D3.\n\n"
         + "\n\n".join(parts)
         + "\n\nРазбор потребности (D5) — вторая часть M21 — считается командой `parsing` и в "
         "этот отчёт не сведён."

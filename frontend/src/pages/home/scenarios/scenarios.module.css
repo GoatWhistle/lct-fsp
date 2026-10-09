@@ -1,0 +1,41 @@
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, var(--column-min)), 1fr));
+  gap: var(--space-40) var(--space-80);
+}
+
+.scenario {
+  --card-title-size: var(--font-size-heading);
+  --card-title-leading: var(--line-height-heading);
+  --card-title-tracking: var(--tracking-heading);
+
+  grid-template-rows: auto 1fr auto;
+}
+
+.points {
+  display: grid;
+  align-content: start;
+  gap: var(--space-16);
+}
+
+.point {
+  display: grid;
+  grid-template-columns: var(--icon-lg) minmax(0, 1fr);
+  align-items: start;
+  gap: var(--space-16);
+  max-inline-size: var(--prose-measure);
+}
+
+.icon {
+  color: var(--text-accent);
+}
+
+.sample {
+  display: grid;
+  gap: var(--space-12);
+}
+
+.caption {
+  composes: labelText from "../../../shared/styles/compose.module.css";
+  color: var(--text-tertiary);
+}

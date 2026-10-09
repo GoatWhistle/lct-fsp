@@ -1,0 +1,16 @@
+.tab {
+  display: grid;
+  gap: var(--space-24);
+}
+
+.budget {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--space-16) var(--space-32);
+}
+
+.meter {
+  flex: 1 1 var(--tile-min);
+  max-inline-size: var(--field-max-width);
+}

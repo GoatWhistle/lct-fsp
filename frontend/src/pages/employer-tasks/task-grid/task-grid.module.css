@@ -1,0 +1,6 @@
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, var(--column-min)), 1fr));
+  align-items: start;
+  gap: var(--space-24);
+}

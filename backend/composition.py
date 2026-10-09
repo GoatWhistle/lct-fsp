@@ -20,6 +20,7 @@ from app.adapter.calibration import EloCalibration
 from app.adapter.text_model import Completion, ModelTextUnderstanding, WithFallback
 from app.adapter.text_rules import RulesTextUnderstanding, Synonyms
 from app.domain.bank.runner import CodeRunner
+from app.domain.experience import ExperienceLimits
 from app.domain.resume_draft import GradeHintRule
 from app.usecase.account import Accounts, VerificationLinks
 from app.usecase.attempt import CandidatePath
@@ -49,6 +50,7 @@ from app.usecase.interface import (
     InvitationRepository,
     ItemSelector,
     Mailer,
+    MailTemplates,
     MessageRepository,
     NeedReader,
     NeedRepository,
@@ -116,6 +118,15 @@ def named_completion(name: str, timeout: float) -> Completion:
     return completion(timeout)
 
 
+def experience_limits(mechanics: Mechanics) -> ExperienceLimits:
+    return ExperienceLimits(
+        entries_max=mechanics.experience_entries_max,
+        line_max=mechanics.experience_line_max,
+        summary_max=mechanics.experience_summary_max,
+        stack_max=mechanics.experience_stack_max,
+    )
+
+
 def elo_calibration(repository: CalibrationRepository, mechanics: Mechanics) -> EloCalibration:
     """Калибровка Эло с параметрами из конфига механик — tests/test_mechanics_config.py сверяет
     их с config/mechanics.yaml."""
@@ -135,6 +146,10 @@ def elo_calibration(repository: CalibrationRepository, mechanics: Mechanics) -> 
         calibration_link_window_attempts=mechanics.calibration_link_window_attempts,
         item_fit_groups=mechanics.item_fit_groups,
         item_fit_rmsd_max=mechanics.item_fit_rmsd_max,
+        item_fit_discrimination_min=mechanics.item_fit_discrimination_min,
+        item_fit_ceiling_gain_max=mechanics.item_fit_ceiling_gain_max,
+        item_fit_ceiling_min=mechanics.item_fit_ceiling_min,
+        item_fit_ceiling_step=mechanics.item_fit_ceiling_step,
     )
 
 
@@ -276,6 +291,7 @@ def build_platform_usecases[U: UnitOfWork](
     passwords: PasswordHasher,
     sessions: SessionTokens,
     mailer: Mailer,
+    mail_templates: MailTemplates,
     clock: Clock,
     links: VerificationLinks,
     skill_model: SkillModel,
@@ -295,6 +311,7 @@ def build_platform_usecases[U: UnitOfWork](
             mailer,
             clock,
             links,
+            mail_templates,
         )
 
     def companies(uow: U) -> Companies:
@@ -386,6 +403,7 @@ def build_platform_usecases[U: UnitOfWork](
             rule=grade_hints,
             max_bytes=mechanics.resume_max_bytes,
             confident=mechanics.resume_draft_confident,
+            experience_limits=experience_limits(mechanics),
         )
 
     def vacancies(uow: U) -> Vacancies:

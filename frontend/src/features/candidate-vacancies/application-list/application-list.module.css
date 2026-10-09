@@ -1,0 +1,67 @@
+.list {
+  display: grid;
+}
+
+.row {
+  composes: listRowCompact from "../../../shared/styles/rows.module.css";
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: var(--space-12) var(--space-24);
+}
+
+.row:last-child {
+  border-block-end: 0;
+}
+
+.row[data-quiet="true"] {
+  color: var(--text-secondary);
+}
+
+.main {
+  display: grid;
+  gap: var(--space-8);
+  min-inline-size: 0;
+}
+
+.title {
+  composes: strongBodyText from "../../../shared/styles/compose.module.css";
+  display: inline-flex;
+  align-items: center;
+  min-block-size: var(--target-min);
+  color: inherit;
+  text-decoration-line: none;
+  transition: var(--transition-control);
+}
+
+.meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4) var(--space-16);
+  font-size: var(--font-size-body-sm);
+}
+
+.side {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+}
+
+.basis {
+  composes: footnote from "../../../shared/styles/compose.module.css";
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .title:hover {
+    color: var(--text-accent);
+  }
+}
+
+@media (max-width: 47.99rem) {
+  .row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .side {
+    justify-content: space-between;
+  }
+}

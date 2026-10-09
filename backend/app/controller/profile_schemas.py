@@ -63,6 +63,58 @@ SoftSkills = Annotated[list[Annotated[str, OneLine, _text(50)]], AfterValidator(
 WorkFormats = Annotated[list[WorkFormat], AfterValidator(_canonical_formats)]
 
 
+FROM_CANDIDATE = (
+    "Со слов кандидата: тестом и ФСП не подтверждено, на скор, место в выдаче, уровень и "
+    "категорию не влияет"
+)
+MONTH = r"^(19|20)\d{2}-(0[1-9]|1[0-2])$"
+Month = Annotated[str, StringConstraints(pattern=MONTH)]
+
+
+class ExperienceEntryIn(BaseModel):
+    """Запись опыта. Лимиты длины и числа записей — `experience_*` в механиках."""
+
+    place: Annotated[str, OneLine, StringConstraints(strip_whitespace=True, min_length=1)] = Field(
+        description="Компания или проект"
+    )
+    role: Annotated[str, OneLine, StringConstraints(strip_whitespace=True)] = Field(
+        default="", description="Кем работал"
+    )
+    start: Month = Field(description="Начало, `ГГГГ-ММ`; не в будущем")
+    end: Month | None = Field(
+        default=None, description="Конец, `ГГГГ-ММ`, не раньше начала; `null` — по сейчас"
+    )
+    stack: list[str] = Field(
+        default_factory=list, description="Коды технологий из `/api/catalog/technologies`"
+    )
+    summary: Annotated[str, StringConstraints(strip_whitespace=True)] = Field(
+        default="", description="Что делал"
+    )
+
+
+class ExperienceEntryOut(BaseModel):
+    place: str = Field(description="Компания или проект")
+    role: str
+    start: str = Field(description="`ГГГГ-ММ`")
+    end: str | None = Field(description="`ГГГГ-ММ`; `null` — по сейчас")
+    stack: list[CatalogRef] = Field(description="По названию технологии")
+    summary: str = Field(description="Что делал")
+
+
+class TechnologyYearsOut(BaseModel):
+    technology: CatalogRef
+    years: float = Field(
+        description="Объединение периодов записей с технологией, лет, вниз до половины года"
+    )
+
+
+EXPERIENCE = f"Карточка опыта. {FROM_CANDIDATE}. {DISCLOSED}"
+TECHNOLOGY_YEARS = (
+    "Годы по технологиям — посчитаны из записей опыта на сегодня, руками не вводятся; больше "
+    f"лет — раньше. {FROM_CANDIDATE}. {DISCLOSED}"
+)
+
+
 class SelfReportedOut(BaseModel):
     """Структурная часть самоописания: низший уровень доверия, на категорию не влияет."""
 
@@ -118,6 +170,8 @@ class ProfileOut(SelfReportedOut, SalaryBasisOut):
         description=f"Кем кандидат работал или хочет работать. {DISCLOSED}: свободный текст"
     )
     soft_skills: list[str] = Field(description=f"{DISCLOSED}: свободный текст")
+    experience: list[ExperienceEntryOut] = Field(description=EXPERIENCE)
+    technology_years: list[TechnologyYearsOut] = Field(description=TECHNOLOGY_YEARS)
     salary_from: int = Field(
         description=f"Ожидаемая зарплата «от». {SALARY_UNIT}. Работодателю не показывается: "
         "по ней считается вероятность принятия приглашения"
@@ -146,6 +200,9 @@ class ProfileIn(BaseModel):
     )
     experience_years: StrictInt = Field(ge=0, le=60, description="Полных лет; 0 — меньше года")
     soft_skills: SoftSkills = Field(default_factory=list, max_length=15)
+    experience: list[ExperienceEntryIn] = Field(
+        default_factory=list, description=f"Карточка опыта. {FROM_CANDIDATE}"
+    )
 
     work_formats: WorkFormats = Field(
         min_length=1, description="Допустимые форматы работы, хотя бы один"
@@ -184,7 +241,8 @@ class ProfileIn(BaseModel):
 
 
 class DisclosedOut(BaseModel):
-    """Раскрытая часть анкеты: ФИО, контакты и свободный текст. Ожидаемой зарплаты нет и здесь."""
+    """Раскрытая часть анкеты: ФИО, контакты, свободный текст и карточка опыта. Ожидаемой
+    зарплаты нет и здесь."""
 
     full_name: str
     contact_email: str
@@ -193,6 +251,10 @@ class DisclosedOut(BaseModel):
     about: str
     job_roles: list[str]
     soft_skills: list[str]
+    experience: list[ExperienceEntryOut] = Field(description=f"Карточка опыта. {FROM_CANDIDATE}")
+    technology_years: list[TechnologyYearsOut] = Field(
+        description=f"Годы по технологиям из записей опыта. {FROM_CANDIDATE}"
+    )
 
 
 class CandidateCardOut(BaseModel):
@@ -218,9 +280,9 @@ class CandidateCardOut(BaseModel):
         "дисциплина и год. Пусто — нет истории ФСП, это не штраф"
     )
     disclosed: DisclosedOut | None = Field(
-        description="ФИО, контакты и свободный текст — только после принятия приглашения вашей "
-        "компании или отклика на её вакансию; `null` — карточка обезличена или профиль не "
-        "заполнен"
+        description="ФИО, контакты, свободный текст и карточка опыта — только после принятия "
+        "приглашения вашей компании или отклика на её вакансию; `null` — карточка обезличена или "
+        "профиль не заполнен"
     )
     fsp_details: list[FspAchievementOut] | None = Field(
         description="Достижения ФСП полностью — с мероприятием, местом и ролью в команде: только "
@@ -251,6 +313,11 @@ class ResumeDraftOut(BaseModel):
     job_roles: list[str] = Field(description="Названия ролей из словаря, а не фразы резюме")
     experience_years: int | None = Field(description="Полных лет; `null` — не найден")
     soft_skills: list[str] = Field(description="Названия из словаря, а не фразы резюме")
+    experience: list[ExperienceEntryOut] = Field(
+        description="Черновые записи опыта: периоды из раздела опыта, технологии справочника из "
+        "текста записи, роль из словаря, место — заголовок записи; «что делал» пусто. Всегда "
+        "неуверенные — проверьте их"
+    )
     confidence: dict[ResumeField, float | None] = Field(
         description="Уверенность по распознанным полям в [0, 1]; `null` — разбор её не считает. "
         "Нераспознанных полей здесь нет"

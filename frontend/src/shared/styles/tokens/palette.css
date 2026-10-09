@@ -1,0 +1,21 @@
+:root {
+  --fsp-blue: #402fff;
+  --fsp-blue-deep: #3324e0;
+  --fsp-blue-deeper: #2a1dc2;
+  --fsp-blue-light: #9b93ff;
+  --fsp-blue-bright: #6355ff;
+  --fsp-red: #ec1d35;
+  --fsp-red-deep: #d01730;
+  --fsp-red-light: #ff6b7a;
+  --fsp-graphite: #1b1c21;
+  --fsp-graphite-deep: #131418;
+  --fsp-graphite-raised: #222329;
+  --fsp-graphite-high: #2a2b31;
+  --fsp-smoke: #ededed;
+  --fsp-ash: #c8c9ca;
+  --fsp-ash-dim: #9c9da2;
+  --fsp-ink-soft: #55565c;
+  --fsp-ink-mute: #66676d;
+  --fsp-mist: #f5f5f8;
+  --fsp-white: #ffffff;
+}

@@ -1,0 +1,24 @@
+.mark {
+  inline-size: auto;
+  block-size: 1em;
+  flex: none;
+  overflow: visible;
+}
+
+.neutral {
+  fill: var(--brand-mark-neutral);
+}
+
+.red {
+  fill: var(--brand-mark-red);
+}
+
+.blue {
+  fill: var(--brand-mark-blue);
+}
+
+.mono .neutral,
+.mono .red,
+.mono .blue {
+  fill: currentColor;
+}

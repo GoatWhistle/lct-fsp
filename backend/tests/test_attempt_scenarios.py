@@ -139,6 +139,10 @@ def calibration(store: MemoryStore) -> SpyCalibration:
             calibration_link_window_attempts=MECHANICS.calibration_link_window_attempts,
             item_fit_groups=MECHANICS.item_fit_groups,
             item_fit_rmsd_max=MECHANICS.item_fit_rmsd_max,
+            item_fit_discrimination_min=MECHANICS.item_fit_discrimination_min,
+            item_fit_ceiling_gain_max=MECHANICS.item_fit_ceiling_gain_max,
+            item_fit_ceiling_min=MECHANICS.item_fit_ceiling_min,
+            item_fit_ceiling_step=MECHANICS.item_fit_ceiling_step,
         )
     )
 

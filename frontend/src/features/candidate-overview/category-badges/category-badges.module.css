@@ -1,0 +1,27 @@
+.badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-8);
+}
+
+.badge {
+  composes: labelText pill badgeShape from "../../../shared/styles/compose.module.css";
+  gap: var(--space-8);
+  font-weight: var(--weight-medium);
+  animation: var(--motion-pop-in);
+}
+
+.badge[data-kind="specialization"] {
+  background-color: var(--surface-selected);
+  color: var(--text-accent);
+}
+
+.badges[data-size="large"] .badge {
+  padding: var(--space-8) var(--space-16);
+  font-size: var(--font-size-subheading);
+  line-height: var(--line-height-subheading);
+}
+
+.badges[data-size="large"] .badge + .badge {
+  animation-delay: var(--stagger);
+}

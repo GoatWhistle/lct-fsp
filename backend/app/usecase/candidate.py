@@ -26,7 +26,9 @@ from app.domain.candidate import (
     disclosure,
 )
 from app.domain.errors import CandidateNotFound, ProfileNotFound
+from app.domain.experience import ExperienceLimits, check_experience
 from app.domain.invitation import InvitationStatus
+from app.domain.locale import DEFAULT_LOCALE, Locale
 from app.usecase.interface import (
     ApplicationReader,
     ApplicationRepository,
@@ -64,9 +66,13 @@ def save_profile(
     form: ProfileForm,
     clock: Clock,
     freshness: ProfileFreshness,
+    *,
+    experience_limits: ExperienceLimits,
 ) -> DisclosedCard:
+    """Анкета целиком; карточку опыта сначала проверяет `check_experience` на сегодня."""
     with uow:
         now = clock.now()
+        check_experience(form.experience, now.date(), experience_limits)
         candidates.save_profile(candidate_id, form, now)
         return _own(freshness.candidate(candidates.get(candidate_id), now))
 
@@ -80,15 +86,16 @@ def profile_pdf(
     freshness: ProfileFreshness,
     *,
     grade_confidence: float,
+    locale: Locale = DEFAULT_LOCALE,
 ) -> ProfilePdf:
     """PDF-профиль — для самого кандидата: собирается из его раскрытой карточки."""
     now = clock.now()
     with uow:
         card = _own(freshness.candidate(candidates.get(candidate_id), now))
-    sheet = ProfileSheet.of(card, grade_confidence)
+    sheet = ProfileSheet.of(card, grade_confidence, now.date())
     if sheet is None:
         raise ProfileNotFound()
-    return ProfilePdf(sheet.disclosed.full_name, renderer.render(sheet, now=now))
+    return ProfilePdf(sheet.disclosed.full_name, renderer.render(sheet, now=now, locale=locale))
 
 
 def employer_card(

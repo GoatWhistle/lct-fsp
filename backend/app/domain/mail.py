@@ -8,3 +8,4 @@ class Mail:
     to: str
     subject: str
     text: str
+    html: str | None = None

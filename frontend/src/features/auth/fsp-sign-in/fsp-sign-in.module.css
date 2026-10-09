@@ -1,0 +1,9 @@
+.content {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-12);
+}
+
+.mark {
+  block-size: var(--icon-md);
+}

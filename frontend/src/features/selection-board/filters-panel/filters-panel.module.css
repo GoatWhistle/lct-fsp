@@ -1,0 +1,19 @@
+.panel {
+  position: sticky;
+  inset-block-start: calc(var(--sticky-top) + var(--space-16));
+}
+
+.body {
+  display: grid;
+  gap: var(--space-16);
+}
+
+.group {
+  composes: bareFieldset from "../../../shared/styles/compose.module.css";
+  display: grid;
+}
+
+.legend {
+  composes: fieldLabel from "../../../shared/styles/compose.module.css";
+  margin-block-end: var(--space-4);
+}

@@ -4,10 +4,12 @@
 """
 
 import uuid
+from collections.abc import Sequence
+from datetime import date
 from typing import Annotated
 from urllib.parse import quote
 
-from fastapi import APIRouter, Depends, Request, Response
+from fastapi import APIRouter, Depends, Query, Request, Response
 
 from app.controller.deps import (
     ROLE_RESPONSES,
@@ -15,6 +17,7 @@ from app.controller.deps import (
     CandidatesDep,
     ClockDep,
     CurrentUser,
+    ExperienceLimitsDep,
     InvitationReaderDep,
     MechanicsDep,
     ProfileFreshnessDep,
@@ -30,21 +33,38 @@ from app.controller.profile_schemas import (
     CandidateCardOut,
     CardSelfReportedOut,
     DisclosedOut,
+    ExperienceEntryOut,
     GradeHintOut,
     ProfileIn,
     ProfileOut,
     ResumeDraftOut,
     SelfReportedOut,
+    TechnologyYearsOut,
 )
 from app.controller.schemas import CatalogRef, GradeStatusOut
 from app.domain import candidate as domain
 from app.domain import errors
 from app.domain.account import Role
+from app.domain.experience import (
+    ExperienceEntry,
+    ExperienceInput,
+    Month,
+    technology_years,
+)
 from app.domain.fsp import anonymized
+from app.domain.locale import DEFAULT_LOCALE, Locale
 from app.domain.resume_draft import CheckedResumeDraft, GradeHint
 from app.usecase import candidate as usecase
 
-PROFILE_ERRORS = (errors.UnknownTechnology, errors.UnknownIndustry, errors.CityRequired)
+PROFILE_ERRORS = (
+    errors.UnknownTechnology,
+    errors.UnknownIndustry,
+    errors.CityRequired,
+    errors.ExperiencePlaceRequired,
+    errors.ExperiencePeriodInvalid,
+    errors.ExperienceStartInFuture,
+    errors.ExperienceTooLong,
+)
 
 router = APIRouter(
     prefix="/api/candidate/profile",
@@ -73,7 +93,8 @@ def get_profile(
     clock: ClockDep,
     freshness: ProfileFreshnessDep,
 ) -> ProfileOut | None:
-    return _profile_out(usecase.own_profile(uow, candidates, user.id, clock, freshness))
+    card = usecase.own_profile(uow, candidates, user.id, clock, freshness)
+    return _profile_out(card, clock.now().date())
 
 
 @router.put(
@@ -90,9 +111,18 @@ def save_profile(
     candidates: CandidatesDep,
     clock: ClockDep,
     freshness: ProfileFreshnessDep,
+    experience_limits: ExperienceLimitsDep,
 ) -> ProfileOut:
-    card = usecase.save_profile(uow, candidates, user.id, _form(body), clock, freshness)
-    out = _profile_out(card)
+    card = usecase.save_profile(
+        uow,
+        candidates,
+        user.id,
+        _form(body),
+        clock,
+        freshness,
+        experience_limits=experience_limits,
+    )
+    out = _profile_out(card, clock.now().date())
     assert out is not None, "анкета только что сохранена"
     return out
 
@@ -167,6 +197,7 @@ def download_pdf(
     renderer: ProfilePdfRendererDep,
     clock: ClockDep,
     freshness: ProfileFreshnessDep,
+    lang: Annotated[Locale, Query(description="Язык текстов PDF")] = DEFAULT_LOCALE,
 ) -> Response:
     pdf = usecase.profile_pdf(
         uow,
@@ -176,8 +207,9 @@ def download_pdf(
         clock,
         freshness,
         grade_confidence=mechanics.grade_confidence,
+        locale=lang,
     )
-    filename = quote(f"Профиль кандидата — {pdf.full_name}.pdf")
+    filename = quote(f"{pdf.full_name}.pdf")
     return Response(
         pdf.content,
         media_type="application/pdf",
@@ -215,7 +247,7 @@ def get_candidate_card(
     card = usecase.employer_card(
         uow, candidates, invitations, applications, user.id, candidate_id, clock, freshness
     )
-    return _card_out(card)
+    return _card_out(card, clock.now().date())
 
 
 def _form(body: ProfileIn) -> domain.ProfileForm:
@@ -235,6 +267,17 @@ def _form(body: ProfileIn) -> domain.ProfileForm:
         industries=tuple(body.industries),
         expected_salary=body.salary_from,
         hidden=frozenset(body.hidden),
+        experience=tuple(
+            ExperienceInput(
+                place=e.place,
+                role=e.role,
+                start=Month.parse(e.start),
+                end=Month.parse(e.end) if e.end else None,
+                stack=tuple(e.stack),
+                summary=e.summary,
+            )
+            for e in body.experience
+        ),
     )
 
 
@@ -257,10 +300,34 @@ def _resume_out(draft: CheckedResumeDraft) -> ResumeDraftOut:
         job_roles=list(draft.job_roles),
         experience_years=draft.experience_years,
         soft_skills=list(draft.soft_skills),
+        experience=_experience_out(draft.experience),
         confidence=dict(draft.confidence),
         uncertain=sorted(draft.uncertain),
         grade_hint=_grade_hint_out(draft.grade_hint) if draft.grade_hint else None,
     )
+
+
+def _experience_out(entries: Sequence[ExperienceEntry]) -> list[ExperienceEntryOut]:
+    return [
+        ExperienceEntryOut(
+            place=e.place,
+            role=e.role,
+            start=str(e.start),
+            end=str(e.end) if e.end else None,
+            stack=[CatalogRef.model_validate(t) for t in e.stack],
+            summary=e.summary,
+        )
+        for e in entries
+    ]
+
+
+def _technology_years_out(
+    entries: Sequence[ExperienceEntry], today: date
+) -> list[TechnologyYearsOut]:
+    return [
+        TechnologyYearsOut(technology=CatalogRef.model_validate(y.technology), years=y.years)
+        for y in technology_years(entries, today)
+    ]
 
 
 def _self_reported_out(self_reported: domain.SelfReported) -> SelfReportedOut:
@@ -274,7 +341,7 @@ def _self_reported_out(self_reported: domain.SelfReported) -> SelfReportedOut:
     )
 
 
-def _profile_out(card: domain.DisclosedCard) -> ProfileOut | None:
+def _profile_out(card: domain.DisclosedCard, today: date) -> ProfileOut | None:
     """Анкета своей карточки; `None` — анкета не заполнена."""
     profile, salary = card.profile, card.expected_salary
     if profile is None or salary is None:
@@ -289,6 +356,8 @@ def _profile_out(card: domain.DisclosedCard) -> ProfileOut | None:
         about=disclosed.about,
         job_roles=list(disclosed.job_roles),
         soft_skills=list(disclosed.soft_skills),
+        experience=_experience_out(disclosed.experience),
+        technology_years=_technology_years_out(disclosed.experience, today),
         salary_from=salary,
         updated_at=profile.updated_at,
         hidden=list(profile.hidden),
@@ -314,7 +383,7 @@ def _card_self_reported_out(
     )
 
 
-def _card_out(card: domain.AnonymizedCard | domain.DisclosedCard) -> CandidateCardOut:
+def _card_out(card: domain.AnonymizedCard | domain.DisclosedCard, today: date) -> CandidateCardOut:
     """Карточка для работодателя как её отдало правило раскрытия: раскрытая часть — только у
     раскрытой. Ожидаемая зарплата в схему не входит. Достижения ФСП обезличенно — всегда,
     полностью — только у раскрытой."""
@@ -334,6 +403,8 @@ def _card_out(card: domain.AnonymizedCard | domain.DisclosedCard) -> CandidateCa
             about=d.about,
             job_roles=list(d.job_roles),
             soft_skills=list(d.soft_skills),
+            experience=_experience_out(d.experience),
+            technology_years=_technology_years_out(d.experience, today),
         )
     return CandidateCardOut(
         id=card.candidate_id,

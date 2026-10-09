@@ -1,0 +1,44 @@
+.card {
+  display: flex;
+  flex-direction: column;
+}
+
+.card[data-archived="true"] {
+  --card-surface: var(--surface-canvas);
+}
+
+.tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-8);
+}
+
+.description {
+  composes: bodySmText from "../../../shared/styles/compose.module.css";
+  max-inline-size: var(--prose-measure);
+  max-block-size: 3lh;
+  overflow: hidden;
+  color: var(--text-secondary);
+}
+
+.attributes {
+  display: grid;
+  gap: var(--space-8);
+}
+
+.basis {
+  composes: footnote from "../../../shared/styles/compose.module.css";
+  padding-inline-start: var(--space-24);
+}
+
+.footer {
+  composes: actions from "../../../shared/styles/layout.module.css";
+  justify-content: space-between;
+  margin-block-start: auto;
+  padding-block-start: var(--space-16);
+  border-block-start: var(--hairline) solid var(--border-hairline);
+}
+
+.none {
+  composes: labelText from "../../../shared/styles/compose.module.css";
+}

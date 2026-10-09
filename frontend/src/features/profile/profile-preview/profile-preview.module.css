@@ -1,0 +1,58 @@
+.card {
+  display: grid;
+  gap: var(--space-16);
+  padding: var(--space-16);
+  border: var(--hairline) dashed var(--border-strong);
+  border-radius: var(--radius-button);
+}
+
+.head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-8);
+}
+
+.anon {
+  composes: labelText from "../../../shared/styles/compose.module.css";
+  font-weight: var(--weight-medium);
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+}
+
+.list {
+  display: grid;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
+  align-items: baseline;
+  gap: var(--space-12);
+  padding-block: var(--space-8);
+  border-block-start: var(--hairline) solid var(--border-hairline);
+}
+
+.label {
+  composes: fieldLabel from "../../../shared/styles/compose.module.css";
+  white-space: normal;
+}
+
+.value {
+  min-inline-size: 0;
+  font-size: var(--font-size-body-sm);
+}
+
+.later {
+  composes: secondaryText from "../../../shared/styles/compose.module.css";
+}
+
+.bare {
+  display: grid;
+  gap: var(--space-16);
+}

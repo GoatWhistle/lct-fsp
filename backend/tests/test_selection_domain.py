@@ -54,6 +54,10 @@ def test_acceptance_features_have_no_protected_attributes() -> None:
         "need_city",
         "grade",
         "match_score",
+        "market_salary",
+        "open_invitations",
+        "industries",
+        "company_industry",
     }
     protected = ("gender", "sex", "age", "birth", "university", "education", "photo", "name")
     assert not [n for n in names if any(p in n for p in protected)]

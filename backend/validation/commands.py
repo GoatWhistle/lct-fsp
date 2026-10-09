@@ -16,6 +16,8 @@
   (`validation.protection`);
 - `record_llm` — M16 (б), D7: живой прогон модели через тест с записью ответов в репо
   (`validation.llm_attack`); отчёт потом пересобирается из записи без сети.
+- `b3` — пары B3 по наборам: сколько вызовов модели и во что обойдётся живой прогон, а с
+  `--record` — сам прогон с записью ответов в кэш (`validation.baselines`);
 - `train_acceptance` — обучение модели принятия на своём сиде: файл модели в репо и базовые линии
   M7 рядом (`validation.acceptance`).
 
@@ -27,6 +29,8 @@ import logging
 import os
 import statistics
 import uuid
+from collections import Counter
+from collections.abc import Sequence
 from concurrent.futures import ProcessPoolExecutor
 from dataclasses import dataclass, replace
 from pathlib import Path
@@ -48,11 +52,13 @@ from validation.acceptance import (
     save_baselines,
     train_on,
 )
+from validation.baselines import B3_SYSTEM, Document, LlmRanker, ScoreCache, record
+from validation.isolated import IsolatedCompletion
 from validation.item_fit import D3, TUNING_WARM, tune
 from validation.llm_attack import ATTEMPTS, SPECIALIZATIONS, Answering, LlmAttempt, run_attempts
 from validation.llm_attack import PARAMS as D7_PARAMS
 from validation.llm_attack import recording_path as llm_recording_path
-from validation.main import build_stand, catalog
+from validation.main import B3_DIR, b3_cache_path, baseline_source, build_stand, catalog
 from validation.market import (
     SEED,
     TUNING_SEED,
@@ -64,7 +70,7 @@ from validation.market import (
 )
 from validation.metrics import cohen_kappa, median, pearson
 from validation.parsing import LabeledText, load_labeled, parsing_table, run_parsing
-from validation.population import D1, DATASETS, Generator, write
+from validation.population import D1, DATASETS, Generator, GeneratorParams, write
 from validation.protection import D3 as DRIFT_D3
 from validation.protection import (
     DRIFT_GRID,
@@ -75,8 +81,19 @@ from validation.protection import (
     tune_threshold,
     warmed,
 )
-from validation.recorded import Answer, Recording, Replay, record
-from validation.report import PLAN_PROTECTION, REPORT, collect, write_report
+from validation.recorded import Answer, Recording, Replay
+from validation.recorded import record as record_model
+from validation.report import (
+    PLAN_PROTECTION,
+    PLAN_SCALE,
+    REPORT,
+    SETS,
+    baseline_pairs,
+    collect,
+    prepared,
+    write_d4,
+    write_report,
+)
 from validation.simulate import Job, Scale, Scored, run_offers
 
 # Набор D5 — тексты вакансий с разметкой; формат — validation/data/need_texts.md.
@@ -282,7 +299,7 @@ def _record(
         if model == "llama"
         else named_completion(model, RECORD_TIMEOUT)
     )
-    added = record(
+    added = record_model(
         recording, capture.requests, live, workers=workers, model=getattr(live, "model", None)
     )
     print(f"Записано ответов модели: {added}, файл {recording.path.name}\n")
@@ -331,6 +348,79 @@ def report_parsing(
             "\nРазметка набора — модели, без проверки человеком: её ошибки сдвигают точность в "
             "неизвестную сторону (docs/validation-plan.md, M21)."
         )
+
+
+# Цена Claude Sonnet 5.5, $ за миллион токенов: вход и выход.
+B3_PRICE = (2.0, 10.0)
+# Прикидка токенов на пару: текст запроса — символов на токен для русского текста; Agent SDK —
+# два хода модели на пару (ответ и структурированный вывод), на каждый — инструкция вывода и схема
+# сверх запроса и короткий ответ.
+CHARS_PER_TOKEN = 2.5
+TURNS = 2
+TURN_OVERHEAD_TOKENS = 400
+TURN_OUTPUT_TOKENS = 60
+
+
+def b3_pairs(
+    mechanics: Mechanics, name: str
+) -> tuple[GeneratorParams, list[tuple[Document, Document]], Counter[str]]:
+    """Пары B3 набора `name` по плану и сколько их по видам: пул, двойники M3, двойники M5."""
+    known = catalog()
+    _, dataset, doubles = prepared(name, mechanics, PLAN_SCALE, tuple(known.specializations), known)
+    kinds = {str(tw.id): tw.kind.value for tw in doubles}
+    found, counts = [], Counter[str]()
+    for pairs in baseline_pairs(dataset, doubles, known).values():
+        for _, _, need, resume in pairs:
+            found.append((need, resume))
+            counts[kinds.get(resume.key, "pool")] += 1
+    return dataset.params, found, counts
+
+
+def b3(mechanics: Mechanics, sets: Sequence[str], record_workers: int, model: str) -> None:
+    """Без `record_workers` — только подсчёт: живой прогон B3 запускается после согласия команды
+    на число вызовов и стоимость."""
+    total_in = total_out = 0.0
+    print("| Набор | Пул | Двойники M3 | Двойники M5 | Всего | Уже в кэше |")
+    print("|---|---|---|---|---|---|")
+    plans = {}
+    for name in sets:
+        params, pairs, counts = b3_pairs(mechanics, name)
+        cache = ScoreCache(b3_cache_path(B3_DIR, name), params.seed)
+        ranker = LlmRanker(cache)
+        cached = sum(ranker.cached(n, r) for n, r in pairs)
+        plans[name] = (ranker, pairs)
+        chars = sum(len(B3_SYSTEM) + len(n.text) + len(r.text) + 20 for n, r in pairs)
+        # Каждый ход заново получает весь запрос.
+        total_in += TURNS * (chars / CHARS_PER_TOKEN + TURN_OVERHEAD_TOKENS * len(pairs))
+        total_out += TURNS * TURN_OUTPUT_TOKENS * len(pairs)
+        print(
+            f"| {name.upper()} | {counts['pool']} | {counts['m3']} | {counts['m5']} | "
+            f"{len(pairs)} | {cached} |"
+        )
+    cost = (total_in * B3_PRICE[0] + total_out * B3_PRICE[1]) / 1e6
+    print(
+        f"\nПрикидка: входных токенов {total_in / 1e6:.1f} млн, выходных {total_out / 1e6:.1f} млн "
+        f"— около ${cost:,.0f} по цене Sonnet 5.5 (${B3_PRICE[0]:g} / ${B3_PRICE[1]:g} за "
+        "миллион). Без кэша промпта; кэш системного промпта прикидку снижает."
+    )
+    if not record_workers:
+        return
+    # Каждый поток — свой процесс CLI со своим конфигом: общий конфиг пользователя параллельные
+    # вызовы портят (`validation.isolated`).
+    model_id = getattr(named_completion(model, RECORD_TIMEOUT), "model", None)
+    live = IsolatedCompletion(model, RECORD_TIMEOUT, record_workers, model_id)
+    try:
+        for name, (ranker, pairs) in plans.items():
+            ranker = LlmRanker(ranker.cache, live)
+
+            def progress(done: int, total: int, name: str = name) -> None:
+                if done % 500 == 0 or done == total:
+                    print(f"{name.upper()}: {done} из {total}", flush=True)
+
+            added, failed = record(ranker, pairs, workers=record_workers, progress=progress)
+            print(f"{name.upper()}: записано {added}, сбоев {failed} → {ranker.cache.path.name}")
+    finally:
+        live.close()
 
 
 def write_market(
@@ -472,6 +562,7 @@ def main() -> None:
             "acceptance",
             "drift",
             "llm",
+            "b3",
         ),
     )
     parser.add_argument(
@@ -511,7 +602,7 @@ def main() -> None:
     parser.add_argument(
         "--model",
         help="для parsing: модель разбора по имени, как TEXT_UNDERSTANDING; без него — правила; "
-        "для llm и report — модель D7 по имени, по умолчанию agent_sdk",
+        "для llm, report и b3 — модель, по умолчанию agent_sdk",
     )
     parser.add_argument(
         "--record",
@@ -519,7 +610,7 @@ def main() -> None:
         default=0,
         metavar="N",
         help="для parsing с --model: дописать недостающие ответы модели в запись, N потоков; "
-        "для llm — живой прогон D7, N процессов",
+        "для llm — живой прогон D7, для b3 — недостающие пары, N процессов",
     )
     parser.add_argument(
         "--no-protection",
@@ -577,6 +668,8 @@ def main() -> None:
             record_llm(mechanics, args.model or D7_MODEL, args.record)
         case "acceptance":
             train_acceptance(mechanics, Settings().acceptance_model_file)
+        case "b3":
+            b3(mechanics, SETS, args.record, args.model or "agent_sdk")
         case _:
             scale = Scale(
                 **{
@@ -592,13 +685,16 @@ def main() -> None:
                 }
             )
             path = llm_recording_path(RECORDED_DIR, args.model or D7_MODEL)
-            write_report(
-                collect(
-                    mechanics,
-                    scale,
-                    protection=None if args.no_protection else PLAN_PROTECTION,
-                    llm=Recording(path) if path.exists() else None,
-                ),
-                args.report,
+            # Кэш B3 — пары прогона по плану: у короткого прогона другие пулы и двойники.
+            b3_dir = B3_DIR if scale == PLAN_SCALE else None
+            runs = collect(
+                mechanics,
+                scale,
+                baselines=baseline_source(b3_dir=b3_dir),
+                protection=None if args.no_protection else PLAN_PROTECTION,
+                llm=Recording(path) if path.exists() else None,
             )
+            if scale == PLAN_SCALE and write_d4(runs):
+                print("выборка D4 и форма разметки → validation/data/d4/")
+            write_report(runs, args.report)
             print(f"отчёт → {args.report}")

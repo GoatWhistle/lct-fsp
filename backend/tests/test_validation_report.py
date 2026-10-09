@@ -3,16 +3,21 @@
 оценка и подбор не читают файлов истины."""
 
 import hashlib
+import json
+import math
 import re
 import sys
+from collections.abc import Sequence
 from dataclasses import replace
 from pathlib import Path
 
 import pytest
 
+from app.adapter.text_model import ModelRequest
 from settings import Mechanics, Settings
 from validation import report
-from validation.main import catalog
+from validation.baselines import LlmRanker, MissingScore, ScoreCache, record
+from validation.main import b3_cache_path, baseline_source, catalog
 from validation.population import D1, OBSERVED_DIR, TRUTH_DIR, Generator, write
 from validation.report import (
     METRICS,
@@ -20,10 +25,12 @@ from validation.report import (
     DatasetRuns,
     Runs,
     Section,
+    baseline_pairs,
     build,
     collect,
     order,
     pending,
+    prepared,
     render,
     write_report,
 )
@@ -135,6 +142,7 @@ def test_same_run_writes_same_report_byte_for_byte(tmp_path: Path) -> None:
     assert one == digest(tmp_path / "two")
     assert set(one) == {
         "validation-report.md",
+        "validation-report/m3-lift.svg",
         "validation-report/m4-reliability-d1.svg",
         "validation-report/m4-reliability-d2.svg",
     }
@@ -182,3 +190,86 @@ def test_evaluation_and_selection_never_open_truth_files(tmp_path: Path) -> None
     assert opened
     assert not [p for p in opened if str(tmp_path / TRUTH_DIR) in p]
     assert not [p for p in opened if str(tmp_path / OBSERVED_DIR) in p]
+
+
+def fake_encoder(texts: Sequence[str]) -> list[list[float]]:
+    """Векторы из хэша текста — вместо e5: тесту нужен порядок, а не смысл."""
+    found = []
+    for text in texts:
+        raw = [b - 128 for b in hashlib.sha256(text.encode()).digest()[:8]]
+        norm = sum(x * x for x in raw) ** 0.5
+        found.append([x / norm for x in raw])
+    return found
+
+
+class Sonnet:
+    model = "claude-sonnet-5-5"
+
+    def __call__(self, request: ModelRequest) -> str:
+        return json.dumps({"score": len(request.user) % 11})
+
+
+@pytest.mark.simulation
+def test_report_rebuilds_from_b3_cache_without_model(tmp_path: Path) -> None:
+    """Кэш B3 пишется один раз с моделью; отчёт пересобирается из него без модели и сети, а
+    пара без ответа в кэше — ошибка, а не тихий пропуск."""
+    known = catalog()
+    for name in report.SETS:
+        _, dataset, doubles = prepared(name, MECHANICS, TINY, ("qa",), known)
+        cache = ScoreCache(b3_cache_path(tmp_path, name), dataset.params.seed)
+        pairs = [
+            (n, r)
+            for rows in baseline_pairs(dataset, doubles, known).values()
+            for _, _, n, r in rows
+        ]
+        record(LlmRanker(cache, Sonnet()), pairs, workers=4)
+
+    runs = collect(
+        MECHANICS,
+        TINY,
+        specializations=["qa"],
+        baselines=baseline_source(fake_encoder, b3_dir=tmp_path),
+    )
+    text, _ = build(runs)
+
+    for data in runs.sets.values():
+        assert set(data.scores) == {"B1", "B2", "B3"}
+        assert data.b3 is not None and data.b3.model == "claude-sonnet-5-5"
+    assert "D1 — claude-sonnet-5-5" in text
+    m3 = text.split("## M3.")[1].split("## M4.")[0]
+    assert "| B3 |" in m3 and "| B3 | — |" not in m3
+    assert "Переходов в точную категорию | 0 | 0 |" in m3
+
+    path = b3_cache_path(tmp_path, "d1")
+    data = json.loads(path.read_text(encoding="utf-8"))
+    data["answers"].pop(sorted(data["answers"])[0])
+    path.write_text(json.dumps(data), encoding="utf-8")
+    with pytest.raises(MissingScore):
+        collect(
+            MECHANICS,
+            TINY,
+            sets=["d1"],
+            specializations=["qa"],
+            baselines=baseline_source(fake_encoder, b3_dir=tmp_path),
+        )
+
+
+@pytest.mark.simulation
+def test_inflated_twin_gains_at_most_stack_cap_and_never_reaches_exact() -> None:
+    runs = collect(
+        MECHANICS,
+        replace(TINY, candidates=40),
+        sets=["d1"],
+        specializations=["qa"],
+        baselines=baseline_source(fake_encoder, b3_dir=None),
+    )
+    found = report.lift(runs.sets["d1"])
+
+    assert found.pairs and found.gains
+    assert max(found.gains) <= MECHANICS.self_reported_stack_cap + 1e-9
+    assert found.promoted == 0
+    assert set(found.deltas) == {"ours", "B1", "B2"}
+    assert all(len(v) == found.pairs for v in found.deltas.values())
+    bias = report.bias(runs.sets["d1"])
+    assert bias.identical == 1.0
+    assert all(r == 1.0 or math.isnan(r) for r in bias.ratios["ours"].values())

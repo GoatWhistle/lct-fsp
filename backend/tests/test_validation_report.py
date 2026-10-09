@@ -17,6 +17,7 @@ from validation.population import D1, OBSERVED_DIR, TRUTH_DIR, Generator, write
 from validation.report import (
     METRICS,
     WAITING,
+    DatasetRuns,
     Runs,
     Section,
     build,
@@ -26,11 +27,12 @@ from validation.report import (
     render,
     write_report,
 )
-from validation.simulate import Job, Scale, run_spec
+from validation.simulate import FamilyFit, ItemFit, Job, Scale, run_spec
+from validation.truth import Corruption
 
 MECHANICS = Mechanics.from_yaml(Settings().mechanics_file)
 CATALOG = catalog()
-TINY = Scale(pairs=3, warm=15, compare=2, candidates=10)
+TINY = Scale(pairs=3, warm=15, compare=2, candidates=10, fit=3)
 
 
 def empty_runs() -> Runs:
@@ -69,6 +71,49 @@ def test_section_is_added_by_its_own_function(monkeypatch: pytest.MonkeyPatch) -
     assert "p95 — 0,2 с." in m23
     assert "Вердикт: D1 — выполнен." in m23
     assert "Вердикт: ожидает данных." in text.split("## M22.")[1]
+
+
+def test_m21_counts_flags_among_refitted_families_by_answer_kind() -> None:
+    """TPR — по испорченным, FPR — по исправным отдельно для выбора и вычисляемого ответа; не
+    набравшие ответов на переоценку в доли не входят. Порог TPR не выполнен — M21 не выполнен."""
+    families = (
+        FamilyFit("qa.a", False, Corruption.key, True, False),
+        FamilyFit("qa.b", False, Corruption.flat, True, True),
+        FamilyFit("qa.c", True, None, True, False),
+        FamilyFit("qa.d", False, None, True, True),
+        FamilyFit("qa.e", False, None, True, False),
+        FamilyFit("qa.f", False, None, False, True),
+    )
+    dataset = Generator(replace(D1, candidates_per_specialization=1), MECHANICS, CATALOG).generate()
+    data = DatasetRuns(dataset, {}, {}, {}, {}, {"qa": ItemFit(families, 0.5, 0.45, 0.4)})
+    runs = Runs(MECHANICS, CATALOG, TINY, ("qa",), {"d1": data})
+
+    section = report.SECTIONS["M21"](runs)
+
+    assert section.sets == {"d1": report.FAILED}
+    assert "| TPR | 0,50 (1 из 2) | ≥ 0,80 | нет |" in section.body
+    assert "| FPR, выбор из вариантов | 0,00 (0 из 1) | ≤ 0,05 | да |" in section.body
+    assert "| FPR, вычисляемый ответ | 0,50 (1 из 2) | ≤ 0,05 | нет |" in section.body
+    assert "0,500 / 0,450 / 0,400" in section.body
+    assert "ошибка эталона — 0,00 (0 из 1); ответ не зависит от уровня — 1,00 (1 из 1)" in (
+        section.body
+    )
+    assert "разбор потребности — ожидает данных" in section.verdict
+
+
+def test_m21_waits_for_data_when_a_group_has_no_refitted_family() -> None:
+    """Ни одно семейство с выбором из вариантов не набрало ответов на переоценку — FPR по ним не
+    измерен, и это не провал порога."""
+    families = (
+        FamilyFit("qa.a", False, Corruption.key, True, True),
+        FamilyFit("qa.c", True, None, False, False),
+        FamilyFit("qa.d", False, None, True, False),
+    )
+    dataset = Generator(replace(D1, candidates_per_specialization=1), MECHANICS, CATALOG).generate()
+    data = DatasetRuns(dataset, {}, {}, {}, {}, {"qa": ItemFit(families, 0.5, 0.45, 0.4)})
+    runs = Runs(MECHANICS, CATALOG, TINY, ("qa",), {"d1": data})
+
+    assert report.SECTIONS["M21"](runs).sets == {"d1": WAITING}
 
 
 @pytest.mark.simulation

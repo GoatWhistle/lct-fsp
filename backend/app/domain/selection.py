@@ -175,6 +175,8 @@ class Expectations:
     work_formats: tuple[WorkFormat, ...]
     city: str | None
     relocation: bool
+    # Интересные сферы бизнеса — коды; не отметил — пусто.
+    industries: frozenset[str] = frozenset()
 
 
 @dataclass(frozen=True)
@@ -260,13 +262,16 @@ def score(
 
 @dataclass(frozen=True)
 class AcceptanceFeatures:
-    """Признаки модели принятия (§13), для которых сейчас есть данные. Пола, возраста и вуза
-    нет по построению (§17): их нет ни здесь, ни в профиле кандидата."""
+    """Признаки модели принятия (§13) — сырые, как их знает платформа; в числа модели их
+    переводит `app.domain.acceptance`. Пола, возраста и вуза нет по построению (§17): их нет ни
+    здесь, ни в профиле кандидата."""
 
-    # Вилка потребности; может отсутствовать.
+    # Вилка потребности; нет — P(принятия) не считается.
     salary: SalaryRange | None
     # Ожидаемая зарплата кандидата «от»; нет — профиль не заполнен.
     expected_salary: int | None
+    # Медиана рынка грейда категории кандидата до НДФЛ — `market_salary_median`.
+    market_salary: int
     work_formats: tuple[WorkFormat, ...]
     city: str | None
     relocation: bool | None
@@ -276,6 +281,12 @@ class AcceptanceFeatures:
     grade: str
     # S — скор соответствия.
     match_score: float
+    # Загрузка: открытые приглашения кандидата — отправленные и просмотренные, не истёкшие.
+    open_invitations: int
+    # Интересные кандидату сферы бизнеса; не отметил — пусто.
+    industries: frozenset[str]
+    # Сфера компании потребности; профиля компании нет — None.
+    company_industry: str | None
 
 
 # Признаки модели принятия — объявлены для теста на защищённые (§17): совпадают с полями
@@ -283,6 +294,7 @@ class AcceptanceFeatures:
 ACCEPTANCE_FEATURES = (
     "salary",
     "expected_salary",
+    "market_salary",
     "work_formats",
     "city",
     "relocation",
@@ -290,21 +302,36 @@ ACCEPTANCE_FEATURES = (
     "need_city",
     "grade",
     "match_score",
+    "open_invitations",
+    "industries",
+    "company_industry",
 )
 
 
-def acceptance_features(need: NeedSnapshot, scored: Scored) -> AcceptanceFeatures:
+def acceptance_features(
+    need: NeedSnapshot,
+    scored: Scored,
+    *,
+    market_salary: Mapping[str, int],
+    open_invitations: int,
+    company_industry: str | None,
+) -> AcceptanceFeatures:
     expectations = scored.candidate.expectations
+    grade = scored.candidate.grade.code
     return AcceptanceFeatures(
         salary=need.salary,
         expected_salary=expectations.salary_from if expectations else None,
+        market_salary=market_salary[grade],
         work_formats=expectations.work_formats if expectations else (),
         city=expectations.city if expectations else None,
         relocation=expectations.relocation if expectations else None,
         need_work_format=need.work_format,
         need_city=need.city,
-        grade=scored.candidate.grade.code,
+        grade=grade,
         match_score=scored.match.score,
+        open_invitations=open_invitations,
+        industries=expectations.industries if expectations else frozenset(),
+        company_industry=company_industry,
     )
 
 

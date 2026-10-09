@@ -12,11 +12,15 @@
 видят только ответы.
 """
 
+import logging
 import statistics
 import uuid
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Iterator, Sequence
+from contextlib import contextmanager
 from dataclasses import dataclass, field
 
+from app.adapter import calibration
+from app.adapter.code_runner import InProcessCodeRunner
 from app.domain.skill import Normal, sigmoid
 from settings import Mechanics
 from validation.main import catalog
@@ -24,16 +28,19 @@ from validation.market import (
     Candidate,
     Market,
     calibration_quality,
+    corrupted_families,
     mean_responses,
 )
-from validation.metrics import median, regression
+from validation.metrics import median, regression, rmse
 from validation.population import Generator, GeneratorParams, SyntheticNeed, as_candidate
-from validation.truth import CandidateTruth, Persona
+from validation.truth import CandidateTruth, Corruption, Persona
 
 # Точки сходимости калибровки M12 — ответов на семейство в среднем.
 CHECKPOINTS = (50, 100, 200, 500)
 # Работодатель стенда, от имени которого строятся подборки.
 EMPLOYER = uuid.UUID(int=10**9)
+# Доля испорченных семейств банка M21.
+CORRUPTED_SHARE = 0.05
 
 
 @dataclass(frozen=True)
@@ -44,6 +51,8 @@ class Scale:
     pairs: int = 200
     warm: int = 500
     compare: int = 300
+    # Честных кандидатов M21 на специализацию: 1000 на пять.
+    fit: int = 200
     # Кандидатов набора на специализацию; None — все.
     candidates: int | None = None
 
@@ -115,6 +124,16 @@ class Adaptivity:
 
 
 @dataclass(frozen=True)
+class Scored:
+    """Кандидат подборки со скором — точный или «близкий» блок: категория по тесту и S."""
+
+    candidate: uuid.UUID
+    # Грейд категории кандидата.
+    grade: str
+    match_score: float
+
+
+@dataclass(frozen=True)
 class SpecRun:
     dataset: str
     specialization: str
@@ -128,6 +147,8 @@ class SpecRun:
     # параметрам бланка.
     naive_cutoffs: dict[str, float] = field(default_factory=dict)
     adaptivity: Adaptivity | None = None
+    # Потребность пар модели принятия → кандидаты её подборки со скором.
+    offers: dict[uuid.UUID, tuple[Scored, ...]] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -141,15 +162,17 @@ class Job:
     stack: dict[uuid.UUID, frozenset[str]]
     # Полный прогон — с B0, повтором, подборками и M13; иначе только определения (M4 до поправки).
     full: bool = True
+    # Потребности пар модели принятия (M7): подборка по каждой — кандидаты со скором.
+    offer_needs: tuple[SyntheticNeed, ...] = ()
 
 
 def warm_source(
-    params: GeneratorParams, code: str, mechanics: Mechanics
+    params: GeneratorParams, code: str, mechanics: Mechanics, stream: str = "warm"
 ) -> Callable[[], Candidate]:
-    """Поток честных кандидатов набора для прогрева банка — свой поток случайности генератора:
-    кандидаты набора его не сдвигают."""
+    """Поток честных кандидатов набора для прогрева банка — свой поток случайности генератора
+    `stream`: кандидаты набора его не сдвигают."""
     generator = Generator(params, mechanics, catalog())
-    rng = generator.rng(f"warm:{code}")
+    rng = generator.rng(f"{stream}:{code}")
     return lambda: as_candidate(generator.truth(code, Persona.honest, rng))
 
 
@@ -222,8 +245,18 @@ def naive_cutoffs(m: Market, blank: Sequence[str]) -> dict[str, float]:
     }
 
 
-def run_spec(job: Job) -> SpecRun:
-    """Задача пула процессов: прогон специализации набора — см. описание модуля."""
+def _determined(
+    job: Job,
+) -> tuple[
+    Market,
+    Callable[[], Candidate],
+    tuple[Checkpoint, ...],
+    tuple[CandidateTruth, ...],
+    dict[uuid.UUID, uuid.UUID],
+    dict[uuid.UUID, Determined],
+]:
+    """Банк прогрет на честных кандидатах набора, каждый кандидат прошёл первичное определение:
+    стенд, поток прогрева, точки M12, кандидаты, их учётки и определения."""
     params, code, mechanics, scale = job.params, job.specialization, job.mechanics, job.scale
     m = Market(code, mechanics, params.seed, params.response)
     source = warm_source(params, code, mechanics)
@@ -235,6 +268,41 @@ def run_spec(job: Job) -> SpecRun:
         d = m.determine(as_candidate(t))
         users[t.id] = d.user
         first[t.id] = Determined(d.grade, d.overall)
+    return m, source, checkpoints, truths, users, first
+
+
+def offers(
+    m: Market, job: Job, truths: Sequence[CandidateTruth], users: dict[uuid.UUID, uuid.UUID]
+) -> dict[uuid.UUID, tuple[Scored, ...]]:
+    """Подборки по потребностям пар модели принятия — кандидаты точного и «близкого» блоков со
+    скором. Кандидаты уже в пуле стенда."""
+    by_user = {u: t for t, u in users.items()}
+    selections = m.stand.selections()
+    found = {}
+    for need in job.offer_needs:
+        page = selections.build_draft(EMPLOYER, need.form, limit=len(truths))
+        found[need.id] = tuple(
+            Scored(by_user[e.candidate_id], e.grade.code, e.match_score)
+            for e in page.entries
+            if e.match_score is not None
+        )
+    return found
+
+
+def run_offers(job: Job) -> dict[uuid.UUID, tuple[Scored, ...]]:
+    """Задача пула процессов для обучения модели принятия: только определения и подборки по
+    потребностям пар — без B0, повтора и M13."""
+    m, _, _, truths, users, _ = _determined(job)
+    for t in truths:
+        m.enlist(users[t.id], stack=job.stack[t.id], claimed=t.claimed)
+    return offers(m, job, truths, users)
+
+
+def run_spec(job: Job) -> SpecRun:
+    """Задача пула процессов: прогон специализации набора — см. описание модуля."""
+    params, mechanics, scale = job.params, job.mechanics, job.scale
+    m, source, checkpoints, truths, users, first = _determined(job)
+    code = job.specialization
     profiles = {t.id: _profile(m, users[t.id]) for t in truths}
     if not job.full:
         outcomes = {t.id: Outcome(first[t.id], None, profiles[t.id], ()) for t in truths}
@@ -268,6 +336,8 @@ def run_spec(job: Job) -> SpecRun:
 
     families = _families(m)
     adaptivity = compare(m, scale.compare, source)
+    # Пары модели принятия — последними: их подборки не сдвигают сиды замеров выше.
+    offered = offers(m, job, truths, users)
     return SpecRun(
         params.name,
         code,
@@ -278,6 +348,7 @@ def run_spec(job: Job) -> SpecRun:
         families,
         naive_cutoffs(m, blank),
         adaptivity,
+        offered,
     )
 
 
@@ -286,6 +357,107 @@ def run_cold(job: Job) -> Adaptivity:
     m = Market(job.specialization, job.mechanics, job.params.seed, job.params.response)
     m.calibrate = False
     return compare(m, job.scale.compare, warm_source(job.params, job.specialization, job.mechanics))
+
+
+@dataclass(frozen=True)
+class FamilyFit:
+    """Неякорное семейство банка M21 после прогрева: что о нём знает истина и что решила
+    проверка согласия."""
+
+    code: str
+    # Выбор из вариантов — есть варианты ответа; иначе вычисляемый ответ.
+    choice: bool
+    corruption: Corruption | None
+    refitted: bool
+    # Проверка согласия после переоценки вывела семейство из выдачи (mechanics.md, §7).
+    flagged: bool
+
+
+@dataclass(frozen=True)
+class ItemFit:
+    """M21 — проверка согласия на банке с испорченными семействами."""
+
+    families: tuple[FamilyFit, ...]
+    # RMSE(θ̄̂, θ̄*) честных кандидатов: испорченные в выдаче; выдача, как её оставила переоценка
+    # (проверки согласия и дрейфа); выведены все испорченные.
+    rmse_in: float
+    rmse_checked: float
+    rmse_clean: float
+
+
+class _FitFlags(logging.Handler):
+    """Задачи банку из журнала калибровки: семейства с плохим согласием."""
+
+    def __init__(self) -> None:
+        super().__init__(logging.WARNING)
+        self.codes: set[str] = set()
+
+    def emit(self, record: logging.LogRecord) -> None:
+        code = getattr(record, calibration.ITEM_FIT_FAMILY, None)
+        if code is not None:
+            self.codes.add(code)
+
+
+@contextmanager
+def _fit_flags() -> Iterator[_FitFlags]:
+    """Флаги согласия за время блока: уровень журнала калибровки закреплён — настройка журнала
+    не обнуляет счёт."""
+    flags = _FitFlags()
+    level = calibration.log.level
+    calibration.log.setLevel(logging.WARNING)
+    calibration.log.addHandler(flags)
+    try:
+        yield flags
+    finally:
+        calibration.log.removeHandler(flags)
+        calibration.log.setLevel(level)
+
+
+def run_fit(job: Job) -> ItemFit:
+    """M21 — задача пула процессов: банк набора плюс `CORRUPTED_SHARE` испорченных семейств в
+    скрытой истине прогревается на честных кандидатах набора, переоценка проверяет согласие. Затем
+    на замороженном банке одни и те же честные кандидаты проходят тест трижды, на одних и тех же
+    случайных числах ответа: испорченные в выдаче; выдача, как её оставила переоценка; выведены
+    все испорченные."""
+    params, code, mechanics, scale = job.params, job.specialization, job.mechanics, job.scale
+    m = Market(code, mechanics, params.seed, params.response)
+    generator = Generator(params, mechanics, catalog())
+    m.corrupted = corrupted_families(m.families, CORRUPTED_SHARE, generator.rng(f"corrupt:{code}"))
+    source = warm_source(params, code, mechanics)
+    with _fit_flags() as flags:
+        while mean_responses(m) < scale.warm:
+            m.attempt(source())
+    m.calibrate = False
+    rows = m.calibrated()
+    runner = InProcessCodeRunner()
+    families = tuple(
+        FamilyFit(
+            f.code,
+            bool(f.instance(0, runner).options),
+            m.corrupted.get(f.code),
+            f.code in rows and rows[f.code].refitted_at is not None,
+            f.code in flags.codes,
+        )
+        for f in m.families
+        if not f.anchor
+    )
+
+    honest = warm_source(params, code, mechanics, "fit")
+    candidates = [honest() for _ in range(scale.fit)]
+    truth = [m.overall(c) for c in candidates]
+
+    def error() -> float:
+        m.rng.seed(f"{params.seed}:fit-answers:{code}")
+        return rmse([m.attempt(c).overall.mean for c in candidates], truth)
+
+    corrupted = set(m.corrupted)
+    checked = {c: c not in rows or rows[c].in_rotation for c in corrupted}
+    m.rotate(corrupted, True)
+    rmse_in = error()
+    m.rotate([c for c, kept in checked.items() if not kept], False)
+    rmse_checked = error()
+    m.rotate(corrupted, False)
+    return ItemFit(families, rmse_in, rmse_checked, error())
 
 
 def _proportion(m: Market, candidate: Candidate) -> float:

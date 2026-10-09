@@ -71,6 +71,7 @@ class MemoryCalibrationRepository:
                     rest = Response(Normal(p.topic_theta_rest, p.topic_theta_rest_sd), p.correct)
                 answers.append(
                     AnchorAnswer(
+                        family_code=p.family_code,
                         params=Parameters(p.discrimination, p.difficulty),
                         before=Response(
                             Normal(p.topic_theta_before, p.topic_theta_sd_before), p.correct

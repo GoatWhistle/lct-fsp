@@ -84,9 +84,10 @@ class CalibratedFamily:
 
 @dataclass(frozen=True)
 class AnchorAnswer:
-    """Ответ на якорное семейство для связки шкалы: параметры якоря, оценка темы до ответа и
-    итоговая без ответа — её нет, пока попытка ответа не остановлена."""
+    """Ответ на якорное семейство для связки шкалы: код и параметры якоря, оценка темы до ответа
+    и итоговая без ответа — её нет, пока попытка ответа не остановлена."""
 
+    family_code: str
     params: Parameters
     before: Response
     rest: Response | None
@@ -131,6 +132,7 @@ def refit(
     *,
     difficulty_prior_sd: float,
     log_discrimination_prior_sd: float,
+    ceiling: float = 1.0,
     iterations: int = 50,
 ) -> Parameters:
     """Пакетная переоценка (a, b): логистическая регрессия ответов на итоговые оценки кандидатов
@@ -138,6 +140,8 @@ def refit(
 
     Максимум апостериорной плотности: правдоподобие с поправкой на погрешность оценок кандидатов
     (та же, что в Эло) плюс нормальный штраф на b и на ln a. Метод — скоринг Фишера по (b, ln a).
+    `ceiling` — потолок d модели P = d · p(a, b) для проверки согласия (`ceiling_gain`); у
+    переоценки он единица.
     """
     sd_b = difficulty_prior_sd
     sd_log_a = log_discrimination_prior_sd
@@ -153,24 +157,136 @@ def refit(
             # ∂z/∂b = −a c, ∂z/∂ln a = a c³ (μ − b).
             c = 1 / math.sqrt(1 + math.pi * a**2 * r.level.sd**2 / 8)
             gap = r.level.mean - b
-            p = sigmoid(a * c * gap)
+            s = sigmoid(a * c * gap)
+            p = ceiling * s
             d_b, d_l = -a * c, a * c**3 * gap
-            residual = float(r.correct) - p
+            # ∂P/∂z = d s (1 − s); вес ответа — ∂P/∂z / P(1 − P). При d = 1 он ровно единица и
+            # не теряет ответ, где сигмоида насытилась до 0 или 1.
+            slope = ceiling * s * (1 - s)
+            weight = 1.0 if ceiling == 1 else slope / (p * (1 - p)) if 0 < p < 1 else 0.0
+            residual = (float(r.correct) - p) * weight
             grad_b += residual * d_b
             grad_l += residual * d_l
-            info = p * (1 - p)
+            info = slope * weight
             h_bb += info * d_b * d_b
             h_bl += info * d_b * d_l
             h_ll += info * d_l * d_l
         det = h_bb * h_ll - h_bl**2
         step_b = (h_ll * grad_b - h_bl * grad_l) / det
         step_l = (h_bb * grad_l - h_bl * grad_b) / det
-        # Шаг по ln a ограничен: на первых итерациях скоринг может перескочить.
+        # Шаг по ln a ограничен: на первых итерациях скоринг может перескочить. У модели с
+        # потолком — и по b: плоские ответы она объясняет при b → −∞, и шаг туда неограничен.
         step_l = max(-0.5, min(0.5, step_l))
+        if ceiling < 1:
+            step_b = max(-1.0, min(1.0, step_b))
         b, log_a = b + step_b, log_a + step_l
         if abs(step_b) < 1e-7 and abs(step_l) < 1e-7:
             break
     return Parameters(math.exp(log_a), b)
+
+
+def log_posterior(
+    responses: Sequence[Response],
+    start: Parameters,
+    params: Parameters,
+    *,
+    difficulty_prior_sd: float,
+    log_discrimination_prior_sd: float,
+    ceiling: float = 1.0,
+) -> float:
+    """Логарифм апостериорной плотности (a, b) модели P = d · p(a, b) с штрафами переоценки, без
+    постоянных слагаемых."""
+    log_a, log_a0 = math.log(params.discrimination), math.log(start.discrimination)
+    total = -((params.difficulty - start.difficulty) ** 2) / (2 * difficulty_prior_sd**2) - (
+        log_a - log_a0
+    ) ** 2 / (2 * log_discrimination_prior_sd**2)
+    for r in responses:
+        p = min(max(ceiling * expected_correct(params, r.level), 1e-12), 1 - 1e-12)
+        total += math.log(p if r.correct else 1 - p)
+    return total
+
+
+def ceilings(minimum: float, step: float) -> list[float]:
+    """Потолки модели, с которой проверка согласия сравнивает 2PL: от `minimum` с шагом `step`,
+    ниже единицы — единица и есть сама 2PL."""
+    return [round(minimum + i * step, 6) for i in range(round((1 - minimum) / step))]
+
+
+def ceiling_gain(
+    responses: Sequence[Response],
+    start: Parameters,
+    fitted: Parameters,
+    *,
+    ceilings: Sequence[float],
+    difficulty_prior_sd: float,
+    log_discrimination_prior_sd: float,
+) -> float:
+    """Согласие семейства с 2PL против модели с потолком: насколько лучше ответы объясняет
+    P = d · p(a, b) с лучшим d из `ceilings`, чем переоценённая 2PL `fitted`, — разность
+    логарифмов апостериорной плотности при тех же штрафах на b и ln a, в натах.
+
+    У модели с потолком та же свобода, что у переоценки, плюс d, поэтому переоценка не может
+    спрятать порчу другими (a, b): ответ, не зависящий от уровня, — потолок около ½ при b → −∞
+    без штрафа на a, неверный эталон у части экземпляров — потолок ниже единицы. Перевес не
+    меньше нуля: d = 1 — сама `fitted`.
+    """
+    sd_b, sd_log_a = difficulty_prior_sd, log_discrimination_prior_sd
+
+    def posterior(params: Parameters, ceiling: float) -> float:
+        return log_posterior(
+            responses,
+            start,
+            params,
+            difficulty_prior_sd=sd_b,
+            log_discrimination_prior_sd=sd_log_a,
+            ceiling=ceiling,
+        )
+
+    base = posterior(fitted, 1.0)
+    best = max(
+        base,
+        *(
+            posterior(
+                refit(
+                    responses,
+                    start,
+                    difficulty_prior_sd=sd_b,
+                    log_discrimination_prior_sd=sd_log_a,
+                    ceiling=d,
+                ),
+                d,
+            )
+            for d in ceilings
+        ),
+    )
+    return best - base
+
+
+def item_fit_rmsd(responses: Sequence[Response], params: Parameters, *, groups: int) -> float:
+    """Согласие семейства с 2PL: RMSD наблюдённой и ожидаемой доли верных по группам равного
+    размера по уровню отвечавших, взвешенный числом ответов в группе, за вычетом шума выборки.
+
+    Ответы сортируются по `level.mean` и делятся на `groups` групп, остаток — по одному в первые
+    группы. Ожидаемая доля — с поправкой на погрешность уровня, как в шаге Эло. Доля верных в
+    группе гуляет и у семейства, которое ведёт себя ровно по модели, — с дисперсией
+    Σ p(1 − p) / nₖ²; она вычитается из квадрата расхождения. Без ответов расхождения нет — 0.
+    """
+    ordered = sorted(responses, key=lambda r: r.level.mean)
+    if not ordered:
+        return 0.0
+    size, extra = divmod(len(ordered), min(groups, len(ordered)))
+    total, start = 0.0, 0
+    while start < len(ordered):
+        end = start + size + (1 if extra > 0 else 0)
+        extra -= 1
+        group = ordered[start:end]
+        expected = [expected_correct(params, r.level) for r in group]
+        observed = sum(r.correct for r in group) / len(group)
+        gap = observed - sum(expected) / len(group)
+        noise = sum(p * (1 - p) for p in expected) / len(group) ** 2
+        total += len(group) * (gap**2 - noise)
+        start = end
+    return math.sqrt(max(0.0, total) / len(ordered))
 
 
 def fit_link(

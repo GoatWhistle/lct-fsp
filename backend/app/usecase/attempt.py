@@ -213,6 +213,7 @@ class CandidatePath:
         with self._uow:
             self._attempts.lock_candidate(user_id)
             now = self._clock.now()
+            self._expire_verification(user_id, now)
             if stage_of(self._attempts.state(user_id), now) not in (Stage.survey, Stage.grade):
                 raise StepUnavailable()
             topics = self._attempts.specialization_topics(specialization)
@@ -339,6 +340,7 @@ class CandidatePath:
         with self._uow:
             self._attempts.lock_candidate(user_id)
             now = self._clock.now()
+            self._expire_verification(user_id, now)
             state = self._attempts.state(user_id)
             category = state.category
             if category is None:
@@ -375,13 +377,21 @@ class CandidatePath:
 
     def step_down(self, user_id: uuid.UUID) -> PathView:
         """Переход на грейд ниже — без теста и без ожидания (§4): правило уверенности для
-        младшего грейда уже выполнено той же оценкой. Заданий не показывает, банк не тратит."""
+        младшего грейда уже выполнено той же оценкой. Заданий не показывает, банк не тратит.
+
+        Пока попытка вверх ждёт проверочного блока или идёт любая попытка, перехода нет: иначе
+        подтверждённый блок поднял бы категорию с нового грейда сразу на грейд попытки."""
         with self._uow:
             self._attempts.lock_candidate(user_id)
             now = self._clock.now()
+            self._expire_verification(user_id, now)
             state = self._attempts.state(user_id)
             if stage_of(state, now) != Stage.category or state.category is None:
                 raise StepUnavailable()
+            if self._attempts.attempt_in_progress(user_id) is not None:
+                raise AttemptInProgress()
+            if state.attempt is not None and state.attempt.pending_verification:
+                raise VerificationPending()
             lower = grade_below(state.category.grade.code, self._mechanics.grade_thresholds)
             if lower is None:
                 raise NoLowerGrade()
@@ -407,10 +417,7 @@ class CandidatePath:
             prior = self._prior(attempt.specialization_code)
             expired = self._expired(attempt, now)
             stuck = (
-                presentation is None
-                and attempt.purpose != AttemptPurpose.determination
-                and attempt.purpose != AttemptPurpose.grade_up
-                and not self._remaining(attempt, prior)
+                presentation is None and not attempt.on_path and not self._remaining(attempt, prior)
             )
             if expired or stuck:
                 self._finish_side(attempt, prior, now)
@@ -799,6 +806,9 @@ class CandidatePath:
         if verdict.confirmed:
             if target is not None and target.pending_verification:
                 chain = self._attempts.chain(target)
+                # Пока результат ждал блока, детектор мог пометить семейства: их ответы в
+                # профиль не возвращаются.
+                self._attempts.save_protection(self._drop_compromised(chain))
                 target.outcome = AttemptOutcome.assigned
                 self._attempts.finish_attempt(target)
                 self._attempts.withhold(chain, False)
@@ -808,7 +818,12 @@ class CandidatePath:
         self._refresh_profile(block, prior, now)
 
     def _expire_verification(self, user_id: uuid.UUID, now: datetime) -> None:
-        """Проверочный блок, чей срок прошёл, останавливается при первом обращении кандидата."""
+        """Проверочный блок, чей срок прошёл, останавливается при первом обращении кандидата —
+        под блокировкой кандидата: чтение пути и ответ не остановят блок дважды."""
+        attempt = self._attempts.attempt_in_progress(user_id)
+        if attempt is None or not self._expired(attempt, now):
+            return
+        self._attempts.lock_candidate(user_id)
         attempt = self._attempts.attempt_in_progress(user_id)
         if attempt is not None and self._expired(attempt, now):
             self._finish_verification(attempt, self._prior(attempt.specialization_code), now)
@@ -883,7 +898,8 @@ class CandidatePath:
             own = [b for b in blocks if b.verifies_attempt_id == pending.id]
         elif state.category is not None and (state.category.verified_at is None or running):
             grade = None
-            own = blocks
+            # Прошлые блоки проверяли другую оценку: итог — только с момента нынешней категории.
+            own = [b for b in blocks if b.started_at >= state.category.assigned_at]
         else:
             return None
         finished = [b for b in own if b.finished_at is not None]

@@ -269,6 +269,8 @@ class CandidatePath:
             self._attempts.lock_candidate(user_id)
             if grade not in self._mechanics.grade_thresholds:
                 raise UnknownGrade()
+            if express and not self._attempts.is_demo(user_id):
+                raise ExpressUnavailable()
             now = self._clock.now()
             self._expire_verification(user_id, now)
             state = self._attempts.state(user_id)
@@ -314,7 +316,7 @@ class CandidatePath:
 
             express_limit = None
             if express:
-                if stage != Stage.grade or not self._attempts.is_demo(user_id):
+                if stage != Stage.grade:
                     raise ExpressUnavailable()
                 express_limit = self._mechanics.express_max_items
             attempt = self._attempts.add_attempt(
@@ -901,7 +903,11 @@ class CandidatePath:
             case AttemptPurpose.verification:
                 return self._mechanics.verification_items
             case _:
-                return attempt.express_limit or self._mechanics.test_max_items
+                return (
+                    attempt.express_limit
+                    if attempt.express_limit is not None
+                    else self._mechanics.test_max_items
+                )
 
     def _verification_target(self, state: PathState) -> Attempt | None:
         """Что проверяет блок: результат попытки пути, который его ждёт, или попытка, чья оценка

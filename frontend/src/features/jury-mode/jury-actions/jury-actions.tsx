@@ -28,7 +28,10 @@ export function JuryActions({ className }: JuryActionsProps) {
           fullWidth
           disabled={busy && !employer.isPending}
           pending={employer.isPending}
-          onClick={() => employer.mutate()}
+          onClick={() => {
+            candidate.reset()
+            employer.mutate()
+          }}
         >
           {t("jury.employer")}
         </Button>
@@ -38,7 +41,10 @@ export function JuryActions({ className }: JuryActionsProps) {
           fullWidth
           disabled={busy && !candidate.isPending}
           pending={candidate.isPending}
-          onClick={() => candidate.mutate()}
+          onClick={() => {
+            employer.reset()
+            candidate.mutate()
+          }}
         >
           {t("jury.candidate")}
         </Button>

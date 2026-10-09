@@ -12,7 +12,8 @@
     "text": "The {{grade}} test starts from scratch. Your category changes only if the grade is confirmed; otherwise it stays and the attempt is not lost.",
     "action": "Try {{grade}}",
     "pending": "Preparing the test",
-    "from": "Available from {{date}}"
+    "from": "Available from {{date}}",
+    "consentMore": "What this means"
   },
   "stepDown": {
     "menu": "Move to {{grade}}",
@@ -36,7 +37,8 @@
     "linkFsp": "Link in profile",
     "widest": "widest margin of error",
     "refine": "Refine the level",
-    "blockText": "A topic block is a short test on this topic only. It narrows the margin of error and refines the level without changing your category or grade."
+    "blockText": "A topic block is a short test on this topic only. It narrows the margin of error and refines the level without changing your category or grade.",
+    "common": "Most topics: {{value}}"
   },
   "history": {
     "title": "Grade history",

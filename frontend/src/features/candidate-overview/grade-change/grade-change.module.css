@@ -25,3 +25,8 @@
   font-family: var(--font-mono);
   font-variant-numeric: var(--font-numeric);
 }
+
+.more {
+  composes: labelText from "../../../shared/styles/compose.module.css";
+  color: var(--text-secondary);
+}

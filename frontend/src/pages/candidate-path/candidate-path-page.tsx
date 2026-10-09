@@ -65,8 +65,7 @@ export function CandidatePathPage() {
   const { t } = useTranslation("path")
   const path = usePath()
   useDocumentTitle(t("title"))
-  if (path.data?.stage === "category" && path.data.topic_block === null)
-    return <Navigate to="/candidate" replace />
+  if (path.data?.stage === "category") return <Navigate to="/candidate" replace />
   return (
     <>
       <PageHeader title={t("title")} description={t("lead")} />

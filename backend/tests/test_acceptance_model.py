@@ -19,6 +19,7 @@ from settings import ACCEPTANCE_MODEL_FILE, Mechanics
 from validation.acceptance import (
     GRID_LOADS,
     GRID_RATIOS,
+    GRID_ROWS,
     Offer,
     baselines,
     monotonicity,
@@ -195,14 +196,17 @@ def test_monotone_in_salary_and_load_on_plan_grid(trained: CatBoostAcceptanceMod
 
 @pytest.mark.skipif(not ACCEPTANCE_MODEL_FILE.exists(), reason="модель ещё не обучена")
 def test_committed_model_is_monotone_on_plan_grid(mechanics: Mechanics) -> None:
+    """Сетка плана на 500 строках, а не на 50: нарушение у одной строки из сотни — уже провал
+    ограничения, а не шум."""
     model = CatBoostAcceptanceModel.load(ACCEPTANCE_MODEL_FILE)
     offers = [
         replace(o, features=replace(o.features, market_salary=mechanics.market_salary_median[g]))
-        for o in synthetic_offers(50, seed=4)
+        for o in synthetic_offers(500, seed=4)
         for g in [o.features.grade]
     ]
 
-    assert monotonicity(model.predict, offers).share == 1.0
+    for start in range(0, len(offers), GRID_ROWS):
+        assert monotonicity(model.predict, offers[start:]).share == 1.0
 
 
 def test_model_beats_salary_only_baseline(trained: CatBoostAcceptanceModel) -> None:

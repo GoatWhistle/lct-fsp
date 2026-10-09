@@ -1089,7 +1089,7 @@ def m7(runs: Runs) -> Section:
             )
             + f"\n\nМонотонность: вилка — {mono.salary_ok} из {mono.salary_total} соседних точек "
             f"сетки, загрузка — {mono.load_ok} из {mono.load_total}; всего "
-            f"**{f(100 * mono.share, 1)} %**."
+            f"**{f(math.floor(1000 * mono.share) / 10, 1)} %**."
         )
     if not parts:
         return pending("M7")

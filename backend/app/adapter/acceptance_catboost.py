@@ -78,6 +78,10 @@ def fit(rows: Sequence[Row], labels: Sequence[int], training: Training) -> CatBo
         task_type="CPU",
         loss_function="Logloss",
         monotone_constraints=dict(MONOTONE),
+        # Категориальные признаки — one-hot: CTR по ним и их сочетания с бинаризованной вилкой —
+        # производные признаки, на которые монотонные ограничения не действуют, и P падала с
+        # ростом вилки внутри грейда.
+        one_hot_max_size=255,
         allow_writing_files=False,
         verbose=False,
     )

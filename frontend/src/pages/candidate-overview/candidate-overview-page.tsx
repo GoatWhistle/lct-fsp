@@ -17,15 +17,9 @@ import styles from "./candidate-overview-page.module.css"
 function OverviewSkeleton() {
   return (
     <div className={styles.grid} aria-hidden="true">
-      <div className={styles.side}>
-        <Skeleton shape="block" className={styles.placeholder} />
-      </div>
-      <div className={styles.main}>
-        <Skeleton shape="block" className={styles.placeholder} />
-      </div>
-      <div className={styles.aside}>
-        <Skeleton shape="block" className={styles.placeholder} />
-      </div>
+      <Skeleton shape="block" className={styles.hero} />
+      <Skeleton shape="block" className={styles.placeholder} />
+      <Skeleton shape="block" className={styles.placeholder} />
     </div>
   )
 }
@@ -53,27 +47,20 @@ export function CandidateOverviewPage() {
           <OverviewSkeleton />
         ) : (
           <div className={styles.grid}>
-            <div className={styles.side}>
-              <CategoryPanel path={data} motionIndex={0} />
-              <VerificationCard path={data} />
-              {data.history.length === 0 ? null : (
-                <HistoryPanel history={data.history} motionIndex={4} className={styles.history} />
-              )}
-            </div>
+            <CategoryPanel path={data} motionIndex={0} className={styles.hero} />
             <div className={styles.main}>
               {level === null ? null : (
-                <SkillPanel
-                  profile={level}
-                  fspLinked={fsp.data?.linked ?? null}
-                  motionIndex={1}
-                  className={styles.skills}
-                />
+                <SkillPanel profile={level} fspLinked={fsp.data?.linked ?? null} motionIndex={1} />
               )}
             </div>
             <div className={styles.aside}>
-              <FeedbackPanel motionIndex={2} className={styles.feedback} />
-              <InvitationsPanel motionIndex={3} className={styles.invitations} />
-              <ProfilePanel motionIndex={5} className={styles.profile} />
+              <VerificationCard path={data} />
+              <FeedbackPanel motionIndex={2} />
+              <InvitationsPanel motionIndex={3} />
+              {data.history.length === 0 ? null : (
+                <HistoryPanel history={data.history} motionIndex={4} />
+              )}
+              <ProfilePanel motionIndex={5} />
             </div>
           </div>
         )}

@@ -24,20 +24,24 @@ export function CategoryPanel({ path, motionIndex, className }: CategoryPanelPro
       motionIndex={motionIndex}
       className={className}
     >
-      <div className={styles.head}>
-        <CategoryBadges category={path.category} size="large" />
-        <div className={styles.status}>
-          <StatusBadge tone="positive" icon="verification">
-            {t("category.confirmed")}
-          </StatusBadge>
-          <IconLabel icon="calendar" tone="secondary" className={styles.since}>
-            {t("category.since", { date: format.date(path.category.assigned_at) })}
-          </IconLabel>
+      <div className={styles.hero}>
+        <div className={styles.summary}>
+          <div className={styles.head}>
+            <CategoryBadges category={path.category} size="large" />
+            <div className={styles.status}>
+              <StatusBadge tone="positive" icon="verification">
+                {t("category.confirmed")}
+              </StatusBadge>
+              <IconLabel icon="calendar" tone="secondary" className={styles.since}>
+                {t("category.since", { date: format.date(path.category.assigned_at) })}
+              </IconLabel>
+            </div>
+          </div>
+          {level === null ? null : <GradeRuler level={level} />}
+          {path.category.verified_at ? <TrustBadge source="verification" /> : null}
         </div>
+        <GradeUp path={path} />
       </div>
-      {level === null ? null : <GradeRuler level={level} />}
-      {path.category.verified_at ? <TrustBadge source="verification" /> : null}
-      <GradeUp path={path} />
     </Card>
   )
 }

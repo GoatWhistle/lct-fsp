@@ -4,6 +4,15 @@
   border-block-start: var(--hairline) solid var(--border-hairline);
 }
 
+@media (min-width: 64rem) {
+  .up {
+    padding-block-start: 0;
+    padding-inline-start: var(--space-32);
+    border-block-start: 0;
+    border-inline-start: var(--hairline) solid var(--border-hairline);
+  }
+}
+
 .note {
   composes: prose from "../../../shared/styles/layout.module.css";
 }

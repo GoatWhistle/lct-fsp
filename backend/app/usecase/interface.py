@@ -86,8 +86,9 @@ from app.domain.vacancy import Vacancy, VacancyTerms
 class SkillModel(Protocol):
     """Модель навыка (mechanics.md, §3): уровень по темам из априорного и наблюдений.
 
-    Сейчас — IRT 2PL с иерархическим априорным, модуль `app.adapter.irt`. Оценка детерминирована:
-    те же априорное и наблюдения в том же порядке дают ту же оценку.
+    Сейчас — IRT 2PL с иерархическим априорным, модуль `app.adapter.irt`, в сборке — за кэшем
+    префиксов наблюдений `app.adapter.skill_cache`. Оценка детерминирована: те же априорное и
+    наблюдения в том же порядке дают ту же оценку.
     """
 
     def initial(self, prior: Prior) -> SkillEstimate:

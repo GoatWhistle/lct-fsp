@@ -227,6 +227,26 @@ class Attempt:
     expected_correct: float | None = None
     correct_count: int | None = None
     planned_items: int | None = None
+    # Экспресс-тест режима жюри (§18): лимит заданий вместо `test_max_items`; None — полный тест.
+    express_limit: int | None = None
+
+    @property
+    def express(self) -> bool:
+        return self.express_limit is not None
+
+    @property
+    def answered_count(self) -> int:
+        return sum(1 for p in self.presentations if p.answered_at is not None)
+
+    @property
+    def express_paused(self) -> bool:
+        """Экспресс-тест дошёл до лимита, а уверенности для категории не набрал: попытка не
+        остановлена и ждёт продолжения полным тестом."""
+        return (
+            self.finished_at is None
+            and self.express_limit is not None
+            and self.answered_count >= self.express_limit
+        )
 
     def pending(self) -> Presentation | None:
         """Показанное, но не отвеченное задание — всегда последнее."""
@@ -301,6 +321,19 @@ def stage_of(state: PathState, now: datetime) -> Stage:
 class AttemptProgress:
     grade: str
     answered: int
+    max_items: int
+    express: bool = False
+
+
+@dataclass(frozen=True)
+class ExpressView:
+    """Экспресс-оценка в кабинете (§18). `paused` — лимит заданий выбран, уверенности для категории
+    нет и тест ждёт продолжения; итог тогда — `PathView.result` с уровнем и погрешностью теста на
+    сейчас. Остановленный экспресс-тест с категорией — `paused=False`."""
+
+    limit: int
+    answered: int
+    paused: bool
 
 
 @dataclass(frozen=True)
@@ -407,6 +440,8 @@ class PathView:
     topic_block: TopicBlockProgress | None = None
     # Проверочный блок: результат ждёт его, он идёт или его можно пройти добровольно.
     verification: VerificationView | None = None
+    # Экспресс-тест режима жюри: идёт, ждёт продолжения или дал последний итог пути.
+    express: ExpressView | None = None
 
 
 @dataclass(frozen=True)
@@ -482,6 +517,19 @@ def test_result(
         overall=Level.of(attempt.overall, thresholds, grade_confidence),
         grade_probabilities=grade_probabilities(attempt.overall, thresholds),
         grade_up_hint=hint,
+    )
+
+
+def express_result(
+    attempt: Attempt, overall: Normal, *, thresholds: Mapping[str, float], grade_confidence: float
+) -> TestResult:
+    """Оценка экспресс-теста на сейчас, пока он ждёт продолжения: уровень с погрешностью и
+    вероятность каждого грейда по тому же правилу. Подсказки «грейд выше» у неё нет."""
+    return TestResult(
+        grade=attempt.grade_code,
+        overall=Level.of(overall, thresholds, grade_confidence),
+        grade_probabilities=grade_probabilities(overall, thresholds),
+        grade_up_hint=None,
     )
 
 

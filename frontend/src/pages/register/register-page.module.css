@@ -13,3 +13,7 @@
 .switch {
   view-transition-name: register-switch;
 }
+
+.jury {
+  view-transition-name: register-jury;
+}

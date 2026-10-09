@@ -1,4 +1,5 @@
 export { DirectionStep, type DirectionStepProps } from "./direction-step/direction-step"
+export { ExpressStep, type ExpressStepProps } from "./express-step/express-step"
 export { GradeStep, type GradeStepProps } from "./grade-step/grade-step"
 export { NoCategoryStep, type NoCategoryStepProps } from "./no-category-step/no-category-step"
 export { OfferStep, type OfferStepProps } from "./offer-step/offer-step"

@@ -24,6 +24,7 @@ from app.controller.path_schemas import (
     AttemptIn,
     AttemptProgressOut,
     CategoryOut,
+    ExpressOut,
     GradeProbabilityOut,
     GradeUpOut,
     HistoryEntryOut,
@@ -96,13 +97,29 @@ def submit_survey(
         errors.AttemptInProgress,
         errors.UnknownGrade,
         errors.VerificationPending,
+        errors.ExpressUnavailable,
     ),
 )
 def start_attempt(
     body: AttemptIn, user: CurrentUser, paths: CandidatePathDep, mechanics: MechanicsDep
 ) -> PathOut:
-    view = paths.start_attempt(user.id, grade=body.grade, focus_consent=body.focus_consent)
+    view = paths.start_attempt(
+        user.id, grade=body.grade, focus_consent=body.focus_consent, express=body.express
+    )
     return _path_out(view, mechanics)
+
+
+@router.post(
+    "/express/continue",
+    summary="Продолжить экспресс-тест полным",
+    description="Экспресс-тест, дошедший до лимита без уверенности для категории, ждёт "
+    "продолжения: лимит снимается, ответы остаются в оценке, тест идёт как обычный.",
+    responses=error_responses(errors.ExpressNotPaused),
+)
+def continue_express(
+    user: CurrentUser, paths: CandidatePathDep, mechanics: MechanicsDep
+) -> PathOut:
+    return _path_out(paths.continue_full(user.id), mechanics)
 
 
 @router.post(
@@ -168,7 +185,7 @@ def start_verification(
     summary="Текущее задание теста",
     description="Время ответа считается по часам сервера с первого показа задания; повторный "
     "запрос отдаёт то же задание. Эталон и параметры экземпляра не отдаются.",
-    responses=error_responses(errors.NoTestInProgress),
+    responses=error_responses(errors.NoTestInProgress, errors.ExpressPaused),
 )
 def get_item(user: CurrentUser, paths: CandidatePathDep) -> ItemOut:
     item = paths.current_item(user.id)
@@ -211,7 +228,8 @@ def answer_item(
         paste_events=body.paste_events,
         focus_losses=body.focus_losses,
     )
-    if answered.answer is not None:
+    # Ответы тестового кандидата режима жюри банк заданий не калибруют (mechanics.md, §18).
+    if answered.answer is not None and not user.demo:
         try:
             calibrations.calibrate(answered.answer)
         except Exception:
@@ -229,7 +247,8 @@ def _path_out(view: PathView, mechanics: Mechanics) -> PathOut:
             AttemptProgressOut(
                 grade=view.progress.grade,
                 answered=view.progress.answered,
-                max_items=mechanics.test_max_items,
+                max_items=view.progress.max_items,
+                express=view.progress.express,
             )
             if view.progress
             else None
@@ -256,6 +275,15 @@ def _path_out(view: PathView, mechanics: Mechanics) -> PathOut:
             else None
         ),
         verification=_verification_out(view.verification) if view.verification else None,
+        express=(
+            ExpressOut(
+                limit=view.express.limit,
+                answered=view.express.answered,
+                paused=view.express.paused,
+            )
+            if view.express
+            else None
+        ),
     )
 
 

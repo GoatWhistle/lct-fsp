@@ -44,6 +44,7 @@ from app.controller.fsp import candidate_router as fsp_router
 from app.controller.fsp import router as fsp_auth_router
 from app.controller.invitation import candidate_router as inbox_router
 from app.controller.invitation import employer_router as invitations_router
+from app.controller.jury import router as jury_router
 from app.controller.need import router as needs_router
 from app.controller.need import search_router as candidate_search_router
 from app.controller.need import selections_router
@@ -92,6 +93,7 @@ from composition import (
     catalog_sync,
     experience_limits,
     item_selector,
+    jury_mode,
     model_understanding,
     named_completion,
 )
@@ -230,6 +232,7 @@ def create_app(
     app.state.selections = usecases.selections
     app.state.profile_freshness = usecases.freshness
     app.state.need_drafts = usecases.need_drafts
+    sessions = JwtSessions(settings.secret_key, session_ttl)
     platform = build_platform_usecases(
         PlatformRepositories[SqlUnitOfWork](
             accounts=lambda uow: SqlAccounts(uow.session),
@@ -250,7 +253,7 @@ def create_app(
         ),
         mechanics=mechanics,
         passwords=passwords or Argon2Passwords(),
-        sessions=JwtSessions(settings.secret_key, session_ttl),
+        sessions=sessions,
         mailer=mailer or SmtpMailer(settings.smtp_host, settings.smtp_port, settings.mail_from),
         mail_templates=BrandMailTemplates(),
         clock=clock,
@@ -276,6 +279,14 @@ def create_app(
         grade_hints=grade_hint_rule(load_synonyms(settings.synonyms_file)),
     )
     app.state.accounts = platform.accounts
+    app.state.jury = jury_mode(
+        lambda uow: SqlAccounts(uow.session),
+        usecases,
+        platform,
+        sessions=sessions,
+        clock=clock,
+        enabled=settings.demo_mode,
+    )
     app.state.companies = platform.companies
     app.state.needs = platform.needs
     app.state.catalog = platform.catalog
@@ -291,6 +302,7 @@ def create_app(
 
     install_error_handlers(app)
     app.include_router(auth_router)
+    app.include_router(jury_router)
     app.include_router(fsp_auth_router)
     app.include_router(fsp_router)
     app.include_router(candidate_router)

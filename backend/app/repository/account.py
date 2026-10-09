@@ -21,6 +21,7 @@ def _account_of(row: User) -> Account:
         row.email_verified_at,
         fsp_id=row.fsp_id,
         has_password=row.password_hash is not None,
+        demo=row.is_demo,
     )
 
 
@@ -47,6 +48,22 @@ class SqlAccounts:
                 self._session.add(row)
         except IntegrityError:
             # Тот же адрес успел зарегистрироваться параллельным запросом.
+            raise EmailTaken() from None
+        return _account_of(row)
+
+    def add_demo(self, email: str, role: Role, now: datetime) -> Account:
+        row = User(
+            email=email,
+            password_hash=None,
+            role=role,
+            email_verified_at=now,
+            created_at=now,
+            is_demo=True,
+        )
+        try:
+            with self._session.begin_nested():
+                self._session.add(row)
+        except IntegrityError:
             raise EmailTaken() from None
         return _account_of(row)
 

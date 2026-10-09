@@ -58,8 +58,17 @@ class MemoryCandidatePool:
     def add(self, candidate: PoolCandidate) -> None:
         self._store.collection("pool")[candidate.candidate_id] = candidate
 
+    def is_demo(self, user_id: uuid.UUID) -> bool:
+        return False
+
     def in_reach(
-        self, specialization: str, grade_rank: int, distance: int, technologies: Collection[str]
+        self,
+        specialization: str,
+        grade_rank: int,
+        distance: int,
+        technologies: Collection[str],
+        *,
+        demo: bool = True,
     ) -> list[PoolCandidate]:
         wanted = frozenset(technologies)
         return [
@@ -84,7 +93,12 @@ class MemoryCandidatePool:
         self._store.collection("unconfirmed")[candidate.candidate_id] = candidate
 
     def unconfirmed(
-        self, specialization: str, grade: str, technologies: Collection[str]
+        self,
+        specialization: str,
+        grade: str,
+        technologies: Collection[str],
+        *,
+        demo: bool = True,
     ) -> list[UnconfirmedCandidate]:
         wanted = frozenset(technologies)
         # Категория — только в `add`: кандидат с ней в нижний блок не попадает, как и в Postgres.
@@ -101,7 +115,7 @@ class MemoryCandidatePool:
         wanted = frozenset(candidate_ids)
         return [f for f in self.searchable() if f.candidate_id in wanted]
 
-    def searchable(self) -> list[CandidateFacts]:
+    def searchable(self, *, demo: bool = True) -> list[CandidateFacts]:
         categorized = self._store.collection("pool")
         found = [_pool_facts(c) for c in categorized.values()]
         found.extend(

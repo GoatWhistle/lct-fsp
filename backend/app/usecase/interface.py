@@ -246,10 +246,12 @@ class AttemptRepository(AttemptReader, Protocol):
         focus_consent: bool = False,
         verifies: Attempt | None = None,
         deadline: datetime | None = None,
+        express_limit: int | None = None,
     ) -> Attempt:
         """Новая попытка; `continues` — попытка, чью оценку продолжает дотест каскада,
         `topic_code` — тема блока по теме, `focus_consent` — согласие на счётчики событий,
-        `verifies` и `deadline` — у проверочного блока: что он проверяет и его срок."""
+        `verifies` и `deadline` — у проверочного блока: что он проверяет и его срок,
+        `express_limit` — лимит заданий экспресс-теста режима жюри."""
         ...
 
     def attempt(self, attempt_id: uuid.UUID) -> Attempt:
@@ -294,6 +296,14 @@ class AttemptRepository(AttemptReader, Protocol):
 
     def withhold(self, attempts: Sequence[Attempt], withheld: bool) -> None:
         """Наблюдения попыток вне оценки и профиля или снова в них (mechanics.md, §8)."""
+        ...
+
+    def lift_express_limit(self, attempt: Attempt) -> None:
+        """Экспресс-тест продолжается полным: лимит заданий снимается (mechanics.md, §18)."""
+        ...
+
+    def is_demo(self, user_id: uuid.UUID) -> bool:
+        """Тестовая учётка режима жюри (mechanics.md, §18)."""
         ...
 
     def response_times(
@@ -647,18 +657,30 @@ class CandidatePool(Protocol):
     категории, заявившие грейд, для нижнего блока."""
 
     def in_reach(
-        self, specialization: str, grade_rank: int, distance: int, technologies: Collection[str]
+        self,
+        specialization: str,
+        grade_rank: int,
+        distance: int,
+        technologies: Collection[str],
+        *,
+        demo: bool,
     ) -> list[PoolCandidate]:
         """Категория — `specialization`, ранг грейда — не дальше `distance` от `grade_rank`
         (`app.domain.selection.block_of`). Стек кандидата — только из `technologies`, технологий
-        потребности. Порядок не важен: его задаёт подборка."""
+        потребности. Порядок не важен: его задаёт подборка. Тестовых кандидатов режима жюри
+        отдаёт, только если `demo` — смотрит демо-работодатель (mechanics.md, §18)."""
         ...
 
     def unconfirmed(
-        self, specialization: str, grade: str, technologies: Collection[str]
+        self,
+        specialization: str,
+        grade: str,
+        technologies: Collection[str],
+        *,
+        demo: bool,
     ) -> list[UnconfirmedCandidate]:
         """Без категории: последний опрос — `specialization`, заявлен ровно грейд `grade`. Стек —
-        только из `technologies`. Порядок не важен."""
+        только из `technologies`. Порядок не важен. `demo` — как у `in_reach`."""
         ...
 
     def open_invitations(
@@ -675,8 +697,13 @@ class CandidatePool(Protocol):
         сигнала. Порядок не важен."""
         ...
 
-    def searchable(self) -> list[CandidateFacts]:
-        """То же по всей базе: все кандидаты с категорией или заявленным грейдом."""
+    def searchable(self, *, demo: bool) -> list[CandidateFacts]:
+        """То же по всей базе: все кандидаты с категорией или заявленным грейдом. `demo` — как у
+        `in_reach`."""
+        ...
+
+    def is_demo(self, user_id: uuid.UUID) -> bool:
+        """Учётка — демо-работодатель режима жюри: он видит и тестовых кандидатов."""
         ...
 
 
@@ -753,6 +780,11 @@ class AccountRepository(Protocol):
 
     def mark_verified(self, user_id: uuid.UUID, now: datetime) -> Account:
         """Адрес учётки подтверждён в момент `now`."""
+        ...
+
+    def add_demo(self, email: str, role: Role, now: datetime) -> Account:
+        """Тестовая учётка режима жюри (mechanics.md, §18): адрес подтверждён, пароля нет, пометка
+        `demo`. Адрес занят, в том числе параллельным запросом, — `EmailTaken`."""
         ...
 
 

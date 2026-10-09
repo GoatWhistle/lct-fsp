@@ -105,6 +105,8 @@ class TestAttempt(Base):
     expected_correct: Mapped[float | None]
     correct_count: Mapped[int | None]
     planned_items: Mapped[int | None]
+    # Экспресс-тест режима жюри: лимит заданий; NULL — полный тест.
+    express_limit: Mapped[int | None]
 
     presentations: Mapped[list["Presentation"]] = relationship(
         order_by="Presentation.position", back_populates="attempt"

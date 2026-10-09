@@ -1,7 +1,13 @@
 import { useState } from "react"
 import { Navigate, useNavigate } from "react-router"
 import { usePath } from "@/entities/candidate-path"
-import { DirectionStep, GradeStep, NoCategoryStep, OfferStep } from "@/features/candidate-path"
+import {
+  DirectionStep,
+  ExpressStep,
+  GradeStep,
+  NoCategoryStep,
+  OfferStep,
+} from "@/features/candidate-path"
 import { VerificationCard } from "@/features/test-verification"
 import type { CandidatePath } from "@/shared/api"
 import { useCatalogNames, useDocumentTitle, useTranslation } from "@/shared/i18n"
@@ -48,6 +54,7 @@ function StepContent({ path }: { readonly path: CandidatePath }) {
         onStarted={toTest}
       />
     )
+  if (path.express?.paused) return <ExpressStep path={path} onContinued={toTest} />
   if (path.stage === "verification") return <VerificationCard path={path} />
   if (path.stage === "offer") return <OfferStep path={path} onStarted={toTest} />
   if (path.stage === "no_category") return <NoCategoryStep path={path} />

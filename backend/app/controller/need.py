@@ -191,11 +191,12 @@ def list_selections(
 )
 def search_candidates(
     body: CandidateFiltersIn,
+    user: CurrentUser,
     selections: SelectionsDep,
     offset: Offset = 0,
     limit: Limit = 20,
 ) -> SearchOut:
-    return _search_out(selections.search(_filters(body), offset=offset, limit=limit))
+    return _search_out(selections.search(user.id, _filters(body), offset=offset, limit=limit))
 
 
 @selections_router.get(

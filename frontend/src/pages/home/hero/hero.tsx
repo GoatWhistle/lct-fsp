@@ -1,3 +1,4 @@
+import { JuryActions } from "@/features/jury-mode"
 import { useTranslation } from "@/shared/i18n"
 import { ButtonLink } from "@/shared/ui"
 import { PublicBar } from "../../public-chrome/public-bar/public-bar"
@@ -24,6 +25,7 @@ export function Hero() {
               {t("common:action.signIn")}
             </ButtonLink>
           </div>
+          <JuryActions className={styles.jury} />
         </div>
         <MapNetwork className={styles.map} />
       </div>

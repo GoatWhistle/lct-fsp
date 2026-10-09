@@ -110,7 +110,7 @@ def test_filter_over_selection_matches_search_over_the_same_people(
     _, page = built(h)
 
     refined = h.selections.refine(h.employer, page.selection.id, filters, **PAGE)
-    searched = h.selections.search(filters, **PAGE)
+    searched = h.selections.search(h.employer, filters, **PAGE)
 
     in_selection = {e.candidate_id for e in refined.entries}
     assert in_selection
@@ -168,7 +168,7 @@ def test_search_puts_unconfirmed_below_confirmed(make: Callable[..., Harness]) -
     ids, _ = built(h)
     backend = h.candidate(CandidateSeed(specialization="backend"))
 
-    found = h.selections.search(NO_FILTERS, **PAGE)
+    found = h.selections.search(h.employer, NO_FILTERS, **PAGE)
 
     order = [hit.facts.candidate_id for hit in found.hits]
     assert set(order) == {*ids, backend}
@@ -176,5 +176,7 @@ def test_search_puts_unconfirmed_below_confirmed(make: Callable[..., Harness]) -
     assert (found.total, found.unconfirmed_total) == (6, 1)
     assert [hit.position for hit in found.hits] == list(range(1, 7))
 
-    only_backend = h.selections.search(CandidateFilters(specialization="backend"), **PAGE)
+    only_backend = h.selections.search(
+        h.employer, CandidateFilters(specialization="backend"), **PAGE
+    )
     assert [hit.facts.candidate_id for hit in only_backend.hits] == [backend]

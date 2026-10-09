@@ -1,4 +1,5 @@
 import { useCompany } from "@/entities/company"
+import { useSession } from "@/entities/session"
 import {
   ActivityPanel,
   AttentionPanel,
@@ -6,8 +7,9 @@ import {
   MetricsRow,
   NeedsPanel,
 } from "@/features/employer-overview"
+import { NeedText } from "@/features/need-text"
 import { useDocumentTitle, useTranslation } from "@/shared/i18n"
-import { ButtonLink, LoadError, PageBody, PageHeader, Skeleton } from "@/shared/ui"
+import { ButtonLink, LoadError, PageBody, PageHeader, Section, Skeleton } from "@/shared/ui"
 import styles from "./employer-overview-page.module.css"
 
 function Headline() {
@@ -27,6 +29,7 @@ function Headline() {
 export function EmployerOverviewPage() {
   const { t } = useTranslation("employer")
   const company = useCompany()
+  const session = useSession()
   useDocumentTitle(t("overview.title"))
   return (
     <>
@@ -40,6 +43,11 @@ export function EmployerOverviewPage() {
         }
       />
       <PageBody>
+        {session.data?.demo ? (
+          <Section title={t("overview.jury.title")} lead={t("overview.jury.lead")}>
+            <NeedText />
+          </Section>
+        ) : null}
         <Headline />
         <div className={styles.grid}>
           <NeedsPanel />

@@ -1,5 +1,6 @@
 import { useSearchParams } from "react-router"
 import { FspTile, LoginForm } from "@/features/auth"
+import { JuryActions } from "@/features/jury-mode"
 import { useDocumentTitle, useTranslation } from "@/shared/i18n"
 import { Banner } from "@/shared/ui"
 import { AuthLayout } from "../public-chrome/auth-layout/auth-layout"
@@ -29,6 +30,7 @@ export function LoginPage() {
       <FspTile hint={t("login.fspHint")} />
       <AuthDivider>{t("login.or")}</AuthDivider>
       <LoginForm initialEmail={params.get("email") ?? ""} next={params.get("next")} />
+      <JuryActions />
       <AuthSwitch text={t("login.noAccount")} to="/register" link={t("login.register")} />
     </AuthLayout>
   )

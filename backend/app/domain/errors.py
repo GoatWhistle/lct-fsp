@@ -165,6 +165,26 @@ class ItemNotCurrent(DomainError):
     message = "Это задание уже не текущее — обновите страницу"
 
 
+class ExpressUnavailable(DomainError):
+    code = "express_unavailable"
+    message = "Экспресс-тест доступен только тестовому кандидату режима жюри и на первом шаге теста"
+
+
+class ExpressPaused(DomainError):
+    code = "express_paused"
+    message = "Экспресс-тест закончен — продолжите полный тест"
+
+
+class ExpressNotPaused(DomainError):
+    code = "express_not_paused"
+    message = "Экспресс-тест не ждёт продолжения"
+
+
+class DemoDisabled(DomainError):
+    code = "demo_disabled"
+    message = "Режим жюри выключен"
+
+
 class GradeNotNext(DomainError):
     code = "grade_not_next"
     message = "Попытка вверх — только на следующий грейд после вашего"

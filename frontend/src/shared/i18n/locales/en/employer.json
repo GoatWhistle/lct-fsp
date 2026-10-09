@@ -75,6 +75,10 @@
       "budget": "Invitation budget used up until {{date}}",
       "emptyTitle": "Nothing urgent",
       "emptyText": "Applications are handled, conversations are read, task answers are graded."
+    },
+    "jury": {
+      "title": "Your own vacancy",
+      "lead": "Paste a vacancy text: the system will parse it into need fields and show what it understood confidently and what not."
     }
   },
   "invitations": {

@@ -49,6 +49,10 @@ class Settings(BaseSettings):
     catalog_file: Path = CATALOG_FILE
     synonyms_file: Path = SYNONYMS_FILE
 
+    # Режим жюри (docs/mechanics.md, §18): демо-вход работодателя, свежий тестовый кандидат и
+    # экспресс-тест. По умолчанию выключен — без него `/api/demo/*` ничего не открывает.
+    demo_mode: bool = False
+
     # Разбор текста за портом `TextUnderstanding` (docs/adr/0002-text-understanding-port.md):
     # реализация по имени — `rules` или `llama` — и сколько ждать модель, прежде чем ответить
     # правилами. По умолчанию правила: модель становится вариантом по умолчанию только по замеру.
@@ -117,6 +121,7 @@ class Mechanics(BaseModel):
     exposure_window_attempts: int
     topic_block_items: int
     topic_block_interval_days: int
+    express_max_items: int = Field(gt=0)
 
     # Калибровка
     elo_k_initial: float

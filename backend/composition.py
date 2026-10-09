@@ -68,6 +68,7 @@ from app.usecase.interface import (
     VacancyRepository,
 )
 from app.usecase.invitation import Invitations
+from app.usecase.jury import JuryMode
 from app.usecase.need import Needs
 from app.usecase.need_draft import NeedDrafts
 from app.usecase.regular_task import RegularTasks
@@ -462,3 +463,30 @@ def catalog_sync[U: UnitOfWork](
         return CatalogSync(uow, catalog(uow), source)
 
     return sync
+
+
+def jury_mode[U: UnitOfWork](
+    accounts: Callable[[U], AccountRepository],
+    usecases: Usecases[U],
+    platform: PlatformUsecases[U],
+    *,
+    sessions: SessionTokens,
+    clock: Clock,
+    enabled: bool,
+) -> Callable[[U], JuryMode]:
+    """Режим жюри из сценариев кабинетов и пути кандидата; `enabled` — настройка окружения."""
+
+    def jury(uow: U) -> JuryMode:
+        return JuryMode(
+            uow,
+            accounts(uow),
+            platform.companies(uow),
+            platform.needs(uow),
+            usecases.selections(uow),
+            usecases.candidate_path(uow),
+            sessions,
+            clock,
+            enabled=enabled,
+        )
+
+    return jury

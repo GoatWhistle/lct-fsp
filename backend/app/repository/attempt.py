@@ -102,6 +102,7 @@ def _attempt_of(row: models.TestAttempt, *, presentations: bool = True) -> Attem
         expected_correct=row.expected_correct,
         correct_count=row.correct_count,
         planned_items=row.planned_items,
+        express_limit=row.express_limit,
     )
 
 
@@ -232,6 +233,7 @@ class SqlAttemptRepository(SqlAttemptReader):
         focus_consent: bool = False,
         verifies: Attempt | None = None,
         deadline: datetime | None = None,
+        express_limit: int | None = None,
     ) -> Attempt:
         row = models.TestAttempt(
             user_id=user_id,
@@ -246,6 +248,7 @@ class SqlAttemptRepository(SqlAttemptReader):
             focus_consent=focus_consent,
             verifies_attempt_id=verifies.id if verifies else None,
             deadline=deadline,
+            express_limit=express_limit,
         )
         self.session.add(row)
         self.session.flush()
@@ -316,6 +319,14 @@ class SqlAttemptRepository(SqlAttemptReader):
         row.correct_count = attempt.correct_count
         row.planned_items = attempt.planned_items
         self.session.flush()
+
+    def lift_express_limit(self, attempt: Attempt) -> None:
+        self.session.get_one(models.TestAttempt, attempt.id).express_limit = None
+        attempt.express_limit = None
+        self.session.flush()
+
+    def is_demo(self, user_id: uuid.UUID) -> bool:
+        return bool(self.session.scalar(select(User.is_demo).where(User.id == user_id)))
 
     def save_protection(self, presentations: Sequence[Presentation]) -> None:
         for presentation in presentations:

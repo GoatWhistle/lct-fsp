@@ -6,6 +6,8 @@
   банке D1;
 - `tune_inflation` — подбор поправки погрешности `level_sd_inflation` на настроечном наборе D3
   по правилу плана валидации;
+- `fit` — подбор проверки согласия семейства с моделью `item_fit_*` на D3 по правилу плана
+  валидации: пять гипотез на банке с испорченными семействами (`validation.item_fit`);
 - `report_parsing` — M21, точность разбора потребности из текста по полям на размеченном наборе:
   правилами или моделью из записи её ответов (`validation.recorded`);
 - `write_market` — синтетический рынок D1 или D2 файлами: истина, наблюдаемое, потребности и
@@ -29,6 +31,7 @@ from app.adapter.text_rules import load_synonyms
 from app.domain.determination import grades_by_threshold
 from composition import model_understanding, named_completion
 from settings import CATALOG_FILE, MECHANICS_FILE, SYNONYMS_FILE, Mechanics, Settings
+from validation.item_fit import D3, TUNING_WARM, tune
 from validation.main import build_stand, catalog
 from validation.market import (
     SEED,
@@ -319,10 +322,13 @@ def write_market(
 def main() -> None:
     parser = argparse.ArgumentParser(prog="python -m validation")
     parser.add_argument(
-        "command", nargs="?", choices=("report", "honesty", "tune", "parsing", "market")
+        "command", nargs="?", choices=("report", "honesty", "tune", "fit", "parsing", "market")
     )
     parser.add_argument(
-        "--seed", type=int, default=None, help="сид для honesty и market, по умолчанию плановый"
+        "--seed",
+        type=int,
+        default=None,
+        help="сид для honesty, fit и market, по умолчанию плановый",
     )
     parser.add_argument(
         "--candidates",
@@ -337,7 +343,10 @@ def main() -> None:
         "--pairs", type=int, default=None, help="пар повтора: honesty — 1500, report — 200"
     )
     parser.add_argument(
-        "--warm", type=int, default=None, help="report: ответов на семейство в прогреве (500)"
+        "--warm",
+        type=int,
+        default=None,
+        help="ответов на семейство в прогреве: report — 500, fit — 650",
     )
     parser.add_argument(
         "--compare", type=int, default=None, help="report: кандидатов сравнения M13 (300)"
@@ -387,6 +396,12 @@ def main() -> None:
             )
         case "tune":
             tune_inflation(mechanics, 1500 if args.candidates is None else args.candidates)
+        case "fit":
+            tune(
+                mechanics,
+                D3 if args.seed is None else replace(D3, seed=args.seed),
+                TUNING_WARM if args.warm is None else args.warm,
+            )
         case "parsing":
             report_parsing(
                 mechanics,

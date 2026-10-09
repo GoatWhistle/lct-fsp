@@ -6,7 +6,7 @@
 подтверждён».
 
 Revision ID: e5b2d8c41f07
-Revises: e5b8a1c3d702
+Revises: e3b8d5a1c7f2
 Create Date: 2026-10-09 10:00:00.000000
 
 """
@@ -17,7 +17,7 @@ import sqlalchemy as sa
 from alembic import op
 
 revision: str = "e5b2d8c41f07"
-down_revision: str | Sequence[str] | None = "e5b8a1c3d702"
+down_revision: str | Sequence[str] | None = "e3b8d5a1c7f2"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 

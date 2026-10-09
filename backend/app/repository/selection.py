@@ -60,7 +60,7 @@ Json = dict[str, Any]
 
 def _real(user_id: QueryableAttribute[uuid.UUID]) -> ColumnElement[bool]:
     """Кандидат не из режима жюри: тестовые учётки реальным работодателям не показываются."""
-    return user_id.not_in(select(User.id).where(User.is_demo))
+    return ~exists().where(User.id == user_id, User.is_demo)
 
 
 class SqlCandidatePool:

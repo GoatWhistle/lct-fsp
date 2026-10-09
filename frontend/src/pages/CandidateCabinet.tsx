@@ -207,6 +207,7 @@ function OfferStep({ catalog, path, onChange }: StepProps) {
 function LowerGradeStep({ catalog, path, onChange }: StepProps) {
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
+  const [consent, setConsent] = useState(false)
   const pending = path.verification?.grade ?? ''
   const index = catalog.grades.findIndex((g) => g.code === pending)
   const lower = index > 0 ? catalog.grades[index - 1] : null
@@ -217,7 +218,7 @@ function LowerGradeStep({ catalog, path, onChange }: StepProps) {
     setSubmitting(true)
     setError(null)
     const { data, error } = await api.POST('/api/candidate/path/attempts', {
-      body: { grade: lower.code, focus_consent: false },
+      body: { grade: lower.code, focus_consent: consent },
     })
     setSubmitting(false)
     if (data) onChange(data)
@@ -227,6 +228,7 @@ function LowerGradeStep({ catalog, path, onChange }: StepProps) {
   return (
     <div className="card form">
       <p>Или начните тест на {lower.name} — новое измерение с чистого листа.</p>
+      <FocusConsent checked={consent} onChange={setConsent} />
       {error && <p className="error">{error}</p>}
       <div className="actions">
         <button type="button" className="button button-secondary" disabled={submitting} onClick={start}>

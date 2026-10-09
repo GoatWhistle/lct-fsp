@@ -110,7 +110,12 @@ def start_attempt(
     summary="Перейти на грейд ниже",
     description="Без теста и без ожидания: уверенность для младшего грейда уже набрана той же "
     "оценкой. Это смена категории — обратно вверх только тестом, после срока ожидания.",
-    responses=error_responses(errors.StepUnavailable, errors.NoLowerGrade),
+    responses=error_responses(
+        errors.StepUnavailable,
+        errors.NoLowerGrade,
+        errors.AttemptInProgress,
+        errors.VerificationPending,
+    ),
 )
 def step_down(user: CurrentUser, paths: CandidatePathDep, mechanics: MechanicsDep) -> PathOut:
     return _path_out(paths.step_down(user.id), mechanics)

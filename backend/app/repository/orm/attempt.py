@@ -238,7 +238,8 @@ class CandidateCategory(Base):
     grade_code: Mapped[str] = mapped_column(ForeignKey("grades.code"))
     attempt_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("test_attempts.id"))
     assigned_at: Mapped[datetime]
-    # Уровень подтверждён проверочным блоком (mechanics.md, §8); смена грейда без блока снимает.
+    # Уровень подтверждён проверочным блоком (mechanics.md, §8); смена вверх без блока снимает,
+    # переход вниз сохраняет: блок подтвердил уровень выше.
     verified_at: Mapped[datetime | None]
 
     specialization: Mapped[Specialization] = relationship()

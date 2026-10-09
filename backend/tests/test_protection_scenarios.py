@@ -19,7 +19,12 @@ from app.domain.attempt import AttemptOutcome, AttemptPurpose, PathView, Stage
 from app.domain.bank import Family, get_family
 from app.domain.calibration import Parameters
 from app.domain.catalog import Grade, Specialization, Topic
-from app.domain.errors import VerificationPending, VerificationTooEarly, VerificationUnavailable
+from app.domain.errors import (
+    AttemptInProgress,
+    VerificationPending,
+    VerificationTooEarly,
+    VerificationUnavailable,
+)
 from app.domain.skill import Normal, SignalSource
 from app.repository.memory.attempt import MemoryAttemptRepository
 from app.repository.memory.calibration import MemoryCalibrationRepository
@@ -463,3 +468,39 @@ def test_drift_detector_flags_leaked_family_and_not_honest_one(bench: Bench) -> 
     with bench.paths._uow:
         current = calibration.current([get_family(leaked), get_family(honest)])
     assert leaked not in current and honest in current
+
+
+def test_step_down_is_refused_while_grade_up_waits_for_block(bench: Bench) -> None:
+    """Иначе подтверждённый блок поднял бы категорию с нового грейда сразу на грейд попытки."""
+    user = bench.enrol()
+    bench.determine(user)
+    bench.paths.start_attempt(user, grade="senior", focus_consent=True)
+    bench.answer(user, always, focus_losses=5)
+    with pytest.raises(VerificationPending):
+        bench.paths.step_down(user)
+    bench.paths.start_verification(user)
+    with pytest.raises(AttemptInProgress):
+        bench.paths.step_down(user)
+
+
+def test_expired_block_is_closed_by_any_step(bench: Bench) -> None:
+    """Срок прошёл без обращения к пути — следующий шаг кандидата сам останавливает блок."""
+    user = bench.enrol()
+    bench.determine(user)
+    bench.paths.start_verification(user)
+    bench.clock.shift(timedelta(minutes=MECHANICS.verification_time_limit_minutes))
+    view = bench.paths.step_down(user)
+    assert view.verification is not None and view.verification.progress is None
+    assert view.category is not None and view.category.grade.code == "junior"
+
+
+def test_voluntary_block_result_is_from_current_category_only(bench: Bench) -> None:
+    """Итог блока по прошлой категории в добровольный блок нынешней не переносится."""
+    user = bench.enrol()
+    bench.determine(user)
+    bench.paths.start_verification(user)
+    bench.block(user, never)
+    bench.paths.start_attempt(user, grade="senior")
+    view = bench.answer(user, always)
+    assert view.category is not None and view.category.grade.code == "senior"
+    assert view.verification is not None and view.verification.last is None

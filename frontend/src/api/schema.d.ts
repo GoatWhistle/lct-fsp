@@ -4157,6 +4157,10 @@ export interface operations {
              * @description `path_step_unavailable` — Этот шаг сейчас недоступен — обновите страницу
              *
              *     `no_lower_grade` — Ниже вашего грейда грейдов нет
+             *
+             *     `attempt_in_progress` — Сначала закончите начатый тест или блок по теме
+             *
+             *     `verification_pending` — Сначала пройдите проверочный блок — результат прошлой попытки ждёт его
              */
             409: {
                 headers: {

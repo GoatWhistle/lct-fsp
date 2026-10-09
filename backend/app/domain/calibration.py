@@ -307,19 +307,28 @@ def fit_link(
     if len(anchors) < min_responses:
         return Link()
     shift, scale = 0.0, 1.0
+    # Всё, что не зависит от (α, β), считается один раз: a, b, μ, κ и ответ.
+    rows = [
+        (
+            params.discrimination,
+            params.difficulty,
+            r.level.mean,
+            math.pi * params.discrimination**2 * r.level.sd**2 / 8,
+            float(r.correct),
+        )
+        for params, r in anchors
+    ]
     for _ in range(iterations):
         grad_s = grad_k = h_ss = h_sk = h_kk = 0.0
-        for params, r in anchors:
+        for a, difficulty, mean, kappa, correct in rows:
             # z = a c gap, gap = α + β μ − b, κ = π a² σ² / 8:
             # ∂z/∂α = a c, ∂z/∂β = a c μ − a gap κ c³ / 2.
-            a = params.discrimination
-            kappa = math.pi * a**2 * r.level.sd**2 / 8
             c = 1 / math.sqrt(1 + kappa * scale)
-            gap = shift + scale * r.level.mean - params.difficulty
+            gap = shift + scale * mean - difficulty
             p = sigmoid(a * c * gap)
             d_s = a * c
-            d_k = a * c * r.level.mean - a * gap * kappa * c**3 / 2
-            residual = float(r.correct) - p
+            d_k = a * c * mean - a * gap * kappa * c**3 / 2
+            residual = correct - p
             grad_s += residual * d_s
             grad_k += residual * d_k
             info = p * (1 - p)

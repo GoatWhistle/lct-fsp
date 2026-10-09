@@ -404,3 +404,31 @@ class InvitationNotAccepted(DomainError):
 class InvalidMessageText(DomainError):
     code = "invalid_message_text"
     message = "Сообщение пустое или слишком длинное"
+
+
+# Вакансии и отклики.
+
+
+class VacancyNotFound(DomainError):
+    code = "vacancy_not_found"
+    message = "Вакансия не найдена"
+
+
+class VacancyArchived(DomainError):
+    code = "vacancy_archived"
+    message = "Вакансия снята с публикации"
+
+
+class AlreadyApplied(DomainError):
+    code = "already_applied"
+    message = "Вы уже откликнулись на эту вакансию"
+
+
+class ApplicationNotFound(DomainError):
+    code = "application_not_found"
+    message = "Отклик не найден"
+
+
+class ApplicationTransitionNotAllowed(DomainError):
+    code = "application_transition_not_allowed"
+    message = "На отклик уже ответили или срок ответа истёк — обновите страницу"

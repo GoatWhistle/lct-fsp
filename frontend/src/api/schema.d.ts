@@ -703,7 +703,7 @@ export interface paths {
         };
         /**
          * Карточка кандидата
-         * @description Статус грейда, категория, профиль навыков и структурная часть самоописания — без полей, скрытых кандидатом, пока карточка обезличена. ФИО, контакты и свободный текст — только после принятия приглашения вашей компании; ожидаемой зарплаты нет никогда. Есть у кандидата с категорией или с заявленным грейдом.
+         * @description Статус грейда, категория, профиль навыков и структурная часть самоописания — без полей, скрытых кандидатом, пока карточка обезличена. ФИО, контакты и свободный текст — только после принятия приглашения вашей компании или отклика на её вакансию, пока кандидат не отозвал доступ; ожидаемой зарплаты нет никогда. Есть у кандидата с категорией или с заявленным грейдом и у откликнувшегося на вашу вакансию.
          */
         get: operations["get_candidate_card_api_employer_candidates__candidate_id__get"];
         put?: never;
@@ -1058,6 +1058,224 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/employer/vacancies": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Вакансии компании
+         * @description И снятые с публикации, новые сверху.
+         */
+        get: operations["list_own_vacancies_api_employer_vacancies_get"];
+        put?: never;
+        /**
+         * Опубликовать вакансию
+         * @description Вилка обязательна. Нужен профиль компании — кандидат видит, чья вакансия.
+         */
+        post: operations["publish_vacancy_api_employer_vacancies_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/employer/vacancies/{vacancy_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Править вакансию
+         * @description Заменяет условия целиком; снятую с публикации не правят.
+         */
+        put: operations["update_vacancy_api_employer_vacancies__vacancy_id__put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/employer/vacancies/{vacancy_id}/archive": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Снять вакансию с публикации
+         * @description Из общего списка уходит, откликнуться нельзя; поданные отклики остаются. Повторное снятие ничего не меняет.
+         */
+        post: operations["archive_vacancy_api_employer_vacancies__vacancy_id__archive_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/employer/applications": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Отклики на вакансии компании
+         * @description Новые сверху; `vacancy_id` — только на эту вакансию.
+         */
+        get: operations["list_incoming_api_employer_applications_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/employer/applications/{application_id}/view": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Открыть отклик
+         * @description Отправленный становится просмотренным; повторное открытие ничего не меняет.
+         */
+        post: operations["view_application_api_employer_applications__application_id__view_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/employer/applications/{application_id}/accept": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Принять отклик */
+        post: operations["accept_application_api_employer_applications__application_id__accept_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/employer/applications/{application_id}/decline": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Отклонить отклик */
+        post: operations["decline_application_api_employer_applications__application_id__decline_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/candidate/vacancies": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Опубликованные вакансии
+         * @description Вакансии всех компаний, новые сверху; `specialization` — код специализации.
+         */
+        get: operations["list_published_api_candidate_vacancies_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/candidate/vacancies/{vacancy_id}/apply": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Откликнуться на вакансию
+         * @description Компания вакансии сразу увидит контакты и полный профиль, кроме ожидаемой зарплаты. Откликнуться можно один раз и без категории.
+         */
+        post: operations["apply_api_candidate_vacancies__vacancy_id__apply_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/candidate/applications": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Мои отклики
+         * @description Новые сверху, и на снятые с публикации вакансии.
+         */
+        get: operations["list_mine_api_candidate_applications_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/candidate/applications/{application_id}/revoke": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Отозвать доступ компании к своим данным
+         * @description Компания вакансии снова видит обезличенную карточку — отзыв закрывает все отклики и принятые приглашения этой компании. Вернуть доступ — только откликом на другую её вакансию или принятым приглашением. Повторный отзыв ничего не меняет.
+         */
+        post: operations["revoke_access_api_candidate_applications__application_id__revoke_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/candidate/feedback": {
         parameters: {
             query?: never;
@@ -1214,6 +1432,62 @@ export interface components {
          * @enum {string}
          */
         AnswerStatus: "accepted" | "awaiting_review" | "reviewed";
+        /** ApplicationOut */
+        ApplicationOut: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Vacancy Id
+             * Format: uuid
+             */
+            vacancy_id: string;
+            /**
+             * Candidate Id
+             * Format: uuid
+             */
+            candidate_id: string;
+            /** Vacancy Title */
+            vacancy_title: string;
+            /** Company Name */
+            company_name: string;
+            /**
+             * Salary From
+             * @description Вилка вакансии. Рубли в месяц до вычета НДФЛ (гросс)
+             */
+            salary_from: number;
+            /**
+             * Salary To
+             * @description Вилка вакансии. Рубли в месяц до вычета НДФЛ (гросс)
+             */
+            salary_to: number;
+            /** @description `sent` → `viewed`, когда работодатель открыл отклик → `accepted` или `declined` решением работодателя; `expired` — без ответа дольше срока с отклика */
+            status: components["schemas"]["InvitationStatus"];
+            /**
+             * Applied At
+             * Format: date-time
+             */
+            applied_at: string;
+            /** Viewed At */
+            viewed_at: string | null;
+            /** Answered At */
+            answered_at: string | null;
+            /**
+             * Expires At
+             * Format: date-time
+             * @description До какого момента работодатель может ответить
+             */
+            expires_at: string;
+            /**
+             * Revoked At
+             * @description Когда кандидат отозвал доступ: карточка для компании снова обезличена
+             */
+            revoked_at: string | null;
+            /** @description Все суммы платформы — до вычета НДФЛ (`gross`) */
+            readonly salary_basis: components["schemas"]["SalaryBasis"];
+        };
         /** AttemptIn */
         AttemptIn: {
             /**
@@ -1295,7 +1569,8 @@ export interface components {
         };
         /**
          * CandidateCardOut
-         * @description Карточка кандидата для работодателя. До принятия приглашения — обезличенная: решение по
+         * @description Карточка кандидата для работодателя. До принятия приглашения или отклика на вакансию
+         *     компании — обезличенная: решение по
          *     навыкам, без ФИО, контактов, свободного текста («о себе», роли, софт-скиллы) и ожидаемой
          *     зарплаты; фото, возраст и вуз платформа не собирает. Ожидаемой зарплаты нет и после.
          */
@@ -1307,7 +1582,8 @@ export interface components {
             id: string;
             /** @description Категория по тесту; `null` — тест не пройден, грейд только заявлен */
             category: components["schemas"]["CategoryOut"] | null;
-            grade_status: components["schemas"]["GradeStatusOut"];
+            /** @description `null` — кандидат откликнулся на вашу вакансию, не заявив грейд */
+            grade_status: components["schemas"]["GradeStatusOut"] | null;
             /** @description Профиль навыков специализации */
             skill_profile: components["schemas"]["SkillProfileOut"] | null;
             /** @description Самоописание без скрытого кандидатом; `null` — кандидат ещё не заполнил профиль */
@@ -1317,11 +1593,11 @@ export interface components {
              * @description Достижения ФСП — подтверждены, отдельно от самоописания: тип результата, дисциплина и год. Пусто — нет истории ФСП, это не штраф
              */
             fsp_achievements: components["schemas"]["FspAnonymizedAchievementOut"][];
-            /** @description ФИО, контакты, свободный текст и карточка опыта — только после принятия приглашения вашей компании; `null` — карточка обезличена или профиль не заполнен */
+            /** @description ФИО, контакты, свободный текст и карточка опыта — только после принятия приглашения вашей компании или отклика на её вакансию; `null` — карточка обезличена или профиль не заполнен */
             disclosed: components["schemas"]["DisclosedOut"] | null;
             /**
              * Fsp Details
-             * @description Достижения ФСП полностью — с мероприятием, местом и ролью в команде: только после принятия приглашения вашей компании; `null` — карточка обезличена
+             * @description Достижения ФСП полностью — с мероприятием, местом и ролью в команде: только после принятия приглашения вашей компании или отклика на её вакансию; `null` — карточка обезличена
              */
             fsp_details: components["schemas"]["FspAchievementOut"][] | null;
         };
@@ -3389,6 +3665,93 @@ export interface components {
             role: components["schemas"]["Role"];
             /** Email Verified */
             email_verified: boolean;
+        };
+        /** VacancyIn */
+        VacancyIn: {
+            /**
+             * Title
+             * @description Должность
+             */
+            title: string;
+            /**
+             * Description
+             * @description Задачи, команда, условия
+             * @default
+             */
+            description: string;
+            /**
+             * Specialization
+             * @description Код специализации из `/api/catalog/specializations`
+             */
+            specialization: string;
+            /**
+             * Grade
+             * @description Код грейда из `/api/catalog/grades`
+             */
+            grade: string;
+            /**
+             * Work Formats
+             * @description Форматы работы
+             */
+            work_formats: components["schemas"]["WorkFormat"][];
+            /**
+             * Salary From
+             * @description Вилка «от», обязательна. Рубли в месяц до вычета НДФЛ (гросс)
+             */
+            salary_from: number;
+            /**
+             * Salary To
+             * @description Вилка «до», обязательна. Рубли в месяц до вычета НДФЛ (гросс)
+             */
+            salary_to: number;
+        };
+        /** VacancyOut */
+        VacancyOut: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Company Name
+             * @description Компания на момент последней правки
+             */
+            company_name: string;
+            /** Title */
+            title: string;
+            /** Description */
+            description: string;
+            specialization: components["schemas"]["CatalogRef"];
+            grade: components["schemas"]["CatalogRef"];
+            /** Work Formats */
+            work_formats: components["schemas"]["WorkFormat"][];
+            /**
+             * Salary From
+             * @description Рубли в месяц до вычета НДФЛ (гросс)
+             */
+            salary_from: number;
+            /**
+             * Salary To
+             * @description Рубли в месяц до вычета НДФЛ (гросс)
+             */
+            salary_to: number;
+            /**
+             * Published At
+             * Format: date-time
+             */
+            published_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+            /**
+             * Archived At
+             * @description Когда снята с публикации: в общем списке её нет, откликнуться нельзя
+             */
+            archived_at: string | null;
+            /** @description Все суммы платформы — до вычета НДФЛ (`gross`) */
+            readonly salary_basis: components["schemas"]["SalaryBasis"];
         };
         /** ValidationError */
         ValidationError: {
@@ -7017,6 +7380,719 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    list_own_vacancies_api_employer_vacancies_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VacancyOut"][];
+                };
+            };
+            /** @description `not_authenticated` — Войдите, чтобы продолжить */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description `wrong_role` — Раздел доступен другой роли */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    publish_vacancy_api_employer_vacancies_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["VacancyIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VacancyOut"];
+                };
+            };
+            /** @description `not_authenticated` — Войдите, чтобы продолжить */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description `wrong_role` — Раздел доступен другой роли */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description `company_required` — Сначала заполните профиль компании */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /**
+             * @description `unknown_specialization` — Такой специализации нет в справочнике
+             *
+             *     `unknown_grade` — Такого грейда нет в справочнике
+             *
+             *     `invalid_salary_range` — Вилка — обе границы больше нуля, «от» не больше «до»
+             */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    update_vacancy_api_employer_vacancies__vacancy_id__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                vacancy_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["VacancyIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VacancyOut"];
+                };
+            };
+            /** @description `not_authenticated` — Войдите, чтобы продолжить */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description `wrong_role` — Раздел доступен другой роли */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description `vacancy_not_found` — Вакансия не найдена */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /**
+             * @description `vacancy_archived` — Вакансия снята с публикации
+             *
+             *     `company_required` — Сначала заполните профиль компании
+             */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /**
+             * @description `unknown_specialization` — Такой специализации нет в справочнике
+             *
+             *     `unknown_grade` — Такого грейда нет в справочнике
+             *
+             *     `invalid_salary_range` — Вилка — обе границы больше нуля, «от» не больше «до»
+             */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    archive_vacancy_api_employer_vacancies__vacancy_id__archive_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                vacancy_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VacancyOut"];
+                };
+            };
+            /** @description `not_authenticated` — Войдите, чтобы продолжить */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description `wrong_role` — Раздел доступен другой роли */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description `vacancy_not_found` — Вакансия не найдена */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_incoming_api_employer_applications_get: {
+        parameters: {
+            query?: {
+                vacancy_id?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApplicationOut"][];
+                };
+            };
+            /** @description `not_authenticated` — Войдите, чтобы продолжить */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description `wrong_role` — Раздел доступен другой роли */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description `vacancy_not_found` — Вакансия не найдена */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    view_application_api_employer_applications__application_id__view_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                application_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApplicationOut"];
+                };
+            };
+            /** @description `not_authenticated` — Войдите, чтобы продолжить */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description `wrong_role` — Раздел доступен другой роли */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description `application_not_found` — Отклик не найден */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    accept_application_api_employer_applications__application_id__accept_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                application_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApplicationOut"];
+                };
+            };
+            /** @description `not_authenticated` — Войдите, чтобы продолжить */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description `wrong_role` — Раздел доступен другой роли */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description `application_not_found` — Отклик не найден */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description `application_transition_not_allowed` — На отклик уже ответили или срок ответа истёк — обновите страницу */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    decline_application_api_employer_applications__application_id__decline_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                application_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApplicationOut"];
+                };
+            };
+            /** @description `not_authenticated` — Войдите, чтобы продолжить */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description `wrong_role` — Раздел доступен другой роли */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description `application_not_found` — Отклик не найден */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description `application_transition_not_allowed` — На отклик уже ответили или срок ответа истёк — обновите страницу */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_published_api_candidate_vacancies_get: {
+        parameters: {
+            query?: {
+                specialization?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VacancyOut"][];
+                };
+            };
+            /** @description `not_authenticated` — Войдите, чтобы продолжить */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description `wrong_role` — Раздел доступен другой роли */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    apply_api_candidate_vacancies__vacancy_id__apply_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                vacancy_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApplicationOut"];
+                };
+            };
+            /** @description `not_authenticated` — Войдите, чтобы продолжить */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description `wrong_role` — Раздел доступен другой роли */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /**
+             * @description `vacancy_not_found` — Вакансия не найдена
+             *
+             *     `profile_not_found` — Сначала заполните профиль
+             */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /**
+             * @description `vacancy_archived` — Вакансия снята с публикации
+             *
+             *     `already_applied` — Вы уже откликнулись на эту вакансию
+             */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_mine_api_candidate_applications_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApplicationOut"][];
+                };
+            };
+            /** @description `not_authenticated` — Войдите, чтобы продолжить */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description `wrong_role` — Раздел доступен другой роли */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    revoke_access_api_candidate_applications__application_id__revoke_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                application_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApplicationOut"];
+                };
+            };
+            /** @description `not_authenticated` — Войдите, чтобы продолжить */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description `wrong_role` — Раздел доступен другой роли */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description `application_not_found` — Отклик не найден */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

@@ -122,8 +122,8 @@ class Mechanics(BaseModel):
     calibration_refit_difficulty_prior_sd: float
     calibration_refit_log_discrimination_prior_sd: float
     calibration_link_window_attempts: int
-    item_fit_groups: int
-    item_fit_rmsd_max: float
+    item_fit_groups: int = Field(gt=0)
+    item_fit_rmsd_max: float = Field(ge=0)
 
     # Защита теста
     drift_shift: float

@@ -26,6 +26,7 @@ from app.usecase.conversation import Conversations
 from app.usecase.feedback import CandidateFeedback
 from app.usecase.fsp import FspAccounts
 from app.usecase.interface import (
+    ApplicationReader,
     CandidateRepository,
     Clock,
     InvitationReader,
@@ -39,6 +40,7 @@ from app.usecase.regular_task import RegularTasks
 from app.usecase.resume_draft import ResumeDrafts
 from app.usecase.selection import Selections
 from app.usecase.skill_profile import ProfileFreshness
+from app.usecase.vacancy import Applications, Vacancies
 from settings import Mechanics
 
 ACCESS_COOKIE = "access_token"
@@ -194,6 +196,22 @@ def get_invitation_reader(request: Request, uow: UnitOfWorkDep) -> InvitationRea
     return reader
 
 
+def get_application_reader(request: Request, uow: UnitOfWorkDep) -> ApplicationReader:
+    """Отклики для правила раскрытия на единице работы запроса."""
+    reader: ApplicationReader = request.app.state.application_repository(uow)
+    return reader
+
+
+def get_vacancies(request: Request, uow: UnitOfWorkDep) -> Vacancies:
+    vacancies: Vacancies = request.app.state.vacancies(uow)
+    return vacancies
+
+
+def get_applications(request: Request, uow: UnitOfWorkDep) -> Applications:
+    applications: Applications = request.app.state.applications(uow)
+    return applications
+
+
 AccountsDep = Annotated[Accounts, Depends(get_accounts)]
 FspAccountsDep = Annotated[FspAccounts, Depends(get_fsp_accounts)]
 CatalogQueriesDep = Annotated[CatalogQueries, Depends(get_catalog)]
@@ -210,6 +228,9 @@ InvitationsDep = Annotated[Invitations, Depends(get_invitations)]
 ConversationsDep = Annotated[Conversations, Depends(get_conversations)]
 FeedbackDep = Annotated[CandidateFeedback, Depends(get_feedback)]
 InvitationReaderDep = Annotated[InvitationReader, Depends(get_invitation_reader)]
+ApplicationReaderDep = Annotated[ApplicationReader, Depends(get_application_reader)]
+VacanciesDep = Annotated[Vacancies, Depends(get_vacancies)]
+ApplicationsDep = Annotated[Applications, Depends(get_applications)]
 
 _cookie_scheme = APIKeyCookie(
     name=ACCESS_COOKIE,

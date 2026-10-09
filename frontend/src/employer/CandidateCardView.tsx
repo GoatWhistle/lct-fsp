@@ -46,7 +46,9 @@ export function CandidateCardView({ card }: { card: CandidateCard }) {
         {card.category
           ? `Категория ${card.category.specialization.name} · ${card.category.grade.name} · `
           : 'Категории нет — '}
-        грейд {gradeStatusWords(card.grade_status)}
+        {card.grade_status
+          ? `грейд ${gradeStatusWords(card.grade_status)}`
+          : 'кандидат откликнулся на вашу вакансию, тест не проходил'}
       </p>
       {card.skill_profile && (
         <p>
@@ -90,7 +92,8 @@ export function CandidateCardView({ card }: { card: CandidateCard }) {
       <FspAchievements card={card} />
       {!disclosed && (
         <p className="hint">
-          Имя, контакты и опыт со слов кандидата откроются, когда кандидат примет приглашение вашей компании.
+          Имя, контакты и опыт со слов кандидата откроются, когда кандидат примет приглашение вашей компании
+          или откликнется на её вакансию.
         </p>
       )}
     </div>

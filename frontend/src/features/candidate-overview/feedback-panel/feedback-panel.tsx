@@ -1,14 +1,10 @@
+import { useState } from "react"
 import { useFeedback } from "@/entities/profile"
+import type { FeedbackHint } from "@/shared/api"
 import { useFormatters, useTranslation } from "@/shared/i18n"
-import { Card, IconLabel, LoadError, Skeleton, Stat } from "@/shared/ui"
+import { Button, Dialog, IconLabel, LoadError, Skeleton, Stat } from "@/shared/ui"
 import styles from "./feedback-panel.module.css"
 import { HintRow } from "./hint-row"
-
-export interface FeedbackPanelProps {
-  readonly motionIndex?: number
-  readonly withoutFspLink?: boolean
-  readonly className?: string | undefined
-}
 
 function Placement() {
   const { t } = useTranslation("overview")
@@ -43,43 +39,56 @@ function Placement() {
   )
 }
 
-export function FeedbackPanel({
-  motionIndex,
-  withoutFspLink = false,
-  className,
-}: FeedbackPanelProps) {
+function useHints(): readonly FeedbackHint[] {
+  const feedback = useFeedback()
+  return (feedback.data?.hints ?? []).filter((hint) => hint.action.kind !== "link_fsp")
+}
+
+function FeedbackContent() {
   const { t } = useTranslation("overview")
   const feedback = useFeedback()
-  const hints = (feedback.data?.hints ?? []).filter(
-    (hint) => !withoutFspLink || hint.action.kind !== "link_fsp",
-  )
+  const hints = useHints()
+  if (feedback.isError)
+    return (
+      <LoadError
+        error={feedback.error}
+        onRetry={() => void feedback.refetch()}
+        pending={feedback.isFetching}
+      />
+    )
+  if (feedback.data === undefined) return <Skeleton lines={4} />
   return (
-    <Card
-      title={t("feedback.title")}
-      description={t("feedback.lead")}
-      motionIndex={motionIndex}
-      className={className}
-    >
-      {feedback.isError ? (
-        <LoadError
-          error={feedback.error}
-          onRetry={() => void feedback.refetch()}
-          pending={feedback.isFetching}
-        />
-      ) : feedback.data === undefined ? (
-        <Skeleton lines={4} />
-      ) : (
-        <>
-          <Placement />
-          {hints.length === 0 ? null : (
-            <ul className={styles.hints} aria-label={t("feedback.hints")}>
-              {hints.map((hint, index) => (
-                <HintRow key={hint.topic?.code ?? hint.action.kind} hint={hint} index={index} />
-              ))}
-            </ul>
-          )}
-        </>
+    <>
+      <Placement />
+      {hints.length === 0 ? null : (
+        <ul className={styles.hints} aria-label={t("feedback.hints")}>
+          {hints.map((hint, index) => (
+            <HintRow key={hint.topic?.code ?? hint.action.kind} hint={hint} index={index} />
+          ))}
+        </ul>
       )}
-    </Card>
+    </>
+  )
+}
+
+export function FeedbackButton() {
+  const { t } = useTranslation("overview")
+  const [open, setOpen] = useState(false)
+  const hints = useHints()
+  if (hints.length === 0) return null
+  return (
+    <>
+      <Button variant="secondary" icon="match" onClick={() => setOpen(true)}>
+        {t("feedback.open", { count: hints.length })}
+      </Button>
+      <Dialog
+        open={open}
+        onClose={() => setOpen(false)}
+        title={t("feedback.title")}
+        description={t("feedback.lead")}
+      >
+        <FeedbackContent />
+      </Dialog>
+    </>
   )
 }

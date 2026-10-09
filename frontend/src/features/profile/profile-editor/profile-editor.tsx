@@ -22,7 +22,6 @@ import { useProfileEditor } from "./use-profile-editor"
 
 export interface ProfileEditorProps {
   readonly fspLinkAction: ReactNode
-  readonly before?: ReactNode
 }
 
 interface EditorFormProps extends ProfileEditorProps {
@@ -30,7 +29,7 @@ interface EditorFormProps extends ProfileEditorProps {
   readonly email: string
 }
 
-function EditorForm({ profile, email, fspLinkAction, before }: EditorFormProps) {
+function EditorForm({ profile, email, fspLinkAction }: EditorFormProps) {
   const { t } = useTranslation("profile")
   const editor = useProfileEditor(profile, email)
   const [previewing, setPreviewing] = useState(false)
@@ -46,7 +45,6 @@ function EditorForm({ profile, email, fspLinkAction, before }: EditorFormProps) 
         <SectionNav />
       </aside>
       <div className={styles.form}>
-        {before}
         <Button
           variant="secondary"
           icon="eye"
@@ -90,7 +88,7 @@ function EditorForm({ profile, email, fspLinkAction, before }: EditorFormProps) 
   )
 }
 
-export function ProfileEditor({ fspLinkAction, before }: ProfileEditorProps) {
+export function ProfileEditor({ fspLinkAction }: ProfileEditorProps) {
   const profile = useProfile()
   const session = useSession()
   if (profile.isError)
@@ -114,7 +112,6 @@ export function ProfileEditor({ fspLinkAction, before }: ProfileEditorProps) {
       profile={profile.data}
       email={session.data?.email ?? ""}
       fspLinkAction={fspLinkAction}
-      before={before}
     />
   )
 }

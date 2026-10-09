@@ -49,6 +49,11 @@ def test_draft_is_returned_and_nothing_is_saved(candidate: TestClient) -> None:
     assert draft["grade_hint"]["grade"]["code"] == "senior"
     # Стаж по периодам — неуверенный, экран его подсветит.
     assert "experience_years" in draft["uncertain"]
+    # Черновые записи опыта — по периодам; подсвечены всегда.
+    assert [(e["start"], e["end"]) for e in draft["experience"]] == [
+        job.months for job in IVANOVA.jobs
+    ]
+    assert "experience" in draft["uncertain"]
     assert candidate.get(PROFILE).json() is None
     assert candidate.get(GRADE_HINT).json() is None
 
@@ -73,12 +78,14 @@ def test_confirmed_draft_is_saved_by_the_profile_form(candidate: TestClient) -> 
         job_roles=draft["job_roles"],
         experience_years=draft["experience_years"],
         soft_skills=draft["soft_skills"],
+        experience=[e | {"stack": [t["code"] for t in e["stack"]]} for e in draft["experience"]],
     )
 
     saved = candidate.put(PROFILE, json=body)
 
     assert saved.status_code == 200, saved.text
     assert {t["code"] for t in saved.json()["stack"]} == IVANOVA.stack
+    assert saved.json()["experience"] == draft["experience"]
     hint = candidate.get(GRADE_HINT).json()
     assert hint["grade"]["code"] == draft["grade_hint"]["grade"]["code"]
 

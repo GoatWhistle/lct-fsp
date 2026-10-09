@@ -14,6 +14,8 @@ import {
 } from '../api/client'
 import { useAuth } from '../auth/context'
 import { fspReturnError } from '../candidate/fsp'
+import { ExperienceEditor } from '../candidate/ExperienceEditor'
+import { entryDraftOf, entryInputOf, type EntryDraft } from '../candidate/experience'
 import { FspCard } from '../candidate/FspCard'
 import { SalaryInput } from '../components/SalaryInput'
 import { TagInput } from '../components/TagInput'
@@ -39,6 +41,7 @@ type Draft = {
   industries: string[]
   salary_from: string
   hidden: HideableField[]
+  experience: EntryDraft[]
 }
 
 function emptyDraft(email: string): Draft {
@@ -58,6 +61,7 @@ function emptyDraft(email: string): Draft {
     industries: [],
     salary_from: '',
     hidden: [],
+    experience: [],
   }
 }
 
@@ -78,6 +82,7 @@ function draftOf(profile: Profile): Draft {
     industries: profile.industries.map((i) => i.code),
     salary_from: profile.salary_from.toString(),
     hidden: profile.hidden,
+    experience: profile.experience.map(entryDraftOf),
   }
 }
 
@@ -91,10 +96,15 @@ function inputOf(draft: Draft): ProfileInput {
     salary_from: Number(draft.salary_from),
     // Пустой город скрывать нечего: «скрыто» не путается с «не заполнено».
     hidden: draft.city.trim() ? draft.hidden : draft.hidden.filter((f) => f !== 'city'),
+    experience: draft.experience.map(entryInputOf),
   }
 }
 
-/** Что из черновика резюме ложится в форму: распознанное заменяет поле, остальное остаётся как было. */
+/**
+ * Что из черновика резюме ложится в форму: распознанное заменяет поле, остальное остаётся как было.
+ * Записи опыта — только в пустую карточку: «что делал» из резюме не берётся, и замена стёрла бы
+ * написанное руками.
+ */
 function withResume(draft: Draft, parsed: ResumeDraft): Draft {
   return {
     ...draft,
@@ -106,6 +116,7 @@ function withResume(draft: Draft, parsed: ResumeDraft): Draft {
     job_roles: parsed.job_roles.length ? parsed.job_roles : draft.job_roles,
     experience_years: parsed.experience_years?.toString() ?? draft.experience_years,
     soft_skills: parsed.soft_skills.length ? parsed.soft_skills : draft.soft_skills,
+    experience: draft.experience.length ? draft.experience : parsed.experience.map(entryDraftOf),
   }
 }
 
@@ -170,10 +181,12 @@ export function CandidateProfile() {
       setResumeError(errorMessage(error))
       return
     }
+    // Карточку опыта, которая уже заполнена, черновик не трогает — и не подсвечивает.
+    const kept: ResumeField[] = draft?.experience.length ? ['experience'] : []
     setDraft((current) => (current ? withResume(current, data) : current))
     setResume({
-      filled: Object.keys(data.confidence) as ResumeField[],
-      uncertain: data.uncertain,
+      filled: (Object.keys(data.confidence) as ResumeField[]).filter((f) => !kept.includes(f)),
+      uncertain: data.uncertain.filter((f) => !kept.includes(f)),
       hint: data.grade_hint,
     })
   }
@@ -399,6 +412,21 @@ export function CandidateProfile() {
           </span>
           {visibility('stack')}
         </fieldset>
+
+        <h2>Опыт — со слов кандидата</h2>
+        <div className={flagClass('experience', 'plain')}>
+          {mark('experience')}
+          <p className="hint">
+            Где и кем работали, когда, на чём и что делали. Годы по технологиям посчитаются из
+            записей сами. Опыт виден работодателю рядом с подтверждённым, но на подбор, уровень и
+            категорию не влияет: их определяют тест и ФСП. {DISCLOSED}
+          </p>
+          <ExperienceEditor
+            entries={draft.experience}
+            technologies={technologies}
+            onChange={(experience) => change({ experience })}
+          />
+        </div>
 
         <h2>Ожидания</h2>
         <fieldset className="plain">

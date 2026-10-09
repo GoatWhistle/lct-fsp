@@ -17,6 +17,7 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from app.adapter import irt
 from app.adapter.acceptance import acceptance_model
+from app.adapter.brand.mail_templates import BrandMailTemplates
 from app.adapter.catalog_file import YamlCatalog
 from app.adapter.clock import SystemClock
 from app.adapter.code_runner import InProcessCodeRunner
@@ -249,6 +250,7 @@ def create_app(
         passwords=passwords or Argon2Passwords(),
         sessions=JwtSessions(settings.secret_key, session_ttl),
         mailer=mailer or SmtpMailer(settings.smtp_host, settings.smtp_port, settings.mail_from),
+        mail_templates=BrandMailTemplates(),
         clock=clock,
         links=VerificationLinks(settings.frontend_url, settings.email_token_ttl_hours),
         skill_model=skill_model,

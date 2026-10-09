@@ -1,0 +1,17 @@
+.body {
+  display: grid;
+  gap: var(--space-20);
+  justify-items: start;
+}
+
+.text {
+  max-inline-size: var(--prose-measure);
+  color: var(--text-on-inverse-secondary);
+}
+
+.points {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-12) var(--space-32);
+  color: var(--text-on-inverse);
+}

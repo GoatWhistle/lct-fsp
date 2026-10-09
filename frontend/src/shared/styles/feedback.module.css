@@ -1,0 +1,8 @@
+.fieldError {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  color: var(--text-primary);
+  font-size: var(--font-size-body-sm);
+  font-weight: var(--weight-semibold);
+}

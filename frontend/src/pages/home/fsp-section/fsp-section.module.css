@@ -1,0 +1,38 @@
+.section {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.heading {
+  display: grid;
+  justify-items: start;
+  gap: var(--space-20);
+}
+
+.mark {
+  block-size: var(--space-60);
+}
+
+.map {
+  position: absolute;
+  inset-block: 0;
+  inset-inline-end: 0;
+  z-index: var(--layer-below);
+  inline-size: min(70%, var(--map-max-width));
+  block-size: 100%;
+  object-fit: contain;
+  object-position: right center;
+  opacity: var(--opacity-backdrop);
+}
+
+.actions {
+  display: grid;
+  justify-items: start;
+  gap: var(--space-16);
+}
+
+.note {
+  color: var(--text-tertiary);
+  font-size: var(--font-size-body-sm);
+}

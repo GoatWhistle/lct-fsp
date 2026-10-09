@@ -1,0 +1,18 @@
+.formats {
+  composes: bareFieldset from "../../../shared/styles/compose.module.css";
+  display: grid;
+}
+
+.legend {
+  composes: fieldLabel from "../../../shared/styles/compose.module.css";
+  padding: 0 0 var(--space-4);
+}
+
+.fields {
+  display: grid;
+  gap: var(--space-20);
+}
+
+.toolbar {
+  composes: actions from "../../../shared/styles/layout.module.css";
+}

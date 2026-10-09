@@ -1,0 +1,42 @@
+.lockup {
+  --lockup-size: var(--font-size-heading);
+
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-8);
+  color: var(--text-primary);
+  font-size: var(--lockup-size);
+  line-height: 1;
+}
+
+.small {
+  --lockup-size: var(--font-size-subheading);
+}
+
+.large {
+  --lockup-size: var(--font-size-heading-lg);
+
+  gap: var(--space-12);
+}
+
+.mark {
+  block-size: 1.6em;
+}
+
+.word {
+  font-family: var(--font-mono);
+  font-weight: var(--weight-semibold);
+  letter-spacing: -0.04em;
+}
+
+.link {
+  display: inline-flex;
+  align-items: center;
+  min-block-size: var(--target-min);
+  color: inherit;
+  text-decoration: none;
+}
+
+.compactMark {
+  block-size: var(--icon-lg);
+}

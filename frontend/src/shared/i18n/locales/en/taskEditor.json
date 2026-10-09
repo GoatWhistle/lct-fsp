@@ -1,0 +1,101 @@
+{
+  "title": "Regular tasks",
+  "lead": "Short tasks for a category. Candidates answer each once. An answer narrows the profile uncertainty on the task topics, and only you see the answer itself, without name or contacts.",
+  "create": "New task",
+  "needCompany": "Tasks are published by a company: fill in its profile first.",
+  "toCompany": "Fill in the company profile",
+  "filter": {
+    "label": "Tasks",
+    "active": "Active",
+    "review": "Awaiting grading",
+    "withdrawn": "Withdrawn"
+  },
+  "empty": {
+    "active": {
+      "title": "No active tasks",
+      "text": "Publish a task for a specialization and grade: candidates will pick it from the catalog."
+    },
+    "review": {
+      "title": "Everything is graded",
+      "text": "Answers to open tasks that await your grading will show up here."
+    },
+    "withdrawn": {
+      "title": "No withdrawn tasks",
+      "text": "A withdrawn task leaves the catalog. Its answers and grades stay in the profiles."
+    }
+  },
+  "createTitle": "New task",
+  "editTitle": "Edit task",
+  "drawerLead": "A task can be edited until someone answers it.",
+  "publish": "Publish",
+  "save": "Save",
+  "saving": "Saving",
+  "fields": {
+    "specialization": "Specialization",
+    "grade": "Grade",
+    "gradeHint": "The grade sets the difficulty: a correct answer to a senior task weighs more.",
+    "topics": "Topics",
+    "topicsFirst": "Pick a specialization first",
+    "prompt": "Task statement",
+    "kind": "How to check",
+    "reference": "Reference answer"
+  },
+  "kind": {
+    "reference": "With reference",
+    "open": "Open"
+  },
+  "kindHint": {
+    "reference": "The system checks a string or number answer. The candidate does not see the verdict.",
+    "open": "A script or a solution: you grade the answer on a 0 to 3 rubric."
+  },
+  "errors": {
+    "specialization": "Pick a specialization.",
+    "grade": "Pick a grade.",
+    "topics": "Select one to three topics.",
+    "prompt": "Write the task statement.",
+    "reference": "Enter the reference answer."
+  },
+  "toast": {
+    "published": "Task published",
+    "saved": "Changes saved",
+    "withdrawn": "Task withdrawn"
+  },
+  "card": {
+    "created": "Published on {{date}}",
+    "edit": "Edit",
+    "withdraw": "Withdraw from catalog",
+    "withdrawnAt": "withdrawn on {{date}}",
+    "awaiting": "awaiting grading",
+    "reference": "Reference: {{answer}}",
+    "answers_one": "{{count}} answer",
+    "answers_other": "{{count}} answers"
+  },
+  "withdraw": {
+    "title": "Withdraw the task from the catalog?",
+    "text": "Candidates will no longer be able to take it. Answers and grades stay in the profiles. The task cannot be restored.",
+    "action": "Withdraw task"
+  },
+  "answers": {
+    "emptyTitle": "No answers yet",
+    "emptyText": "Candidates of the specialization will see the task in the catalog and answer once.",
+    "correct": "matches the reference",
+    "incorrect": "does not match the reference",
+    "awaiting": "awaiting grading",
+    "graded": "graded {{score}} of {{max}}"
+  },
+  "grade": {
+    "label": "Rubric grade",
+    "score": "{{score}}",
+    "action": "Grade",
+    "confirmTitle": "Grade {{score}} of {{max}}?",
+    "confirmText": "A grade is given once and cannot be changed. It narrows the candidate's profile uncertainty on the task topics.",
+    "confirmAction": "Grade",
+    "done": "Grade saved"
+  },
+  "rubric": {
+    "0": "Not solved or off topic",
+    "1": "Partly, approach with mistakes",
+    "2": "Correct overall",
+    "3": "Correct and good: optimal, edge cases covered"
+  }
+}

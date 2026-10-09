@@ -1,0 +1,21 @@
+.form {
+  display: grid;
+  gap: var(--space-20);
+}
+
+.prompt {
+  composes: preWrap from "../../../shared/styles/layout.module.css";
+  padding: var(--space-16);
+  border-radius: var(--radius-button);
+  background-color: var(--surface-tint);
+  line-height: var(--line-height-body);
+}
+
+.note {
+  font-size: var(--font-size-body-sm);
+}
+
+.actions {
+  composes: actions from "../../../shared/styles/layout.module.css";
+  justify-content: flex-end;
+}

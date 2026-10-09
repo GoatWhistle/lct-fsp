@@ -1,0 +1,70 @@
+.sortable {
+  display: grid;
+  gap: var(--space-8);
+}
+
+.hint {
+  composes: captionText from "../../../styles/compose.module.css";
+  color: var(--text-tertiary);
+}
+
+.list {
+  display: grid;
+  gap: var(--space-8);
+}
+
+.row {
+  position: relative;
+  transition: var(--transition-indicator);
+}
+
+.row[data-dragging="true"] {
+  z-index: var(--layer-raised);
+  transition: none;
+}
+
+.handle {
+  composes: bodySmText cardRow from "../../../styles/compose.module.css";
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: var(--space-12);
+  inline-size: 100%;
+  min-block-size: var(--target-min);
+  text-align: start;
+  cursor: grab;
+  touch-action: none;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .handle:hover {
+    border-color: var(--border-strong);
+  }
+}
+
+.row[data-dragging="true"] .handle {
+  border-color: var(--action-primary);
+  box-shadow: var(--shadow-float);
+  cursor: grabbing;
+  scale: var(--lift-scale);
+}
+
+.row[data-picked="true"] .handle {
+  border-color: var(--action-primary);
+  background-color: var(--surface-selected);
+}
+
+.position {
+  composes: captionText monoText from "../../../styles/compose.module.css";
+  display: inline-grid;
+  place-items: center;
+  min-inline-size: var(--icon-md);
+  color: var(--text-accent);
+}
+
+.content {
+  min-inline-size: 0;
+}
+
+.grip {
+  color: var(--text-tertiary);
+}

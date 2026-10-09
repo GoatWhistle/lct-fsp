@@ -1,0 +1,51 @@
+.row {
+  display: grid;
+  gap: var(--space-12);
+  padding-block: var(--space-16);
+  animation: var(--motion-rise-in);
+}
+
+.row + .row {
+  border-block-start: var(--hairline) solid var(--border-hairline);
+}
+
+.head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-8) var(--space-16);
+}
+
+.who {
+  composes: monoText from "../../../shared/styles/compose.module.css";
+  font-weight: var(--weight-medium);
+}
+
+.when {
+  composes: labelText from "../../../shared/styles/compose.module.css";
+  margin-inline-end: auto;
+  color: var(--text-secondary);
+}
+
+.response {
+  composes: preWrap from "../../../shared/styles/layout.module.css";
+  max-inline-size: var(--prose-measure);
+  padding-block: var(--space-12);
+  padding-inline: var(--space-16);
+  border: var(--hairline) solid var(--border-hairline);
+  border-radius: var(--radius-button);
+}
+
+.rubric {
+  composes: secondaryText from "../../../shared/styles/compose.module.css";
+}
+
+.grade {
+  display: grid;
+  gap: var(--space-12);
+}
+
+.grade .scale {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, var(--tile-min)), 1fr));
+}

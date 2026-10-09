@@ -1,0 +1,42 @@
+.format {
+  composes: subheadingText from "../../../shared/styles/compose.module.css";
+  text-wrap: balance;
+}
+
+.form {
+  max-inline-size: var(--prompt-measure);
+}
+
+.value input {
+  font-family: var(--font-mono);
+}
+
+.foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-16);
+}
+
+.keys {
+  composes: captionText from "../../../shared/styles/compose.module.css";
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-8);
+  color: var(--text-tertiary);
+}
+
+@media (hover: none) {
+  .keys {
+    display: none;
+  }
+}
+
+@media (max-width: 47.99rem) {
+  .foot {
+    position: sticky;
+    inset-block-end: 0;
+    padding-block: var(--space-12);
+    background-color: var(--surface-canvas);
+  }
+}

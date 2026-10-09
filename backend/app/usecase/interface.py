@@ -56,6 +56,7 @@ from app.domain.fsp import (
     FspSnapshot,
 )
 from app.domain.invitation import Invitation, InvitationTerms
+from app.domain.locale import Locale
 from app.domain.mail import Mail
 from app.domain.need import NeedRecord, NeedTerms
 from app.domain.need_draft import NeedDraft, OutOfCatalog
@@ -429,6 +430,10 @@ class CalibrationRepository(Protocol):
         ...
 
 
+class MailTemplates(Protocol):
+    def verification(self, to: str, link: str, ttl_hours: int, locale: Locale) -> Mail: ...
+
+
 class Mailer(Protocol):
     """Почта — внешняя система. Отправка не роняет сценарий: письмо, которое не ушло,
     кандидат запрашивает повторно."""
@@ -439,8 +444,8 @@ class Mailer(Protocol):
 class ProfilePdfRenderer(Protocol):
     """Рендер PDF-профиля. Показывает проекцию как есть: что в неё попало, решил сценарий."""
 
-    def render(self, sheet: ProfileSheet, *, now: datetime) -> bytes:
-        """PDF; `now` — дата формирования в подвале и метаданных."""
+    def render(self, sheet: ProfileSheet, *, now: datetime, locale: Locale = "ru") -> bytes:
+        """PDF; `now` — дата формирования в подвале и метаданных, `locale` — язык текстов."""
         ...
 
 

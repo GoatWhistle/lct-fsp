@@ -1,0 +1,3 @@
+.step {
+  composes: formStep from "../../../shared/styles/layout.module.css";
+}

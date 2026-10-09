@@ -1,0 +1,21 @@
+.layout {
+  display: grid;
+  grid-template-columns: var(--panel-filters) minmax(0, 1fr);
+  align-items: start;
+  gap: var(--space-32);
+}
+
+.trace {
+  position: sticky;
+  inset-block-start: calc(var(--sticky-top) + var(--space-8));
+}
+
+@media (max-width: 63.99rem) {
+  .layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .trace {
+    position: static;
+  }
+}

@@ -1,0 +1,114 @@
+{
+  "app": {
+    "byFsp": "calibr by FSP",
+    "documentTitle": "calibr by FSP",
+    "pageTitle": "calibr: {{page}}"
+  },
+  "brand": {
+    "fspFull": "Federation of Sports Programming of Russia",
+    "signInFsp": "Sign in with FSP ID"
+  },
+  "action": {
+    "close": "Close",
+    "retry": "Retry",
+    "decrease": "Decrease",
+    "increase": "Increase",
+    "more": "More actions",
+    "cancel": "Cancel",
+    "logout": "Sign out",
+    "signIn": "Sign in"
+  },
+  "status": {
+    "attention": "Needs attention"
+  },
+  "value": {
+    "none": "not set",
+    "noneLabel": "No value"
+  },
+  "meter": {
+    "threshold": "Threshold"
+  },
+  "select": {
+    "placeholder": "Choose"
+  },
+  "combobox": {
+    "placeholder": "Start typing",
+    "empty": "Nothing found",
+    "remove": "Remove {{label}}",
+    "selected": "{{count}} of {{max}} selected",
+    "limit": "You can pick at most {{max}}",
+    "added": "{{label}} added",
+    "removed": "{{label}} removed"
+  },
+  "language": {
+    "legend": "Interface language",
+    "current": "Language: {{name}}",
+    "ru": "Русский",
+    "en": "English"
+  },
+  "theme": {
+    "legend": "Theme",
+    "current": "Theme: {{name}}",
+    "light": "Light",
+    "dark": "Dark",
+    "system": "System"
+  },
+  "shell": {
+    "skip": "Skip to content",
+    "collapse": "Collapse sidebar",
+    "expand": "Expand sidebar",
+    "account": "Account",
+    "navigation": "Sections",
+    "roleCandidate": "Candidate",
+    "roleEmployer": "Employer",
+    "company": "Company profile",
+    "unread_one": "{{count}} new message",
+    "unread_other": "{{count}} new messages",
+    "offline": "No connection to the server. We will retry as soon as it is back."
+  },
+  "nav": {
+    "overview": "Overview",
+    "profile": "Profile",
+    "invitations": "Invitations",
+    "vacancies": "Vacancies",
+    "tasks": "Tasks",
+    "needs": "Hiring needs",
+    "candidates": "Candidates",
+    "path": "Path to category"
+  },
+  "money": {
+    "range": "₽{{from}} to ₽{{to}}",
+    "from": "from ₽{{from}}",
+    "basis": "per month, gross",
+    "fieldFrom": "From, ₽",
+    "fieldTo": "To, ₽"
+  },
+  "state": {
+    "loading": "Loading",
+    "saved": "Saved"
+  },
+  "notFound": {
+    "title": "There is no such page",
+    "text": "The trace ends here. Check the address or go back to where you were.",
+    "cabinet": "To dashboard",
+    "home": "To home page"
+  },
+  "confirm": {
+    "title": "Confirm the action"
+  },
+  "leave": {
+    "title": "Leave without saving?",
+    "text": "Changes in the form will be lost.",
+    "stay": "Stay",
+    "leave": "Leave"
+  },
+  "navShort": {
+    "overview": "Overview",
+    "profile": "Profile",
+    "invitations": "Invites",
+    "vacancies": "Jobs",
+    "tasks": "Tasks",
+    "needs": "Needs",
+    "candidates": "Candidates"
+  }
+}

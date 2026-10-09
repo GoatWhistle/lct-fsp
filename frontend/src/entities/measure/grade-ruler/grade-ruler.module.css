@@ -1,0 +1,128 @@
+.ruler {
+  --ruler-track: var(--ruler-height);
+  --ruler-node: var(--ruler-node-size);
+  --ruler-band: var(--ruler-band-size);
+
+  display: grid;
+  gap: var(--space-8);
+  min-inline-size: 0;
+}
+
+.ruler[data-size="inline"] {
+  --ruler-track: var(--ruler-height-inline);
+  --ruler-node: var(--ruler-node-size-inline);
+  --ruler-band: var(--ruler-band-size-inline);
+
+  gap: 0;
+}
+
+.track {
+  position: relative;
+  block-size: var(--ruler-track);
+  overflow: hidden;
+  border-radius: var(--radius-button);
+}
+
+.ruler[data-size="inline"] .track {
+  border-radius: var(--radius-round);
+}
+
+.zones {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  block-size: 100%;
+}
+
+.zone {
+  background-color: var(--data-track);
+}
+
+.zone:nth-child(even) {
+  background-color: var(--data-zone);
+}
+
+.zone + .zone {
+  border-inline-start: var(--hairline) solid var(--data-threshold);
+}
+
+.rail {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  pointer-events: none;
+}
+
+.band {
+  inline-size: var(--band-width);
+  block-size: var(--ruler-band);
+  border-radius: var(--radius-round);
+  background-color: var(--data-band);
+  transform-origin: center;
+}
+
+.node {
+  flex: none;
+  inline-size: var(--ruler-node);
+  block-size: var(--ruler-node);
+  border-radius: var(--radius-round);
+  background-color: var(--data-level);
+  outline: var(--focus-ring-offset) solid var(--surface-card);
+  translate: -50% 0;
+}
+
+.required {
+  flex: none;
+  inline-size: var(--focus-ring-width);
+  block-size: 100%;
+  background-color: var(--data-required);
+  translate: -50% 0;
+}
+
+.secondary {
+  composes: node;
+  border: var(--focus-ring-width) solid var(--data-fsp);
+  background-color: var(--surface-card);
+}
+
+.ruler[data-animate="true"] .rail:last-child {
+  animation: var(--motion-travel-x);
+}
+
+.ruler[data-animate="true"] .band {
+  animation: var(--motion-band-open);
+  animation-delay: var(--dur-slow);
+}
+
+.scale {
+  composes: captionText monoText from "../../../shared/styles/compose.module.css";
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  color: var(--text-tertiary);
+}
+
+.scaleLabel {
+  text-align: center;
+}
+
+.caption {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-4) var(--space-12);
+}
+
+.words {
+  font-family: var(--font-mono);
+  font-weight: var(--weight-medium);
+}
+
+.ruler[data-size="inline"] .words {
+  font-size: var(--font-size-body-sm);
+}
+
+.uncertainty,
+.secondaryLabel {
+  color: var(--text-secondary);
+  font-size: var(--font-size-body-sm);
+}

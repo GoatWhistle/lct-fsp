@@ -1,0 +1,113 @@
+.header {
+  position: relative;
+  display: grid;
+  gap: var(--space-12);
+  padding: var(--space-20) var(--space-page) var(--space-16);
+  background-color: var(--surface-canvas);
+}
+
+.sticky {
+  position: sticky;
+  inset-block-start: 0;
+  z-index: var(--layer-sticky);
+}
+
+.sticky::after {
+  content: "";
+  position: absolute;
+  inset-inline: 0;
+  inset-block-end: 0;
+  block-size: var(--hairline);
+  background-color: var(--border-hairline);
+  opacity: 0;
+  animation: var(--motion-edge-fade-in);
+  animation-timeline: scroll(root);
+  animation-range: 0 var(--space-24);
+}
+
+@supports not (animation-timeline: scroll()) {
+  .sticky::after {
+    opacity: 1;
+    animation: none;
+  }
+}
+
+.crumbList {
+  composes: labelText from "../../../styles/compose.module.css";
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-4);
+  color: var(--text-tertiary);
+}
+
+.crumb {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.crumbLink {
+  color: var(--text-secondary);
+  text-decoration: none;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .crumbLink:hover {
+    color: var(--text-accent);
+  }
+}
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-16);
+}
+
+.heading {
+  display: grid;
+  gap: var(--space-8);
+  min-inline-size: 0;
+}
+
+.title {
+  composes: headingLgText from "../../../styles/compose.module.css";
+  outline: none;
+}
+
+.meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-8);
+}
+
+.description {
+  max-inline-size: var(--prose-measure);
+  color: var(--text-secondary);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-8);
+}
+
+@media (min-width: 75rem) {
+  .header {
+    padding-inline: var(--space-page-wide);
+  }
+}
+
+@media (max-width: 47.99rem) {
+  .title {
+    font-size: var(--font-size-heading);
+    line-height: var(--line-height-heading);
+  }
+
+  .sticky {
+    position: relative;
+  }
+}

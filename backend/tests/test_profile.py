@@ -279,14 +279,14 @@ def test_pdf_profile_before_test(candidate: TestClient) -> None:
     text = pdf_text(response.content)
     assert "Ёлкина Юлия Сергеевна" in text
     assert "yulia.yolkina@example.ru" in text
-    assert "Telegram @yolkina_qa" in text
+    assert "@yolkina_qa" in text
     assert "PostgreSQL, Python" in text
     assert "4 года" in text
     assert "Финтех и банки" in text
     assert "Категория пока не присвоена" in text
-    # Кириллица набрана встроенным PT Sans, а не стандартным шрифтом без кириллицы.
+    # Кириллица набрана встроенными шрифтами бренда, а не стандартным шрифтом без кириллицы.
     fonts = font_names(response.content)
-    assert fonts and all("PTSans" in name for name in fonts), fonts
+    assert fonts and all(("Onest" in n) or ("JetBrainsMono" in n) for n in fonts), fonts
     # Ожидаемая зарплата в PDF не попадает: файл может оказаться у работодателя.
     assert "287" not in text
 

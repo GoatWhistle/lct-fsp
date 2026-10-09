@@ -1,0 +1,5 @@
+.tintBlock {
+  padding: var(--space-12) var(--space-16);
+  border-radius: var(--radius-button);
+  background-color: var(--surface-tint);
+}

@@ -1,0 +1,49 @@
+.section {
+  display: grid;
+  gap: var(--space-32);
+  padding: var(--space-80) var(--space-page);
+}
+
+.section[data-tone="card"] {
+  border-block: var(--hairline) solid var(--border-hairline);
+  background-color: var(--surface-card);
+}
+
+.section[data-tone="inverse"] {
+  background-color: var(--surface-focus);
+}
+
+.section[data-tone="brand"] {
+  background-color: var(--surface-brand);
+}
+
+.header {
+  display: grid;
+  gap: var(--space-12);
+}
+
+.title {
+  composes: headingLgText from "../../../styles/compose.module.css";
+}
+
+.lead {
+  composes: leadText from "../../../styles/compose.module.css";
+  max-inline-size: var(--prose-measure);
+}
+
+@media (min-width: 75rem) {
+  .section {
+    padding-inline: var(--space-page-wide);
+  }
+}
+
+@media (max-width: 47.99rem) {
+  .section {
+    padding-block: var(--space-40);
+  }
+
+  .title {
+    font-size: var(--font-size-heading);
+    line-height: var(--line-height-heading);
+  }
+}

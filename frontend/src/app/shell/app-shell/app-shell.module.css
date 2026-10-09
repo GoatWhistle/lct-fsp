@@ -1,0 +1,56 @@
+.shell {
+  display: grid;
+  grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
+  min-block-size: 100dvh;
+}
+
+.shell[data-collapsed="true"] {
+  grid-template-columns: var(--sidebar-width-collapsed) minmax(0, 1fr);
+}
+
+.skip {
+  composes: controlText from "../../../shared/styles/compose.module.css";
+  position: fixed;
+  inset-block-start: var(--space-8);
+  inset-inline-start: var(--space-8);
+  z-index: var(--layer-tooltip);
+  padding: var(--space-12) var(--space-16);
+  border-radius: var(--radius-button);
+  background-color: var(--action-primary);
+  color: var(--text-on-action);
+  transform: translateY(calc(-100% - var(--space-16)));
+}
+
+.skip:focus-visible {
+  transform: none;
+}
+
+.side {
+  view-transition-name: sidebar;
+}
+
+.work {
+  display: flex;
+  flex-direction: column;
+  min-inline-size: 0;
+}
+
+.main {
+  flex: 1;
+  outline: none;
+}
+
+@media (max-width: 47.99rem) {
+  .shell,
+  .shell[data-collapsed="true"] {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .side {
+    display: none;
+  }
+
+  .main {
+    padding-block-end: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom));
+  }
+}

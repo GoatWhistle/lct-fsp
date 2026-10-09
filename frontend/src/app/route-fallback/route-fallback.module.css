@@ -1,0 +1,5 @@
+.fallback {
+  display: grid;
+  gap: var(--space-16);
+  padding: var(--space-page);
+}

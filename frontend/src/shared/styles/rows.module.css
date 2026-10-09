@@ -1,0 +1,19 @@
+.listRow {
+  display: grid;
+  border-block-end: var(--hairline) solid var(--border-hairline);
+  animation: var(--motion-rise-in);
+  animation-delay: calc(var(--i) * var(--stagger));
+}
+
+.listRowCompact {
+  composes: listRow;
+  padding-block: var(--space-12);
+}
+
+.rank {
+  composes: captionText monoText from "./compose.module.css";
+  grid-area: rank;
+  align-self: start;
+  color: var(--text-tertiary);
+  font-variant-numeric: var(--font-numeric);
+}

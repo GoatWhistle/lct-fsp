@@ -1,0 +1,37 @@
+.composer {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: var(--space-8) var(--space-12);
+  padding: var(--space-16);
+  border-block-start: var(--hairline) solid var(--border-hairline);
+}
+
+.field {
+  min-inline-size: 0;
+}
+
+.send {
+  align-self: end;
+}
+
+.hint {
+  composes: captionText from "../../../shared/styles/compose.module.css";
+  grid-column: 1 / -1;
+  color: var(--text-secondary);
+}
+
+@media (max-width: 47.99rem) {
+  .composer {
+    grid-template-columns: minmax(0, 1fr);
+    padding: var(--space-12);
+  }
+
+  .send {
+    justify-self: end;
+  }
+
+  .hint {
+    display: none;
+  }
+}

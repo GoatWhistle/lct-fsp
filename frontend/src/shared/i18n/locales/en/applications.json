@@ -1,0 +1,47 @@
+{
+  "listLabel": "Applications to vacancies",
+  "hint": "An application immediately shows you the candidate's name and contacts.",
+  "candidate": "Candidate {{tag}}",
+  "clearFilter": "Show applications to all vacancies",
+  "filtered": "One vacancy",
+  "toVacancies": "Go to vacancies",
+  "emptyTitle": "No applications yet",
+  "emptyText": "Publish a vacancy with a salary range and candidates will apply on their own.",
+  "pickTitle": "Pick an application",
+  "pickText": "Applications to your vacancies are listed on the left. Open one to see the candidate's profile and reply.",
+  "missingTitle": "Application not found",
+  "missingText": "The link may be outdated. Pick an application from the list.",
+  "terms": {
+    "salary": "Vacancy salary range",
+    "applied": "Applied",
+    "viewed": "Viewed",
+    "expires": "Reply by",
+    "notYet": "not yet"
+  },
+  "detail": {
+    "candidate": "Candidate {{tag}}",
+    "revokedTitle": "The candidate revoked access",
+    "revokedText": "The card is anonymous again: name and contacts are hidden. The application stays in the list.",
+    "open": "Open profile and contacts",
+    "openAnonymous": "Open the card",
+    "opening": "Opening",
+    "accept": "Accept",
+    "decline": "Decline"
+  },
+  "confirm": {
+    "accept": {
+      "title": "Accept the application?",
+      "text": "The candidate will see that the application is accepted. Then reach out using the contacts on the card.",
+      "action": "Accept application"
+    },
+    "decline": {
+      "title": "Decline the application?",
+      "text": "The candidate will see the refusal. The decision cannot be undone.",
+      "action": "Decline application"
+    }
+  },
+  "done": {
+    "accept": "Application accepted",
+    "decline": "Application declined"
+  }
+}

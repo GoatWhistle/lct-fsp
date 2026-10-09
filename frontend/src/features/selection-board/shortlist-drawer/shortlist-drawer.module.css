@@ -1,0 +1,23 @@
+.list {
+  display: grid;
+}
+
+.item {
+  display: grid;
+  grid-template-columns: auto auto minmax(0, 1fr);
+  align-items: center;
+  gap: var(--space-12);
+  padding-block: var(--space-8);
+  border-block-end: var(--hairline) solid var(--border-hairline);
+  animation: var(--motion-rise-in);
+}
+
+.id {
+  composes: monoText from "../../../shared/styles/compose.module.css";
+}
+
+.limit {
+  composes: captionText from "../../../shared/styles/compose.module.css";
+  margin-block-start: var(--space-12);
+  color: var(--text-tertiary);
+}

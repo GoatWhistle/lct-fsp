@@ -9,7 +9,7 @@ from datetime import date
 from typing import Annotated
 from urllib.parse import quote
 
-from fastapi import APIRouter, Depends, Request, Response
+from fastapi import APIRouter, Depends, Query, Request, Response
 
 from app.controller.deps import (
     ROLE_RESPONSES,
@@ -52,6 +52,7 @@ from app.domain.experience import (
     technology_years,
 )
 from app.domain.fsp import anonymized
+from app.domain.locale import DEFAULT_LOCALE, Locale
 from app.domain.resume_draft import CheckedResumeDraft, GradeHint
 from app.usecase import candidate as usecase
 
@@ -196,6 +197,7 @@ def download_pdf(
     renderer: ProfilePdfRendererDep,
     clock: ClockDep,
     freshness: ProfileFreshnessDep,
+    lang: Annotated[Locale, Query(description="Язык текстов PDF")] = DEFAULT_LOCALE,
 ) -> Response:
     pdf = usecase.profile_pdf(
         uow,
@@ -205,8 +207,9 @@ def download_pdf(
         clock,
         freshness,
         grade_confidence=mechanics.grade_confidence,
+        locale=lang,
     )
-    filename = quote(f"Профиль кандидата — {pdf.full_name}.pdf")
+    filename = quote(f"{pdf.full_name}.pdf")
     return Response(
         pdf.content,
         media_type="application/pdf",

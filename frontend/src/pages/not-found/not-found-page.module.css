@@ -1,0 +1,40 @@
+.page {
+  composes: screen from "../../shared/styles/layout.module.css";
+}
+
+.body {
+  display: grid;
+  align-content: center;
+  justify-items: start;
+  gap: var(--space-20);
+  max-inline-size: var(--lead-measure);
+}
+
+.trace {
+  composes: traceArt from "../../shared/styles/compose.module.css";
+}
+
+.line {
+  composes: traceLine from "../../shared/styles/compose.module.css";
+}
+
+.node {
+  fill: var(--text-accent);
+}
+
+.end {
+  fill: none;
+  stroke: var(--text-danger);
+  stroke-width: var(--focus-ring-width);
+  animation: var(--motion-node-in);
+  animation-delay: var(--dur-draw);
+}
+
+.title {
+  composes: headingLgText from "../../shared/styles/compose.module.css";
+  outline: none;
+}
+
+.text {
+  color: var(--text-secondary);
+}

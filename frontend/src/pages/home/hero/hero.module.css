@@ -1,0 +1,74 @@
+.hero {
+  composes: screen from "../../../shared/styles/layout.module.css";
+  background-color: var(--surface-focus);
+}
+
+.body {
+  display: grid;
+  grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
+  align-items: center;
+  gap: var(--space-40);
+}
+
+.copy {
+  display: grid;
+  gap: var(--space-24);
+  align-content: center;
+  animation: var(--motion-rise-in);
+}
+
+.title {
+  composes: displayText from "../../../shared/styles/compose.module.css";
+  max-inline-size: var(--hero-title-measure);
+  font-size: var(--font-size-display);
+  line-height: var(--line-height-display);
+}
+
+.lead {
+  composes: leadText from "../../../shared/styles/compose.module.css";
+  max-inline-size: var(--lead-measure);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-12);
+}
+
+.login {
+  color: var(--text-secondary);
+  font-size: var(--font-size-body-sm);
+}
+
+.loginLink {
+  color: var(--text-accent);
+}
+
+@media (min-width: 75rem) {
+  .title {
+    font-size: var(--font-size-hero);
+    line-height: var(--line-height-hero);
+  }
+}
+
+@media (max-width: 63.99rem) {
+  .body {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .heroArt {
+    order: -1;
+    inline-size: min(100%, var(--hero-art-size-compact));
+  }
+}
+
+@media (max-width: 47.99rem) {
+  .title {
+    font-size: var(--font-size-heading-lg);
+    line-height: var(--line-height-heading-lg);
+  }
+
+  .hero {
+    min-block-size: auto;
+  }
+}

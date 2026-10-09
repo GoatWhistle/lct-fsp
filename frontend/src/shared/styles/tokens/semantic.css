@@ -1,0 +1,226 @@
+:root,
+:root[data-theme="light"] {
+  color-scheme: light;
+
+  --surface-canvas: var(--fsp-mist);
+  --surface-card: var(--fsp-white);
+  --surface-card-hover: color-mix(in oklab, var(--fsp-white), var(--fsp-graphite) 4%);
+  --surface-raised: var(--fsp-white);
+  --surface-tint: color-mix(in oklab, var(--fsp-white), var(--fsp-blue) 7%);
+  --surface-tint-hover: color-mix(in oklab, var(--fsp-white), var(--fsp-blue) 12%);
+  --surface-selected: color-mix(in oklab, var(--fsp-white), var(--fsp-blue) 9%);
+  --surface-inverse: var(--fsp-graphite);
+  --surface-inverse-strong: var(--fsp-graphite-deep);
+  --surface-sidebar: var(--fsp-graphite);
+  --surface-focus: var(--fsp-graphite);
+  --surface-brand: var(--fsp-blue);
+  --surface-scrim: color-mix(in oklab, var(--fsp-graphite) 48%, transparent);
+  --surface-skeleton: color-mix(in oklab, var(--fsp-white), var(--fsp-graphite) 7%);
+  --surface-track-off: color-mix(in oklab, var(--fsp-white), var(--fsp-graphite) 16%);
+  --surface-option-active: var(--surface-tint);
+  --surface-tooltip: var(--fsp-graphite);
+
+  --text-primary: var(--fsp-graphite);
+  --text-secondary: var(--fsp-ink-soft);
+  --text-tertiary: var(--fsp-ink-mute);
+  --text-disabled: color-mix(in oklab, var(--fsp-graphite) 40%, var(--fsp-white));
+  --text-accent: var(--fsp-blue);
+  --text-danger: var(--fsp-red-deep);
+  --text-on-inverse: var(--fsp-smoke);
+  --text-on-inverse-secondary: var(--fsp-ash);
+  --text-on-action: var(--fsp-white);
+  --text-on-action-dark: var(--fsp-smoke);
+  --text-on-brand: var(--fsp-white);
+  --text-on-tooltip: var(--fsp-smoke);
+
+  --action-primary: var(--fsp-blue);
+  --action-primary-hover: var(--fsp-blue-deep);
+  --action-primary-press: var(--fsp-blue-deeper);
+  --action-danger: var(--fsp-red-deep);
+  --action-danger-hover: color-mix(in oklab, var(--fsp-red-deep), var(--fsp-graphite) 12%);
+  --action-dark: var(--fsp-graphite);
+  --action-dark-hover: var(--fsp-graphite-high);
+  --action-ghost-hover: color-mix(in oklab, currentColor 7%, transparent);
+  --action-ghost-press: color-mix(in oklab, currentColor 13%, transparent);
+  --action-disabled: color-mix(in oklab, var(--fsp-white), var(--fsp-graphite) 8%);
+  --action-inverse-hover: color-mix(in oklab, var(--fsp-white) 10%, transparent);
+
+  --signal-neutral: var(--fsp-graphite);
+  --signal-attention: var(--fsp-blue);
+  --signal-critical: var(--fsp-red-deep);
+
+  --border-hairline: color-mix(in oklab, var(--fsp-graphite) 12%, transparent);
+  --border-strong: color-mix(in oklab, var(--fsp-graphite) 28%, transparent);
+  --border-input: color-mix(in oklab, var(--fsp-graphite) 56%, transparent);
+  --border-invalid: var(--fsp-red-deep);
+  --border-inverse: color-mix(in oklab, var(--fsp-white) 16%, transparent);
+  --border-raised: transparent;
+
+  --scrollbar-thumb: color-mix(in oklab, var(--fsp-graphite) 26%, transparent);
+  --scrollbar-thumb-hover: color-mix(in oklab, var(--fsp-graphite) 46%, transparent);
+  --scrollbar-thumb-card: var(--scrollbar-thumb);
+  --scrollbar-thumb-card-hover: var(--scrollbar-thumb-hover);
+  --scrollbar-thumb-canvas: var(--scrollbar-thumb);
+  --scrollbar-thumb-canvas-hover: var(--scrollbar-thumb-hover);
+  --scrollbar-thumb-inverse: color-mix(in oklab, var(--fsp-white) 24%, transparent);
+
+  --focus-ring-color: var(--fsp-blue);
+  --focus-ring-color-inverse: var(--fsp-blue-light);
+  --focus-ring-width: 2px;
+  --focus-ring-offset: 2px;
+
+  --data-level: var(--fsp-blue);
+  --data-band: color-mix(in oklab, var(--fsp-blue) 20%, transparent);
+  --data-threshold: color-mix(in oklab, var(--fsp-graphite) 30%, transparent);
+  --data-track: color-mix(in oklab, var(--fsp-graphite) 7%, transparent);
+  --data-zone: color-mix(in oklab, var(--fsp-graphite) 4%, transparent);
+  --data-required: var(--fsp-graphite);
+  --data-fsp: var(--fsp-red);
+  --data-muted: color-mix(in oklab, var(--fsp-graphite) 22%, transparent);
+
+  --brand-mark-neutral: var(--fsp-ash);
+  --brand-mark-red: var(--fsp-red);
+  --brand-mark-blue: var(--fsp-blue);
+
+  --shadow-ring: inset 0 0 0 var(--hairline) var(--border-strong);
+  --shadow-ring-focus: inset 0 0 0 var(--hairline) var(--focus-ring-color);
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  --surface-canvas: var(--fsp-graphite);
+  --surface-card: var(--fsp-graphite-raised);
+  --surface-card-hover: var(--fsp-graphite-high);
+  --surface-raised: var(--fsp-graphite-high);
+  --surface-tint: color-mix(in oklab, var(--fsp-graphite-raised), var(--fsp-blue) 12%);
+  --surface-tint-hover: color-mix(in oklab, var(--fsp-graphite-raised), var(--fsp-blue) 18%);
+  --surface-selected: color-mix(in oklab, var(--fsp-graphite-raised), var(--fsp-blue) 18%);
+  --surface-inverse: var(--fsp-graphite-deep);
+  --surface-inverse-strong: var(--fsp-graphite-deep);
+  --surface-sidebar: var(--fsp-graphite-deep);
+  --surface-focus: var(--fsp-graphite-deep);
+  --surface-brand: var(--fsp-blue);
+  --surface-scrim: color-mix(in oklab, var(--fsp-graphite-deep) 70%, transparent);
+  --surface-skeleton: color-mix(in oklab, var(--fsp-graphite-raised), var(--fsp-smoke) 8%);
+  --surface-track-off: color-mix(in oklab, var(--fsp-graphite-raised), var(--fsp-smoke) 20%);
+  --surface-option-active: var(--surface-tint);
+  --surface-tooltip: var(--fsp-smoke);
+
+  --text-primary: var(--fsp-smoke);
+  --text-secondary: var(--fsp-ash);
+  --text-tertiary: var(--fsp-ash-dim);
+  --text-disabled: color-mix(in oklab, var(--fsp-smoke) 40%, var(--fsp-graphite));
+  --text-accent: var(--fsp-blue-light);
+  --text-danger: var(--fsp-red-light);
+  --text-on-inverse: var(--fsp-smoke);
+  --text-on-inverse-secondary: var(--fsp-ash);
+  --text-on-action: var(--fsp-white);
+  --text-on-action-dark: var(--fsp-graphite);
+  --text-on-brand: var(--fsp-white);
+  --text-on-tooltip: var(--fsp-graphite);
+
+  --action-primary: var(--fsp-blue-bright);
+  --action-primary-hover: color-mix(in oklab, var(--fsp-blue-bright), var(--fsp-white) 10%);
+  --action-primary-press: var(--fsp-blue);
+  --action-danger: var(--fsp-red-deep);
+  --action-danger-hover: color-mix(in oklab, var(--fsp-red-deep), var(--fsp-white) 8%);
+  --action-dark: var(--fsp-smoke);
+  --action-dark-hover: var(--fsp-ash);
+  --action-ghost-hover: color-mix(in oklab, currentColor 9%, transparent);
+  --action-ghost-press: color-mix(in oklab, currentColor 15%, transparent);
+  --action-disabled: color-mix(in oklab, var(--fsp-graphite-raised), var(--fsp-smoke) 8%);
+  --action-inverse-hover: color-mix(in oklab, var(--fsp-white) 10%, transparent);
+
+  --signal-neutral: var(--fsp-smoke);
+  --signal-attention: var(--fsp-blue-light);
+  --signal-critical: var(--fsp-red-light);
+
+  --border-hairline: color-mix(in oklab, var(--fsp-smoke) 11%, transparent);
+  --border-strong: color-mix(in oklab, var(--fsp-smoke) 24%, transparent);
+  --border-input: color-mix(in oklab, var(--fsp-smoke) 46%, transparent);
+  --border-invalid: var(--fsp-red-light);
+  --border-inverse: color-mix(in oklab, var(--fsp-white) 16%, transparent);
+  --border-raised: color-mix(in oklab, var(--fsp-smoke) 14%, transparent);
+
+  --scrollbar-thumb: color-mix(in oklab, var(--fsp-smoke) 22%, transparent);
+  --scrollbar-thumb-hover: color-mix(in oklab, var(--fsp-smoke) 40%, transparent);
+  --scrollbar-thumb-card: var(--scrollbar-thumb);
+  --scrollbar-thumb-card-hover: var(--scrollbar-thumb-hover);
+  --scrollbar-thumb-canvas: var(--scrollbar-thumb);
+  --scrollbar-thumb-canvas-hover: var(--scrollbar-thumb-hover);
+  --scrollbar-thumb-inverse: color-mix(in oklab, var(--fsp-white) 24%, transparent);
+
+  --focus-ring-color: var(--fsp-blue-light);
+  --focus-ring-color-inverse: var(--fsp-blue-light);
+  --focus-ring-width: 2px;
+  --focus-ring-offset: 2px;
+
+  --data-level: var(--fsp-blue-light);
+  --data-band: color-mix(in oklab, var(--fsp-blue-light) 30%, transparent);
+  --data-threshold: color-mix(in oklab, var(--fsp-smoke) 30%, transparent);
+  --data-track: color-mix(in oklab, var(--fsp-smoke) 8%, transparent);
+  --data-zone: color-mix(in oklab, var(--fsp-smoke) 4%, transparent);
+  --data-required: var(--fsp-smoke);
+  --data-fsp: var(--fsp-red-light);
+  --data-muted: color-mix(in oklab, var(--fsp-smoke) 22%, transparent);
+
+  --brand-mark-neutral: var(--fsp-smoke);
+  --brand-mark-red: var(--fsp-red);
+  --brand-mark-blue: var(--fsp-blue);
+
+  --shadow-ring: inset 0 0 0 var(--hairline) var(--border-strong);
+  --shadow-ring-focus: inset 0 0 0 var(--hairline) var(--focus-ring-color);
+}
+
+[data-surface="inverse"] {
+  --text-primary: var(--fsp-smoke);
+  --text-secondary: var(--fsp-ash);
+  --text-tertiary: var(--fsp-ash-dim);
+  --text-disabled: color-mix(in oklab, var(--fsp-smoke) 40%, var(--fsp-graphite));
+  --text-accent: var(--fsp-blue-light);
+  --text-danger: var(--fsp-red-light);
+  --surface-card: var(--fsp-graphite-raised);
+  --surface-card-hover: var(--fsp-graphite-high);
+  --surface-tint: color-mix(in oklab, var(--fsp-graphite), var(--fsp-blue) 26%);
+  --surface-tint-hover: color-mix(in oklab, var(--fsp-graphite), var(--fsp-blue) 34%);
+  --surface-option-active: var(--surface-tint);
+  --surface-skeleton: color-mix(in oklab, var(--fsp-graphite), var(--fsp-smoke) 10%);
+  --border-hairline: color-mix(in oklab, var(--fsp-smoke) 12%, transparent);
+  --border-strong: color-mix(in oklab, var(--fsp-smoke) 26%, transparent);
+  --border-input: color-mix(in oklab, var(--fsp-smoke) 46%, transparent);
+  --action-dark: var(--fsp-smoke);
+  --action-dark-hover: var(--fsp-ash);
+  --action-ghost-hover: color-mix(in oklab, var(--fsp-white) 9%, transparent);
+  --action-ghost-press: color-mix(in oklab, var(--fsp-white) 15%, transparent);
+  --scrollbar-thumb: color-mix(in oklab, var(--fsp-white) 24%, transparent);
+  --scrollbar-thumb-hover: color-mix(in oklab, var(--fsp-white) 40%, transparent);
+  --focus-ring-color: var(--fsp-blue-light);
+  --data-level: var(--fsp-blue-light);
+  --data-band: color-mix(in oklab, var(--fsp-blue-light) 30%, transparent);
+  --data-track: color-mix(in oklab, var(--fsp-smoke) 10%, transparent);
+  --data-threshold: color-mix(in oklab, var(--fsp-smoke) 30%, transparent);
+  --brand-mark-neutral: var(--fsp-smoke);
+
+  color: var(--text-primary);
+  color-scheme: dark;
+
+  --shadow-ring: inset 0 0 0 var(--hairline) var(--border-strong);
+  --shadow-ring-focus: inset 0 0 0 var(--hairline) var(--focus-ring-color);
+}
+
+[data-surface="brand"] {
+  --text-primary: var(--fsp-white);
+  --text-secondary: color-mix(in oklab, var(--fsp-white) 82%, var(--fsp-blue));
+  --text-accent: var(--fsp-white);
+  --border-hairline: color-mix(in oklab, var(--fsp-white) 24%, transparent);
+  --action-ghost-hover: color-mix(in oklab, var(--fsp-white) 12%, transparent);
+  --action-ghost-press: color-mix(in oklab, var(--fsp-white) 18%, transparent);
+  --focus-ring-color: var(--fsp-white);
+  --brand-mark-neutral: var(--fsp-smoke);
+
+  color: var(--text-primary);
+
+  --shadow-ring: inset 0 0 0 var(--hairline) var(--border-strong);
+  --shadow-ring-focus: inset 0 0 0 var(--hairline) var(--focus-ring-color);
+}

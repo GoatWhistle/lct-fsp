@@ -1,0 +1,49 @@
+.list {
+  display: grid;
+  gap: var(--space-8);
+}
+
+.row {
+  display: grid;
+  grid-template-columns: var(--grade-label-width) minmax(0, 1fr) var(--grade-value-width);
+  align-items: center;
+  gap: var(--space-12);
+}
+
+.grade,
+.value {
+  composes: labelText from "../../../shared/styles/compose.module.css";
+  color: var(--text-secondary);
+}
+
+.value {
+  text-align: end;
+}
+
+.row[data-highlight="true"] .grade,
+.row[data-highlight="true"] .value {
+  color: var(--text-primary);
+  font-weight: var(--weight-semibold);
+}
+
+.bar {
+  composes: dataTrack from "../track.module.css";
+  block-size: var(--space-8);
+}
+
+.fill {
+  position: absolute;
+  inset: 0;
+  background-color: var(--data-band);
+  transform: scaleX(var(--fill));
+  transform-origin: left center;
+}
+
+.row[data-highlight="true"] .fill {
+  background-color: var(--data-level);
+}
+
+.list[data-animate="true"] .fill {
+  animation: var(--motion-grow-x);
+  animation-delay: calc(var(--dur-slow) + var(--i) * var(--stagger));
+}

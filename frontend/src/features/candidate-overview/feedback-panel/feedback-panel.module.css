@@ -1,0 +1,55 @@
+.few {
+  composes: prose from "../../../shared/styles/layout.module.css";
+}
+
+.stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(var(--tile-min-compact), 1fr));
+  gap: var(--space-16);
+}
+
+.hints {
+  display: grid;
+}
+
+.hint {
+  composes: ruledRow from "../../../shared/styles/compose.module.css";
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: var(--space-8) var(--space-12);
+  padding-block: var(--space-16);
+}
+
+.hint:last-child {
+  padding-block-end: 0;
+}
+
+.hintIcon {
+  margin-block-start: var(--space-4);
+  color: var(--text-accent);
+}
+
+.hintBody {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.hintTitle {
+  composes: bodySmText from "../../../shared/styles/compose.module.css";
+  font-weight: var(--weight-medium);
+}
+
+.hintText {
+  composes: secondaryText from "../../../shared/styles/compose.module.css";
+}
+
+.gain {
+  composes: labelText from "../../../shared/styles/compose.module.css";
+  color: var(--text-accent);
+  font-variant-numeric: var(--font-numeric);
+}
+
+.hintAction {
+  grid-column: 2;
+  justify-self: start;
+}

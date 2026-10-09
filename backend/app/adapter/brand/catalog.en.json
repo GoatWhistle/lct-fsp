@@ -1,0 +1,84 @@
+{
+  "specialization": {
+    "backend": "Backend",
+    "frontend": "Frontend",
+    "data-ml": "Data and ML",
+    "qa": "QA",
+    "devops": "DevOps"
+  },
+  "grade": {
+    "intern": "Intern",
+    "junior": "Junior",
+    "middle": "Middle",
+    "senior": "Senior",
+    "belowIntern": "below intern"
+  },
+  "topic": {
+    "backend.programming": "Programming language and standard library",
+    "backend.algorithms": "Algorithms and data structures",
+    "backend.databases": "Databases and SQL",
+    "backend.api": "HTTP and API design",
+    "backend.concurrency": "Concurrency and async",
+    "backend.distributed": "Queues, caches and distributed systems",
+    "backend.testing": "Testing",
+    "backend.security": "Application security",
+    "frontend.javascript": "JavaScript and TypeScript",
+    "frontend.markup": "HTML, CSS and layout",
+    "frontend.frameworks": "Component frameworks and state",
+    "frontend.browser": "Browser, network and performance",
+    "frontend.algorithms": "Algorithms and data structures",
+    "frontend.testing": "UI testing",
+    "data-ml.math": "Maths, probability and statistics",
+    "data-ml.sql": "SQL and data processing",
+    "data-ml.python": "Python for data analysis",
+    "data-ml.ml": "Classical machine learning",
+    "data-ml.deep-learning": "Deep learning",
+    "data-ml.mlops": "Model deployment and operations",
+    "qa.theory": "Testing theory and test design",
+    "qa.api": "API testing",
+    "qa.automation": "Test automation",
+    "qa.databases": "Databases and SQL",
+    "qa.performance": "Load testing",
+    "devops.linux": "Linux and networking",
+    "devops.containers": "Containers and orchestration",
+    "devops.ci-cd": "CI/CD",
+    "devops.iac": "Infrastructure as code",
+    "devops.observability": "Monitoring and logging",
+    "devops.scripting": "Scripting and automation"
+  },
+  "industry": {
+    "fintech": "Fintech and banking",
+    "e-commerce": "E-commerce and retail",
+    "government": "Public sector",
+    "telecom": "Telecom",
+    "industry": "Industry and energy",
+    "healthcare": "Healthcare",
+    "education": "Education",
+    "media": "Media, games and entertainment",
+    "logistics": "Transport and logistics",
+    "it-products": "IT products and outsourcing"
+  },
+  "discipline": {
+    "algorithmic": "Algorithmic programming",
+    "product": "Product programming",
+    "security": "Information security programming",
+    "robotics": "Robotics programming",
+    "uav": "Unmanned aerial systems programming"
+  },
+  "workFormat": {
+    "office": "Office",
+    "hybrid": "Hybrid",
+    "remote": "Remote"
+  },
+  "fspResult": {
+    "winner": "Winner",
+    "prize": "Prize-winner",
+    "finalist": "Finalist",
+    "participant": "Qualifier participant"
+  },
+  "importance": {
+    "key": "Key",
+    "important": "Important",
+    "nice": "Nice to have"
+  }
+}

@@ -1,0 +1,80 @@
+.frame {
+  composes: frame from "../../../styles/control.module.css";
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-8);
+  padding: var(--space-4) var(--space-12);
+  cursor: text;
+}
+
+.frame:focus-within {
+  border-color: var(--action-primary);
+}
+
+.frame[data-disabled="true"] {
+  cursor: not-allowed;
+  color: var(--text-disabled);
+}
+
+.input {
+  composes: bodySmText from "../../../styles/compose.module.css";
+  flex: 1 1 var(--combobox-input-min);
+  min-inline-size: 0;
+  min-block-size: var(--target-min);
+  border: 0;
+  background: none;
+  outline: none;
+}
+
+.input::placeholder {
+  color: var(--text-tertiary);
+}
+
+.icon {
+  flex: none;
+  color: var(--text-tertiary);
+}
+
+.count {
+  composes: captionText monoText from "../../../styles/compose.module.css";
+  color: var(--text-tertiary);
+}
+
+.popover {
+  display: grid;
+  padding: 0;
+  overflow: hidden;
+}
+
+.scroller {
+  max-block-size: var(--popover-max-height);
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  padding: var(--space-4);
+}
+
+.option {
+  composes: controlText listItem from "../../../styles/compose.module.css";
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-12);
+}
+
+.option[data-active="true"] {
+  background-color: var(--surface-option-active);
+}
+
+.hint {
+  color: var(--text-tertiary);
+}
+
+.empty {
+  composes: captionText from "../../../styles/compose.module.css";
+  padding: var(--space-12);
+  color: var(--text-tertiary);
+}

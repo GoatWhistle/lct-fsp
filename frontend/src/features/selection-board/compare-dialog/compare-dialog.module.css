@@ -1,0 +1,32 @@
+.table {
+  inline-size: 100%;
+  min-inline-size: var(--compare-min-width);
+  border-collapse: collapse;
+  font-size: var(--font-size-body-sm);
+}
+
+.table th,
+.table td {
+  padding: var(--space-12);
+  border-block-end: var(--hairline) solid var(--border-hairline);
+  text-align: start;
+  vertical-align: middle;
+}
+
+.table th[scope="row"] {
+  font-weight: var(--weight-medium);
+}
+
+.table thead th {
+  color: var(--text-tertiary);
+  font-weight: var(--weight-medium);
+}
+
+.candidate {
+  font-family: var(--font-mono);
+}
+
+.score {
+  font-family: var(--font-mono);
+  font-weight: var(--weight-semibold);
+}

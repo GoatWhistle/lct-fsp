@@ -6,6 +6,7 @@ import { HintRow } from "./hint-row"
 
 export interface FeedbackPanelProps {
   readonly motionIndex?: number
+  readonly withoutFspLink?: boolean
   readonly className?: string | undefined
 }
 
@@ -42,9 +43,16 @@ function Placement() {
   )
 }
 
-export function FeedbackPanel({ motionIndex, className }: FeedbackPanelProps) {
+export function FeedbackPanel({
+  motionIndex,
+  withoutFspLink = false,
+  className,
+}: FeedbackPanelProps) {
   const { t } = useTranslation("overview")
   const feedback = useFeedback()
+  const hints = (feedback.data?.hints ?? []).filter(
+    (hint) => !withoutFspLink || hint.action.kind !== "link_fsp",
+  )
   return (
     <Card
       title={t("feedback.title")}
@@ -63,9 +71,9 @@ export function FeedbackPanel({ motionIndex, className }: FeedbackPanelProps) {
       ) : (
         <>
           <Placement />
-          {feedback.data.hints.length === 0 ? null : (
+          {hints.length === 0 ? null : (
             <ul className={styles.hints} aria-label={t("feedback.hints")}>
-              {feedback.data.hints.map((hint, index) => (
+              {hints.map((hint, index) => (
                 <HintRow key={hint.topic?.code ?? hint.action.kind} hint={hint} index={index} />
               ))}
             </ul>

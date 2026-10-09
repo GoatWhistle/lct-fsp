@@ -14,7 +14,7 @@ export function CandidateProfilePage() {
         <FspReturn />
         <ProfileEditor
           fspLinkAction={<FspSignIn intent="link" label={t("fsp.link")} />}
-          before={<FeedbackPanel />}
+          before={<FeedbackPanel withoutFspLink />}
         />
       </PageBody>
     </>

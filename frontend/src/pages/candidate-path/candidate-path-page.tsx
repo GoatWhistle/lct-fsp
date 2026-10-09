@@ -12,7 +12,7 @@ import { VerificationCard } from "@/features/test-verification"
 import type { CandidatePath } from "@/shared/api"
 import { useCatalogNames, useDocumentTitle, useTranslation } from "@/shared/i18n"
 import { Swap } from "@/shared/motion"
-import { ButtonLink, Card, LoadError, PageBody, PageHeader, Skeleton } from "@/shared/ui"
+import { ButtonLink, Card, LoadError, Meter, PageBody, PageHeader, Skeleton } from "@/shared/ui"
 import styles from "./candidate-path-page.module.css"
 import { PathTrace } from "./path-trace"
 
@@ -21,11 +21,23 @@ const TEST_ROUTE = "/candidate/test"
 function InProgress({ path }: { readonly path: CandidatePath }) {
   const { t } = useTranslation("path")
   const names = useCatalogNames()
+  const attempt = path.attempt
   return (
     <Card
-      title={t("inProgress.title", { grade: names.grade(path.attempt?.grade ?? "") })}
+      title={t("inProgress.title", { grade: names.grade(attempt?.grade ?? "") })}
       description={t("inProgress.text")}
+      className={styles.step}
     >
+      {attempt === null ? null : (
+        <Meter
+          label={t("inProgress.progressLabel")}
+          value={attempt.max_items === 0 ? 0 : attempt.answered / attempt.max_items}
+          valueText={t("inProgress.progress", {
+            answered: attempt.answered,
+            max: attempt.max_items,
+          })}
+        />
+      )}
       <div>
         <ButtonLink to={TEST_ROUTE} icon="test">
           {t("inProgress.action")}

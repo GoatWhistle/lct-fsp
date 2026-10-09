@@ -67,7 +67,20 @@
     "stackNone": "The candidate has not listed a stack",
     "card": "Open profile",
     "close": "Close explanation",
-    "unconfirmed": "Not confirmed by the test: no fit score."
+    "unconfirmed": "Not confirmed by the test: no fit score.",
+    "acceptance": "Acceptance probability",
+    "acceptanceLead": "The candidate will accept the invitation with probability {{value}}. Factor contributions:",
+    "factorValue": "{{value}}",
+    "acceptanceBase": "Baseline {{base}}, total {{logit}}: the contributions add up exactly.",
+    "factors": {
+      "salary": "Salary range",
+      "grade": "Grade",
+      "format": "Work format",
+      "city": "City",
+      "load": "Invitation load",
+      "match": "Match",
+      "industry": "Company industry"
+    }
   },
   "shortlist": {
     "open": "Favorites",
@@ -99,11 +112,22 @@
     "sent": "Invitation sent",
     "open": "Open invitations",
     "required": "Fill in the text, salary range and contact",
-    "salaryOrder": "The upper bound is below the lower bound"
+    "salaryOrder": "The upper bound is below the lower bound",
+    "hint": {
+      "probability": "Acceptance probability for {{range}}: {{value}}",
+      "suggest": "To reach {{target}}, offer {{range}}.",
+      "enough": "Target {{target}} is reached. The lowest range for it: {{range}}.",
+      "unreachable": "Target {{target}} cannot be reached within market ranges, so there is no hint.",
+      "rounding": "The hinted range is rounded to ₽{{step}}",
+      "apply": "Use this range"
+    }
   },
   "filterStatus": {
     "confirmed": "Confirmed by the test",
     "below_claimed": "Below the claimed grade",
     "unconfirmed": "Not confirmed"
+  },
+  "order": {
+    "matchOnly": "Match only"
   }
 }

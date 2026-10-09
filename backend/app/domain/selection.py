@@ -14,6 +14,7 @@ P(принятия) у них нет, порядок — только по са�
 же выдачей; перестроение — новая подборка.
 """
 
+import dataclasses
 import enum
 import uuid
 from collections import Counter, defaultdict
@@ -289,6 +290,29 @@ class AcceptanceFeatures:
     company_industry: str | None
 
 
+@dataclass(frozen=True)
+class AcceptanceExplanation:
+    """SHAP-объяснение P(принятия) (§13): вклады факторов в логит модели, точно аддитивные —
+    `base` плюс сумма вкладов равна логиту P. Факторы — `app.domain.acceptance.FACTORS`."""
+
+    base: float
+    contributions: Mapping[str, float]
+
+    @property
+    def logit(self) -> float:
+        return self.base + sum(self.contributions.values())
+
+
+@dataclass(frozen=True)
+class AcceptanceDetails:
+    """Что известно о P(принятия) строки подборки на момент построения: признаки, по которым её
+    считали, — из них считается подсказка по вилке, — и объяснение. Наружу признаки не идут:
+    ожидание кандидата работодателю не раскрывается (§14)."""
+
+    features: AcceptanceFeatures
+    explanation: AcceptanceExplanation
+
+
 # Признаки модели принятия — объявлены для теста на защищённые (§17): совпадают с полями
 # `AcceptanceFeatures`.
 ACCEPTANCE_FEATURES = (
@@ -453,6 +477,8 @@ class SelectionEntry:
     explanation: Explanation
     # Последний сигнал профиля старше `profile_stale_days`; в нижнем блоке профиля нет.
     stale: bool
+    # None — модели принятия нет или у потребности нет вилки, либо нижний блок.
+    acceptance: AcceptanceDetails | None = None
 
     @property
     def grade(self) -> CatalogRef:
@@ -465,19 +491,26 @@ def arrange(
     acceptance: Sequence[float | None],
     *,
     showcased: Sequence[Showcased] = (),
+    details: Sequence[AcceptanceDetails | None] | None = None,
     salt: int,
     now: datetime,
     rules: SelectionRules,
 ) -> list[SelectionEntry]:
     """Выдача: блоки в порядке `BLOCK_ORDER`, внутри блока — по S × P, ничьи — по соли.
-    `acceptance` — P(принятия) по порядку `scored`. Нижний блок — `showcased`, по доле стека:
+    `acceptance` — P(принятия) по порядку `scored`, `details` — признаки и объяснение P в том же
+    порядке. Нижний блок — `showcased`, по доле стека:
     он идёт после всех кандидатов с категорией."""
     if len(acceptance) != len(scored):
         raise ValueError("P(принятия) — по одной на кандидата")
-    blocks: defaultdict[SelectionBlock, dict[uuid.UUID, tuple[Scored, float | None]]]
+    if details is not None and len(details) != len(scored):
+        raise ValueError("объяснение P(принятия) — по одному на кандидата")
+    given = details if details is not None else [None] * len(scored)
+    blocks: defaultdict[
+        SelectionBlock, dict[uuid.UUID, tuple[Scored, float | None, AcceptanceDetails | None]]
+    ]
     blocks = defaultdict(dict)
-    for item, probability in zip(scored, acceptance, strict=True):
-        blocks[item.block][item.candidate.candidate_id] = (item, probability)
+    for item, probability, detail in zip(scored, acceptance, given, strict=True):
+        blocks[item.block][item.candidate.candidate_id] = (item, probability, detail)
     if SelectionBlock.unconfirmed in blocks:
         raise ValueError("у кандидата нижнего блока нет скора по темам")
     if {s.candidate.candidate_id for s in showcased} & {i.candidate.candidate_id for i in scored}:
@@ -489,9 +522,9 @@ def arrange(
             entries.extend(_bottom(showcased, len(entries), salt))
             continue
         members = blocks.pop(block, {})
-        mutual = {c: mutual_score(item.match.score, p) for c, (item, p) in members.items()}
+        mutual = {c: mutual_score(item.match.score, p) for c, (item, p, _) in members.items()}
         for rank, candidate_id in enumerate(ranking(mutual, salt), start=1):
-            item, probability = members[candidate_id]
+            item, probability, detail = members[candidate_id]
             status = grade_status(item.candidate.grade, item.candidate.claimed)
             assert status is not None, "у кандидата с категорией статус есть всегда"
             entries.append(
@@ -512,6 +545,7 @@ def arrange(
                         item.candidate.verification_topics,
                     ),
                     stale=is_stale(item.candidate.last_signal_at, now, rules.stale_after),
+                    acceptance=detail,
                 )
             )
     if blocks:
@@ -594,6 +628,29 @@ class Page(Summary):
     # Страница выдачи после фильтров с `offset + 1`-й строки; места и ранги — исходные.
     entries: tuple[SelectionEntry, ...]
     offset: int
+
+
+class SelectionOrder(enum.StrEnum):
+    # Сохранённый порядок: по S × P(принятия).
+    mutual = "mutual"
+    # Только соответствие: по S, без множителя P(принятия).
+    match = "match"
+
+
+def in_order(entries: Sequence[SelectionEntry], order: SelectionOrder) -> list[SelectionEntry]:
+    """Выдача в нужном порядке. `match` переставляет строки внутри блока по S; ничьи остаются в
+    сохранённом порядке, блоки не смешиваются, нижний блок без S не двигается. Места и ранги
+    пересчитываются под показанный порядок: сохранённая выдача не меняется."""
+    if order is SelectionOrder.mutual:
+        return list(entries)
+    result: list[SelectionEntry] = []
+    for block in BLOCK_ORDER:
+        members = [e for e in entries if e.block is block]
+        if block is not SelectionBlock.unconfirmed:
+            members.sort(key=lambda e: -(e.match_score or 0.0))
+        for rank, entry in enumerate(members, start=1):
+            result.append(dataclasses.replace(entry, position=len(result) + 1, rank=rank))
+    return result
 
 
 def page_of(

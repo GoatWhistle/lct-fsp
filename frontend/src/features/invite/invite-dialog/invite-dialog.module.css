@@ -6,23 +6,3 @@
 .budget {
   composes: captionText from "../../../shared/styles/compose.module.css";
 }
-
-.salary {
-  composes: bareFieldset from "../../../shared/styles/compose.module.css";
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--space-8) var(--space-16);
-  max-inline-size: var(--field-max-width);
-}
-
-.legend {
-  composes: fieldLabel from "../../../shared/styles/compose.module.css";
-  margin-block-end: var(--space-8);
-  padding-inline: 0;
-}
-
-.basis {
-  composes: captionText from "../../../shared/styles/compose.module.css";
-  grid-column: 1 / -1;
-  color: var(--text-tertiary);
-}

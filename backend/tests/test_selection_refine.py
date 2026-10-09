@@ -3,6 +3,7 @@
 
 import uuid
 from collections.abc import Callable
+from typing import Any
 
 import pytest
 
@@ -21,7 +22,7 @@ from tests.test_selection_scenarios import (
 
 __all__ = ["make"]
 
-PAGE = {"offset": 0, "limit": 100}
+PAGE: dict[str, Any] = {"offset": 0, "limit": 100}
 
 
 def built(h: Harness) -> tuple[list[uuid.UUID], Page]:

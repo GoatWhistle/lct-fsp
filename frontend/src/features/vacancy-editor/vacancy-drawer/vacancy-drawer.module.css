@@ -12,25 +12,6 @@
   gap: var(--space-8);
 }
 
-.salary {
-  display: grid;
-  gap: var(--space-8);
-  min-inline-size: 0;
-  margin-block: 0;
-  margin-inline: 0;
-  padding: 0;
-  border: none;
-}
-
-.legend {
-  composes: fieldLabel from "../../../shared/styles/compose.module.css";
-  margin-block-end: var(--space-8);
-}
-
-.basis {
-  composes: footnote from "../../../shared/styles/compose.module.css";
-}
-
 .error {
   composes: fieldError from "../../../shared/styles/feedback.module.css";
   animation: var(--motion-fade-in);

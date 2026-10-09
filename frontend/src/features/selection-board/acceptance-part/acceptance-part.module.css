@@ -1,0 +1,23 @@
+.section {
+  display: grid;
+  gap: var(--space-8);
+}
+
+.subtitle {
+  composes: labelText from "../../../shared/styles/compose.module.css";
+  color: var(--text-tertiary);
+}
+
+.lead {
+  composes: bodySmText from "../../../shared/styles/compose.module.css";
+}
+
+.factors {
+  display: grid;
+  gap: var(--space-12);
+}
+
+.muted {
+  composes: captionText from "../../../shared/styles/compose.module.css";
+  color: var(--text-tertiary);
+}

@@ -17,6 +17,8 @@ from app.controller.deps import (
 )
 from app.controller.errors import error_responses
 from app.controller.need_schemas import (
+    AcceptanceExplanationOut,
+    AcceptanceFactorOut,
     CandidateFiltersIn,
     CandidateFiltersOut,
     CategoryFilterIn,
@@ -28,6 +30,7 @@ from app.controller.need_schemas import (
     NeedTextIn,
     OutOfCatalogOut,
     RequirementOut,
+    SalaryHintOut,
     SearchHitOut,
     SearchOut,
     SelectionEntryOut,
@@ -39,14 +42,24 @@ from app.controller.need_schemas import (
     TopicImportanceIn,
     TopicImportanceOut,
 )
+from app.controller.salary import SALARY_UNIT
 from app.controller.schemas import CatalogRef, GradeStatusOut
 from app.domain import errors
+from app.domain.acceptance import SalaryHint
 from app.domain.account import Role
 from app.domain.need import NEED_ERRORS, NeedForm, TopicView
 from app.domain.need_draft import CheckedDraft, CheckedOutOfCatalog
 from app.domain.search import CandidateFilters, CategoryFilter, SearchHit, SearchPage
 from app.domain.selection import NeedSnapshot as Snapshot
-from app.domain.selection import Page, SelectionBlock, SelectionEntry, Shortlist, Summary
+from app.domain.selection import (
+    Page,
+    SelectionBlock,
+    SelectionEntry,
+    SelectionOrder,
+    Shortlist,
+    Summary,
+)
+from app.domain.work import SalaryRange
 from app.usecase.need import NeedView
 
 router = APIRouter(
@@ -72,6 +85,14 @@ search_router = APIRouter(
 
 Offset = Annotated[int, Query(ge=0, description="Сколько мест выдачи пропустить")]
 Limit = Annotated[int, Query(ge=1, le=100, description="Сколько кандидатов вернуть")]
+SalaryQuery = Annotated[int, Query(gt=0, le=1_000_000_000, description=SALARY_UNIT)]
+Order = Annotated[
+    SelectionOrder,
+    Query(
+        description="`mutual` — сохранённый порядок по S × P; `match` — только соответствие: "
+        "внутри блока по S, места и ранги пересчитаны под показанный порядок"
+    ),
+]
 
 
 @router.get("", summary="Потребности компании, новые сверху")
@@ -211,8 +232,36 @@ def get_selection(
     selections: SelectionsDep,
     offset: Offset = 0,
     limit: Limit = 20,
+    order: Order = SelectionOrder.mutual,
 ) -> SelectionOut:
-    return _selection_out(selections.open(user.id, selection_id, offset=offset, limit=limit))
+    return _selection_out(
+        selections.open(user.id, selection_id, offset=offset, limit=limit, order=order)
+    )
+
+
+@selections_router.get(
+    "/{selection_id}/candidates/{candidate_id}/salary-hint",
+    summary="Вероятность принятия при вилке и подсказка по вилке",
+    description="Для формы приглашения: P(принятия) при вилке работодателя и самая низкая вилка, "
+    "при которой P достигает целевой. Вилки в подсказке кратны шагу округления, P считается по "
+    "округлённой вилке, ожидание кандидата не раскрывается. Нет файла модели — "
+    "`available: false`, без ошибки.",
+    responses=error_responses(
+        errors.SelectionNotFound, errors.NotInSelection, errors.InvalidSalaryRange
+    ),
+)
+def get_salary_hint(
+    selection_id: uuid.UUID,
+    candidate_id: uuid.UUID,
+    user: CurrentUser,
+    selections: SelectionsDep,
+    salary_from: SalaryQuery,
+    salary_to: SalaryQuery,
+) -> SalaryHintOut:
+    hint = selections.salary_hint(
+        user.id, selection_id, candidate_id, SalaryRange(salary_from, salary_to)
+    )
+    return _hint_out(hint)
 
 
 @selections_router.put(
@@ -230,9 +279,12 @@ def refine_selection(
     selections: SelectionsDep,
     offset: Offset = 0,
     limit: Limit = 20,
+    order: Order = SelectionOrder.mutual,
 ) -> SelectionOut:
     return _selection_out(
-        selections.refine(user.id, selection_id, _filters(body), offset=offset, limit=limit)
+        selections.refine(
+            user.id, selection_id, _filters(body), offset=offset, limit=limit, order=order
+        )
     )
 
 
@@ -458,6 +510,45 @@ def _hit_out(hit: SearchHit) -> SearchHitOut:
     )
 
 
+def _hint_out(hint: SalaryHint | None) -> SalaryHintOut:
+    if hint is None:
+        return SalaryHintOut(
+            available=False,
+            probability=None,
+            evaluated_from=None,
+            evaluated_to=None,
+            target_probability=None,
+            reachable=False,
+            hint_from=None,
+            hint_to=None,
+            rounding=None,
+        )
+    return SalaryHintOut(
+        available=True,
+        probability=hint.probability,
+        evaluated_from=hint.evaluated.low,
+        evaluated_to=hint.evaluated.high,
+        target_probability=hint.target,
+        reachable=hint.range is not None,
+        hint_from=hint.range.low if hint.range else None,
+        hint_to=hint.range.high if hint.range else None,
+        rounding=hint.step,
+    )
+
+
+def _explanation_out(entry: SelectionEntry) -> AcceptanceExplanationOut | None:
+    if entry.acceptance is None:
+        return None
+    why = entry.acceptance.explanation
+    return AcceptanceExplanationOut(
+        base=why.base,
+        logit=why.logit,
+        factors=[
+            AcceptanceFactorOut(factor=f, contribution=v) for f, v in why.contributions.items()
+        ],
+    )
+
+
 def _entries_out(need: NeedSnapshot, entries: Sequence[SelectionEntry]) -> list[SelectionEntryOut]:
     requirements = {t.topic.code: t for t in need.topics}
     technologies = {t.code: t for t in need.stack}
@@ -475,6 +566,7 @@ def _entries_out(need: NeedSnapshot, entries: Sequence[SelectionEntry]) -> list[
                 match_score=entry.match_score,
                 acceptance_probability=entry.acceptance_probability,
                 mutual_score=entry.mutual_score,
+                acceptance_explanation=_explanation_out(entry),
                 topics=[
                     TopicFitOut(
                         topic=requirements[fit.topic].topic,

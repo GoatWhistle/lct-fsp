@@ -1,4 +1,5 @@
 import { useState } from "react"
+import { useLevelWords } from "@/entities/measure"
 import type { SkillProfile, TopicLevel } from "@/shared/api"
 import { useTranslation } from "@/shared/i18n"
 import { ButtonLink, Card, IconLabel, Segmented } from "@/shared/ui"
@@ -21,6 +22,15 @@ function ordered(topics: readonly TopicLevel[], order: SkillOrder): readonly Top
   return [...topics].sort((left, right) => left.level.theta - right.level.theta)
 }
 
+function commonUncertainty(topics: readonly TopicLevel[], word: (sd: number) => string): string {
+  const counts = new Map<string, number>()
+  for (const topic of topics) {
+    const key = word(topic.level.theta_sd)
+    counts.set(key, (counts.get(key) ?? 0) + 1)
+  }
+  return [...counts.entries()].sort((left, right) => right[1] - left[1])[0]?.[0] ?? ""
+}
+
 function widestTopics(topics: readonly TopicLevel[]): ReadonlySet<string> {
   const sorted = [...topics].sort((left, right) => right.level.theta_sd - left.level.theta_sd)
   return new Set(sorted.slice(0, WIDEST_COUNT).map((topic) => topic.topic.code))
@@ -29,7 +39,9 @@ function widestTopics(topics: readonly TopicLevel[]): ReadonlySet<string> {
 export function SkillPanel({ profile, fspLinked, motionIndex, className }: SkillPanelProps) {
   const { t } = useTranslation("overview")
   const [order, setOrder] = useState<SkillOrder>("catalog")
+  const words = useLevelWords()
   const widest = widestTopics(profile.topics)
+  const common = commonUncertainty(profile.topics, words.uncertainty)
   return (
     <Card
       title={t("skills.title")}
@@ -59,6 +71,9 @@ export function SkillPanel({ profile, fspLinked, motionIndex, className }: Skill
           </ButtonLink>
         </div>
       ) : null}
+      {common === "" ? null : (
+        <p className={styles.common}>{t("skills.common", { value: common })}</p>
+      )}
       <ul className={styles.list} aria-label={t("skills.title")}>
         {ordered(profile.topics, order).map((topic, index) => (
           <TopicRow
@@ -66,6 +81,7 @@ export function SkillPanel({ profile, fspLinked, motionIndex, className }: Skill
             topic={topic}
             index={index}
             widest={widest.has(topic.topic.code)}
+            commonUncertainty={common}
           />
         ))}
       </ul>

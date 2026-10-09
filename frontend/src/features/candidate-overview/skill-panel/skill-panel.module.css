@@ -87,3 +87,17 @@
   composes: prose from "../../../shared/styles/layout.module.css";
   flex: 1 1 var(--column-min);
 }
+
+.band {
+  composes: secondaryText from "../../../shared/styles/compose.module.css";
+  font-family: var(--font-mono);
+}
+
+.diff {
+  composes: labelText from "../../../shared/styles/compose.module.css";
+  color: var(--text-secondary);
+}
+
+.common {
+  composes: secondaryText from "../../../shared/styles/compose.module.css";
+}

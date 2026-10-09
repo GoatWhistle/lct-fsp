@@ -16,7 +16,7 @@ from fastapi import FastAPI
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.adapter import irt
-from app.adapter.acceptance import NoAcceptanceModel
+from app.adapter.acceptance import acceptance_model
 from app.adapter.catalog_file import YamlCatalog
 from app.adapter.clock import SystemClock
 from app.adapter.code_runner import InProcessCodeRunner
@@ -216,7 +216,7 @@ def create_app(
         clock=clock,
         seeds=seeds,
         code_runner=InProcessCodeRunner(),
-        acceptance=acceptance or NoAcceptanceModel(),
+        acceptance=acceptance or acceptance_model(settings.acceptance_model_file),
         text_understanding=understanding,
     )
     app.state.calibration = usecases.calibration

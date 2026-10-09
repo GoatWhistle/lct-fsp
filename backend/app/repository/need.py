@@ -13,6 +13,7 @@ from app.domain.selection import Need
 from app.domain.work import SalaryRange
 from app.repository.catalog import grade_of, specialization_of, technology_of
 from app.repository.orm.catalog import Specialization, Technology
+from app.repository.orm.company import Company
 from app.repository.orm.need import Need as NeedRow
 from app.repository.orm.need import NeedTopicImportance
 
@@ -49,6 +50,9 @@ class SqlNeeds:
 
     def get(self, user_id: uuid.UUID, need_id: uuid.UUID) -> Need:
         return _need_of(self._row(user_id, need_id))
+
+    def company_industry(self, user_id: uuid.UUID) -> str | None:
+        return self._session.scalar(select(Company.industry_code).where(Company.user_id == user_id))
 
     def records(self, user_id: uuid.UUID) -> list[NeedRecord]:
         rows = self._session.scalars(

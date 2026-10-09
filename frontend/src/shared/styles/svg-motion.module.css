@@ -1,0 +1,32 @@
+.svgNode {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+.pingNode {
+  composes: svgNode;
+  opacity: 0.7;
+  animation: var(--motion-ping);
+}
+
+.signalLine {
+  fill: none;
+  stroke-linecap: round;
+  stroke-dasharray: 0.16 2;
+  stroke-dashoffset: 0.16;
+  opacity: 0;
+  animation: var(--motion-signal);
+}
+
+.svgLayer {
+  position: absolute;
+  inset: 0;
+  inline-size: 100%;
+  block-size: 100%;
+  overflow: visible;
+}
+
+.outline {
+  fill: none;
+  stroke-width: var(--trace-stroke);
+}

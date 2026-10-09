@@ -30,12 +30,12 @@ export function ConsentField({ role, checked, onChange }: ConsentFieldProps) {
         checked={checked}
         onChange={onChange}
         label={
-          <>
+          <span className={styles.consent}>
             {t("consent.agree")}{" "}
-            <Button variant="link" onClick={() => setOpen(true)}>
+            <Button variant="link" className={styles.docLink} onClick={() => setOpen(true)}>
               {t("consent.link")}
             </Button>
-          </>
+          </span>
         }
       />
       <Dialog
@@ -43,7 +43,16 @@ export function ConsentField({ role, checked, onChange }: ConsentFieldProps) {
         onClose={() => setOpen(false)}
         title={t("consent.title")}
         size="wide"
-        actions={<Button onClick={() => setOpen(false)}>{t("consent.ok")}</Button>}
+        actions={
+          <Button
+            onClick={() => {
+              onChange(true)
+              setOpen(false)
+            }}
+          >
+            {t("consent.ok")}
+          </Button>
+        }
       >
         <div className={styles.text}>
           <p>{t("consent.intro")}</p>

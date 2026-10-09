@@ -1,0 +1,116 @@
+.figure {
+  display: grid;
+  gap: var(--space-16);
+  inline-size: 100%;
+  margin: 0;
+}
+
+.stage {
+  position: relative;
+}
+
+.map {
+  display: block;
+  inline-size: 100%;
+  block-size: auto;
+  overflow: visible;
+}
+
+.land {
+  animation: var(--motion-fade-in);
+}
+
+.ground {
+  fill: var(--brand-mark-blue);
+}
+
+.borders {
+  fill: var(--map-ink);
+  fill-opacity: 0.28;
+}
+
+.arc {
+  composes: traceLine from "../../../shared/styles/compose.module.css";
+  stroke: var(--map-ink);
+  stroke-width: calc(var(--trace-stroke) * 0.6);
+  stroke-opacity: 0.55;
+  animation-delay: calc(var(--dur-slow) + var(--i) * var(--stagger) * 2);
+}
+
+.arc[data-long="true"] {
+  stroke-dasharray: 0.004 0.012;
+}
+
+.signal,
+.signalGlow {
+  composes: signalLine from "../../../shared/styles/svg-motion.module.css";
+  stroke: var(--map-ink);
+  stroke-width: var(--trace-stroke);
+  animation-delay: calc(var(--dur-draw) + var(--phase) * var(--dur-signal));
+}
+
+[data-tempo="fast"] > .signal,
+[data-tempo="fast"] > .signalGlow {
+  animation-duration: var(--dur-signal-fast);
+}
+
+[data-tempo="slow"] > .signal,
+[data-tempo="slow"] > .signalGlow {
+  animation-duration: var(--dur-signal-slow);
+}
+
+[data-reverse="true"] > .signal,
+[data-reverse="true"] > .signalGlow {
+  animation-direction: reverse;
+}
+
+.signalGlow {
+  stroke: var(--text-accent);
+  stroke-width: calc(var(--trace-stroke) * 2.5);
+  stroke-opacity: 0.4;
+}
+
+.city {
+  composes: svgNode from "../../../shared/styles/svg-motion.module.css";
+  fill: var(--map-ink);
+  stroke: var(--brand-mark-blue);
+  stroke-width: var(--trace-stroke);
+  transition: var(--transition-node);
+  animation: var(--motion-node-in);
+  animation-delay: calc(var(--dur-slow) + var(--i) * var(--stagger) * 2);
+}
+
+.city[data-hub="true"] {
+  fill: var(--brand-mark-red);
+}
+
+.city[data-active="true"] {
+  fill: var(--map-ink);
+  scale: var(--mark-scale);
+}
+
+.ping {
+  composes: pingNode from "../../../shared/styles/svg-motion.module.css";
+  fill: var(--map-ink);
+  animation-delay: calc(var(--dur-draw) + var(--i) * var(--dur-breathe) / 5);
+}
+
+.caption {
+  composes: secondaryText from "../../../shared/styles/compose.module.css";
+  display: grid;
+  gap: var(--space-4);
+  max-inline-size: var(--lead-measure);
+}
+
+.captionTitle {
+  composes: labelText from "../../../shared/styles/compose.module.css";
+  color: var(--text-primary);
+}
+
+[data-tempo="fast"] > .ping {
+  animation-duration: var(--dur-ping-fast);
+}
+
+[data-tempo="slow"] > .ping {
+  animation-duration: var(--dur-ping-slow);
+}

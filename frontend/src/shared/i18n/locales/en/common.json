@@ -50,8 +50,7 @@
     "legend": "Theme",
     "current": "Theme: {{name}}",
     "light": "Light",
-    "dark": "Dark",
-    "system": "System"
+    "dark": "Dark"
   },
   "shell": {
     "skip": "Skip to content",

@@ -6,31 +6,15 @@
 
 .aside {
   display: grid;
-  grid-template-rows: auto auto 1fr;
-  gap: var(--space-32);
+  grid-template-rows: auto 1fr;
+  gap: var(--space-24);
   padding: var(--space-24) var(--space-page-wide) var(--space-40);
-  background-color: var(--surface-focus);
-}
-
-.pitch {
-  display: grid;
-  gap: var(--space-12);
-  max-inline-size: var(--lead-measure);
-}
-
-.pitchTitle {
-  composes: headingLgText from "../../../shared/styles/compose.module.css";
-  font-family: var(--font-display);
-  text-wrap: balance;
-}
-
-.pitchText {
-  color: var(--text-secondary);
+  background-color: var(--surface-card);
 }
 
 .art {
-  align-self: end;
-  inline-size: min(100%, var(--hero-art-size-compact));
+  place-self: center;
+  inline-size: min(100%, var(--auth-art-size));
 }
 
 .top {
@@ -63,6 +47,7 @@
 .title {
   composes: headingLgText from "../../../shared/styles/compose.module.css";
   outline: none;
+  view-transition-name: auth-title;
 }
 
 @media (max-width: 63.99rem) {
@@ -76,7 +61,6 @@
     padding: var(--space-16) var(--space-page);
   }
 
-  .pitch,
   .art {
     display: none;
   }
@@ -104,12 +88,17 @@
 }
 
 .switch {
-  color: var(--text-secondary);
-  font-size: var(--font-size-body-sm);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-12);
+  padding-block-start: var(--space-24);
+  border-block-start: var(--hairline) solid var(--border-hairline);
 }
 
-.switchLink {
-  color: var(--text-accent);
+.switchText {
+  composes: secondaryText from "../../../shared/styles/compose.module.css";
 }
 
 .block {

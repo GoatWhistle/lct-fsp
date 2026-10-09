@@ -11,3 +11,19 @@
   padding-inline-start: var(--space-16);
   list-style: disc;
 }
+
+.consent .docLink:is(button) {
+  --button-text: var(--text-primary);
+
+  border-block-end: var(--hairline) dashed var(--text-tertiary);
+  border-radius: 0;
+  text-decoration: none;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .consent .docLink:is(button):hover {
+    --button-text: var(--text-accent);
+
+    border-block-end-color: var(--text-accent);
+  }
+}

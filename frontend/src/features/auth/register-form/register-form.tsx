@@ -42,7 +42,6 @@ export function RegisterForm({ role, onSent }: RegisterFormProps) {
       />
       <PasswordField
         label={t("field.password")}
-        hint={t("field.passwordHint")}
         autoComplete="new-password"
         required
         minLength={8}

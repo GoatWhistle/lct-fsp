@@ -1,0 +1,37 @@
+.rings {
+  composes: svgLayer from "../../../shared/styles/svg-motion.module.css";
+  animation: var(--motion-fade-in);
+}
+
+.outer,
+.inner {
+  transform-box: view-box;
+  transform-origin: center;
+}
+
+.outer {
+  animation: var(--motion-orbit);
+}
+
+.inner {
+  animation: var(--motion-orbit-back);
+}
+
+.orbit,
+.ticks {
+  fill: none;
+  stroke: var(--border-strong);
+  stroke-width: var(--trace-stroke);
+}
+
+.orbit {
+  stroke-dasharray: 2 6;
+}
+
+.rider {
+  fill: var(--text-accent);
+}
+
+.riderRed {
+  fill: var(--brand-mark-red);
+}

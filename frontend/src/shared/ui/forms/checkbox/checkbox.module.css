@@ -9,12 +9,12 @@
 .box {
   composes: indicator from "../../../styles/choice.module.css";
   border-radius: var(--radius-check);
-  color: var(--text-on-inverse);
+  color: var(--text-on-action);
 }
 
 .checkbox[data-checked="true"] .box {
-  border-color: var(--action-dark);
-  background-color: var(--action-dark);
+  border-color: var(--action-primary);
+  background-color: var(--action-primary);
 }
 
 .mark {

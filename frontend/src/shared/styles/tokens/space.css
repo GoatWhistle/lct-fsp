@@ -62,8 +62,10 @@
   --node-size: 10px;
   --trace-width: 1px;
   --trace-stroke: 1.25;
-  --hero-art-size: 520px;
+  --hero-art-size: 660px;
   --map-max-width: 960px;
+  --hero-max-width: 1920px;
+  --hero-actions-width: 480px;
   --column-min: 420px;
   --tile-min: 220px;
   --tile-min-compact: 160px;
@@ -71,7 +73,8 @@
   --grade-label-width: 72px;
   --grade-value-width: 96px;
   --split-handle: 16px;
-  --hero-art-size-compact: 360px;
+  --hero-art-size-compact: 400px;
+  --auth-art-size: min(var(--hero-art-size), 80dvh);
   --hero-title-measure: 16ch;
   --lead-measure: 56ch;
   --prompt-measure: 68ch;

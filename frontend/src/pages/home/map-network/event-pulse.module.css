@@ -1,0 +1,40 @@
+.pulse {
+  pointer-events: none;
+}
+
+.glow,
+.line {
+  composes: strokeLine from "../../../shared/styles/compose.module.css";
+  stroke: var(--map-ink);
+  animation: var(--motion-draw);
+}
+
+.glow {
+  stroke-width: calc(var(--trace-stroke) * 2.5);
+  opacity: 0.2;
+}
+
+.line {
+  stroke-width: var(--trace-stroke);
+}
+
+.comet {
+  composes: signalLine from "../../../shared/styles/svg-motion.module.css";
+  stroke: var(--brand-mark-red);
+  stroke-width: calc(var(--trace-stroke) * 1.8);
+  animation-delay: var(--dur-slow);
+}
+
+.ring {
+  composes: pingNode outline from "../../../shared/styles/svg-motion.module.css";
+  stroke: var(--map-ink);
+  opacity: 0;
+}
+
+.ring[data-ring="1"] {
+  animation-delay: calc(var(--dur-breathe) / 3);
+}
+
+.ring[data-ring="2"] {
+  animation-delay: calc(var(--dur-breathe) * 2 / 3);
+}

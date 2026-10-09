@@ -93,6 +93,11 @@ p {
   animation-timing-function: var(--ease-out);
 }
 
+:root[data-view-transition="layout"]::view-transition-group(*) {
+  animation-duration: var(--dur-panel);
+  animation-timing-function: var(--ease-out);
+}
+
 :root[data-view-transition="theme"]::view-transition-old(root),
 :root[data-view-transition="theme"]::view-transition-new(root) {
   animation-duration: var(--dur-base);
@@ -100,6 +105,8 @@ p {
 
 .visually-hidden {
   position: absolute;
+  inset-block-start: 0;
+  inset-inline-start: 0;
   width: 1px;
   height: 1px;
   overflow: hidden;

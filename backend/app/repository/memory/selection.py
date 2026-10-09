@@ -42,6 +42,14 @@ class MemoryNeeds:
         assert isinstance(need, Need)
         return need
 
+    def put_company_industry(self, user_id: uuid.UUID, industry: str) -> None:
+        self._store.collection("company_industries")[user_id] = industry
+
+    def company_industry(self, user_id: uuid.UUID) -> str | None:
+        found = self._store.collection("company_industries").get(user_id)
+        assert found is None or isinstance(found, str)
+        return found
+
 
 class MemoryCandidatePool:
     def __init__(self, store: MemoryStore) -> None:
@@ -60,6 +68,17 @@ class MemoryCandidatePool:
             if c.specialization == specialization
             and block_of(grade_rank, c.grade.rank, distance) is not None
         ]
+
+    def set_open_invitations(self, candidate_id: uuid.UUID, count: int) -> None:
+        """Загрузка кандидата — число открытых приглашений на «сейчас»: срока здесь нет,
+        его кладёт тест или стенд."""
+        self._store.collection("open_invitations")[candidate_id] = count
+
+    def open_invitations(
+        self, candidate_ids: Collection[uuid.UUID], since: datetime
+    ) -> dict[uuid.UUID, int]:
+        load = self._store.collection("open_invitations")
+        return {c: load[c] for c in candidate_ids if load.get(c)}
 
     def add_unconfirmed(self, candidate: UnconfirmedCandidate) -> None:
         self._store.collection("unconfirmed")[candidate.candidate_id] = candidate

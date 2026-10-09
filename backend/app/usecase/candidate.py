@@ -3,14 +3,16 @@
 Данные кандидата идут к зрителю только через правило раскрытия: сценарий берёт кандидата из
 репозитория целиком, проводит через `disclosure` и отдаёт controller'у карточку. Кандидат видит
 и меняет только свою анкету — его id приходит из сессии, чужого эндпоинты не принимают.
-Работодатель получает карточку только кандидата со статусом грейда: с категорией или с
-заявленным грейдом — такого показывает нижний блок подборки. Кандидата без того и другого для
-работодателя нет. Профиль навыков в карточке — на «сейчас» (`ProfileFreshness`).
+Работодатель получает карточку кандидата со статусом грейда — с категорией или с заявленным
+грейдом, такого показывает нижний блок подборки, — или откликнувшегося на вакансию компании.
+Остальных для работодателя нет. Профиль навыков в карточке — на «сейчас» (`ProfileFreshness`).
 """
 
 import uuid
 from dataclasses import dataclass
+from datetime import datetime
 
+from app.domain import application, invitation
 from app.domain.candidate import (
     NO_ACCESS,
     Access,
@@ -24,10 +26,14 @@ from app.domain.candidate import (
     disclosure,
 )
 from app.domain.errors import CandidateNotFound, ProfileNotFound
+from app.domain.invitation import InvitationStatus
 from app.usecase.interface import (
+    ApplicationReader,
+    ApplicationRepository,
     CandidateRepository,
     Clock,
     InvitationReader,
+    InvitationRepository,
     ProfilePdfRenderer,
     UnitOfWork,
 )
@@ -89,29 +95,60 @@ def employer_card(
     uow: UnitOfWork,
     candidates: CandidateRepository,
     invitations: InvitationReader,
+    applications: ApplicationReader,
     employer_id: uuid.UUID,
     candidate_id: uuid.UUID,
     clock: Clock,
     freshness: ProfileFreshness,
 ) -> AnonymizedCard | DisclosedCard:
-    """Карточка кандидата для работодателя; без категории и заявленного грейда —
-    `CandidateNotFound`. Раскрывает её принятое и не отозванное приглашение компании; откликов
-    пока нет."""
+    """Карточка кандидата для работодателя; без категории, заявленного грейда и отклика на
+    вакансию компании — `CandidateNotFound`. Раскрывают её принятое приглашение компании и отклик
+    на её вакансию, пока кандидат не отозвал доступ."""
     with uow:
         candidate = candidates.get(candidate_id)
-        if candidate.grade_status is None:
+        access = employer_access(invitations, applications, employer_id, candidate_id)
+        if candidate.grade_status is None and not access.applied:
             raise CandidateNotFound()
-        access = employer_access(invitations, employer_id, candidate_id)
     fresh = freshness.candidate(candidate, clock.now())
     return disclosure(fresh, EmployerViewer(employer_id), access)
 
 
 def employer_access(
-    invitations: InvitationReader, employer_id: uuid.UUID, candidate_id: uuid.UUID
+    invitations: InvitationReader,
+    applications: ApplicationReader,
+    employer_id: uuid.UUID,
+    candidate_id: uuid.UUID,
 ) -> Access:
     """Входы доступа компании к кандидату — для каждого сценария, отдающего его данные
-    работодателю. Внутри блока единицы работы."""
-    return Access(invitation_accepted=invitations.accepted(employer_id, candidate_id))
+    работодателю. Отозванные приглашения и отклики порты не считают. Внутри блока единицы
+    работы."""
+    return Access(
+        invitation_accepted=invitations.accepted(employer_id, candidate_id),
+        applied=applications.applied(employer_id, candidate_id),
+    )
+
+
+def revoke_company_access(
+    invitations: InvitationRepository,
+    applications: ApplicationRepository,
+    candidate_id: uuid.UUID,
+    employer_id: uuid.UUID,
+    now: datetime,
+) -> None:
+    """Кандидат закрывает компании свои данные: отзыв отмечает все её принятые приглашения и
+    все отклики на её вакансии — иначе любое из них раскрывало бы данные дальше. Вернуть доступ
+    — только новым принятым приглашением или откликом на другую её вакансию. Внутри блока
+    единицы работы."""
+    for i in invitations.by_candidate(candidate_id):
+        if (
+            i.employer_id == employer_id
+            and i.status is InvitationStatus.accepted
+            and not i.is_revoked
+        ):
+            invitations.save(invitation.revoked(i, now))
+    for a in applications.by_candidate(candidate_id):
+        if a.employer_id == employer_id and not a.is_revoked:
+            applications.save(application.revoked(a, now))
 
 
 def _own(candidate: Candidate) -> DisclosedCard:

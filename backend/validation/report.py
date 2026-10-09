@@ -22,7 +22,16 @@ from pathlib import Path
 from app.domain.determination import grades_by_threshold
 from app.domain.selection import NeedSnapshot
 from app.usecase.skill_profile import specialization_prior
-from settings import BACKEND_DIR, Mechanics
+from settings import BACKEND_DIR, Mechanics, Settings
+from validation.acceptance import (
+    HOLDOUT_PAIRS,
+    Offer,
+    evaluate,
+    load_baselines,
+    load_model,
+    make_offers,
+    offer_needs,
+)
 from validation.figures import Curve, CurvePanel, Panel, Series, curves_svg, reliability_svg
 from validation.llm_attack import CLAIMED
 from validation.main import Catalog, catalog
@@ -35,7 +44,15 @@ from validation.metrics import (
     precision_at,
     reliability,
 )
-from validation.population import DATASETS, Dataset, Generator, Pair, label, snapshot
+from validation.population import (
+    DATASETS,
+    Dataset,
+    Generator,
+    Pair,
+    SyntheticNeed,
+    label,
+    snapshot,
+)
 from validation.protection import (
     D3,
     DRIFT_GRID,
@@ -50,15 +67,27 @@ from validation.protection import (
     ProtectionRun,
     ProtectionScale,
     Twins,
-    flagged_share,
     rank_of,
     run_protection,
     summarize,
     tune_threshold,
 )
+from validation.protection import flagged_share as drift_flagged
 from validation.recorded import Recording
-from validation.simulate import Adaptivity, Job, Outcome, Scale, SpecRun, run_cold, run_spec
-from validation.truth import CandidateTruth, Persona
+from validation.simulate import (
+    CORRUPTED_SHARE,
+    Adaptivity,
+    FamilyFit,
+    ItemFit,
+    Job,
+    Outcome,
+    Scale,
+    SpecRun,
+    run_cold,
+    run_fit,
+    run_spec,
+)
+from validation.truth import CandidateTruth, Corruption, Persona
 
 DOCS = BACKEND_DIR.parent / "docs"
 REPORT = DOCS / "validation-report.md"
@@ -66,6 +95,8 @@ REPORT = DOCS / "validation-report.md"
 FIGURES = "validation-report"
 PLAN = "validation-plan.md"
 SETS = ("d1", "d2")
+# M21 план считает только на D1.
+FIT_SETS = ("d1",)
 PLAN_SCALE = Scale()
 PLAN_PROTECTION = ProtectionScale()
 TOP = 10
@@ -101,7 +132,7 @@ PENDING: dict[str, str] = {
     "M3": "нет базовых линий B1–B3 и двойников-накрутчиков",
     "M5": "нет двойников по защищённым признакам и базовых линий B2, B3",
     "M6": "нет рыночной симуляции приглашений",
-    "M7": "нет модели принятия и отложенной синтетики",
+    "M7": "нет файла модели принятия: `uv run python -m validation acceptance`",
     "M8": "нет проверки вкладов объяснений на выдачах стенда",
     "M14": "прогон без экспериментов защиты",
     "M15": "прогон без экспериментов защиты",
@@ -109,8 +140,6 @@ PENDING: dict[str, str] = {
     "M17": "прогон без экспериментов защиты",
     "M18": "нет набора D6",
     "M20": "нет ручной разметки D4 — ожидает разметки",
-    "M21": "RMSD семейств на банке с испорченными семействами не считается; точность разбора "
-    "потребности на D5 — команда `parsing`, в отчёт не сведена",
     "M22": "нет прогона l_z попытки; разбор резюме — нет набора D6",
     "M23": "нет замера времени подборки на 1000 кандидатах",
 }
@@ -130,6 +159,10 @@ class DatasetRuns:
     cold: dict[str, Adaptivity]
     # (потребность, кандидат) → эталон из истины.
     pairs: dict[tuple[uuid.UUID, uuid.UUID], Pair]
+    # M21 — банк с испорченными семействами; только у набора, на котором его считает план.
+    fit: dict[str, ItemFit] = field(default_factory=dict)
+    # Отложенные пары модели принятия (M7) с решениями кандидатов.
+    offers: tuple[Offer, ...] = ()
     # Эксперименты защиты по специализациям (M14–M17); пусто — прогон без них.
     protection: dict[str, ProtectionRun] = field(default_factory=dict)
 
@@ -202,15 +235,19 @@ def collect(
     codes = tuple(specializations or known.specializations)
     before = mechanics.model_copy(update={"level_sd_inflation": 1.0})
     generated: dict[str, Dataset] = {}
+    offered: dict[str, list[SyntheticNeed]] = {}
     futures: dict[
-        tuple[str, str, str], Future[SpecRun] | Future[Adaptivity] | Future[ProtectionRun]
+        tuple[str, str, str],
+        Future[SpecRun] | Future[Adaptivity] | Future[ItemFit] | Future[ProtectionRun],
     ] = {}
     with ProcessPoolExecutor(workers or max(1, (os.cpu_count() or 2) - 1)) as pool:
         for name in sets:
             params = DATASETS[name]
             if scale.candidates is not None:
                 params = replace(params, candidates_per_specialization=scale.candidates)
-            dataset = generated[name] = Generator(params, mechanics, known).generate()
+            generator = Generator(params, mechanics, known)
+            dataset = generated[name] = generator.generate()
+            offered[name] = offer_needs(generator, dataset, HOLDOUT_PAIRS)
             stacks = {o.id: frozenset(o.stack) for o in dataset.observed}
             for code in codes:
                 job = Job(
@@ -221,11 +258,14 @@ def collect(
                     tuple(t for t in dataset.truths if t.specialization == code),
                     tuple(n for n in dataset.needs if n.form.specialization == code),
                     stacks,
+                    offer_needs=tuple(n for n in offered[name] if n.form.specialization == code),
                 )
                 futures[name, code, "runs"] = pool.submit(run_spec, job)
-                light = replace(job, mechanics=before, full=False)
+                light = replace(job, mechanics=before, full=False, offer_needs=())
                 futures[name, code, "before"] = pool.submit(run_spec, light)
                 futures[name, code, "cold"] = pool.submit(run_cold, job)
+                if name in FIT_SETS:
+                    futures[name, code, "fit"] = pool.submit(run_fit, job)
                 if protection is not None:
                     futures[name, code, "protection"] = pool.submit(
                         run_protection,
@@ -256,13 +296,18 @@ def collect(
         pairs = {
             (p.need, p.candidate): p for p in label(dataset.truths, dataset.needs, known, mechanics)
         }
+        runs_ = part(name, "runs")
+        scored = {need: s for run in runs_.values() for need, s in run.offers.items()}
+        needs = [n for n in offered[name] if n.form.specialization in codes]
         found[name] = DatasetRuns(
             dataset,
-            part(name, "runs"),
+            runs_,
             part(name, "before"),
             part(name, "cold"),
             pairs,
-            part(name, "protection") if protection is not None else {},
+            part(name, "fit") if name in FIT_SETS else {},
+            tuple(make_offers(dataset, needs, scored, mechanics, HOLDOUT_PAIRS)),
+            protection=part(name, "protection") if protection is not None else {},
         )
     tuning = {code: done["d3", code, "tuning"] for code in codes} if protection else {}
     return Runs(
@@ -1223,15 +1268,15 @@ def m15(runs: Runs) -> Section:
             continue
         leaked = [d for run in found for d in run.leak_drift if d.leaked]
         honest = [d for run in found for d in run.honest_drift]
-        tpr = flagged_share(leaked, h, window_leak)
-        fpr = flagged_share(honest, h, window_honest)
+        tpr = drift_flagged(leaked, h, window_leak)
+        fpr = drift_flagged(honest, h, window_honest)
         verdicts[name] = verdict_of([tpr >= 0.80, fpr <= 0.05])
         rows = [
             [
                 runs.catalog.specializations[run.specialization].name,
-                f(flagged_share([d for d in run.leak_drift if d.leaked], h, window_leak), 2),
+                f(drift_flagged([d for d in run.leak_drift if d.leaked], h, window_leak), 2),
                 str(sum(d.leaked for d in run.leak_drift)),
-                f(flagged_share(run.honest_drift, h, window_honest), 3),
+                f(drift_flagged(run.honest_drift, h, window_honest), 3),
                 str(len(run.honest_drift)),
             ]
             for run in found
@@ -1267,7 +1312,7 @@ def m15(runs: Runs) -> Section:
             f"{f(h, 1)}.\n\n"
             + table(
                 ["`drift_cusum_h`", *(f(g, 1) for g in grid)],
-                [["FPR на D3", *(f(flagged_share(honest_d3, g, window_honest), 3) for g in grid)]],
+                [["FPR на D3", *(f(drift_flagged(honest_d3, g, window_honest), 3) for g in grid)]],
             )
         )
     body = (
@@ -1431,6 +1476,60 @@ def m17(runs: Runs) -> Section:
     return judged("M17", body, verdicts)
 
 
+# --- M7 ----------------------------------------------------------------------------------------
+
+
+@section("M7")
+def m7(runs: Runs) -> Section:
+    model, baselines = load_model(Settings().acceptance_model_file), load_baselines()
+    if model is None or baselines is None:
+        return pending("M7")
+    verdicts, parts = {}, []
+    for name, data in runs.sets.items():
+        if not data.offers:
+            continue
+        e = evaluate(model, baselines, data.offers)
+        mono = e.monotonicity
+        verdicts[name] = verdict_of(
+            [e.model.roc_auc >= 0.75, e.model.ece <= 0.05, mono.share == 1.0]
+        )
+        parts.append(
+            f"**{name.upper()}.** Пар {e.pairs}, доля принятий {f(e.accepted)}.\n\n"
+            + table(
+                ["Модель", "ROC-AUC", "ECE"],
+                [
+                    ["CatBoost", f"**{f(e.model.roc_auc)}**", f"**{f(e.model.ece)}**"],
+                    [
+                        "Логистическая регрессия по вилке к ожиданию",
+                        f(e.logistic.roc_auc),
+                        f(e.logistic.ece),
+                    ],
+                    [
+                        "Константа — доля принятий обучения",
+                        f(e.constant.roc_auc),
+                        f(e.constant.ece),
+                    ],
+                ],
+            )
+            + f"\n\nМонотонность: вилка — {mono.salary_ok} из {mono.salary_total} соседних точек "
+            f"сетки, загрузка — {mono.load_ok} из {mono.load_total}; всего "
+            f"**{f(math.floor(1000 * mono.share) / 10, 1)} %**."
+        )
+    if not parts:
+        return pending("M7")
+    body = (
+        "Модель — CatBoost из файла `backend/app/adapter/acceptance_model.cbm`, обученная "
+        "командой `uv run python -m validation acceptance` на своём сиде; базовые линии — на тех "
+        "же обучающих парах. Отложенные пары — подборки по потребностям набора: top-K по S и "
+        "случайные кандидаты сверх них, решения — по правилу синтетического кандидата из скрытой "
+        "склонности, которой модель не видит. ECE — 10 равных корзин. Сетка монотонности — "
+        "отношение середины вилки к ожиданию 0,5–2,0 шагом 0,05 и открытые приглашения 0–10 на "
+        "первых 50 парах. Порог: ROC-AUC не ниже 0,75, ECE не выше 0,05, монотонность в 100 % "
+        "точек.\n\n" + "\n\n".join(parts)
+    )
+    return judged("M7", body, verdicts)
+
+
 # --- M19 ---------------------------------------------------------------------------------------
 
 
@@ -1467,6 +1566,140 @@ def m19(runs: Runs) -> Section:
         return Section("M19", body, f"{FAILED}: {', '.join(reasons)}")
     waiting = ["M3", *(m for m, v in shifted.items() if v == WAITING)]
     return Section("M19", body, f"{WAITING}: {', '.join(waiting)}")
+
+
+# --- M21 ---------------------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class Share:
+    hits: int
+    total: int
+
+    @property
+    def value(self) -> float:
+        return self.hits / self.total if self.total else math.nan
+
+    def __str__(self) -> str:
+        return f"{f(self.value, 2)} ({self.hits} из {self.total})"
+
+
+def flagged_share(families: Iterable[FamilyFit]) -> Share:
+    """Доля отмеченных проверкой согласия среди переоценённых семейств."""
+    checked = [x for x in families if x.refitted]
+    return Share(sum(x.flagged for x in checked), len(checked))
+
+
+@section("M21")
+def m21(runs: Runs) -> Section:
+    mech = runs.mechanics
+    verdicts, parts = {}, []
+    for name, data in runs.sets.items():
+        if not data.fit:
+            continue
+        rows = []
+        for code, run in data.fit.items():
+            bad = [x for x in run.families if x.corruption is not None]
+            good = [x for x in run.families if x.corruption is None]
+            rows.append(
+                [
+                    runs.catalog.specializations[code].name,
+                    str(flagged_share(bad)),
+                    str(flagged_share(x for x in good if x.choice)),
+                    str(flagged_share(x for x in good if not x.choice)),
+                    f"{f(run.rmse_in)} / {f(run.rmse_checked)} / {f(run.rmse_clean)}",
+                ]
+            )
+        families = [x for run in data.fit.values() for x in run.families]
+        bad = [x for x in families if x.corruption is not None]
+        good = [x for x in families if x.corruption is None]
+        tpr = flagged_share(bad)
+        fpr_choice = flagged_share(x for x in good if x.choice)
+        fpr_value = flagged_share(x for x in good if not x.choice)
+        kinds = {
+            Corruption.key: "ошибка эталона",
+            Corruption.flat: "ответ не зависит от уровня",
+        }
+        by_kind = "; ".join(
+            f"{label} — {flagged_share(x for x in bad if x.corruption == kind)}"
+            for kind, label in kinds.items()
+        )
+        rmse = [
+            mean(r.rmse_in for r in data.fit.values()),
+            mean(r.rmse_checked for r in data.fit.values()),
+            mean(r.rmse_clean for r in data.fit.values()),
+        ]
+        unchecked = sum(not x.refitted for x in families)
+        ok = [tpr.value >= 0.80, fpr_choice.value <= 0.05, fpr_value.value <= 0.05]
+        measured = all(share.total for share in (tpr, fpr_choice, fpr_value))
+        verdicts[name] = verdict_of(ok) if measured else WAITING
+        parts.append(
+            f"**{name.upper()}.**\n\n"
+            + table(
+                [
+                    "Специализация",
+                    "TPR",
+                    "FPR, выбор из вариантов",
+                    "FPR, вычисляемый ответ",
+                    "RMSE θ̄: в выдаче / после переоценки / без испорченных",
+                ],
+                rows,
+            )
+            + "\n\n"
+            + table(
+                ["Мера", "Значение", "Порог", "Выполнен"],
+                [
+                    ["TPR", str(tpr), "≥ 0,80", mark(tpr.value >= 0.80)],
+                    [
+                        "FPR, выбор из вариантов",
+                        str(fpr_choice),
+                        "≤ 0,05",
+                        mark(fpr_choice.value <= 0.05),
+                    ],
+                    [
+                        "FPR, вычисляемый ответ",
+                        str(fpr_value),
+                        "≤ 0,05",
+                        mark(fpr_value.value <= 0.05),
+                    ],
+                    ["RMSE θ̄, испорченные в выдаче", f(rmse[0]), "—", "—"],
+                    ["RMSE θ̄, выдача после переоценки", f(rmse[1]), "—", "—"],
+                    ["RMSE θ̄, выведены все испорченные", f(rmse[2]), "—", "—"],
+                ],
+            )
+            + f"\n\nTPR по видам порчи: {by_kind}. Не набрали ответов на переоценку и в долях "
+            f"не считаются: {unchecked} семейств из {len(families)}. Испорчено по "
+            f"{f(CORRUPTED_SHARE * 100, 0)} % неякорных семейств специализации, округлено до "
+            "чётного, поровну двух видов, по кругу тем и грейдов."
+        )
+    if not parts:
+        return Section("M21", "Нужен прогон D1 с испорченными семействами.", WAITING)
+    body = (
+        "Семейство отмечено, если проверка согласия после пакетной переоценки выводит его из "
+        f"выдачи: переоценённая â ниже `item_fit_discrimination_min` = "
+        f"{f(mech.item_fit_discrimination_min, 2)} или модель с потолком объясняет ответы лучше "
+        f"2PL больше чем на `item_fit_ceiling_gain_max` = {f(mech.item_fit_ceiling_gain_max, 2)} "
+        "нат ([mechanics.md](mechanics.md) §7); оба числа подобраны на D3 командой `fit`. Банк "
+        "набора плюс испорченные семейства — только в скрытой истине: ошибка эталона — у половины "
+        "экземпляров верный ответ засчитывается неверным; ответ не зависит от уровня — "
+        "P(верно) = 0,5. Банк прогревается на честных кандидатах набора, переоценка — на "
+        f"`calibration_refit_min_responses` = {mech.calibration_refit_min_responses} "
+        "ответах на семейство; якоря не портятся и в доли не входят. RMSE общего уровня — у "
+        f"честных кандидатов набора ({runs.scale.fit} на специализацию) на замороженном банке "
+        "в трёх состояниях, на одних и тех же случайных числах ответа: испорченные в выдаче; "
+        "выдача, как её оставила переоценка, — проверки согласия и дрейфа, с их ложными "
+        "срабатываниями; сверх того выведены все испорченные.\n\n"
+        "Результаты прежней проверки — RMSD против переоценённых (a, b) — на D1 видели до выбора "
+        "новой (журнал изменений плана); новая и её числа выбраны на D3 по правилу, записанному "
+        "до прогона D3.\n\n"
+        + "\n\n".join(parts)
+        + "\n\nРазбор потребности (D5) — вторая часть M21 — считается командой `parsing` и в "
+        "этот отчёт не сведён."
+    )
+    text = {
+        n: f"{v} (согласие семейств); разбор потребности — {WAITING}" for n, v in verdicts.items()
+    }
+    return judged("M21", body, verdicts, text=text)
 
 
 # --- Отчёт -------------------------------------------------------------------------------------

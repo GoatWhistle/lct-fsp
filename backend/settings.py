@@ -25,6 +25,8 @@ FSP_REGISTRY_FILE = BACKEND_DIR / "config" / "fsp_registry.json"
 # Матрица грейдов и документ для жюри, который генерируется из неё.
 GRADE_MATRIX_FILE = BACKEND_DIR / "config" / "grade_matrix.yaml"
 GRADE_MATRIX_DOC = BACKEND_DIR.parent / "docs" / "grade-matrix.md"
+# Модель принятия CatBoost — версионируется в репо.
+ACCEPTANCE_MODEL_FILE = BACKEND_DIR / "app" / "adapter" / "acceptance_model.cbm"
 
 
 class Settings(BaseSettings):
@@ -67,6 +69,9 @@ class Settings(BaseSettings):
     # Куда ФСП ID возвращает браузер; по умолчанию — callback бэкенда за адресом фронта.
     fsp_id_redirect_uri: str | None = None
     fsp_registry_path: Path = FSP_REGISTRY_FILE
+    # Модель принятия, обученная стендом (`python -m validation acceptance`); файла нет —
+    # множитель 1, подборка по одному соответствию.
+    acceptance_model_file: Path = ACCEPTANCE_MODEL_FILE
 
     @property
     def fsp_id_callback(self) -> str:
@@ -122,8 +127,12 @@ class Mechanics(BaseModel):
     calibration_refit_difficulty_prior_sd: float
     calibration_refit_log_discrimination_prior_sd: float
     calibration_link_window_attempts: int
-    item_fit_groups: int
-    item_fit_rmsd_max: float
+    item_fit_groups: int = Field(gt=0)
+    item_fit_rmsd_max: float = Field(ge=0)
+    item_fit_discrimination_min: float = Field(ge=0)
+    item_fit_ceiling_gain_max: float = Field(ge=0)
+    item_fit_ceiling_min: float = Field(gt=0, le=1)
+    item_fit_ceiling_step: float = Field(gt=0, le=1)
 
     # Защита теста
     drift_shift: float
@@ -170,6 +179,14 @@ class Mechanics(BaseModel):
     invitation_weekly_budget: int
     invitation_ttl_days: int
     acceptance_target_probability: float
+    # Медиана рынка по грейду, ₽ в месяц до НДФЛ.
+    market_salary_median: dict[str, int]
+    # Обучение модели принятия: CPU, сид и число потоков фиксированы — тот же сид, те же метрики.
+    acceptance_model_iterations: int = Field(gt=0)
+    acceptance_model_depth: int = Field(gt=0)
+    acceptance_model_learning_rate: float = Field(gt=0)
+    acceptance_model_random_seed: int
+    acceptance_model_thread_count: int = Field(gt=0)
     salary_hint_rounding_rub: int
     message_max_length: int = Field(gt=0)
 
@@ -194,6 +211,14 @@ class Mechanics(BaseModel):
         нуля, иначе у потребности из одних желательных тем делить не на что."""
         if set(value) != {"key", "important", "nice"} or min(value.values()) <= 0:
             raise ValueError("нужны веса key, important и nice, все больше нуля")
+        return value
+
+    @field_validator("market_salary_median")
+    @classmethod
+    def positive_market_salary(cls, value: dict[str, int]) -> dict[str, int]:
+        """Признак модели принятия — логарифм вилки к медиане: медиана больше нуля."""
+        if min(value.values(), default=0) <= 0:
+            raise ValueError("медиана рынка по грейду — больше нуля")
         return value
 
     @field_validator("level_sd_inflation")
@@ -224,6 +249,13 @@ class Mechanics(BaseModel):
         if not value["winner"] >= value["prize"] >= value["finalist"]:
             raise ValueError("сложность победителя не ниже призёра, призёра — не ниже финалиста")
         return value
+
+    @model_validator(mode="after")
+    def market_salary_for_every_grade(self) -> Self:
+        """Признак модели принятия есть у кандидата любого грейда."""
+        if set(self.market_salary_median) != set(self.grade_thresholds):
+            raise ValueError("market_salary_median — по медиане на каждый грейд grade_thresholds")
+        return self
 
     @model_validator(mode="after")
     def retry_is_shorter_than_change(self) -> Self:

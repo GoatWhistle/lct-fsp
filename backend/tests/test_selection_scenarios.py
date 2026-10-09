@@ -10,6 +10,7 @@ import uuid
 from collections.abc import Callable, Iterator, Sequence
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 from typing import Any
 
 import pytest
@@ -17,7 +18,8 @@ from sqlalchemy import Engine, insert
 from sqlalchemy.orm import Session
 
 from app.adapter import irt
-from app.adapter.acceptance import NoAcceptanceModel
+from app.adapter.acceptance import NoAcceptanceModel, acceptance_model
+from app.adapter.acceptance_catboost import fit
 from app.adapter.catalog_file import load_catalog
 from app.adapter.clock import FrozenClock
 from app.adapter.seed import DerivedSeeds
@@ -26,6 +28,7 @@ from app.domain.candidate import GradeStatus, GradeStatusKind
 from app.domain.catalog import CatalogRef, Grade, Specialization, Technology, Topic
 from app.domain.errors import NeedNotFound, SelectionNotFound
 from app.domain.fsp import FspResult
+from app.domain.invitation import OPEN, InvitationStatus
 from app.domain.selection import (
     AcceptanceFeatures,
     Expectations,
@@ -44,13 +47,16 @@ from app.repository.need import SqlNeeds
 from app.repository.orm import (
     CandidateCategory,
     CandidateProfile,
+    Company,
     FspAchievement,
     FspSnapshot,
+    Invitation,
     SkillProfile,
     SkillProfileTopic,
     Survey,
     TestAttempt,
     User,
+    candidate_industries,
     candidate_technologies,
 )
 from app.repository.orm import Need as NeedRow
@@ -60,6 +66,8 @@ from app.repository.unit_of_work import SqlUnitOfWork
 from app.usecase.interface import AcceptanceModel, SelectionRepository, UnitOfWork
 from app.usecase.selection import Selections
 from settings import CATALOG_FILE, Mechanics
+from tests.test_acceptance_model import TRAINING, synthetic_offers
+from validation.acceptance import rows
 
 T0 = datetime(2026, 10, 7, 12, 0, tzinfo=UTC)
 CATALOG = load_catalog(CATALOG_FILE)
@@ -112,6 +120,8 @@ class CandidateSeed:
     overall: Normal | None = None
     # Привязан ФСП ID и есть подтверждённое достижение.
     fsp: bool = False
+    # Приглашения кандидату от других компаний: статус и сколько назад отправлено.
+    invitations: tuple[tuple[InvitationStatus, timedelta], ...] = ()
 
 
 # Общий уровень профиля в обвязке по умолчанию.
@@ -172,8 +182,17 @@ class Harness:
     def unconfirmed(self, seed: UnconfirmedSeed) -> uuid.UUID:
         raise NotImplementedError
 
+    def company(self, industry: str) -> None:
+        """Профиль компании работодателя обвязки со сферой `industry`."""
+        raise NotImplementedError
+
     def user(self) -> uuid.UUID:
         return uuid.uuid4()
+
+
+def open_invitations(seed: CandidateSeed, ttl: timedelta) -> int:
+    """Загрузка по приглашениям обвязки — как её считает домен приглашения."""
+    return sum(status in OPEN and age < ttl for status, age in seed.invitations)
 
 
 def _levels(seed: CandidateSeed) -> dict[str, Normal]:
@@ -183,6 +202,7 @@ def _levels(seed: CandidateSeed) -> dict[str, Normal]:
 
 class MemoryHarness(Harness):
     def __init__(self, acceptance: AcceptanceModel, mechanics: Mechanics) -> None:
+        self.ttl = timedelta(days=mechanics.invitation_ttl_days)
         store = MemoryStore()
         self.needs = MemoryNeeds(store)
         self.pool = MemoryCandidatePool(store)
@@ -236,7 +256,11 @@ class MemoryHarness(Harness):
             fsp_topics=frozenset(QA_TOPICS[:1]) if seed.fsp else frozenset(),
         )
         self.pool.add(candidate)
+        self.pool.set_open_invitations(candidate.candidate_id, open_invitations(seed, self.ttl))
         return candidate.candidate_id
+
+    def company(self, industry: str) -> None:
+        self.needs.put_company_industry(self.employer, industry)
 
     def unconfirmed(self, seed: UnconfirmedSeed) -> uuid.UUID:
         candidate_id = uuid.uuid4()
@@ -332,8 +356,10 @@ class PostgresHarness(Harness):
             SkillProfileTopic,
             CandidateProfile,
             candidate_technologies,
+            candidate_industries,
             FspSnapshot,
             FspAchievement,
+            Invitation,
         )
         rows: dict[Any, list[dict[str, Any]]] = {table: [] for table in tables}
         ids = []
@@ -424,6 +450,24 @@ class PostgresHarness(Harness):
                 rows[candidate_technologies].extend(
                     {"user_id": uid, "technology_code": t} for t in seed.stack
                 )
+                rows[candidate_industries].extend(
+                    {"user_id": uid, "industry_code": i} for i in sorted(expectations.industries)
+                )
+            for status, age in seed.invitations:
+                rows[Invitation].append(
+                    {
+                        "id": uuid.uuid4(),
+                        "employer_id": self.employer,
+                        "candidate_id": uid,
+                        "company_name": "Другая компания",
+                        "description": "",
+                        "salary_from": 100_000,
+                        "salary_to": 150_000,
+                        "contact": "hr@example.com",
+                        "status": status,
+                        "sent_at": self.clock.now() - age,
+                    }
+                )
 
         def write(s: Session) -> None:
             # По порядку ключей — родительские таблицы раньше дочерних.
@@ -463,6 +507,19 @@ class PostgresHarness(Harness):
             previous = attempt
         assert previous is not None, "в цепочке хоть одна попытка"
         return previous
+
+    def company(self, industry: str) -> None:
+        row = {
+            "user_id": self.employer,
+            "name": "Компания",
+            "industry_code": industry,
+            "description": "",
+            "website": None,
+            "contact_email": "hr@example.com",
+            "contact_phone": None,
+            "updated_at": T0,
+        }
+        self._write(lambda s: s.execute(insert(Company), [row]))
 
     def unconfirmed(self, seed: UnconfirmedSeed) -> uuid.UUID:
         uid = self.user(Role.candidate)
@@ -621,17 +678,109 @@ def test_test_acceptance_model_orders_by_match_times_acceptance(
     assert [e.block for e in entries] == [SelectionBlock.exact] * 4 + [SelectionBlock.nearby] * 2
 
 
+@pytest.fixture(scope="module")
+def model_file(tmp_path_factory: pytest.TempPathFactory) -> Path:
+    """Файл модели принятия CatBoost, обученной на синтетических решениях."""
+    offers = synthetic_offers(2000, seed=11)
+    path = tmp_path_factory.mktemp("acceptance") / "model.cbm"
+    fit(rows(offers), [o.accepted for o in offers], TRAINING).save(path)
+    return path
+
+
+def test_with_model_file_orders_by_match_times_acceptance(
+    make: Callable[..., Harness], model_file: Path
+) -> None:
+    h = make(acceptance_model(model_file))
+    strong = dict.fromkeys(QA_TOPICS, (1.2, 0.3))
+    h.candidates(
+        [
+            # Сильный, но ждёт вдвое больше вилки и завален приглашениями.
+            CandidateSeed(
+                levels=strong,
+                expectations=remote(600_000),
+                invitations=((InvitationStatus.sent, timedelta(days=1)),) * 6,
+            ),
+            CandidateSeed(expectations=remote(250_000)),
+            CandidateSeed(levels={"qa.api": (1.0, 0.4)}, expectations=remote(200_000)),
+            CandidateSeed(),
+        ]
+    )
+    need = h.need(NeedSeed(salary=SalaryRange(250_000, 350_000)))
+
+    entries = h.selections.build(h.employer, need, limit=20).entries
+
+    assert len(entries) == 4
+    for entry in entries:
+        assert entry.acceptance_probability is not None
+        assert entry.match_score is not None
+        assert 0 <= entry.acceptance_probability <= 1
+        assert entry.mutual_score == pytest.approx(entry.match_score * entry.acceptance_probability)
+    mutual = [e.mutual_score or 0.0 for e in entries]
+    assert mutual == sorted(mutual, reverse=True)
+    by_match = sorted(entries, key=lambda e: -(e.match_score or 0.0))
+    assert [e.candidate_id for e in entries] != [e.candidate_id for e in by_match]
+
+
+def test_without_model_file_multiplier_is_one(make: Callable[..., Harness], tmp_path: Path) -> None:
+    h = make(acceptance_model(tmp_path / "missing.cbm"))
+    ids = h.candidates(
+        [
+            CandidateSeed(levels={"qa.api": (0.3 * i - 1, 0.4)}, expectations=remote(250_000))
+            for i in range(4)
+        ]
+    )
+
+    entries = h.selections.build(
+        h.employer, h.need(NeedSeed(salary=SalaryRange(250_000, 350_000))), limit=20
+    ).entries
+
+    assert [e.candidate_id for e in entries] == ids[::-1]
+    for entry in entries:
+        assert entry.acceptance_probability is None
+        assert entry.mutual_score == entry.match_score
+
+
+def test_with_model_file_need_without_salary_keeps_order_by_match(
+    make: Callable[..., Harness], model_file: Path
+) -> None:
+    h = make(acceptance_model(model_file))
+    ids = h.candidates(
+        [
+            CandidateSeed(levels={"qa.api": (0.3 * i - 1, 0.4)}, expectations=remote(250_000))
+            for i in range(4)
+        ]
+    )
+
+    entries = h.selections.build(h.employer, h.need(), limit=20).entries
+
+    assert [e.candidate_id for e in entries] == ids[::-1]
+    assert all(e.acceptance_probability is None for e in entries)
+
+
 def test_acceptance_model_gets_features_of_need_and_candidate(
-    make: Callable[..., Harness],
+    make: Callable[..., Harness], mechanics: Mechanics
 ) -> None:
     model = SalaryFit()
     h = make(model)
+    h.company("fintech")
+    ttl = timedelta(days=mechanics.invitation_ttl_days)
     candidate = h.candidate(
         CandidateSeed(
             grade="junior",
             stack=("pytest",),
             expectations=Expectations(
-                220_000, (WorkFormat.office, WorkFormat.hybrid), "Казань", True
+                220_000,
+                (WorkFormat.office, WorkFormat.hybrid),
+                "Казань",
+                True,
+                frozenset({"fintech", "education"}),
+            ),
+            # Открытые — отправленное и просмотренное в сроке; истёкшее и отклонённое — нет.
+            invitations=(
+                (InvitationStatus.sent, timedelta(days=1)),
+                (InvitationStatus.viewed, ttl - timedelta(minutes=1)),
+                (InvitationStatus.sent, ttl),
+                (InvitationStatus.declined, timedelta(days=1)),
             ),
         )
     )
@@ -647,6 +796,7 @@ def test_acceptance_model_gets_features_of_need_and_candidate(
     assert features == AcceptanceFeatures(
         salary=SalaryRange(200_000, 300_000),
         expected_salary=220_000,
+        market_salary=mechanics.market_salary_median["junior"],
         work_formats=(WorkFormat.office, WorkFormat.hybrid),
         city="Казань",
         relocation=True,
@@ -654,7 +804,28 @@ def test_acceptance_model_gets_features_of_need_and_candidate(
         need_city="Москва",
         grade="junior",
         match_score=entry.match_score,
+        open_invitations=2,
+        industries=frozenset({"fintech", "education"}),
+        company_industry="fintech",
     )
+
+
+def test_acceptance_features_without_profile_and_company(
+    make: Callable[..., Harness], mechanics: Mechanics
+) -> None:
+    model = SalaryFit()
+    h = make(model)
+    h.candidate(CandidateSeed())
+
+    h.selections.build(h.employer, h.need(NeedSeed(salary=SalaryRange(1, 2))), limit=20)
+
+    (features,) = model.seen
+    assert (features.expected_salary, features.industries, features.company_industry) == (
+        None,
+        frozenset(),
+        None,
+    )
+    assert features.open_invitations == 0
 
 
 def test_open_returns_the_saved_output(make: Callable[..., Harness]) -> None:

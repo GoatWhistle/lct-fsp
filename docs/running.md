@@ -45,6 +45,7 @@ docker compose up --build
 | `FSP_ID_ISSUER`, `FSP_ID_SERVER_URL` | локальный Keycloak | публичный адрес realm ФСП ID и адрес для бэкенда |
 | `FSP_ID_CLIENT_ID`, `FSP_ID_CLIENT_SECRET` | `lct-platform`, `dev-only-…` | клиент платформы в ФСП ID |
 | `FSP_REGISTRY_PATH` | `backend/config/fsp_registry.json` | заглушка реестра достижений |
+| `DEMO_MODE` | `false` | режим жюри: демо-вход работодателя, новый тестовый кандидат и экспресс-тест ([механики, §18](mechanics.md#18-режим-жюри)); выключенный ничего не открывает |
 | `TEXT_UNDERSTANDING` | `rules` | разбор текста: `rules` или `llama` |
 | `FRONTEND_PORT`, `BACKEND_PORT`, `POSTGRES_PORT`, `MAILPIT_UI_PORT`, `KEYCLOAK_PORT` | 3000, 8000, 5432, 8025, 8080 | порты на хосте |
 

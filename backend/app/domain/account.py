@@ -36,6 +36,9 @@ class Account:
     fsp_id: str | None = None
     # Учётка, созданная входом через ФСП ID, пароля не имеет.
     has_password: bool = True
+    # Тестовая учётка режима жюри: в выдаче и поиске реальных работодателей её нет, ответы не
+    # калибруют банк заданий.
+    demo: bool = False
 
     @property
     def email_verified(self) -> bool:

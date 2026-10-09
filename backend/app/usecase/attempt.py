@@ -37,6 +37,7 @@ from app.domain.attempt import (
     AttemptProgress,
     AttemptPurpose,
     CategoryChange,
+    ExpressView,
     GradeUp,
     HistoryEntry,
     Item,
@@ -44,10 +45,12 @@ from app.domain.attempt import (
     PathView,
     Presentation,
     Stage,
+    TestResult,
     TopicBlockProgress,
     VerificationProgress,
     VerificationResult,
     VerificationView,
+    express_result,
     grade_up_available_at,
     path_history,
     stage_of,
@@ -71,6 +74,9 @@ from app.domain.determination import (
 from app.domain.errors import (
     AttemptInProgress,
     CategoryRequired,
+    ExpressNotPaused,
+    ExpressPaused,
+    ExpressUnavailable,
     GradeChangeTooEarly,
     GradeNotNext,
     GradeNotOffered,
@@ -128,6 +134,21 @@ def blueprint_of(prior: Prior, mechanics: Mechanics) -> Blueprint:
         min_items=mechanics.test_min_items,
         max_items=mechanics.test_max_items,
         min_per_topic=mechanics.test_min_items_per_topic,
+        max_topic_share=mechanics.test_max_topic_share,
+        stop_sd=mechanics.test_stop_sd,
+    )
+
+
+def express_blueprint(prior: Prior, mechanics: Mechanics) -> Blueprint:
+    """Бланк экспресс-теста: те же темы и веса, ровно `express_max_items` заданий, без минимума
+    на тему — на нём не уместится. Уверенность для категории проверяет правило уверенности."""
+    items = mechanics.express_max_items
+    return Blueprint(
+        topics=prior.topics,
+        weights=prior.weights,
+        min_items=items,
+        max_items=items,
+        min_per_topic=0,
         max_topic_share=mechanics.test_max_topic_share,
         stop_sd=mechanics.test_stop_sd,
     )
@@ -225,7 +246,12 @@ class CandidatePath:
             return self._view(self._attempts.state(user_id), now, user_id)
 
     def start_attempt(
-        self, user_id: uuid.UUID, *, grade: str, focus_consent: bool = False
+        self,
+        user_id: uuid.UUID,
+        *,
+        grade: str,
+        focus_consent: bool = False,
+        express: bool = False,
     ) -> PathView:
         """Тест на заявленный грейд, дотест каскада на предложенный или, при категории, попытка
         на грейд выше; возвращает шаг пути на тот же момент.
@@ -236,11 +262,15 @@ class CandidatePath:
         результат ждёт блока, можно оставить и начать заново на грейд ниже (§8).
 
         `focus_consent` — согласие на счётчики вставки и потери фокуса в этой попытке (§8).
+        `express` — экспресс-тест режима жюри (§18): только тестовому кандидату и только первое
+        определение, лимит заданий — `express_max_items`.
         """
         with self._uow:
             self._attempts.lock_candidate(user_id)
             if grade not in self._mechanics.grade_thresholds:
                 raise UnknownGrade()
+            if express and not self._attempts.is_demo(user_id):
+                raise ExpressUnavailable()
             now = self._clock.now()
             self._expire_verification(user_id, now)
             state = self._attempts.state(user_id)
@@ -284,8 +314,20 @@ class CandidatePath:
             else:
                 raise StepUnavailable()
 
+            express_limit = None
+            if express:
+                if stage != Stage.grade:
+                    raise ExpressUnavailable()
+                express_limit = self._mechanics.express_max_items
             attempt = self._attempts.add_attempt(
-                user_id, survey, grade, continues, now, purpose, focus_consent=focus_consent
+                user_id,
+                survey,
+                grade,
+                continues,
+                now,
+                purpose,
+                focus_consent=focus_consent,
+                express_limit=express_limit,
             )
             prior = self._prior(attempt.specialization_code)
             if not self._remaining(attempt, prior):
@@ -294,6 +336,18 @@ class CandidatePath:
                 observations = self._chain_observations(chain)
                 estimate = self._skill_model.estimate(prior, observations)
                 self._finish(attempt, chain, prior, estimate, now)
+            return self._view(self._attempts.state(user_id), now, user_id)
+
+    def continue_full(self, user_id: uuid.UUID) -> PathView:
+        """Экспресс-тест, не набравший уверенности для категории, продолжается полным: лимит
+        снимается, набранные ответы остаются в оценке (§18)."""
+        with self._uow:
+            self._attempts.lock_candidate(user_id)
+            attempt = self._attempts.attempt_in_progress(user_id)
+            if attempt is None or not attempt.express_paused:
+                raise ExpressNotPaused()
+            self._attempts.lift_express_limit(attempt)
+            now = self._clock.now()
             return self._view(self._attempts.state(user_id), now, user_id)
 
     def start_verification(self, user_id: uuid.UUID) -> PathView:
@@ -413,6 +467,8 @@ class CandidatePath:
             self._attempts.lock_candidate(user_id)
             now = self._clock.now()
             attempt = self._attempt_in_progress(user_id)
+            if attempt.express_paused:
+                raise ExpressPaused()
             presentation = attempt.pending()
             prior = self._prior(attempt.specialization_code)
             expired = self._expired(attempt, now)
@@ -503,8 +559,14 @@ class CandidatePath:
                 chain = self._attempts.chain(attempt)
                 observations = self._chain_observations(chain)
                 estimate = self._skill_model.estimate(prior, observations)
-                stop = should_stop(self._blueprint(prior), attempt.counts(), estimate.overall())
-                if stop or not self._remaining(attempt, prior):
+                stop = should_stop(
+                    self._blueprint(attempt, prior), attempt.counts(), estimate.overall()
+                )
+                remaining = self._remaining(attempt, prior)
+                # Экспресс-тест останавливается категорией, только если уверенность набрана; иначе
+                # он ждёт продолжения полным тестом, а не каскадом вниз по десятку заданий.
+                holds = attempt.express and remaining and not self._confident(attempt, estimate)
+                if (stop or not remaining) and not holds:
                     self._finish(attempt, chain, prior, estimate, now)
             elif len(attempt.presentations) >= self._max_items(attempt) or (
                 not self._remaining(attempt, prior)
@@ -543,7 +605,7 @@ class CandidatePath:
             observations = self._chain_observations(self._attempts.chain(attempt))
             threshold = self._mechanics.grade_thresholds[attempt.grade_code]
             selection = self._skill_model.estimate(selection_prior(prior, threshold), observations)
-            blueprint = self._blueprint(prior)
+            blueprint = self._blueprint(attempt, prior)
         options, window = self._options(attempt, prior)
         rng = random.Random(self._seeds.seed())
         choice = self._selector.choose(blueprint, attempt.counts(), selection, options, window, rng)
@@ -841,7 +903,11 @@ class CandidatePath:
             case AttemptPurpose.verification:
                 return self._mechanics.verification_items
             case _:
-                return self._mechanics.test_max_items
+                return (
+                    attempt.express_limit
+                    if attempt.express_limit is not None
+                    else self._mechanics.test_max_items
+                )
 
     def _verification_target(self, state: PathState) -> Attempt | None:
         """Что проверяет блок: результат попытки пути, который его ждёт, или попытка, чья оценка
@@ -980,6 +1046,12 @@ class CandidatePath:
                 grade_confidence=self._mechanics.grade_confidence,
                 hint_confidence=self._mechanics.grade_up_hint_confidence,
             )
+        express = None
+        if attempt is not None and attempt.express_limit is not None:
+            express, provisional = self._express_view(
+                attempt, self._prior(attempt.specialization_code)
+            )
+            result = result or provisional
         grade_up, grade_down = None, None
         history: tuple[HistoryEntry, ...] = ()
         if stage == Stage.category and state.category is not None:
@@ -1011,7 +1083,9 @@ class CandidatePath:
             progress=(
                 AttemptProgress(
                     attempt.grade_code,
-                    sum(1 for p in attempt.presentations if p.answered_at is not None),
+                    attempt.answered_count,
+                    self._max_items(attempt),
+                    attempt.express,
                 )
                 if attempt is not None and not finished
                 else None
@@ -1035,6 +1109,7 @@ class CandidatePath:
                 if stage in (Stage.category, Stage.verification)
                 else None
             ),
+            express=express,
         )
 
     def _block_progress(self, user_id: uuid.UUID) -> TopicBlockProgress | None:
@@ -1127,8 +1202,42 @@ class CandidatePath:
             self._priors[specialization_code] = prior
         return prior
 
-    def _blueprint(self, prior: Prior) -> Blueprint:
+    def _blueprint(self, attempt: Attempt, prior: Prior) -> Blueprint:
+        if attempt.express:
+            return express_blueprint(prior, self._mechanics)
         return blueprint_of(prior, self._mechanics)
+
+    def _confident(self, attempt: Attempt, estimate: SkillEstimate) -> bool:
+        """Хватает ли уверенности присвоить категорию по правилу уверенности (§4) — то же `decide`,
+        что при остановке попытки."""
+        decision = decide(
+            estimate.overall(),
+            attempt.grade_code,
+            thresholds=self._mechanics.grade_thresholds,
+            confidence=self._mechanics.grade_confidence,
+            has_items=lambda _: False,
+        )
+        return isinstance(decision, Assign)
+
+    def _express_view(
+        self, attempt: Attempt, prior: Prior
+    ) -> tuple[ExpressView, TestResult | None]:
+        """Экспресс-оценка шага пути; пока тест ждёт продолжения — ещё и итог на сейчас."""
+        assert attempt.express_limit is not None
+        paused = attempt.express_paused
+        result = None
+        if paused:
+            estimate = self._skill_model.estimate(
+                prior, self._chain_observations(self._attempts.chain(attempt))
+            )
+            result = express_result(
+                attempt,
+                estimate.overall(),
+                thresholds=self._mechanics.grade_thresholds,
+                grade_confidence=self._mechanics.grade_confidence,
+            )
+        view = ExpressView(attempt.express_limit, attempt.answered_count, paused)
+        return view, result
 
 
 def _p_before(p: Presentation) -> float:

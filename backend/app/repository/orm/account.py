@@ -25,6 +25,8 @@ class User(Base):
     # ФСП ID — `sub` из ФСП ID; один ID — одна учётка.
     fsp_id: Mapped[str | None] = mapped_column(String(255), unique=True)
     created_at: Mapped[datetime]
+    # Тестовая учётка режима жюри: в выдаче и поиске реальных работодателей её нет.
+    is_demo: Mapped[bool] = mapped_column(default=False, server_default="false")
 
 
 class EmailVerificationToken(Base):

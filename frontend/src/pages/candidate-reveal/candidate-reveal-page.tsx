@@ -49,7 +49,12 @@ function Reveal({ path, fresh, passed }: { path: CandidatePath; fresh: boolean; 
       </section>
       {path.result === null ? null : (
         <aside className={styles.result}>
-          <TestResult result={path.result} highlight={category.grade.code} animate={fresh} />
+          <TestResult
+            result={path.result}
+            highlight={category.grade.code}
+            animate={fresh}
+            expressLimit={path.express?.limit}
+          />
         </aside>
       )}
     </div>

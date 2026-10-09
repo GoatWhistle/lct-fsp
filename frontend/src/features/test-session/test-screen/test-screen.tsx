@@ -86,7 +86,9 @@ export function TestScreen({ path, exitTo, onFinished }: TestScreenProps) {
     ? t("protection.title")
     : path.topic_block !== null
       ? `${t("titleBlock")}: ${names.topic(path.topic_block.topic)}`
-      : t("title", { grade: names.grade(path.attempt?.grade ?? "") })
+      : t(path.attempt?.express ? "titleExpress" : "title", {
+          grade: names.grade(path.attempt?.grade ?? ""),
+        })
   const number =
     item.data?.number ?? (path.attempt?.answered ?? path.topic_block?.answered ?? 0) + 1
   const max = item.data?.max_items ?? path.attempt?.max_items ?? path.topic_block?.items ?? 1

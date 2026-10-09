@@ -115,6 +115,63 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/demo/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Включён ли режим жюри */
+        get: operations["demo_status_api_demo_status_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/demo/employer": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Войти демо-работодателем
+         * @description Демо-компания с потребностями и подборками; учётка помечена и заводится при первом входе. Ставит cookie входа.
+         */
+        post: operations["demo_employer_api_demo_employer_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/demo/candidate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Новый тестовый кандидат
+         * @description Свежая подтверждённая учётка с пройденным опросом и начатым экспресс-тестом; каждый вызов — новая, поэтому повторное прохождение не ждёт смены грейда. Ставит cookie входа.
+         */
+        post: operations["demo_candidate_api_demo_candidate_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/auth/fsp/authorize": {
         parameters: {
             query?: never;
@@ -267,6 +324,26 @@ export interface paths {
          * @description На шаге `grade` — тест на заявленный грейд. На шаге `offer` — дотест на предложенный грейд: он продолжает оценку прошлых ответов. На шаге `category` — попытка на следующий грейд с чистого листа: категория меняется, только если грейд подтверждён. Раньше срока по правилу ожидания попытка не начинается — ошибка несёт `available_at`.
          */
         post: operations["start_attempt_api_candidate_path_attempts_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/candidate/path/express/continue": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Продолжить экспресс-тест полным
+         * @description Экспресс-тест, дошедший до лимита без уверенности для категории, ждёт продолжения: лимит снимается, ответы остаются в оценке, тест идёт как обычный.
+         */
+        post: operations["continue_express_api_candidate_path_express_continue_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1585,6 +1662,12 @@ export interface components {
              * @default false
              */
             focus_consent: boolean;
+            /**
+             * Express
+             * @description Экспресс-тест режима жюри: короткий, с лимитом `express_max_items` заданий, правило уверенности то же. Только тестовому кандидату на шаге `grade`
+             * @default false
+             */
+            express: boolean;
         };
         /**
          * AttemptOutcome
@@ -1603,6 +1686,11 @@ export interface components {
              * @description Больше заданий попытка не задаст; обычно тест останавливается раньше — когда уровень определён с нужной точностью
              */
             max_items: number;
+            /**
+             * Express
+             * @description Экспресс-тест режима жюри: лимит — `express_max_items`
+             */
+            express: boolean;
         };
         /**
          * AttemptPurpose
@@ -1928,6 +2016,29 @@ export interface components {
              */
             updated_at: string;
         };
+        /** DemoCandidateIn */
+        DemoCandidateIn: {
+            /**
+             * Specialization
+             * @description Код специализации опроса
+             * @default backend
+             */
+            specialization: string;
+            /**
+             * Grade
+             * @description Заявленный грейд экспресс-теста
+             * @default middle
+             */
+            grade: string;
+        };
+        /** DemoStatusOut */
+        DemoStatusOut: {
+            /**
+             * Enabled
+             * @description Режим жюри включён настройкой окружения `DEMO_MODE`
+             */
+            enabled: boolean;
+        };
         /**
          * DisclosedOut
          * @description Раскрытая часть анкеты: ФИО, контакты, свободный текст и карточка опыта. Ожидаемой
@@ -2055,6 +2166,21 @@ export interface components {
              * @description Что делал
              */
             summary: string;
+        };
+        /** ExpressOut */
+        ExpressOut: {
+            /**
+             * Limit
+             * @description Лимит заданий экспресс-теста
+             */
+            limit: number;
+            /** Answered */
+            answered: number;
+            /**
+             * Paused
+             * @description Лимит выбран, уверенности для категории нет: тест ждёт продолжения полным (`POST /api/candidate/path/express/continue`); уровень с погрешностью — в `result`
+             */
+            paused: boolean;
         };
         /** FeedbackOut */
         FeedbackOut: {
@@ -2824,7 +2950,7 @@ export interface components {
             /** Retest After */
             retest_after: string | null;
             category: components["schemas"]["CategoryOut"] | null;
-            /** @description На шагах `offer`, `category`, `no_category` */
+            /** @description На шагах `offer`, `category`, `no_category`; у экспресс-теста, который ждёт продолжения, — на шаге `test` */
             result: components["schemas"]["TestResultOut"] | null;
             profile: components["schemas"]["SkillProfileOut"] | null;
             /** @description Попытка на грейд выше — на шаге `category`, если грейд не старший */
@@ -2843,6 +2969,8 @@ export interface components {
             topic_block: components["schemas"]["TopicBlockOut"] | null;
             /** @description Проверочный блок на шагах `verification` и `category`: результат ждёт его, он идёт или его можно пройти добровольно */
             verification: components["schemas"]["VerificationOut"] | null;
+            /** @description Экспресс-тест режима жюри: идёт, ждёт продолжения или дал итог пути — итог помечается «экспресс-оценка» */
+            express: components["schemas"]["ExpressOut"] | null;
         };
         /** PlacementOut */
         PlacementOut: {
@@ -3853,6 +3981,12 @@ export interface components {
             role: components["schemas"]["Role"];
             /** Email Verified */
             email_verified: boolean;
+            /**
+             * Demo
+             * @description Тестовая учётка режима жюри: ей доступен экспресс-тест
+             * @default false
+             */
+            demo: boolean;
         };
         /** VacancyIn */
         VacancyIn: {
@@ -4253,6 +4387,103 @@ export interface operations {
             };
             /** @description `not_authenticated` — Войдите, чтобы продолжить */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    demo_status_api_demo_status_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DemoStatusOut"];
+                };
+            };
+        };
+    };
+    demo_employer_api_demo_employer_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserOut"];
+                };
+            };
+            /** @description `demo_disabled` — Режим жюри выключен */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    demo_candidate_api_demo_candidate_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DemoCandidateIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserOut"];
+                };
+            };
+            /** @description `demo_disabled` — Режим жюри выключен */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /**
+             * @description `unknown_specialization` — Такой специализации нет в справочнике
+             *
+             *     `specialization_without_test` — Тест по этой специализации ещё готовится — выберите другую
+             *
+             *     `unknown_grade` — Такого грейда нет в справочнике
+             */
+            422: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -4691,6 +4922,8 @@ export interface operations {
              *     `attempt_in_progress` — Сначала закончите начатый тест или блок по теме
              *
              *     `verification_pending` — Сначала пройдите проверочный блок — результат прошлой попытки ждёт его
+             *
+             *     `express_unavailable` — Экспресс-тест доступен только тестовому кандидату режима жюри и на первом шаге теста
              */
             409: {
                 headers: {
@@ -4702,6 +4935,53 @@ export interface operations {
             };
             /** @description `unknown_grade` — Такого грейда нет в справочнике */
             422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    continue_express_api_candidate_path_express_continue_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PathOut"];
+                };
+            };
+            /** @description `not_authenticated` — Войдите, чтобы продолжить */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description `wrong_role` — Раздел доступен другой роли */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description `express_not_paused` — Экспресс-тест не ждёт продолжения */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -4923,7 +5203,11 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorOut"];
                 };
             };
-            /** @description `no_test_in_progress` — Сейчас нет начатого теста */
+            /**
+             * @description `no_test_in_progress` — Сейчас нет начатого теста
+             *
+             *     `express_paused` — Экспресс-тест закончен — продолжите полный тест
+             */
             409: {
                 headers: {
                     [name: string]: unknown;

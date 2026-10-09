@@ -17,7 +17,11 @@ export function useSetPath(): (path: CandidatePath) => void {
 }
 
 export function isInProgress(path: CandidatePath): boolean {
-  return path.stage === "test" || path.topic_block !== null || !!path.verification?.progress
+  return (
+    (path.stage === "test" && path.express?.paused !== true) ||
+    path.topic_block !== null ||
+    !!path.verification?.progress
+  )
 }
 
 export function useStartAttempt(focusConsent = false) {
@@ -25,7 +29,9 @@ export function useStartAttempt(focusConsent = false) {
   return useMutation({
     mutationFn: (grade: string) =>
       unwrap(
-        api.POST("/api/candidate/path/attempts", { body: { grade, focus_consent: focusConsent } }),
+        api.POST("/api/candidate/path/attempts", {
+          body: { grade, focus_consent: focusConsent, express: false },
+        }),
       ),
     onSuccess: setPath,
   })
@@ -62,5 +68,13 @@ export function useGradeHint() {
     queryKey: ["candidate", "grade-hint"],
     queryFn: () => unwrap(api.GET("/api/candidate/profile/grade-hint")),
     retry: false,
+  })
+}
+
+export function useContinueExpress() {
+  const setPath = useSetPath()
+  return useMutation({
+    mutationFn: () => unwrap(api.POST("/api/candidate/path/express/continue")),
+    onSuccess: setPath,
   })
 }

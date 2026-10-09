@@ -1,0 +1,28 @@
+.box {
+  composes: cardFrame from "../../../shared/styles/compose.module.css";
+  display: grid;
+  gap: var(--space-12);
+  padding: var(--space-16);
+  animation: var(--motion-rise-in);
+}
+
+.label {
+  composes: labelText from "../../../shared/styles/compose.module.css";
+  color: var(--text-accent);
+}
+
+.hint {
+  composes: secondaryText from "../../../shared/styles/compose.module.css";
+}
+
+.actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-12);
+}
+
+@media (max-width: 29.99rem) {
+  .actions {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

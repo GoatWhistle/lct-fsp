@@ -63,6 +63,7 @@ services:
       FSP_ID_REDIRECT_URI: ${FSP_ID_REDIRECT_URI:-}
       # Разбор потребности из текста: rules по умолчанию, llama — с сервисом llama ниже.
       TEXT_UNDERSTANDING: ${TEXT_UNDERSTANDING:-rules}
+      DEMO_MODE: ${DEMO_MODE:-false}
       TEXT_UNDERSTANDING_TIMEOUT_SECONDS: ${TEXT_UNDERSTANDING_TIMEOUT_SECONDS:-10}
       LLAMA_URL: ${LLAMA_URL:-http://llama:8080}
     # Вход по email не ждёт Keycloak: недоступный ФСП ID — понятная ошибка на кнопке.

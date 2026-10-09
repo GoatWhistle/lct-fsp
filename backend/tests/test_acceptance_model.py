@@ -432,3 +432,19 @@ def test_acceptance_details_round_trip_through_storage_codec() -> None:
     )
 
     assert details_of(details_json(details)) == details
+
+
+def test_public_predictions_do_not_distinguish_expectations_in_one_bucket(
+    trained: CatBoostAcceptanceModel,
+) -> None:
+    from app.domain.acceptance import quantize_expectation
+
+    salaries = [SalaryRange(v, v + 50_000) for v in range(50_000, 400_000, 10_000)]
+    probes = [features(expected_salary=e) for e in (180_000, 180_500, 184_999)]
+    for salary in salaries:
+        hints = [hint_for(trained, salary, expected_salary=f.expected_salary) for f in probes]
+        assert hints[0] == hints[1] == hints[2]
+        coarse = [quantize_expectation(replace(f, salary=salary), STEP) for f in probes]
+        assert len(set(trained.predict(coarse))) == 1
+        explanations = trained.explain(coarse)
+        assert explanations[0] == explanations[1] == explanations[2]

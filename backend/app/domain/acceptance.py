@@ -135,6 +135,15 @@ def snap(value: float, step: int) -> int:
     return max(step, math.floor(value / step + 0.5) * step)
 
 
+def quantize_expectation(features: AcceptanceFeatures, step: int) -> AcceptanceFeatures:
+    """Публичные прогнозы зависят только от ячейки ожидания шириной `step`, а не от точной суммы.
+    Округление входящей вилки само по себе от перебора публичной модели не защищает."""
+    expected = features.expected_salary
+    return dataclasses.replace(
+        features, expected_salary=None if expected is None else snap(expected, step)
+    )
+
+
 def salary_hint(
     features: AcceptanceFeatures,
     salary: SalaryRange,
@@ -155,7 +164,8 @@ def salary_hint(
     shown = SalaryRange(low, low + width)
     top = max(step, math.ceil(market_ratio * features.market_salary / step) * step)
     grid = [SalaryRange(start, start + width) for start in range(step, top + 1, step)]
-    rows = [dataclasses.replace(features, salary=r) for r in (shown, *grid)]
+    coarse = quantize_expectation(features, step)
+    rows = [dataclasses.replace(coarse, salary=r) for r in (shown, *grid)]
     found = predict(rows)
     if any(p is None for p in found):
         return None

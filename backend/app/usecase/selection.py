@@ -14,7 +14,7 @@ import uuid
 from collections.abc import Collection, Sequence
 from datetime import datetime, timedelta
 
-from app.domain.acceptance import SalaryHint, salary_hint
+from app.domain.acceptance import SalaryHint, quantize_expectation, salary_hint
 from app.domain.errors import NotInSelection
 from app.domain.need import NeedForm, need_content
 from app.domain.search import (
@@ -165,7 +165,10 @@ class Selections:
                 need.specialization.code, need.grade.code, [t.code for t in need.stack]
             ),
         )
-        features = self._acceptance_features(user_id, snapshot, scored, now)
+        features = [
+            quantize_expectation(f, self._mechanics.salary_hint_rounding_rub)
+            for f in self._acceptance_features(user_id, snapshot, scored, now)
+        ]
         acceptance = self._acceptance.predict(features)
         details = [
             None if why is None else AcceptanceDetails(f, why)

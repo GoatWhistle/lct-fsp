@@ -3,13 +3,18 @@
 
 import json
 import math
+import random
+from dataclasses import replace
 
 from app.adapter.code_runner import InProcessCodeRunner
 from app.domain.bank import get_family
+from app.domain.calibration import Parameters
 from app.domain.skill import Normal
 from settings import Mechanics, Settings
 from validation.llm_attack import COPY_SECONDS, Answering, item_request
+from validation.main import catalog
 from validation.market import market
+from validation.population import D1, Generator
 from validation.protection import (
     DRIFT_GRID,
     Drift,
@@ -20,6 +25,7 @@ from validation.protection import (
 )
 from validation.recorded import Answer, request_key
 from validation.simulate import Determined
+from validation.truth import Persona, ResponseModel, respond
 
 MECHANICS = Mechanics.from_yaml(Settings().mechanics_file)
 RUNNER = InProcessCodeRunner()
@@ -88,3 +94,17 @@ def test_model_answers_replay_from_recording_without_network() -> None:
     empty = Answering({})
     assert not empty(family.code, other).correct
     assert empty.missing == 1
+
+
+def test_leaked_instance_is_always_solved_even_without_leaked_families() -> None:
+    """S1: слит экземпляр, а не семейство, — читер решает его всегда."""
+    generator = Generator(D1, MECHANICS, catalog())
+    truth = generator.truth("qa", Persona.honest, random.Random(1))
+    cheater = replace(truth, persona=Persona.bank_leak, leaked=frozenset())
+    hard = Parameters(1.2, 9.0)
+    rng = random.Random(2)
+    replies = [
+        respond(cheater, "f", "qa.api", hard, 0.0, ResponseModel(), rng, leaked_instance=True)
+        for _ in range(50)
+    ]
+    assert all(r.correct for r in replies)

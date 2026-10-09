@@ -239,13 +239,18 @@ def run_protection(job: ProtectionJob) -> ProtectionRun:
 
 def warmed(params: GeneratorParams, code: str, mechanics: Mechanics, responses: int) -> Market:
     """Банк, прогретый честными кандидатами набора до `responses` ответов на семейство, —
-    заморожен, детектор дрейфа ведётся."""
-    m = Market(code, mechanics, params.seed, params.response)
-    source = warm_source(params, code, mechanics)
+    заморожен, детектор дрейфа ведётся. Прогрев идёт без детектора: утечка в плане — после
+    разогрева, и детектор начинает с прогретого банка. Иначе порог детектора менял бы сам банк,
+    на котором его подбирают, и путь теста D7, записанный по ответам модели."""
+    quiet = mechanics.model_copy(update={"drift_cusum_h": math.inf})
+    m = Market(code, quiet, params.seed, params.response)
+    source = warm_source(params, code, quiet)
     while mean_responses(m) < responses:
         m.attempt(source())
-    m.calibrate, m.watch = False, True
-    return m
+    m.calibrate = False
+    warm = m.fork(_seed(params, code, "warmed"), mechanics)
+    warm.watch = True
+    return warm
 
 
 def _seed(params: GeneratorParams, code: str, stream: str) -> int:

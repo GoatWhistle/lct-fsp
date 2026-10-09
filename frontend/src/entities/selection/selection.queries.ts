@@ -5,13 +5,26 @@ import {
   useQuery,
   useQueryClient,
 } from "@tanstack/react-query"
-import { api, type CandidateFilters, type NeedInput, type Selection, unwrap } from "@/shared/api"
+import {
+  api,
+  type CandidateFilters,
+  type NeedInput,
+  type Selection,
+  type SelectionOrder,
+  unwrap,
+} from "@/shared/api"
 
 export const SELECTION_PAGE = 20
 export const SELECTIONS_KEY = ["employer", "selections"] as const
 
+export const ORDERS: readonly SelectionOrder[] = ["mutual", "match"]
+
 export function selectionKey(id: string) {
   return [...SELECTIONS_KEY, id] as const
+}
+
+export function orderedKey(id: string, order: SelectionOrder) {
+  return order === "mutual" ? selectionKey(id) : ([...selectionKey(id), "order", order] as const)
 }
 
 export function filteredTotal(selection: Selection): number {
@@ -22,16 +35,16 @@ export function filteredTotal(selection: Selection): number {
   )
 }
 
-export function useSelection(id: string) {
+export function useSelection(id: string, order: SelectionOrder = "mutual") {
   return useInfiniteQuery({
-    queryKey: selectionKey(id),
+    queryKey: orderedKey(id, order),
     initialPageParam: 0,
     queryFn: ({ pageParam }) =>
       unwrap(
         api.GET("/api/employer/selections/{selection_id}", {
           params: {
             path: { selection_id: id },
-            query: { offset: pageParam, limit: SELECTION_PAGE },
+            query: { offset: pageParam, limit: SELECTION_PAGE, order },
           },
         }),
       ),
@@ -89,7 +102,12 @@ export function useBuildDraftSelection() {
 }
 
 export function useApplyFilters(id: string) {
-  const seed = useSeed()
+  const client = useQueryClient()
+  const seedMutual = useSeed()
+  const seed = (selection: Selection) => {
+    void client.invalidateQueries({ queryKey: orderedKey(id, "match") })
+    return seedMutual(selection)
+  }
   return useMutation({
     mutationFn: (filters: CandidateFilters) =>
       unwrap(
@@ -130,11 +148,13 @@ export function useToggleShortlist(id: string) {
     onSuccess: (shortlist) => {
       client.setQueryData([...selectionKey(id), "shortlist"], shortlist)
       const ids = shortlist.entries.map((entry) => entry.candidate_id)
-      client.setQueryData<InfiniteData<Selection, number>>(selectionKey(id), (data) =>
-        data === undefined
-          ? data
-          : { ...data, pages: data.pages.map((page) => ({ ...page, shortlist: ids })) },
-      )
+      for (const order of ORDERS) {
+        client.setQueryData<InfiniteData<Selection, number>>(orderedKey(id, order), (data) =>
+          data === undefined
+            ? data
+            : { ...data, pages: data.pages.map((page) => ({ ...page, shortlist: ids })) },
+        )
+      }
     },
   })
 }

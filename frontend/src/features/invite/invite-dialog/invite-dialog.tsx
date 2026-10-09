@@ -9,11 +9,12 @@ import {
   Dialog,
   Form,
   IconLabel,
-  NumberField,
+  SalaryInput,
   TextArea,
   TextField,
   toast,
 } from "@/shared/ui"
+import { SalaryHint } from "../salary-hint/salary-hint"
 import styles from "./invite-dialog.module.css"
 
 export interface InviteDefaults {
@@ -26,6 +27,7 @@ export interface InviteDialogProps {
   readonly open: boolean
   readonly onClose: () => void
   readonly candidateId: string
+  readonly selectionId?: string | undefined
   readonly label: string
   readonly defaults: InviteDefaults
   readonly budget: InvitationBudget | null
@@ -35,6 +37,7 @@ export function InviteDialog({
   open,
   onClose,
   candidateId,
+  selectionId,
   label,
   defaults,
   budget,
@@ -120,25 +123,26 @@ export function InviteDialog({
           minRows={4}
           maxLength={4000}
         />
-        <fieldset className={styles.salary}>
-          <legend className={styles.legend}>{t("invite.salary")}</legend>
-          <NumberField
-            label={t("common:money.fieldFrom")}
-            value={salaryFrom}
-            onChange={setSalaryFrom}
-            min={0}
-            step={10000}
-          />
-          <NumberField
-            label={t("common:money.fieldTo")}
-            value={salaryTo}
-            onChange={setSalaryTo}
-            min={0}
-            step={10000}
-            error={order ? t("invite.salaryOrder") : undefined}
-          />
-          <p className={styles.basis}>{t("common:money.basis")}</p>
-        </fieldset>
+        <SalaryInput
+          label={t("invite.salary")}
+          from={salaryFrom}
+          to={salaryTo}
+          onChange={(from, to) => {
+            setSalaryFrom(from)
+            setSalaryTo(to)
+          }}
+          error={order ? t("invite.salaryOrder") : undefined}
+        />
+        <SalaryHint
+          selectionId={selectionId ?? null}
+          candidateId={candidateId}
+          from={salaryFrom}
+          to={salaryTo}
+          onApply={(from, to) => {
+            setSalaryFrom(from)
+            setSalaryTo(to)
+          }}
+        />
         <TextField
           label={t("invite.contact")}
           hint={t("invite.contactHint")}

@@ -34,6 +34,7 @@ from app.domain.determination import grades_by_threshold
 from composition import model_understanding, named_completion
 from settings import CATALOG_FILE, MECHANICS_FILE, SYNONYMS_FILE, Mechanics, Settings
 from validation.baselines import B3_SYSTEM, Document, LlmRanker, ScoreCache, record
+from validation.isolated import IsolatedCompletion
 from validation.main import B3_DIR, b3_cache_path, baseline_source, build_stand, catalog
 from validation.market import (
     SEED,
@@ -367,16 +368,22 @@ def b3(mechanics: Mechanics, sets: Sequence[str], record_workers: int, model: st
     )
     if not record_workers:
         return
-    live = named_completion(model, RECORD_TIMEOUT)
-    for name, (ranker, pairs) in plans.items():
-        ranker = LlmRanker(ranker.cache, live)
+    # Каждый поток — свой процесс CLI со своим конфигом: общий конфиг пользователя параллельные
+    # вызовы портят (`validation.isolated`).
+    model_id = getattr(named_completion(model, RECORD_TIMEOUT), "model", None)
+    live = IsolatedCompletion(model, RECORD_TIMEOUT, record_workers, model_id)
+    try:
+        for name, (ranker, pairs) in plans.items():
+            ranker = LlmRanker(ranker.cache, live)
 
-        def progress(done: int, total: int, name: str = name) -> None:
-            if done % 500 == 0 or done == total:
-                print(f"{name.upper()}: {done} из {total}", flush=True)
+            def progress(done: int, total: int, name: str = name) -> None:
+                if done % 500 == 0 or done == total:
+                    print(f"{name.upper()}: {done} из {total}", flush=True)
 
-        added, failed = record(ranker, pairs, workers=record_workers, progress=progress)
-        print(f"{name.upper()}: записано {added}, сбоев {failed} → {ranker.cache.path.name}")
+            added, failed = record(ranker, pairs, workers=record_workers, progress=progress)
+            print(f"{name.upper()}: записано {added}, сбоев {failed} → {ranker.cache.path.name}")
+    finally:
+        live.close()
 
 
 def write_market(

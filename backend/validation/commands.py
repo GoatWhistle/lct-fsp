@@ -18,6 +18,8 @@
   (`validation.llm_attack`); отчёт потом пересобирается из записи без сети.
 - `b3` — пары B3 по наборам: сколько вызовов модели и во что обойдётся живой прогон, а с
   `--record` — сам прогон с записью ответов в кэш (`validation.baselines`);
+- `run_d6` — набор D6, резюме в PDF для M18 и M22: сборка, приём листа ревью человека и
+  проверка целостности (`validation.d6`);
 - `train_acceptance` — обучение модели принятия на своём сиде: файл модели в репо и базовые линии
   M7 рядом (`validation.acceptance`).
 
@@ -42,6 +44,7 @@ from app.adapter.text_rules import load_synonyms
 from app.domain.determination import grades_by_threshold
 from composition import model_understanding, named_completion
 from settings import CATALOG_FILE, MECHANICS_FILE, SYNONYMS_FILE, Mechanics, Settings
+from validation import d6
 from validation.acceptance import (
     TRAIN_PAIRS,
     TRAIN_SEED,
@@ -547,6 +550,23 @@ def train_acceptance(mechanics: Mechanics, model_file: Path) -> None:
     )
 
 
+def run_d6(rebuild: bool, sheet: Path | None) -> None:
+    """D6: сборка набора, приём листа ревью и проверка целостности со сводкой."""
+    if rebuild:
+        d6.build()
+    if sheet is not None:
+        result = d6.confirm(sheet)
+        print(f"принято записей: {len(result.accepted)}")
+        for record_id, reason in result.refused.items():
+            print(f"  не принято {record_id}: {reason}")
+    problems = d6.check()
+    print(d6.summary(d6.load()))
+    for problem in problems:
+        print(f"  ошибка: {problem}")
+    if problems:
+        raise SystemExit(1)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(prog="python -m validation")
     parser.add_argument(
@@ -563,6 +583,7 @@ def main() -> None:
             "drift",
             "llm",
             "b3",
+            "d6",
         ),
     )
     parser.add_argument(
@@ -629,6 +650,15 @@ def main() -> None:
         default=D5_FILE,
         help="размеченные тексты для parsing, по умолчанию D5",
     )
+    parser.add_argument(
+        "--build", action="store_true", help="d6: собрать PDF и разметку набора заново"
+    )
+    parser.add_argument(
+        "--confirm",
+        type=Path,
+        metavar="ЛИСТ",
+        help="d6: принять подтверждения из заполненного человеком листа ревью",
+    )
     args = parser.parse_args()
     # Предупреждения сценариев о потолке показов и выводе семейств из выдачи на тысячах попыток
     # забили бы отчёт: сверх потолка стенд считает сам, в таблице.
@@ -670,6 +700,8 @@ def main() -> None:
             train_acceptance(mechanics, Settings().acceptance_model_file)
         case "b3":
             b3(mechanics, SETS, args.record, args.model or "agent_sdk")
+        case "d6":
+            run_d6(args.build, args.confirm)
         case _:
             scale = Scale(
                 **{

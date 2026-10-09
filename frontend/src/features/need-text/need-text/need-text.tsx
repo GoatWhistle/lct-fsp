@@ -1,55 +1,39 @@
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { useNavigate } from "react-router"
 import { useParseNeed } from "@/entities/need"
 import { useCatalogNames, useErrorText, useFormatters, useTranslation } from "@/shared/i18n"
-import { motionMs, Swap } from "@/shared/motion"
-import {
-  Banner,
-  Button,
-  Card,
-  EmptyState,
-  Form,
-  TextArea,
-  Trace,
-  type TraceStatus,
-} from "@/shared/ui"
+import { Swap } from "@/shared/motion"
+import { Banner, Button, Card, EmptyState, Form, TextArea, Trace } from "@/shared/ui"
 import { draftWithSpecialization } from "../draft-input"
 import { DraftResult } from "../draft-result/draft-result"
+import { PARSE_STAGES, useParseStatuses } from "../parse-stage/parse-stage"
 import styles from "./need-text.module.css"
 
 const MAX_LENGTH = 20000
-const STAGES = ["stageRead", "stageMatch", "stageDone"] as const
 
-function useStage(pending: boolean, done: boolean): number {
-  const [stage, setStage] = useState(0)
-  useEffect(() => {
-    if (!pending) return
-    setStage(0)
-    const timer = window.setTimeout(() => setStage(1), motionMs("--dur-draw"))
-    return () => window.clearTimeout(timer)
-  }, [pending])
-  return done ? STAGES.length - 1 : stage
+export interface NeedTextProps {
+  readonly hero?: boolean
 }
 
-export function NeedText() {
-  const { t } = useTranslation("need")
+export function NeedText({ hero = false }: NeedTextProps) {
+  const { t } = useTranslation(["need", "employer"])
   const names = useCatalogNames()
   const format = useFormatters()
   const errorText = useErrorText()
   const navigate = useNavigate()
   const parse = useParseNeed()
   const [text, setText] = useState("")
-  const stage = useStage(parse.isPending, parse.isSuccess)
+  const statuses = useParseStatuses(parse.isPending, parse.isSuccess)
   const result = parse.data
-  const status = (index: number): TraceStatus => {
-    if (!parse.isPending && !parse.isSuccess) return "upcoming"
-    if (index < stage || (parse.isSuccess && index === stage)) return "done"
-    return index === stage ? "current" : "upcoming"
-  }
 
   return (
-    <div className={styles.layout}>
-      <Card title={t("text.field")} className={styles.input}>
+    <div className={styles.layout} data-hero={hero}>
+      <Card
+        title={hero ? t("employer:overview.hero.title") : t("text.field")}
+        description={hero ? t("employer:overview.hero.lead") : undefined}
+        tone={hero ? "inverse" : "default"}
+        className={styles.input}
+      >
         <Form onSubmit={() => text.trim() !== "" && parse.mutate(text)} className={styles.form}>
           <TextArea
             label={t("text.field")}
@@ -58,7 +42,7 @@ export function NeedText() {
             onChange={setText}
             placeholder={t("text.placeholder")}
             maxLength={MAX_LENGTH}
-            minRows={10}
+            minRows={hero ? 7 : 10}
             hint={t("text.counter", {
               length: format.integer(text.length),
               max: format.integer(MAX_LENGTH),
@@ -81,10 +65,10 @@ export function NeedText() {
             label={t("text.parse")}
             orientation="horizontal"
             animate
-            steps={STAGES.map((key, index) => ({
+            steps={PARSE_STAGES.map((key, index) => ({
               key,
               title: t(`need:text.${key}` as never),
-              status: status(index),
+              status: statuses[index] ?? "upcoming",
             }))}
           />
         </Form>

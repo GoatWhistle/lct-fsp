@@ -686,3 +686,49 @@ def test_selection_on_1000_candidates_builds_within_a_second(
     # Медиана трёх построений: разовая задержка машины — не регресс.
     elapsed = sorted(timings)[1]
     assert elapsed < 1.0, f"подборка на 1000 кандидатах строилась {elapsed:.2f} с"
+
+
+def test_without_model_file_hint_is_unavailable_and_order_switch_works(
+    employer: TestClient, db_engine: Engine
+) -> None:
+    ids = seed(db_engine, [Seed(), Seed(levels={"qa.api": (2.0, 0.2)})])
+    selection = build(employer, create_need(employer, salary_from=200_000, salary_to=300_000))
+
+    hint = employer.get(
+        f"{SELECTIONS}/{selection['id']}/candidates/{ids[0]}/salary-hint",
+        params={"salary_from": 100_000, "salary_to": 150_000},
+    )
+
+    assert hint.status_code == 200, hint.text
+    assert hint.json() == {
+        "salary_basis": "gross",
+        "available": False,
+        "probability": None,
+        "evaluated_from": None,
+        "evaluated_to": None,
+        "target_probability": None,
+        "reachable": False,
+        "hint_from": None,
+        "hint_to": None,
+        "rounding": None,
+    }
+    by_match = open_selection(employer, selection["id"], order="match")
+    default = open_selection(employer, selection["id"])
+    assert [e["candidate_id"] for e in by_match["entries"]] == [
+        e["candidate_id"] for e in default["entries"]
+    ]
+    for entry in default["entries"]:
+        assert entry["acceptance_explanation"] is None
+
+
+def test_hint_for_candidate_outside_selection_is_not_found(
+    employer: TestClient, db_engine: Engine
+) -> None:
+    selection = build(employer, create_need(employer))
+
+    response = employer.get(
+        f"{SELECTIONS}/{selection['id']}/candidates/{uuid.uuid4()}/salary-hint",
+        params={"salary_from": 100_000, "salary_to": 150_000},
+    )
+
+    assert response.status_code == 404

@@ -2,13 +2,15 @@ import { useRef, useState } from "react"
 import type { Selection, SelectionBlock } from "@/shared/api"
 import { useFormatters, useTranslation } from "@/shared/i18n"
 import { Swap } from "@/shared/motion"
-import { Button, Popover } from "@/shared/ui"
+import { Button, Popover, Switch } from "@/shared/ui"
 import { BLOCKS } from "../selection-model"
 import styles from "./selection-bar.module.css"
 
 export interface SelectionBarProps {
   readonly selection: Selection
   readonly shortlistCount: number
+  readonly matchOnly: boolean
+  readonly onMatchOnly: (value: boolean) => void
   readonly onOpenShortlist: () => void
 }
 
@@ -52,7 +54,13 @@ function Method({ stackCap }: { readonly stackCap: number }) {
   )
 }
 
-export function SelectionBar({ selection, shortlistCount, onOpenShortlist }: SelectionBarProps) {
+export function SelectionBar({
+  selection,
+  shortlistCount,
+  matchOnly,
+  onMatchOnly,
+  onOpenShortlist,
+}: SelectionBarProps) {
   const { t } = useTranslation("selection")
   return (
     <div className={styles.bar}>
@@ -72,6 +80,7 @@ export function SelectionBar({ selection, shortlistCount, onOpenShortlist }: Sel
         })}
       </dl>
       <div className={styles.tools}>
+        <Switch label={t("order.matchOnly")} checked={matchOnly} onChange={onMatchOnly} />
         <Method stackCap={selection.stack_cap} />
         <Button variant="secondary" size="compact" icon="star" onClick={onOpenShortlist}>
           {t("shortlist.open")}

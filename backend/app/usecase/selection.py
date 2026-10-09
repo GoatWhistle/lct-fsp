@@ -14,6 +14,7 @@ import uuid
 from collections.abc import Collection, Sequence
 from datetime import datetime, timedelta
 
+from app.domain.acceptance import SalaryHint, quantize_expectation, salary_hint
 from app.domain.errors import NotInSelection
 from app.domain.need import NeedForm, need_content
 from app.domain.search import (
@@ -24,6 +25,7 @@ from app.domain.search import (
     search_order,
 )
 from app.domain.selection import (
+    AcceptanceDetails,
     AcceptanceFeatures,
     NeedContent,
     NeedSnapshot,
@@ -32,18 +34,21 @@ from app.domain.selection import (
     Selection,
     SelectionDraft,
     SelectionEntry,
+    SelectionOrder,
     SelectionRules,
     Shortlist,
     Summary,
     acceptance_features,
     arrange,
     block_totals,
+    in_order,
     need_snapshot,
     page_of,
     score,
     showcase,
 )
 from app.domain.skill import Normal
+from app.domain.work import SalaryRange
 from app.usecase.interface import (
     AcceptanceModel,
     CandidatePool,
@@ -160,12 +165,19 @@ class Selections:
                 need.specialization.code, need.grade.code, [t.code for t in need.stack]
             ),
         )
-        acceptance = self._acceptance.predict(
-            self._acceptance_features(user_id, snapshot, scored, now)
-        )
+        features = [
+            quantize_expectation(f, self._mechanics.salary_hint_rounding_rub)
+            for f in self._acceptance_features(user_id, snapshot, scored, now)
+        ]
+        acceptance = self._acceptance.predict(features)
+        details = [
+            None if why is None else AcceptanceDetails(f, why)
+            for f, why in zip(features, self._acceptance.explain(features), strict=True)
+        ]
         entries = arrange(
             scored,
             acceptance,
+            details=details,
             showcased=showcased,
             salt=self._seeds.seed(),
             now=now,
@@ -200,12 +212,48 @@ class Selections:
             for item in scored
         ]
 
-    def open(self, user_id: uuid.UUID, selection_id: uuid.UUID, *, offset: int, limit: int) -> Page:
+    def open(
+        self,
+        user_id: uuid.UUID,
+        selection_id: uuid.UUID,
+        *,
+        offset: int,
+        limit: int,
+        order: SelectionOrder = SelectionOrder.mutual,
+    ) -> Page:
         """Сохранённая выдача — та же при каждом открытии — через последние применённые фильтры;
-        чужая подборка — `SelectionNotFound`."""
+        чужая подборка — `SelectionNotFound`. `order` — вид выдачи: по S × P или только по S."""
         with self._uow:
             selection, entries = self._selections.get(user_id, selection_id)
-            return self._page(selection, entries, offset=offset, limit=limit)
+            return self._page(selection, entries, offset=offset, limit=limit, order=order)
+
+    def salary_hint(
+        self,
+        user_id: uuid.UUID,
+        selection_id: uuid.UUID,
+        candidate_id: uuid.UUID,
+        salary: SalaryRange,
+    ) -> SalaryHint | None:
+        """Вероятность принятия при вилке `salary` и вилка до целевой вероятности — по признакам
+        строки на момент построения подборки. `None` — модели нет, у потребности не было вилки
+        или кандидат в нижнем блоке: P нет, подсказки нет. Кандидата нет в выдаче —
+        `NotInSelection`."""
+        with self._uow:
+            _, entries = self._selections.get(user_id, selection_id)
+        entry = next((e for e in entries if e.candidate_id == candidate_id), None)
+        if entry is None:
+            raise NotInSelection()
+        if entry.acceptance is None:
+            return None
+        mechanics = self._mechanics
+        return salary_hint(
+            entry.acceptance.features,
+            salary,
+            self._acceptance.predict,
+            target=mechanics.acceptance_target_probability,
+            step=mechanics.salary_hint_rounding_rub,
+            market_ratio=mechanics.salary_hint_market_ratio,
+        )
 
     def refine(
         self,
@@ -215,14 +263,16 @@ class Selections:
         *,
         offset: int,
         limit: int,
+        order: SelectionOrder = SelectionOrder.mutual,
     ) -> Page:
-        """Заменяет фильтры подборки и отдаёт выдачу через них. Выдача только сужается: места,
-        ранги, скоры и порядок — сохранённые; пустые фильтры — исходная выдача."""
+        """Заменяет фильтры подборки и отдаёт выдачу через них. Выдача только сужается: скоры и
+        порядок — сохранённые (или только по S, если `order` так просит); пустые фильтры —
+        исходная выдача."""
         with self._uow:
             selection, entries = self._selections.get(user_id, selection_id)
             self._selections.save_filters(selection.id, filters)
             selection = dataclasses.replace(selection, filters=filters)
-            return self._page(selection, entries, offset=offset, limit=limit)
+            return self._page(selection, entries, offset=offset, limit=limit, order=order)
 
     def shortlist(
         self, user_id: uuid.UUID, selection_id: uuid.UUID, candidate_id: uuid.UUID, listed: bool
@@ -264,9 +314,11 @@ class Selections:
         *,
         offset: int,
         limit: int,
+        order: SelectionOrder = SelectionOrder.mutual,
     ) -> Page:
         summary = Summary(selection, block_totals(entries))
         filters = selection.filters
+        entries = in_order(entries, order)
         if filters.empty:
             return page_of(summary, entries, None, offset=offset, limit=limit)
         current = {

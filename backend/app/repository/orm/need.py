@@ -179,6 +179,10 @@ class SelectionEntry(Base):
     explanation: Mapped[dict[str, Any]] = mapped_column(JSONB)
     # Последний сигнал профиля старше `profile_stale_days`.
     stale: Mapped[bool]
+    # Признаки и SHAP-объяснение P(принятия) — `AcceptanceDetails`, формат — кодеки
+    # `app.repository.selection`. NULL — модели принятия нет, у потребности нет вилки или нижний
+    # блок.
+    acceptance: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
 
 
 # Шортлист подборки — кандидаты её выдачи: строка выдачи уходит — уходит и отметка.

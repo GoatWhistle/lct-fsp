@@ -5,6 +5,7 @@ import type { SelectionEntry } from "@/shared/api"
 import { useFormatters, useTranslation } from "@/shared/i18n"
 import { Swap } from "@/shared/motion"
 import { ButtonLink, Card, Chip, CloseButton, EmptyState, IconLabel, ScrollArea } from "@/shared/ui"
+import { AcceptancePart } from "../acceptance-part/acceptance-part"
 import { TopicFitRow } from "../topic-fit-row/topic-fit-row"
 import styles from "./explanation-panel.module.css"
 
@@ -86,6 +87,7 @@ function Explanation({
         </ul>
       </section>
       <StackPart entry={entry} stackCap={stackCap} />
+      <AcceptancePart entry={entry} />
       <div className={styles.actions}>
         {invite}
         <ButtonLink

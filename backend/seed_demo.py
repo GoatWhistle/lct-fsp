@@ -46,6 +46,7 @@ from app.usecase import candidate as candidate_usecase
 from app.usecase.account import Accounts
 from app.usecase.attempt import CandidatePath
 from app.usecase.interface import PasswordHasher
+from composition import experience_limits
 from main import create_app
 from settings import Mechanics, Settings
 from validation.main import catalog
@@ -326,6 +327,7 @@ class Seeder:
                 form,
                 self.clock,
                 self.state.profile_freshness,
+                experience_limits=experience_limits(self.mechanics),
             )
 
     def link_fsp(self, account: Account, login: str) -> None:

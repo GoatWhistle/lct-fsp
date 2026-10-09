@@ -15,12 +15,18 @@ import enum
 import uuid
 from collections.abc import Mapping
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import date, datetime
 from functools import cached_property
 from typing import Self
 
 from app.domain.catalog import CatalogRef, Grade
 from app.domain.errors import CityRequired
+from app.domain.experience import (
+    ExperienceEntry,
+    ExperienceInput,
+    TechnologyYears,
+    technology_years,
+)
 from app.domain.fsp import AnonymizedAchievement, ConfirmedAchievement, FspHistory, anonymized
 from app.domain.skill import LevelBand, Normal, SignalSource, level_band
 from app.domain.work import WorkFormat
@@ -173,7 +179,8 @@ class VisibleSelfReported:
 
 @dataclass(frozen=True)
 class Disclosed:
-    """Видно только после раскрытия: ФИО, контакты, «о себе», роли и софт-скиллы."""
+    """Видно только после раскрытия: ФИО, контакты, «о себе», роли, софт-скиллы и карточка
+    опыта. В свободном тексте карточки опыта бывают имена, компании и контакты."""
 
     full_name: str
     contact_email: str
@@ -182,6 +189,8 @@ class Disclosed:
     about: str
     job_roles: tuple[str, ...]
     soft_skills: tuple[str, ...]
+    # Карточка опыта со слов кандидата — показ без веса (§11).
+    experience: tuple[ExperienceEntry, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -337,7 +346,9 @@ class ProfileSheet:
     в формате нет: файл может оказаться у работодателя (§14).
 
     `grade_confidence` — порог уверенности для подписи к уровням словами. Достижения ФСП —
-    полностью, отдельно от самоописания; пусто — нет истории ФСП.
+    полностью, отдельно от самоописания; пусто — нет истории ФСП. Карточка опыта — с годами по
+    технологиям на дату листа. Обезличенного листа нет: собрать его можно только из раскрытой
+    карточки.
     """
 
     disclosed: Disclosed
@@ -346,9 +357,10 @@ class ProfileSheet:
     skill_profile: SkillProfile | None
     grade_confidence: float
     fsp_achievements: tuple[ConfirmedAchievement, ...] = ()
+    technology_years: tuple[TechnologyYears, ...] = ()
 
     @classmethod
-    def of(cls, card: DisclosedCard, grade_confidence: float) -> Self | None:
+    def of(cls, card: DisclosedCard, grade_confidence: float, today: date) -> Self | None:
         """Лист PDF из раскрытой карточки; `None` — анкета не заполнена, PDF не из чего собрать."""
         if card.profile is None:
             return None
@@ -359,6 +371,7 @@ class ProfileSheet:
             skill_profile=card.skill_profile,
             grade_confidence=grade_confidence,
             fsp_achievements=card.fsp_achievements,
+            technology_years=technology_years(card.profile.disclosed.experience, today),
         )
 
 
@@ -366,7 +379,8 @@ class ProfileSheet:
 class ProfileForm:
     """Анкета, как её прислал кандидат: стек и интересные сферы — кодами справочника, ожидаемая
     зарплата — в рублях в месяц до вычета НДФЛ. Город обязателен, если подходит офис или гибрид.
-    `hidden` — поля самоописания, скрытые из обезличенной карточки.
+    `hidden` — поля самоописания, скрытые из обезличенной карточки. `experience` — карточка
+    опыта; проверяет её `check_experience`, коды стека — хранилище.
     """
 
     full_name: str
@@ -384,6 +398,7 @@ class ProfileForm:
     industries: tuple[str, ...]
     expected_salary: int
     hidden: frozenset[HideableField] = frozenset()
+    experience: tuple[ExperienceInput, ...] = ()
 
     def __post_init__(self) -> None:
         if self.city is None and set(self.work_formats) != {WorkFormat.remote}:

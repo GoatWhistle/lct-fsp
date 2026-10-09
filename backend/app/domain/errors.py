@@ -255,6 +255,28 @@ class CityRequired(DomainError):
     message = "Укажите город — для офиса и гибрида он обязателен"
 
 
+class ExperiencePlaceRequired(DomainError):
+    code = "experience_place_required"
+    message = "Укажите в записи опыта компанию или проект"
+
+
+class ExperiencePeriodInvalid(DomainError):
+    code = "experience_period_invalid"
+    message = "В записи опыта начало позже конца"
+
+
+class ExperienceStartInFuture(DomainError):
+    code = "experience_start_in_future"
+    message = "Запись опыта не может начинаться в будущем"
+
+
+class ExperienceTooLong(DomainError):
+    code = "experience_too_long"
+    message = (
+        "Карточка опыта больше лимита: слишком много записей, технологий в записи или текста в поле"
+    )
+
+
 class ResumeTooLarge(DomainError):
     code = "resume_too_large"
     message = (

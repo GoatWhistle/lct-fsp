@@ -1,6 +1,6 @@
 export { Flag, type FlagCode, type FlagProps } from "./brand/flag/flag"
 export { FspMark, type FspMarkProps, type FspMarkTone } from "./brand/fsp-mark/fsp-mark"
-export { Lockup, type LockupProps, type LockupSize } from "./brand/lockup/lockup"
+export { Lockup, type LockupProps, type LockupSize, Wordmark } from "./brand/lockup/lockup"
 export { LockupLink, type LockupLinkProps } from "./brand/lockup/lockup-link"
 export { Chip, type ChipProps, type ChipTone } from "./data-display/chip/chip"
 export { Meter, type MeterProps, type MeterTone } from "./data-display/meter/meter"

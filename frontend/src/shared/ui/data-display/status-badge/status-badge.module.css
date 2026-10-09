@@ -1,0 +1,20 @@
+.badge {
+  composes: captionText badgeShape pill from "../../../styles/compose.module.css";
+  gap: var(--space-8);
+  font-weight: var(--weight-medium);
+}
+
+.emphasis {
+  font-weight: var(--weight-semibold);
+}
+
+.pulse {
+  composes: dot from "../../../styles/compose.module.css";
+  flex: none;
+  background-color: currentColor;
+  animation: var(--motion-pulse);
+}
+
+.waiting {
+  animation: var(--motion-spin);
+}

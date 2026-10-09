@@ -1,0 +1,109 @@
+{
+  "title": "Shortlist",
+  "built": "Built {{date}}",
+  "need": "Hiring need",
+  "rebuild": "Rebuild",
+  "rebuilding": "Rebuilding",
+  "fixDraft": "Adjust and rebuild",
+  "draftNote": "Built from a draft: the need is not saved",
+  "counts": {
+    "label": "Shortlist breakdown",
+    "exact": "in category",
+    "nearby": "close",
+    "unconfirmed": "grade not confirmed",
+    "of": "{{shown}} of {{total}}"
+  },
+  "method": {
+    "open": "How it works",
+    "title": "How the shortlist is built",
+    "match": "Fit: the expected share of requirements met across topics, weighted by importance. The self-reported stack adds at most {{cap}}.",
+    "place": "Rank: the fit combined with the chance that the candidate accepts the invitation.",
+    "category": "The category is a hard cut: a grade below the requested one goes to close matches, an unconfirmed grade ranks below everyone."
+  },
+  "filters": {
+    "title": "Filters",
+    "stack": "Stack",
+    "fsp": "Confirmed by FSP",
+    "confident": "Confident estimate",
+    "confidentHint": "The level has a small margin of error",
+    "status": "Grade status",
+    "reset": "Reset",
+    "applying": "Applying filters"
+  },
+  "blocks": {
+    "exact": "In category",
+    "nearby": "Close matches",
+    "unconfirmed": "Grade not confirmed by the test"
+  },
+  "row": {
+    "stale": "Has not confirmed the level for a long time",
+    "acceptance": "accepts",
+    "stack": "stack {{matched}} of {{total}}",
+    "shortlistAdd": "Add to favorites",
+    "shortlistRemove": "Remove from favorites",
+    "noScore": "no fit score"
+  },
+  "list": {
+    "label": "Candidates in the shortlist",
+    "more": "Show more",
+    "keys": "Arrows pick a row, Enter opens the explanation, S adds to favorites.",
+    "emptyTitle": "Nobody matches the filters",
+    "emptyText": "Loosen the filters: drop the stack or the confident estimate.",
+    "noneTitle": "No candidates of this specialization yet",
+    "noneText": "Rebuild later: candidates take the test every day."
+  },
+  "explain": {
+    "title": "Why this candidate",
+    "titleFor": "Why candidate {{id}}",
+    "emptyTitle": "No candidate selected",
+    "empty": "Pick a row to see what the fit is made of.",
+    "place": "Rank combines the fit and the chance of acceptance.",
+    "topics": "Topics",
+    "weight": "weight {{value}}",
+    "contribution": "contribution",
+    "stack": "Stack",
+    "stackMatched": "{{matched}} of {{total}}, self-reported",
+    "stackCap": "contribution {{value}}, cap {{cap}}",
+    "stackNone": "The candidate has not listed a stack",
+    "card": "Open profile",
+    "close": "Close explanation",
+    "unconfirmed": "Not confirmed by the test: no fit score."
+  },
+  "shortlist": {
+    "open": "Favorites",
+    "title": "Favorites",
+    "lead": "Pick up to three candidates to compare them by topic.",
+    "emptyTitle": "Nobody in favorites yet",
+    "empty": "Star the candidates you want to come back to.",
+    "compare": "Compare",
+    "pick": "Compare candidate {{id}}",
+    "limit": "You can compare at most three"
+  },
+  "compare": {
+    "title": "Candidate comparison",
+    "topic": "Topic",
+    "match": "Fit"
+  },
+  "invite": {
+    "action": "Invite",
+    "title": "Invitation to candidate {{id}}",
+    "description": "Offer text",
+    "descriptionHint": "What the candidate will work on and why the offer fits them",
+    "salary": "Salary range",
+    "contact": "How to reach you",
+    "contactHint": "Email, phone or Telegram: the candidate sees it after accepting",
+    "budget": "Invitations left: {{remaining}} of {{limit}}",
+    "budgetEmpty": "No invitations left, new ones arrive {{date}}",
+    "send": "Send invitation",
+    "sending": "Sending",
+    "sent": "Invitation sent",
+    "open": "Open invitations",
+    "required": "Fill in the text, salary range and contact",
+    "salaryOrder": "The upper bound is below the lower bound"
+  },
+  "filterStatus": {
+    "confirmed": "Confirmed by the test",
+    "below_claimed": "Below the claimed grade",
+    "unconfirmed": "Not confirmed"
+  }
+}

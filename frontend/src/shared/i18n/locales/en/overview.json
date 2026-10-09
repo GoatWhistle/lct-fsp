@@ -1,0 +1,105 @@
+{
+  "title": "Overview",
+  "category": {
+    "title": "Category",
+    "label": "Category: specialisation and grade",
+    "confirmed": "confirmed by test",
+    "since": "since {{date}}"
+  },
+  "gradeUp": {
+    "top": "This is the top grade. You can still refine topic levels with topic blocks.",
+    "hint": "Worth trying {{grade}}: your level is already close",
+    "text": "The {{grade}} test starts from scratch. Your category changes only if the grade is confirmed; otherwise it stays and the attempt is not lost.",
+    "action": "Try {{grade}}",
+    "pending": "Preparing the test",
+    "from": "Available from {{date}}"
+  },
+  "stepDown": {
+    "menu": "Move to {{grade}}",
+    "title": "Move to {{grade}}?",
+    "text": "No test needed, the category changes right away. Moving back up takes a test and only after the waiting period.",
+    "confirm": "Move to {{grade}}",
+    "done": "Category changed: now {{grade}}"
+  },
+  "block": {
+    "start": "Take a block",
+    "pending": "Preparing the block",
+    "availableFrom": "Block available from {{date}}"
+  },
+  "skills": {
+    "title": "Skill profile",
+    "lead": "Level in each topic of your category with its margin of error. The narrower the band, the more precise.",
+    "order": "Topic order",
+    "byCatalog": "Default order",
+    "weakFirst": "Weakest first",
+    "noFsp": "FSP achievements are not linked",
+    "linkFsp": "Link in profile",
+    "widest": "widest margin of error",
+    "refine": "Refine the level",
+    "blockText": "A topic block is a short test on this topic only. It narrows the margin of error and refines the level without changing your category or grade."
+  },
+  "history": {
+    "title": "Grade history",
+    "outcome": {
+      "stepDown": "Moved to {{grade}} without a test",
+      "raised": "Grade raised to {{outcome}}",
+      "confirmed": "{{grade}} confirmed",
+      "assigned": "Assigned {{outcome}}",
+      "offered": "Not enough confidence for {{grade}}, {{outcome}} offered",
+      "none": "No category assigned",
+      "kept": "{{grade}} not confirmed, category unchanged",
+      "block": "Topic block completed",
+      "verification": "Awaiting verification",
+      "mismatch": "Verification did not match the test"
+    },
+    "purpose": {
+      "determination": "Category placement, {{grade}} test",
+      "grade_up": "Step up attempt, {{grade}} test",
+      "topic_block": "Topic block",
+      "verification": "Verification block"
+    }
+  },
+  "feedback": {
+    "title": "What moves you up",
+    "lead": "How you look in employer shortlists. Companies and their needs stay undisclosed.",
+    "few": "Too few shortlists with you in the last {{days}} days to show a position. General advice below.",
+    "selections": "Shortlists in {{days}} days",
+    "median": "Median position",
+    "exact": "In the exact block",
+    "hints": "Suggestions",
+    "fspTitle": "Link your FSP ID",
+    "fspText": "Competition results become the strongest signal in your profile. There is no penalty without them.",
+    "linkFsp": "Link FSP ID",
+    "toTasks": "Go to tasks",
+    "scenario": {
+      "narrow": "Narrow the margin of error in {{topic}}",
+      "raise": "Raise your level in {{topic}}",
+      "default": "Refine your level in {{topic}}: the margin of error is widest here"
+    },
+    "gain": "+{{gain}} match",
+    "gainPlaces": "+{{gain}} match, about {{places}} places higher"
+  },
+  "invitations": {
+    "title": "Invitations",
+    "all": "All",
+    "emptyTitle": "No invitations yet",
+    "emptyText": "Employers find you in shortlists by category and reach out themselves. Refine your skill profile to rank higher."
+  },
+  "profile": {
+    "title": "Profile",
+    "filled": "Profile completeness",
+    "text": "Until you accept an invitation, employers see an anonymised card without your name, contacts and the fields you hid.",
+    "preview": "How employers see you"
+  },
+  "gate": {
+    "action": "Continue the path",
+    "invitations": {
+      "title": "Invitations come after your category",
+      "text": "Employers shortlist candidates by category: specialisation and grade confirmed by a test. Without a category you do not appear in shortlists, so nobody can invite you."
+    },
+    "tasks": {
+      "title": "Tasks open after your category",
+      "text": "Regular tasks are matched to your category and refine your skill profile. Complete the path to a category and tasks will appear here."
+    }
+  }
+}

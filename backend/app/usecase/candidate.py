@@ -28,6 +28,7 @@ from app.domain.candidate import (
 from app.domain.errors import CandidateNotFound, ProfileNotFound
 from app.domain.experience import ExperienceLimits, check_experience
 from app.domain.invitation import InvitationStatus
+from app.domain.locale import DEFAULT_LOCALE, Locale
 from app.usecase.interface import (
     ApplicationReader,
     ApplicationRepository,
@@ -85,6 +86,7 @@ def profile_pdf(
     freshness: ProfileFreshness,
     *,
     grade_confidence: float,
+    locale: Locale = DEFAULT_LOCALE,
 ) -> ProfilePdf:
     """PDF-профиль — для самого кандидата: собирается из его раскрытой карточки."""
     now = clock.now()
@@ -93,7 +95,7 @@ def profile_pdf(
     sheet = ProfileSheet.of(card, grade_confidence, now.date())
     if sheet is None:
         raise ProfileNotFound()
-    return ProfilePdf(sheet.disclosed.full_name, renderer.render(sheet, now=now))
+    return ProfilePdf(sheet.disclosed.full_name, renderer.render(sheet, now=now, locale=locale))
 
 
 def employer_card(

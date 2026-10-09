@@ -1,0 +1,7 @@
+.list {
+  display: grid;
+}
+
+.tag {
+  composes: monoText from "../../../shared/styles/compose.module.css";
+}

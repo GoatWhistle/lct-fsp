@@ -81,7 +81,7 @@ def test_fsp_achievements_are_a_confirmed_block_apart_from_self_description() ->
     fsp, self_reported = text.index("ПОДТВЕРЖДЕНО ФСП"), text.index("СО СЛОВ КАНДИДАТА")
     assert fsp < self_reported
     block = text[fsp:self_reported]
-    for part in ("12.04.2025", "продуктовому", "призёр", "2 место", "QA"):
+    for part in ("12.04.2025", "продуктовому", "Призёр", "2 место", "QA"):
         assert part in block
 
 
@@ -109,7 +109,7 @@ def test_experience_card_is_a_block_from_candidate_words_after_self_description(
 
     block = text[text.index("ОПЫТ (СО СЛОВ КАНДИДАТА)") :]
     assert text.index("СО СЛОВ КАНДИДАТА") < text.index("ОПЫТ (СО СЛОВ КАНДИДАТА)")
-    for part in ("03.2021 — по сейчас", "QA-инженер", "Ромашка", "платёжного", "5,5 года"):
+    for part in ("с 03.2021 по настоящее время", "QA-инженер", "Ромашка", "платёжного", "5,5 года"):
         assert part in block
 
 

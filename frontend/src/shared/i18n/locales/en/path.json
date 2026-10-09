@@ -1,0 +1,68 @@
+{
+  "title": "Path to category",
+  "lead": "Your category is your specialization and grade confirmed by the test. Employers search by category, so without one you do not appear in shortlists.",
+  "steps": {
+    "label": "Path steps",
+    "direction": "Direction",
+    "grade": "Grade",
+    "test": "Test",
+    "category": "Category"
+  },
+  "direction": {
+    "title": "Which direction do you want to work in?",
+    "topics_one": "{{count}} topic",
+    "topics_other": "{{count}} topics",
+    "preparing": "Test in preparation",
+    "hint": "The test and the category are built for the direction. Industries of interest can be set in your profile.",
+    "next": "Next: choose a grade",
+    "pending": "Saving",
+    "cancel": "Keep the current one"
+  },
+  "grade": {
+    "title": "Which grade are you aiming for?",
+    "change": "Change direction",
+    "byProfile": "from your profile",
+    "hint": "Hint from your profile: {{grade}}. You choose the grade, the test decides the category.",
+    "intern": "Learning, doing first projects",
+    "junior": "Solving tasks with guidance",
+    "middle": "Driving tasks on my own",
+    "senior": "Owning decisions and the system",
+    "start": "Start the {{grade}} test",
+    "pending": "Preparing the test",
+    "startEmpty": "Pick a grade to start the test"
+  },
+  "how": {
+    "title": "How the test works",
+    "length": "From {{min}} to {{max}} tasks: the test ends once your level is precise.",
+    "leave": "You can leave: the test resumes from the same task.",
+    "server": "Answers are checked on the server and response time is recorded.",
+    "result": "If there is not enough confidence for the chosen grade, you continue at the grade below and your answers still count."
+  },
+  "inProgress": {
+    "title": "The {{grade}} test is in progress",
+    "text": "Answer the remaining tasks to get your category.",
+    "action": "Continue the test"
+  },
+  "offer": {
+    "title": "Not enough confidence for {{grade}}",
+    "text": "Continue at {{offer}}: your previous answers count and a few easier tasks are added. If they are enough, you get the category right away.",
+    "action": "Continue at {{offer}}",
+    "pending": "Preparing tasks"
+  },
+  "none": {
+    "title": "No category yet",
+    "text": "There was not enough confidence even for intern. You can retake the test from {{date}}; meanwhile focus on the topics where your level is lower.",
+    "profile": "Level by topic"
+  },
+  "result": {
+    "level": "Level by test",
+    "probabilities": "Probability of each grade"
+  },
+  "reveal": {
+    "label": "Your category",
+    "lead": "The test confirmed your level. Employers now see you in shortlists for this category.",
+    "toCabinet": "To dashboard",
+    "notPassedTitle": "Category unchanged: {{grade}}",
+    "notPassedText": "There is not enough confidence for the higher grade yet. The attempt is not burnt: the next one opens later, and the result has already refined your skill profile."
+  }
+}

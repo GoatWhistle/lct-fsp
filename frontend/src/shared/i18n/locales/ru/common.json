@@ -1,0 +1,116 @@
+{
+  "app": {
+    "byFsp": "calibr от ФСП",
+    "documentTitle": "calibr от ФСП",
+    "pageTitle": "calibr: {{page}}"
+  },
+  "brand": {
+    "fspFull": "Федерация спортивного программирования России",
+    "signInFsp": "Войти через ФСП ID"
+  },
+  "action": {
+    "close": "Закрыть",
+    "retry": "Повторить",
+    "decrease": "Уменьшить",
+    "increase": "Увеличить",
+    "more": "Ещё действия",
+    "cancel": "Отмена",
+    "logout": "Выйти",
+    "signIn": "Войти"
+  },
+  "status": {
+    "attention": "Требует внимания"
+  },
+  "value": {
+    "none": "не указано",
+    "noneLabel": "Нет значения"
+  },
+  "meter": {
+    "threshold": "Порог"
+  },
+  "select": {
+    "placeholder": "Выберите"
+  },
+  "combobox": {
+    "placeholder": "Начните вводить",
+    "empty": "Ничего не нашлось",
+    "remove": "Убрать {{label}}",
+    "selected": "Выбрано {{count}} из {{max}}",
+    "limit": "Больше {{max}} выбрать нельзя",
+    "added": "{{label}} добавлено",
+    "removed": "{{label}} убрано"
+  },
+  "language": {
+    "legend": "Язык интерфейса",
+    "current": "Язык: {{name}}",
+    "ru": "Русский",
+    "en": "English"
+  },
+  "theme": {
+    "legend": "Тема",
+    "current": "Тема: {{name}}",
+    "light": "Светлая",
+    "dark": "Тёмная",
+    "system": "Как в системе"
+  },
+  "shell": {
+    "skip": "К содержимому",
+    "collapse": "Свернуть панель",
+    "expand": "Развернуть панель",
+    "account": "Учётная запись",
+    "navigation": "Разделы",
+    "roleCandidate": "Кандидат",
+    "roleEmployer": "Работодатель",
+    "company": "Профиль компании",
+    "unread_one": "{{count}} новое сообщение",
+    "unread_few": "{{count}} новых сообщения",
+    "unread_many": "{{count}} новых сообщений",
+    "unread_other": "{{count}} новых сообщения",
+    "offline": "Нет связи с сервером. Повторим, как только связь вернётся."
+  },
+  "nav": {
+    "overview": "Обзор",
+    "profile": "Профиль",
+    "invitations": "Приглашения",
+    "vacancies": "Вакансии",
+    "tasks": "Задания",
+    "needs": "Потребности",
+    "candidates": "Кандидаты",
+    "path": "Путь к категории"
+  },
+  "money": {
+    "range": "от {{from}} до {{to}} ₽",
+    "from": "от {{from}} ₽",
+    "basis": "в месяц, до вычета НДФЛ",
+    "fieldFrom": "От, ₽",
+    "fieldTo": "До, ₽"
+  },
+  "state": {
+    "loading": "Загружаем",
+    "saved": "Сохранено"
+  },
+  "notFound": {
+    "title": "Такой страницы нет",
+    "text": "Трасса обрывается здесь. Проверьте адрес или вернитесь туда, где вы были.",
+    "cabinet": "В кабинет",
+    "home": "На главную"
+  },
+  "confirm": {
+    "title": "Подтвердите действие"
+  },
+  "leave": {
+    "title": "Уйти без сохранения?",
+    "text": "Изменения в форме пропадут.",
+    "stay": "Остаться",
+    "leave": "Уйти"
+  },
+  "navShort": {
+    "overview": "Обзор",
+    "profile": "Профиль",
+    "invitations": "Приглашения",
+    "vacancies": "Вакансии",
+    "tasks": "Задания",
+    "needs": "Потребности",
+    "candidates": "Кандидаты"
+  }
+}

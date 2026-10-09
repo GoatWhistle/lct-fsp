@@ -1,0 +1,61 @@
+{
+  "title": "Vacancies",
+  "lead": "Vacancies published by companies. You can apply without a category: the company will see your contacts.",
+  "tabs": {
+    "vacancies": "Vacancies",
+    "applications": "My applications"
+  },
+  "count_one": "{{count}} vacancy",
+  "count_other": "{{count}} vacancies",
+  "filters": {
+    "title": "Filters",
+    "reset": "Reset",
+    "specialization": "Specialization",
+    "allSpecializations": "All specializations",
+    "grade": "Grade",
+    "allGrades": "All grades",
+    "formats": "Work format",
+    "salary": "Salary from",
+    "salaryUnit": "₽",
+    "titleCount": "Filters: {{count}}",
+    "done": "Done"
+  },
+  "empty": {
+    "title": "No vacancies found",
+    "text": "Companies have not published vacancies for this specialization yet. Check back later or look at all specializations.",
+    "filtered": "Nothing matches the selected filters. Loosen or reset them."
+  },
+  "card": {
+    "published": "Published {{date}}"
+  },
+  "terms": {
+    "salary": "Salary range",
+    "formats": "Work format",
+    "published": "Published"
+  },
+  "drawer": {
+    "privacy": "Before you apply the company does not see your name or contacts. After applying it does, and you can revoke access in My applications."
+  },
+  "apply": {
+    "action": "Apply",
+    "toApplications": "My applications",
+    "title": "Apply for {{title}}?",
+    "text": "{{company}} will see your full name, email, phone, Telegram, about text, roles and soft skills. You can revoke access later: contacts close, the application stays."
+  },
+  "applications": {
+    "title": "My applications",
+    "lead": "The company changes the status. An open application waits for a reply until the deadline.",
+    "applied": "Applied {{date}}",
+    "expires": "Reply by {{date}} Moscow time",
+    "revoke": "Revoke access",
+    "revokeTitle": "Revoke access to your contacts?",
+    "revokeText": "{{company}} will no longer see your name and contacts. The application stays in the list marked as access revoked.",
+    "emptyTitle": "No applications yet",
+    "emptyText": "Apply for a vacancy and you will see what happens to it here: whether the company viewed it and how it replied.",
+    "toVacancies": "Browse vacancies"
+  },
+  "toast": {
+    "applied": "Application sent, {{company}} sees your contacts",
+    "revoked": "Contact access revoked"
+  }
+}

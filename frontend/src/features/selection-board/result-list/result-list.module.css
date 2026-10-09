@@ -1,0 +1,65 @@
+.list {
+  composes: stale from "../../../shared/styles/compose.module.css";
+  display: grid;
+  gap: var(--space-16);
+  min-inline-size: 0;
+}
+
+.keys {
+  composes: captionText from "../../../shared/styles/compose.module.css";
+}
+
+@media (hover: none) {
+  .keys {
+    display: none;
+  }
+}
+
+.block {
+  display: grid;
+  gap: var(--space-8);
+}
+
+.divider {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+}
+
+.node {
+  composes: dot from "../../../shared/styles/compose.module.css";
+  flex: none;
+  background-color: var(--text-accent);
+}
+
+.block[data-block="unconfirmed"] .node {
+  background-color: var(--text-tertiary);
+}
+
+.blockTitle {
+  composes: labelText from "../../../shared/styles/compose.module.css";
+  flex: none;
+  color: var(--text-secondary);
+}
+
+.line {
+  flex: 1;
+  block-size: var(--hairline);
+  background-color: var(--border-strong);
+  transform-origin: left center;
+  animation: var(--motion-grow-x);
+}
+
+.rows {
+  composes: cardFrame from "../../../shared/styles/compose.module.css";
+  overflow: hidden;
+}
+
+.rows > :last-child {
+  border-block-end: 0;
+}
+
+.more {
+  display: flex;
+  justify-content: center;
+}

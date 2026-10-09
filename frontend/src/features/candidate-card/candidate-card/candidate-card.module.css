@@ -1,0 +1,51 @@
+.layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) var(--panel-detail);
+  align-items: start;
+  gap: var(--space-32);
+}
+
+.main {
+  display: grid;
+  gap: var(--space-24);
+  min-inline-size: 0;
+  animation: var(--motion-rise-in);
+}
+
+.aside {
+  position: sticky;
+  inset-block-start: calc(var(--sticky-top) + var(--space-16));
+  display: grid;
+  gap: var(--space-16);
+}
+
+.summary {
+  display: grid;
+  gap: var(--space-16);
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-8);
+}
+
+.empty {
+  composes: captionText from "../../../shared/styles/compose.module.css";
+  color: var(--text-tertiary);
+}
+
+.invite {
+  display: flex;
+}
+
+@media (max-width: 63.99rem) {
+  .layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .aside {
+    position: static;
+    grid-row: 1;
+  }
+}

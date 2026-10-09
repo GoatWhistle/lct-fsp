@@ -1,0 +1,71 @@
+{
+  "title": "Tasks",
+  "lead": "Tasks from companies in your specialization. Answers refine your skill profile on the task topics.",
+  "tabs": {
+    "catalog": "Available",
+    "answers": "My answers"
+  },
+  "kind": {
+    "reference": "reference answer",
+    "open": "open answer"
+  },
+  "filters": {
+    "grade": "Grade",
+    "allGrades": "All grades",
+    "topic": "Topic",
+    "allTopics": "All topics",
+    "reset": "Reset filters"
+  },
+  "empty": {
+    "title": "No new tasks",
+    "text": "You have answered everything in your specialization. Companies add tasks regularly, check back later.",
+    "filteredTitle": "Nothing matches the filters",
+    "filteredText": "Try another grade or topic."
+  },
+  "card": {
+    "topics": "Task topics",
+    "answer": "Answer",
+    "answers_one": "{{count}} answer",
+    "answers_other": "{{count}} answers"
+  },
+  "answer": {
+    "title": "Answer the task",
+    "lead": "Grade {{grade}}, {{kind}}",
+    "label": "Your answer",
+    "hint": {
+      "reference": "A short answer is checked against the reference automatically",
+      "open": "The company grades the answer from 0 to 3"
+    },
+    "once": "You can answer only once: the answer cannot be changed or withdrawn.",
+    "send": "Send answer",
+    "confirmTitle": "Send the answer?",
+    "confirmText": {
+      "reference": "The answer is checked against the reference right away and goes into your skill profile. It cannot be changed.",
+      "open": "The answer goes to the company for grading. It cannot be changed."
+    }
+  },
+  "answers": {
+    "title": "My answers",
+    "lead": "How tasks affected your skill profile",
+    "answered": "Answered {{date}}",
+    "yours": "Your answer",
+    "emptyTitle": "No answers yet",
+    "emptyText": "Answer a task in your specialization: it refines your level on its topics.",
+    "toTasks": "Go to tasks"
+  },
+  "status": {
+    "accepted": "accepted",
+    "awaiting_review": "awaiting review",
+    "reviewed": "graded"
+  },
+  "statusHint": {
+    "accepted": "The answer matched the reference and counts in your skill profile.",
+    "awaiting_review": "The company has not graded the answer yet. Once graded it goes into your skill profile.",
+    "reviewed": "The company graded the answer and the grade counts in your skill profile."
+  },
+  "toast": {
+    "accepted": "Answer accepted and counted in your profile",
+    "awaiting_review": "Answer sent for grading",
+    "reviewed": "Answer graded"
+  }
+}

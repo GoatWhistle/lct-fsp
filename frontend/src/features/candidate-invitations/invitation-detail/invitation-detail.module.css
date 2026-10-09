@@ -1,0 +1,40 @@
+.detail {
+  animation: var(--motion-rise-in);
+}
+
+.status {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-8);
+}
+
+.basis {
+  composes: footnote from "../../../shared/styles/compose.module.css";
+}
+
+.note {
+  font-size: var(--font-size-body-sm);
+}
+
+.section {
+  display: grid;
+  gap: var(--space-16);
+  padding-block-start: var(--space-20);
+  border-block-start: var(--hairline) solid var(--border-hairline);
+}
+
+.description {
+  composes: preWrap from "../../../shared/styles/layout.module.css";
+  max-inline-size: var(--prose-measure);
+  text-wrap: pretty;
+}
+
+.heading {
+  composes: labelText from "../../../shared/styles/compose.module.css";
+  font-weight: var(--weight-medium);
+}
+
+.text {
+  font-family: var(--font-ui);
+  font-feature-settings: var(--font-features);
+}

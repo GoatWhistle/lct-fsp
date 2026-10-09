@@ -1,0 +1,74 @@
+{
+  "title": "Invitations",
+  "lead": "Companies that found you in a shortlist. Your contacts open only to the one whose invitation you accept.",
+  "back": "All invitations",
+  "list": {
+    "label": "Invitation list",
+    "emptyTitle": "No invitations yet",
+    "emptyText": "Employers see you in shortlists by your category. When a company invites you, the invitation appears here and in the menu counter.",
+    "unread_one": "{{count}} new message",
+    "unread_other": "{{count}} new messages"
+  },
+  "detail": {
+    "received": "Invitation of {{date}}",
+    "description": "Offer description",
+    "conversation": "Conversation with the company",
+    "revokedTitle": "Contact access revoked",
+    "revokedText": "Since {{date}} the company no longer sees your name and contacts. The invitation stays in the list.",
+    "urgentTitle": "The reply deadline is close",
+    "urgentText": "Reply by {{date}} Moscow time, otherwise the invitation closes.",
+    "privacy": "Until you accept, the company sees only your anonymous card.",
+    "pickTitle": "Choose an invitation",
+    "pickText": "The list is on the left. Open any invitation to read the offer and reply.",
+    "missingTitle": "Invitation not found",
+    "missingText": "The link may be outdated. Choose an invitation from the list."
+  },
+  "terms": {
+    "salary": "Salary range",
+    "contact": "Company contact",
+    "sent": "Received",
+    "expires": "Reply by",
+    "answered": "Replied"
+  },
+  "action": {
+    "accept": "Accept",
+    "decline": "Decline",
+    "revoke": "Revoke access"
+  },
+  "confirm": {
+    "accept": {
+      "title": "Accept the invitation from {{company}}?",
+      "text": "{{company}} will see your full name, email, phone, Telegram, about text, roles and soft skills. A conversation with the company opens."
+    },
+    "decline": {
+      "title": "Decline the invitation?",
+      "text": "{{company}} will see the refusal. Your contacts stay hidden and the invitation cannot be restored."
+    },
+    "revoke": {
+      "title": "Revoke access to your contacts?",
+      "text": "{{company}} will no longer see your name and contacts. The invitation stays in the list marked as access revoked."
+    }
+  },
+  "toast": {
+    "accept": "Invitation accepted, the company sees your contacts",
+    "decline": "Invitation declined",
+    "revoke": "Contact access revoked"
+  },
+  "status": {
+    "revoked": "access revoked",
+    "invitation": {
+      "sent": "new",
+      "viewed": "viewed",
+      "accepted": "accepted",
+      "declined": "declined",
+      "expired": "expired"
+    },
+    "application": {
+      "sent": "sent",
+      "viewed": "viewed by company",
+      "accepted": "accepted",
+      "declined": "declined",
+      "expired": "expired"
+    }
+  }
+}

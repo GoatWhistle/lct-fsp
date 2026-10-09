@@ -1,0 +1,78 @@
+.zone {
+  composes: pressable from "../../../shared/styles/compose.module.css";
+  display: grid;
+  justify-items: center;
+  align-content: center;
+  gap: var(--space-8);
+  min-block-size: var(--dropzone-min-height);
+  padding: var(--space-24);
+  border: var(--hairline) dashed var(--border-input);
+  border-radius: var(--radius-button);
+  color: var(--text-secondary);
+  text-align: center;
+  cursor: pointer;
+}
+
+.zone:focus-within {
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
+  outline-offset: var(--focus-ring-offset);
+}
+
+.zone[data-dragging="true"] {
+  border-style: solid;
+  border-color: var(--action-primary);
+  background-color: var(--surface-selected);
+}
+
+.zone[data-busy="true"] {
+  cursor: progress;
+}
+
+.icon {
+  color: var(--text-accent);
+}
+
+.spin {
+  color: var(--text-accent);
+  animation: var(--motion-spin);
+}
+
+.title {
+  composes: labelText from "../../../shared/styles/compose.module.css";
+  color: var(--text-primary);
+  font-weight: var(--weight-medium);
+  text-align: center;
+  text-wrap: balance;
+}
+
+.limit {
+  composes: captionText from "../../../shared/styles/compose.module.css";
+  text-align: center;
+  text-wrap: balance;
+}
+
+.summary {
+  animation: var(--motion-rise-in);
+}
+
+.fields {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-8) var(--space-16);
+  padding-block: var(--space-8);
+}
+
+.hint {
+  composes: secondaryText from "../../../shared/styles/compose.module.css";
+}
+
+.privacy {
+  composes: secondaryText from "../../../shared/styles/compose.module.css";
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .zone:hover {
+    border-color: var(--action-primary);
+    background-color: var(--surface-tint);
+  }
+}

@@ -1,0 +1,31 @@
+{
+  "title": "Candidates",
+  "lead": "The candidate pool by category without a hiring need: test level, grade probability and FSP confirmation. Build a shortlist from a need to see the fit and its explanation.",
+  "filters": {
+    "title": "Who you need",
+    "specialization": "Specialization",
+    "grade": "Grade",
+    "pick": "Choose",
+    "stack": "Stack",
+    "fsp": "Confirmed by FSP",
+    "confident": "Confident estimate",
+    "confidentHint": "The level has a small margin of error",
+    "reset": "Reset filters"
+  },
+  "results": {
+    "label": "Candidates found",
+    "total": "Found: {{count}}",
+    "unconfirmed": "of them with an unconfirmed grade: {{count}}",
+    "probability": "grade probability",
+    "more": "Show more",
+    "card": "Profile",
+    "toNeed": "Build a shortlist",
+    "noLevel": "level not measured by the test"
+  },
+  "empty": {
+    "pickTitle": "Choose a specialization and grade",
+    "pickText": "Search runs within a category, so candidates are compared on the same test.",
+    "noneTitle": "Nobody matches",
+    "noneText": "Loosen the filters: drop the stack, FSP or the confident estimate."
+  }
+}

@@ -1,0 +1,51 @@
+.board {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) var(--panel-detail);
+  grid-template-areas:
+    "bar bar"
+    "results explain";
+  align-items: start;
+  gap: var(--space-24) var(--space-32);
+}
+
+.board[data-wide="true"] {
+  grid-template-columns: var(--panel-filters) minmax(0, 1fr) var(--panel-detail);
+  grid-template-areas:
+    "bar bar bar"
+    "filters results explain";
+}
+
+.bar {
+  grid-area: bar;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-12);
+}
+
+.bar > :first-child {
+  flex: 1 1 auto;
+}
+
+.filters {
+  grid-area: filters;
+}
+
+.results {
+  grid-area: results;
+  min-inline-size: 0;
+}
+
+.explain {
+  grid-area: explain;
+}
+
+@media (max-width: 63.99rem) {
+  .board {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      "bar"
+      "results";
+  }
+}

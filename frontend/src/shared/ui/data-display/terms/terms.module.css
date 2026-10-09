@@ -1,0 +1,38 @@
+.terms {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, var(--tile-min)), 1fr));
+  gap: var(--space-20) var(--space-24);
+}
+
+.term {
+  display: grid;
+  align-content: start;
+  gap: var(--space-4);
+  min-inline-size: 0;
+}
+
+.label {
+  composes: fieldLabel from "../../../styles/compose.module.css";
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+}
+
+.icon {
+  flex: none;
+}
+
+.value {
+  composes: monoText from "../../../styles/compose.module.css";
+  overflow-wrap: anywhere;
+  font-variant-numeric: tabular-nums;
+}
+
+.term[data-prose="true"] .value {
+  font-family: var(--font-ui);
+}
+
+.term[data-tone="danger"] .value,
+.term[data-tone="danger"] .icon {
+  color: var(--text-danger);
+}

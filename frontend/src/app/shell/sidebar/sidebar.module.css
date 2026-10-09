@@ -1,0 +1,127 @@
+.sidebar {
+  composes: stickyBar from "../../../shared/styles/compose.module.css";
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-24);
+  block-size: 100dvh;
+  padding: var(--space-20) var(--space-12) var(--space-16);
+  background-color: var(--surface-sidebar);
+}
+
+.scroll {
+  flex: 1;
+  min-block-size: 0;
+}
+
+.brand {
+  display: grid;
+  gap: var(--space-8);
+  padding-inline: var(--space-8);
+}
+
+.role {
+  composes: labelText from "../../../shared/styles/compose.module.css";
+  color: var(--text-tertiary);
+}
+
+.list {
+  position: relative;
+  display: grid;
+  gap: var(--space-4);
+}
+
+.indicator {
+  composes: indicatorSurface from "../../../shared/styles/compose.module.css";
+  background-color: var(--surface-tint);
+  transition: var(--transition-indicator);
+}
+
+.indicator[data-instant="true"] {
+  transition: none;
+}
+
+.indicator[data-visible="false"] {
+  opacity: 0;
+}
+
+.item {
+  position: relative;
+}
+
+.link {
+  composes: controlText pressable listItem from "../../../shared/styles/compose.module.css";
+  display: flex;
+  align-items: center;
+  gap: var(--space-12);
+  color: var(--text-secondary);
+  text-decoration: none;
+}
+
+.link[aria-current="page"] {
+  color: var(--text-primary);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .link:hover:not([aria-current="page"]) {
+    background-color: var(--action-ghost-hover);
+    color: var(--text-primary);
+  }
+}
+
+.linkText {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.count {
+  composes: captionText from "../../../shared/styles/compose.module.css";
+  min-inline-size: var(--icon-md);
+  padding-inline: var(--space-4);
+  border-radius: var(--radius-badge);
+  background-color: var(--action-primary);
+  color: var(--text-on-action);
+  font-family: var(--font-mono);
+  text-align: center;
+}
+
+.footer {
+  display: grid;
+  gap: var(--space-8);
+  padding-block-start: var(--space-12);
+  border-block-start: var(--hairline) solid var(--border-hairline);
+}
+
+.email {
+  composes: captionText truncate from "../../../shared/styles/compose.module.css";
+  padding-inline: var(--space-8);
+  color: var(--text-tertiary);
+}
+
+.tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+}
+
+.sidebar[data-collapsed="true"] .brand,
+.sidebar[data-collapsed="true"] .tools {
+  justify-items: center;
+  justify-content: center;
+}
+
+.sidebar[data-collapsed="true"] .link {
+  justify-content: center;
+  padding-inline: 0;
+}
+
+.sidebar[data-collapsed="true"] .count {
+  position: absolute;
+  inset-block-start: var(--space-4);
+  inset-inline-end: var(--space-4);
+}
+
+.sidebar[data-collapsed="true"] .tools {
+  flex-direction: column;
+  align-items: center;
+}

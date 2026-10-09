@@ -7,7 +7,8 @@
 уровня (§11). Всё здесь — чистые функции: без БД и состояния, детерминированы.
 
 Модуль целиком — реализация порта `app.usecase.interface.SkillModel` (`initial`, `estimate`,
-`advance`).
+`advance`); `begin` / `step` / `result` — та же оценка по одному наблюдению, для кэша префиксов
+`app.adapter.skill_cache`.
 """
 
 import dataclasses
@@ -18,7 +19,19 @@ from datetime import datetime, timedelta
 
 from app.domain.skill import Normal, Observation, Prior, SkillProfileLevels, sigmoid
 
-__all__ = ["Estimate", "advance", "diffuse", "estimate", "initial", "sigmoid", "update"]
+__all__ = [
+    "Estimate",
+    "Progress",
+    "advance",
+    "begin",
+    "diffuse",
+    "estimate",
+    "initial",
+    "result",
+    "sigmoid",
+    "step",
+    "update",
+]
 
 # Сходимость моды по наблюдению: шаг по проекции на hᵀ меньше допуска, θ. Итераций — с запасом:
 # одномерный Ньютон по выпуклой функции сходится за 3–6 шагов.
@@ -135,23 +148,45 @@ def diffuse(est: Estimate, prior: Prior, elapsed: timedelta) -> Estimate:
     return dataclasses.replace(est, cov=tuple(tuple(row) for row in cov))
 
 
+@dataclass(frozen=True)
+class Progress:
+    """Оценка по префиксу наблюдений и момент последнего из них: от него до следующего наблюдения
+    считается затухание. Без затухания в априорном момент не нужен и остаётся `None`."""
+
+    estimate: Estimate
+    last: datetime | None = None
+
+
+def begin(prior: Prior) -> Progress:
+    return Progress(initial(prior))
+
+
+def step(prior: Prior, progress: Progress, obs: Observation, *, to_mode: bool = False) -> Progress:
+    """Следующее наблюдение префикса: затухание с прошлого наблюдения, затем шаг `update`."""
+    est, last = progress.estimate, progress.last
+    if prior.decay_sd_per_year > 0.0:
+        if obs.at is None:
+            raise ValueError("уровень затухает — у наблюдения нужен момент")
+        if last is not None:
+            est = diffuse(est, prior, obs.at - last)
+        last = obs.at
+    return Progress(update(est, obs, to_mode=to_mode), last)
+
+
+def result(progress: Progress) -> Estimate:
+    return progress.estimate
+
+
 def estimate(
     prior: Prior, observations: Iterable[Observation], *, to_mode: bool = False
 ) -> Estimate:
     """(априорное, упорядоченные наблюдения) → (μ, Σ) на момент последнего наблюдения; `to_mode` —
     каждое наблюдение до сходимости моды, как в профиле навыков. С затуханием в априорном каждому
     наблюдению нужен момент `at`."""
-    est = initial(prior)
-    last: datetime | None = None
+    progress = begin(prior)
     for obs in observations:
-        if prior.decay_sd_per_year > 0.0:
-            if obs.at is None:
-                raise ValueError("уровень затухает — у наблюдения нужен момент")
-            if last is not None:
-                est = diffuse(est, prior, obs.at - last)
-            last = obs.at
-        est = update(est, obs, to_mode=to_mode)
-    return est
+        progress = step(prior, progress, obs, to_mode=to_mode)
+    return progress.estimate
 
 
 def advance(prior: Prior, levels: SkillProfileLevels, now: datetime) -> SkillProfileLevels:

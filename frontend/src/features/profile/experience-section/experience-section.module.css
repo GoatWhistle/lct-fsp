@@ -1,0 +1,41 @@
+.list {
+  display: grid;
+}
+
+.row {
+  composes: listRowCompact from "../../../shared/styles/rows.module.css";
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: var(--space-16);
+}
+
+.row:first-child {
+  padding-block-start: 0;
+}
+
+.main {
+  display: grid;
+  justify-items: start;
+  gap: var(--space-4);
+  min-inline-size: 0;
+}
+
+.place {
+  composes: strongBodyText from "../../../shared/styles/compose.module.css";
+}
+
+.role {
+  color: var(--text-secondary);
+}
+
+.stack {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+  padding-block-start: var(--space-4);
+}
+
+.actions {
+  display: flex;
+  gap: var(--space-4);
+}

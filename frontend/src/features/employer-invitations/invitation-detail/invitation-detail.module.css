@@ -1,0 +1,28 @@
+.detail {
+  animation: var(--motion-rise-in);
+}
+
+.status {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-8);
+}
+
+.basis {
+  composes: footnote from "../../../shared/styles/compose.module.css";
+}
+
+.section {
+  padding-block-start: var(--space-20);
+  border-block-start: var(--hairline) solid var(--border-hairline);
+}
+
+.description {
+  composes: preWrap from "../../../shared/styles/layout.module.css";
+  max-inline-size: var(--prose-measure);
+  text-wrap: pretty;
+}
+
+.notYet {
+  color: var(--text-tertiary);
+}

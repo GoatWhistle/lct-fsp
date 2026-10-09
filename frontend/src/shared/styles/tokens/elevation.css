@@ -1,0 +1,19 @@
+:root {
+  --layer-raised: 1;
+  --layer-sticky: 10;
+  --layer-sidebar: 20;
+  --layer-drawer: 30;
+  --layer-popover: 40;
+  --layer-dialog: 50;
+  --layer-toast: 55;
+  --layer-tooltip: 60;
+  --opacity-stale: 0.55;
+  --opacity-backdrop: 0.22;
+  --layer-below: -1;
+  --mask-vignette: radial-gradient(closest-side, #000 62%, transparent 100%);
+  --shadow-float: 0 1px 2px rgba(27, 28, 33, 0.08), 0 8px 24px rgba(27, 28, 33, 0.12);
+}
+
+:root[data-theme="dark"] {
+  --shadow-float: none;
+}

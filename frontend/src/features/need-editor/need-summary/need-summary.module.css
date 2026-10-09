@@ -1,0 +1,67 @@
+.summary {
+  position: sticky;
+  inset-block-start: calc(var(--sticky-top) + var(--space-24));
+}
+
+.body {
+  display: grid;
+  gap: var(--space-16);
+}
+
+.title {
+  composes: subheadingText from "../../../shared/styles/compose.module.css";
+  overflow-wrap: anywhere;
+}
+
+.title[data-empty="true"] {
+  color: var(--text-tertiary);
+}
+
+.badges,
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-8);
+}
+
+.team {
+  composes: secondaryText from "../../../shared/styles/compose.module.css";
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+}
+
+.facts {
+  display: grid;
+  grid-template-columns: minmax(0, auto) minmax(0, 1fr);
+  gap: var(--space-12) var(--space-16);
+  font-size: var(--font-size-body-sm);
+}
+
+.facts dt {
+  color: var(--text-tertiary);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-label);
+  line-height: var(--line-height-label);
+}
+
+.facts dd {
+  min-inline-size: 0;
+}
+
+.money {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.basis {
+  composes: captionText from "../../../shared/styles/compose.module.css";
+  color: var(--text-tertiary);
+}
+
+@media (max-width: 63.99rem) {
+  .summary {
+    position: static;
+  }
+}

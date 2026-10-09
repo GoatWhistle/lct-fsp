@@ -15,7 +15,6 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 
 from app.domain.errors import EmailNotVerified, InvalidCredentials, TokenExpired, TokenInvalid
-from app.domain.mail import Mail
 
 
 class Role(enum.StrEnum):
@@ -89,17 +88,3 @@ def check_verification(found: EmailVerification | None, now: datetime) -> EmailV
     if now >= found.expires_at:
         raise TokenExpired()
     return found
-
-
-def verification_mail(email: str, link: str, ttl_hours: int) -> Mail:
-    return Mail(
-        to=email,
-        subject="Подтвердите адрес почты",
-        text=(
-            "Здравствуйте!\n\n"
-            "Чтобы завершить регистрацию, откройте ссылку:\n"
-            f"{link}\n\n"
-            f"Ссылка действует {ttl_hours} ч. Если вы не регистрировались — "
-            "просто удалите письмо.\n"
-        ),
-    )

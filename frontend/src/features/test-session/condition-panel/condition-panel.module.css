@@ -1,0 +1,54 @@
+.panel {
+  min-block-size: 100%;
+}
+
+.number {
+  composes: monoText from "../../../shared/styles/compose.module.css";
+  color: var(--text-accent);
+  font-size: var(--font-size-heading-lg);
+  line-height: var(--line-height-heading-lg);
+  font-variant-numeric: var(--font-numeric);
+}
+
+.topic {
+  composes: labelText from "../../../shared/styles/compose.module.css";
+  color: var(--text-secondary);
+}
+
+.prompt {
+  composes: leadText from "../../../shared/styles/compose.module.css";
+  max-inline-size: var(--prompt-measure);
+  color: var(--text-primary);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  text-wrap: pretty;
+}
+
+.code {
+  display: grid;
+  grid-template-rows: minmax(0, 1fr);
+  max-block-size: var(--code-max-height);
+  overflow: hidden;
+  border-radius: var(--radius-inner);
+  background-color: var(--surface-card);
+  box-shadow: var(--shadow-ring);
+}
+
+.code:focus-within {
+  box-shadow: var(--shadow-ring-focus);
+}
+
+.listing {
+  composes: monoText bodySmText from "../../../shared/styles/compose.module.css";
+  inline-size: max-content;
+  min-inline-size: 100%;
+  padding: var(--space-16) var(--space-20);
+  color: var(--text-primary);
+  tab-size: 4;
+}
+
+@media (max-width: 63.99rem) {
+  .panel {
+    min-block-size: auto;
+  }
+}

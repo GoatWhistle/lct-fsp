@@ -1,0 +1,54 @@
+{
+  "level": {
+    "confident": "confidently {{grade}}",
+    "below": "below intern",
+    "internOrBelow": "intern or below",
+    "between": "between {{low}} and {{high}}"
+  },
+  "gradeWith": {
+    "intern": "intern",
+    "junior": "Junior",
+    "middle": "Middle",
+    "senior": "Senior"
+  },
+  "uncertainty": {
+    "small": "small uncertainty",
+    "medium": "noticeable uncertainty",
+    "large": "large uncertainty"
+  },
+  "ruler": {
+    "label": "Level: {{words}}, {{uncertainty}}",
+    "required": "requirement",
+    "below": "Below"
+  },
+  "match": {
+    "label": "match",
+    "aria": "Match {{value}}",
+    "acceptance": "will accept: {{value}}",
+    "segment": "{{topic}}: probability of meeting the requirement {{value}}",
+    "stack": "Stack as stated by the candidate: {{value}} matches"
+  },
+  "verdict": {
+    "confidently_above": "confidently above",
+    "likely_above": "likely above",
+    "likely_below": "likely below",
+    "below": "below",
+    "lowData": "not enough data"
+  },
+  "trust": {
+    "fsp": "FSP",
+    "verification": "verification block",
+    "test": "test",
+    "regular_task": "regular task",
+    "self": "self-reported"
+  },
+  "percent": {
+    "above": "over 99%",
+    "below": "under 1%"
+  },
+  "gradeStatus": {
+    "confirmed": "confirmed by test",
+    "below_claimed": "claimed {{claimed}}, confirmed {{confirmed}}",
+    "unconfirmed": "claimed {{claimed}}, test not passed"
+  }
+}

@@ -1,0 +1,34 @@
+.wrap {
+  position: relative;
+  display: block;
+}
+
+.input {
+  composes: input from "../../../styles/control.module.css";
+}
+
+.wrap[data-icon="true"] .input {
+  padding-inline-start: calc(var(--space-16) + var(--icon-sm) + var(--space-8));
+}
+
+.wrap[data-trailing="true"] .input {
+  padding-inline-end: calc(var(--control-height) + var(--space-4));
+}
+
+.icon {
+  position: absolute;
+  inset-block-start: 50%;
+  inset-inline-start: var(--space-16);
+  color: var(--text-tertiary);
+  translate: 0 -50%;
+  pointer-events: none;
+}
+
+.trailing {
+  position: absolute;
+  inset-block: 0;
+  inset-inline-end: 0;
+  display: flex;
+  align-items: center;
+  padding-inline-end: var(--space-4);
+}

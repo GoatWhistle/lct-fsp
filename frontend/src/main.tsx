@@ -1,16 +1,15 @@
-import { StrictMode } from 'react'
-import { createRoot } from 'react-dom/client'
-import { BrowserRouter } from 'react-router'
-import App from './App.tsx'
-import { AuthProvider } from './auth/AuthProvider.tsx'
-import './styles.css'
+import "@fontsource-variable/onest"
+import "@fontsource-variable/jetbrains-mono"
+import "./shared/styles/global.css"
+import { StrictMode } from "react"
+import { createRoot } from "react-dom/client"
+import { App } from "./app/app"
 
-createRoot(document.getElementById('root')!).render(
-  <StrictMode>
-    <BrowserRouter>
-      <AuthProvider>
-        <App />
-      </AuthProvider>
-    </BrowserRouter>
-  </StrictMode>,
-)
+const root = document.getElementById("root")
+if (root !== null) {
+  createRoot(root).render(
+    <StrictMode>
+      <App />
+    </StrictMode>,
+  )
+}

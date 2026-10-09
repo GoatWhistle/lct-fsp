@@ -1,0 +1,26 @@
+.catalog {
+  display: grid;
+  gap: var(--space-24);
+}
+
+.filters {
+  display: grid;
+  grid-template-columns: repeat(
+      auto-fit,
+      minmax(min(100%, var(--tile-min)), var(--field-max-width))
+    );
+  gap: var(--space-16);
+}
+
+.results {
+  composes: stale from "../../../shared/styles/compose.module.css";
+  display: grid;
+  min-inline-size: 0;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, var(--column-min)), 1fr));
+  align-items: stretch;
+  gap: var(--space-24);
+}

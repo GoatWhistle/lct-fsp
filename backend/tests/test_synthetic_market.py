@@ -17,7 +17,9 @@ from pathlib import Path
 
 import pytest
 
+from app.adapter.code_runner import InProcessCodeRunner
 from app.adapter.fsp_registry import FileFspRegistry
+from app.domain import bank
 from app.domain.catalog import CatalogRef
 from app.domain.importance import TopicImportance
 from app.domain.selection import NeedRequirement, NeedSnapshot
@@ -40,7 +42,16 @@ from validation.population import (
     pair_json,
     write,
 )
-from validation.truth import AcceptanceRule, CandidateTruth, Persona, ResponseModel, relevance
+from validation.truth import (
+    AcceptanceRule,
+    CandidateTruth,
+    Corruption,
+    Persona,
+    Response,
+    ResponseModel,
+    corrupt,
+    relevance,
+)
 
 MECHANICS = Mechanics.from_yaml(Settings().mechanics_file)
 CATALOG = catalog()
@@ -279,6 +290,25 @@ def test_existing_stand_numbers_do_not_move() -> None:
             )
         )
         assert hashlib.sha256(text.encode()).hexdigest() == fingerprint
+
+
+def test_wrong_key_breaks_about_half_of_instances_even_with_shared_prompt() -> None:
+    """Ошибка эталона M21 — у половины экземпляров. У семейства с общим текстом экземпляры
+    различаются параметрами и кодом; по одному тексту испорчены были бы все или ни один."""
+    runner = InProcessCodeRunner()
+    family = next(
+        f
+        for f in bank.BANK
+        if len({f.instance(s, runner).prompt for s in range(20)}) == 1
+        and len({f.instance(s, runner).answer for s in range(20)}) > 10
+    )
+    right = Response(True, 1.0)
+    broken = [
+        not corrupt(right, Corruption.key, family.instance(s, runner), random.Random(0)).correct
+        for s in range(200)
+    ]
+
+    assert 0.35 < sum(broken) / len(broken) < 0.65
 
 
 def test_synthetic_candidate_takes_test_on_stand_with_its_response_time() -> None:

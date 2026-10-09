@@ -6,6 +6,6 @@ HTTP, на in-memory хранилищах (docs/validation-plan.md).
 файлами — `validation.population`, прогон наборов для отчёта — `validation.simulate`, метрики
 и отчёт — `validation.report`, пары, обучение и оценка модели принятия —
 `validation.acceptance`, команды — `validation.commands`. Запуск —
-`uv run python -m validation [report | honesty | tune | parsing | market | acceptance]` из
-`backend/`. Прод (`main`, `composition`, `app`) пакет стенда не импортирует.
+`uv run python -m validation [report | honesty | tune | fit | parsing | market | acceptance]`
+из `backend/`. Прод (`main`, `composition`, `app`) пакет стенда не импортирует.
 """

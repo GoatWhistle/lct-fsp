@@ -12,28 +12,28 @@
 <line x1="68.0" y1="264.0" x2="288.0" y2="44.0" stroke="#9ca3af" stroke-dasharray="4 3"/>
 <text x="178.0" y="291.0" text-anchor="middle">предсказано</text>
 <text x="42.0" y="154.0" text-anchor="middle" transform="rotate(-90 42.0 154.0)">наблюдаемо</text>
-<polyline fill="none" stroke="#b45309" stroke-width="1.5" points="73.0,258.5 100.1,231.9 122.6,211.6 144.8,191.4 166.9,171.5 189.2,151.3 211.2,131.3 233.4,115.0 255.8,90.7 283.5,57.3"/>
+<polyline fill="none" stroke="#b45309" stroke-width="1.5" points="73.0,258.5 100.2,232.4 122.6,212.8 144.8,191.3 166.8,171.5 189.1,149.1 211.2,133.0 233.4,114.5 255.8,89.5 283.5,57.3"/>
 <circle cx="73.0" cy="258.5" r="3.6" fill="#b45309"/>
-<circle cx="100.1" cy="231.9" r="2.5" fill="#b45309"/>
-<circle cx="122.6" cy="211.6" r="2.4" fill="#b45309"/>
-<circle cx="144.8" cy="191.4" r="2.3" fill="#b45309"/>
-<circle cx="166.9" cy="171.5" r="2.3" fill="#b45309"/>
-<circle cx="189.2" cy="151.3" r="2.3" fill="#b45309"/>
-<circle cx="211.2" cy="131.3" r="2.3" fill="#b45309"/>
-<circle cx="233.4" cy="115.0" r="2.4" fill="#b45309"/>
-<circle cx="255.8" cy="90.7" r="2.5" fill="#b45309"/>
+<circle cx="100.2" cy="232.4" r="2.5" fill="#b45309"/>
+<circle cx="122.6" cy="212.8" r="2.4" fill="#b45309"/>
+<circle cx="144.8" cy="191.3" r="2.3" fill="#b45309"/>
+<circle cx="166.8" cy="171.5" r="2.3" fill="#b45309"/>
+<circle cx="189.1" cy="149.1" r="2.3" fill="#b45309"/>
+<circle cx="211.2" cy="133.0" r="2.3" fill="#b45309"/>
+<circle cx="233.4" cy="114.5" r="2.4" fill="#b45309"/>
+<circle cx="255.8" cy="89.5" r="2.5" fill="#b45309"/>
 <circle cx="283.5" cy="57.3" r="3.8" fill="#b45309"/>
-<polyline fill="none" stroke="#1d4ed8" stroke-width="1.5" points="73.2,260.2 100.4,238.4 122.6,216.1 144.7,195.6 167.0,174.7 189.0,152.3 211.2,126.9 233.3,105.5 255.6,82.0 283.3,56.1"/>
-<circle cx="73.2" cy="260.2" r="3.5" fill="#1d4ed8"/>
-<circle cx="100.4" cy="238.4" r="2.5" fill="#1d4ed8"/>
-<circle cx="122.6" cy="216.1" r="2.4" fill="#1d4ed8"/>
-<circle cx="144.7" cy="195.6" r="2.4" fill="#1d4ed8"/>
-<circle cx="167.0" cy="174.7" r="2.3" fill="#1d4ed8"/>
-<circle cx="189.0" cy="152.3" r="2.3" fill="#1d4ed8"/>
-<circle cx="211.2" cy="126.9" r="2.4" fill="#1d4ed8"/>
-<circle cx="233.3" cy="105.5" r="2.4" fill="#1d4ed8"/>
-<circle cx="255.6" cy="82.0" r="2.6" fill="#1d4ed8"/>
-<circle cx="283.3" cy="56.1" r="3.7" fill="#1d4ed8"/>
+<polyline fill="none" stroke="#1d4ed8" stroke-width="1.5" points="73.2,260.5 100.3,237.9 122.6,216.5 144.9,197.2 166.9,176.3 189.0,152.5 211.1,127.7 233.3,105.9 255.6,81.6 283.3,56.0"/>
+<circle cx="73.2" cy="260.5" r="3.5" fill="#1d4ed8"/>
+<circle cx="100.3" cy="237.9" r="2.6" fill="#1d4ed8"/>
+<circle cx="122.6" cy="216.5" r="2.4" fill="#1d4ed8"/>
+<circle cx="144.9" cy="197.2" r="2.4" fill="#1d4ed8"/>
+<circle cx="166.9" cy="176.3" r="2.3" fill="#1d4ed8"/>
+<circle cx="189.0" cy="152.5" r="2.3" fill="#1d4ed8"/>
+<circle cx="211.1" cy="127.7" r="2.4" fill="#1d4ed8"/>
+<circle cx="233.3" cy="105.9" r="2.4" fill="#1d4ed8"/>
+<circle cx="255.6" cy="81.6" r="2.6" fill="#1d4ed8"/>
+<circle cx="283.3" cy="56.0" r="3.7" fill="#1d4ed8"/>
 <text x="356" y="38" font-weight="bold">(б) P(θ̄ ≥ c_g) при присвоении</text>
 <rect x="356" y="44" width="220" height="220" fill="none" stroke="#9ca3af"/>
 <text x="356.0" y="277.0" text-anchor="middle">0.0</text>
@@ -45,12 +45,12 @@
 <line x1="356.0" y1="264.0" x2="576.0" y2="44.0" stroke="#9ca3af" stroke-dasharray="4 3"/>
 <text x="466.0" y="291.0" text-anchor="middle">предсказано</text>
 <text x="330.0" y="154.0" text-anchor="middle" transform="rotate(-90 330.0 154.0)">наблюдаемо</text>
-<polyline fill="none" stroke="#b45309" stroke-width="1.5" points="543.4,66.5 571.4,49.7"/>
-<circle cx="543.4" cy="66.5" r="3.1" fill="#b45309"/>
-<circle cx="571.4" cy="49.7" r="5.1" fill="#b45309"/>
-<polyline fill="none" stroke="#1d4ed8" stroke-width="1.5" points="544.1,56.3 571.3,46.6"/>
-<circle cx="544.1" cy="56.3" r="3.1" fill="#1d4ed8"/>
-<circle cx="571.3" cy="46.6" r="5.1" fill="#1d4ed8"/>
+<polyline fill="none" stroke="#b45309" stroke-width="1.5" points="543.2,70.4 571.5,48.7"/>
+<circle cx="543.2" cy="70.4" r="3.2" fill="#b45309"/>
+<circle cx="571.5" cy="48.7" r="5.1" fill="#b45309"/>
+<polyline fill="none" stroke="#1d4ed8" stroke-width="1.5" points="543.9,59.9 571.3,46.1"/>
+<circle cx="543.9" cy="59.9" r="3.2" fill="#1d4ed8"/>
+<circle cx="571.3" cy="46.1" r="5.1" fill="#1d4ed8"/>
 <text x="644" y="38" font-weight="bold">(в) Σ v_t P против M*</text>
 <rect x="644" y="44" width="220" height="220" fill="none" stroke="#9ca3af"/>
 <text x="644.0" y="277.0" text-anchor="middle">0.0</text>
@@ -62,28 +62,28 @@
 <line x1="644.0" y1="264.0" x2="864.0" y2="44.0" stroke="#9ca3af" stroke-dasharray="4 3"/>
 <text x="754.0" y="291.0" text-anchor="middle">предсказано</text>
 <text x="618.0" y="154.0" text-anchor="middle" transform="rotate(-90 618.0 154.0)">наблюдаемо</text>
-<polyline fill="none" stroke="#b45309" stroke-width="1.5" points="649.4,257.5 676.6,228.9 698.6,209.0 720.8,188.0 743.1,171.2 764.6,152.5 787.8,133.9 809.2,116.0 831.7,91.8 859.3,58.3"/>
-<circle cx="649.4" cy="257.5" r="3.6" fill="#b45309"/>
-<circle cx="676.6" cy="228.9" r="2.5" fill="#b45309"/>
-<circle cx="698.6" cy="209.0" r="2.4" fill="#b45309"/>
-<circle cx="720.8" cy="188.0" r="2.4" fill="#b45309"/>
-<circle cx="743.1" cy="171.2" r="2.3" fill="#b45309"/>
-<circle cx="764.6" cy="152.5" r="2.3" fill="#b45309"/>
-<circle cx="787.8" cy="133.9" r="2.4" fill="#b45309"/>
-<circle cx="809.2" cy="116.0" r="2.4" fill="#b45309"/>
-<circle cx="831.7" cy="91.8" r="2.6" fill="#b45309"/>
-<circle cx="859.3" cy="58.3" r="3.7" fill="#b45309"/>
-<polyline fill="none" stroke="#1d4ed8" stroke-width="1.5" points="649.6,258.8 676.3,234.9 698.6,214.2 720.7,194.2 743.0,172.9 764.8,150.7 787.2,133.1 809.2,108.8 831.4,85.3 858.9,57.4"/>
-<circle cx="649.6" cy="258.8" r="3.5" fill="#1d4ed8"/>
-<circle cx="676.3" cy="234.9" r="2.6" fill="#1d4ed8"/>
-<circle cx="698.6" cy="214.2" r="2.4" fill="#1d4ed8"/>
-<circle cx="720.7" cy="194.2" r="2.4" fill="#1d4ed8"/>
-<circle cx="743.0" cy="172.9" r="2.3" fill="#1d4ed8"/>
-<circle cx="764.8" cy="150.7" r="2.4" fill="#1d4ed8"/>
-<circle cx="787.2" cy="133.1" r="2.4" fill="#1d4ed8"/>
-<circle cx="809.2" cy="108.8" r="2.5" fill="#1d4ed8"/>
-<circle cx="831.4" cy="85.3" r="2.6" fill="#1d4ed8"/>
-<circle cx="858.9" cy="57.4" r="3.7" fill="#1d4ed8"/>
+<polyline fill="none" stroke="#b45309" stroke-width="1.5" points="649.4,257.3 676.4,230.4 698.4,210.0 720.8,187.0 743.1,169.7 764.7,150.7 787.4,137.2 809.2,116.6 831.8,89.8 859.2,58.3"/>
+<circle cx="649.4" cy="257.3" r="3.6" fill="#b45309"/>
+<circle cx="676.4" cy="230.4" r="2.5" fill="#b45309"/>
+<circle cx="698.4" cy="210.0" r="2.4" fill="#b45309"/>
+<circle cx="720.8" cy="187.0" r="2.3" fill="#b45309"/>
+<circle cx="743.1" cy="169.7" r="2.3" fill="#b45309"/>
+<circle cx="764.7" cy="150.7" r="2.3" fill="#b45309"/>
+<circle cx="787.4" cy="137.2" r="2.4" fill="#b45309"/>
+<circle cx="809.2" cy="116.6" r="2.5" fill="#b45309"/>
+<circle cx="831.8" cy="89.8" r="2.6" fill="#b45309"/>
+<circle cx="859.2" cy="58.3" r="3.7" fill="#b45309"/>
+<polyline fill="none" stroke="#1d4ed8" stroke-width="1.5" points="649.6,259.3 676.4,234.3 698.5,213.8 720.6,194.6 743.1,175.6 764.8,152.5 787.4,132.4 809.1,108.2 831.4,85.4 858.9,57.0"/>
+<circle cx="649.6" cy="259.3" r="3.5" fill="#1d4ed8"/>
+<circle cx="676.4" cy="234.3" r="2.6" fill="#1d4ed8"/>
+<circle cx="698.5" cy="213.8" r="2.5" fill="#1d4ed8"/>
+<circle cx="720.6" cy="194.6" r="2.4" fill="#1d4ed8"/>
+<circle cx="743.1" cy="175.6" r="2.3" fill="#1d4ed8"/>
+<circle cx="764.8" cy="152.5" r="2.4" fill="#1d4ed8"/>
+<circle cx="787.4" cy="132.4" r="2.4" fill="#1d4ed8"/>
+<circle cx="809.1" cy="108.2" r="2.5" fill="#1d4ed8"/>
+<circle cx="831.4" cy="85.4" r="2.6" fill="#1d4ed8"/>
+<circle cx="858.9" cy="57.0" r="3.7" fill="#1d4ed8"/>
 <rect x="34" y="320" width="10" height="10" fill="#b45309"/><text x="50" y="328">κ = 1 — до поправки</text>
 <rect x="34" y="332" width="10" height="10" fill="#1d4ed8"/><text x="50" y="340">κ = 1.15 — после поправки</text>
 </svg>

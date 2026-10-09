@@ -50,7 +50,7 @@ item_fit_rmsd_max: 0.12
 
 # Защита теста
 drift_shift: 1.0
-drift_cusum_h: 4.0
+drift_cusum_h: 9.0
 rt_min_responses: 30
 rt_hard_item_p: 0.5
 rt_fast_z: 2.33

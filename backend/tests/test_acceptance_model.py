@@ -11,8 +11,8 @@ from pathlib import Path
 import pytest
 
 from app.adapter.acceptance import NoAcceptanceModel, acceptance_model
-from app.adapter.acceptance_catboost import CatBoostAcceptanceModel, Training, fit
-from app.domain.acceptance import COLUMNS, encode
+from app.adapter.acceptance_catboost import CatBoostAcceptanceModel, Training, _pool, fit
+from app.domain.acceptance import COLUMNS, FACTORS, SalaryHint, encode, salary_hint
 from app.domain.selection import AcceptanceFeatures
 from app.domain.work import SalaryRange, WorkFormat
 from settings import ACCEPTANCE_MODEL_FILE, Mechanics
@@ -268,3 +268,167 @@ def test_percentiles_of_match_score() -> None:
     found = percentiles(scored)
 
     assert [found[c] for c in ids] == pytest.approx([0.0, 0.5, 0.5, 1.0])
+
+
+# --- SHAP-объяснение и подсказка по вилке -------------------------------------------------------
+
+STEP = 10_000
+
+
+def hint_for(
+    model: CatBoostAcceptanceModel, salary: SalaryRange, *, target: float = 0.6, **changes: object
+) -> SalaryHint | None:
+    return salary_hint(
+        features(**changes),
+        salary,
+        model.predict,
+        target=target,
+        step=STEP,
+        market_ratio=3.0,
+    )
+
+
+def raw_logit(model: CatBoostAcceptanceModel, found: list[AcceptanceFeatures]) -> list[float]:
+    table = [r for r in (encode(f) for f in found) if r is not None]
+    return [float(v) for v in model._model.predict(_pool(table), prediction_type="RawFormulaVal")]
+
+
+def test_shap_is_additive_in_logit_space(trained: CatBoostAcceptanceModel) -> None:
+    """M8 плана валидации: база плюс вклады равны логиту P с точностью 1e-6."""
+    probe = [o.features for o in synthetic_offers(200, seed=8)]
+    probe.append(features(expected_salary=None, work_formats=(), city=None, relocation=None))
+
+    explained = trained.explain(probe)
+    logits = raw_logit(trained, probe)
+    probabilities = trained.predict(probe)
+
+    for why, logit, p in zip(explained, logits, probabilities, strict=True):
+        assert why is not None and p is not None
+        assert why.base + sum(why.contributions.values()) == pytest.approx(logit, abs=1e-6)
+        assert 1 / (1 + math.exp(-why.logit)) == pytest.approx(p, abs=1e-6)
+        assert set(why.contributions) == set(FACTORS.values())
+
+
+def test_shap_of_need_without_salary_is_none(trained: CatBoostAcceptanceModel) -> None:
+    assert trained.explain([features(salary=None), features()])[0] is None
+    assert trained.explain([features(salary=None)]) == [None]
+
+
+def test_salary_factor_pushes_probability_the_right_way(trained: CatBoostAcceptanceModel) -> None:
+    low = trained.explain([features(salary=SalaryRange(100_000, 120_000))])[0]
+    high = trained.explain([features(salary=SalaryRange(400_000, 500_000))])[0]
+
+    assert low is not None and high is not None
+    assert low.contributions["salary"] < 0 < high.contributions["salary"]
+
+
+def test_hint_is_on_the_grid_and_reaches_target(trained: CatBoostAcceptanceModel) -> None:
+    salary = SalaryRange(120_000, 170_000)
+
+    found = hint_for(trained, salary)
+
+    assert found is not None and found.range is not None
+    assert found.range.low % STEP == 0 and found.range.high % STEP == 0
+    assert found.range.high - found.range.low == 50_000
+    assert found.step == STEP
+    (reached,) = trained.predict([features(salary=found.range)])
+    assert reached is not None and reached >= 0.6
+    # Самая низкая вилка сетки: на шаг ниже цель ещё не достигнута.
+    below = SalaryRange(found.range.low - STEP, found.range.high - STEP)
+    if below.low > 0:
+        (lower,) = trained.predict([features(salary=below)])
+        assert lower is not None and lower < 0.6
+
+
+@pytest.mark.parametrize("target", [0.3, 0.5, 0.6, 0.8])
+def test_hint_rises_with_target(trained: CatBoostAcceptanceModel, target: float) -> None:
+    easy = hint_for(trained, SalaryRange(100_000, 150_000), target=target)
+    hard = hint_for(trained, SalaryRange(100_000, 150_000), target=min(target + 0.1, 0.95))
+
+    assert easy is not None and hard is not None
+    if easy.range is not None and hard.range is not None:
+        assert hard.range.low >= easy.range.low
+    if easy.range is None:
+        assert hard.range is None
+
+
+def test_unreachable_target_gives_no_range(trained: CatBoostAcceptanceModel) -> None:
+    found = hint_for(trained, SalaryRange(100_000, 150_000), target=1.0)
+
+    assert found is not None
+    assert found.range is None
+    assert 0.0 <= found.probability <= 1.0
+
+
+def test_unreachable_in_grid_when_candidate_does_not_fit(
+    trained: CatBoostAcceptanceModel,
+) -> None:
+    """Формат и город не сошлись, загрузка высокая: P не дотягивает до цели и на верхней границе
+    сетки, подсказки нет."""
+    found = hint_for(
+        trained,
+        SalaryRange(100_000, 150_000),
+        target=0.99,
+        need_work_format=WorkFormat.office,
+        work_formats=(WorkFormat.remote,),
+        city="Казань",
+        open_invitations=8,
+    )
+
+    assert found is not None and found.range is None
+
+
+def test_probability_is_computed_for_the_rounded_salary(trained: CatBoostAcceptanceModel) -> None:
+    """Вилки из одной ячейки сетки дают одну P и одну подсказку: перебором вилок по рублям
+    ожидание кандидата точнее шага не найти."""
+    one = hint_for(trained, SalaryRange(151_000, 201_000))
+    other = hint_for(trained, SalaryRange(154_999, 204_999))
+
+    assert one is not None and other is not None
+    assert one.evaluated == SalaryRange(150_000, 200_000)
+    assert other == one
+    expected = [
+        hint_for(trained, SalaryRange(150_000, 200_000), expected_salary=e)
+        for e in range(180_000, 180_000 + STEP, 777)
+    ]
+    for found in expected:
+        assert found is not None and found.range is not None
+        assert found.range.low % STEP == 0 and found.range.high % STEP == 0
+
+
+def test_hint_without_model_probability_is_none() -> None:
+    model = NoAcceptanceModel()
+
+    found = salary_hint(
+        features(),
+        SalaryRange(100_000, 150_000),
+        model.predict,
+        target=0.6,
+        step=STEP,
+        market_ratio=3.0,
+    )
+
+    assert found is None
+    assert model.explain([features()]) == [None]
+
+
+@pytest.mark.skipif(not ACCEPTANCE_MODEL_FILE.exists(), reason="модель ещё не обучена")
+def test_committed_model_shap_is_additive() -> None:
+    model = CatBoostAcceptanceModel.load(ACCEPTANCE_MODEL_FILE)
+    probe = [o.features for o in synthetic_offers(100, seed=9)]
+
+    for why, logit in zip(model.explain(probe), raw_logit(model, probe), strict=True):
+        assert why is not None
+        assert why.logit == pytest.approx(logit, abs=1e-6)
+
+
+def test_acceptance_details_round_trip_through_storage_codec() -> None:
+    from app.domain.selection import AcceptanceDetails, AcceptanceExplanation
+    from app.repository.selection import details_json, details_of
+
+    details = AcceptanceDetails(
+        features(industries=frozenset({"fintech", "telecom"})),
+        AcceptanceExplanation(-0.4, {"salary": 1.25, "grade": -0.1}),
+    )
+
+    assert details_of(details_json(details)) == details

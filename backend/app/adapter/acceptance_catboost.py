@@ -15,8 +15,8 @@ from pathlib import Path
 
 from catboost import CatBoostClassifier, Pool
 
-from app.domain.acceptance import CATEGORICAL, COLUMNS, MONOTONE, Row, encode
-from app.domain.selection import AcceptanceFeatures
+from app.domain.acceptance import CATEGORICAL, COLUMNS, MONOTONE, Row, encode, explanation
+from app.domain.selection import AcceptanceExplanation, AcceptanceFeatures
 
 
 @dataclass(frozen=True)
@@ -60,6 +60,21 @@ class CatBoostAcceptanceModel:
         known = [r for r in rows if r is not None]
         found = iter(self.predict_rows(known))
         return [None if r is None else next(found) for r in rows]
+
+    def explain(self, features: Sequence[AcceptanceFeatures]) -> list[AcceptanceExplanation | None]:
+        """SHAP-вклады в логит P; без вилки — None."""
+        rows = [encode(f) for f in features]
+        known = [r for r in rows if r is not None]
+        found = iter(self.explain_rows(known))
+        return [None if r is None else next(found) for r in rows]
+
+    def explain_rows(self, rows: Sequence[Row]) -> list[AcceptanceExplanation]:
+        """Точный древесный SHAP: последний столбец ответа CatBoost — база, остальные — вклады
+        столбцов `COLUMNS`, вместе они дают сырой логит модели."""
+        if not rows:
+            return []
+        shap = self._model.get_feature_importance(_pool(rows), type="ShapValues")
+        return [explanation(float(r[-1]), [float(v) for v in r[:-1]]) for r in shap]
 
     def predict_rows(self, rows: Sequence[Row]) -> list[float]:
         if not rows:

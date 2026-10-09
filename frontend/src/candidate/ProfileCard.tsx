@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router'
 import { api, errorMessage, type Profile } from '../api/client'
 import { workFormatWord } from '../employer/words'
+import { ExperienceCard } from '../components/ExperienceCard'
 import { salaryWords } from '../components/salary'
 import { hideableFields, hideableWords, yearsWords } from './words'
 
@@ -74,10 +75,11 @@ export function ProfileCard() {
           ))}
         </ul>
       )}
+      <ExperienceCard experience={profile.experience} technologyYears={profile.technology_years} />
       <p className="hint">
         До принятия приглашения работодатель видит категорию, профиль навыков, формат работы
-        {shown.length > 0 && ` и ${shown.join(', ')}`} — без имени, контактов, ролей, софт-скиллов и
-        «о себе»
+        {shown.length > 0 && ` и ${shown.join(', ')}`} — без имени, контактов, ролей, софт-скиллов,
+        «о себе» и опыта
         {profile.hidden.length > 0 &&
           `; скрыто вами: ${profile.hidden.map((f) => hideableWords[f]).join(', ')}`}
         . Ожидаемую зарплату — {salaryWords(profile.salary_from)} — он не видит никогда.

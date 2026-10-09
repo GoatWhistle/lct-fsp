@@ -13,6 +13,11 @@
 В резюме правила берут ФИО и контакты по их виду, стек — по справочнику, роли и софт-скиллы — по
 словарю: в черновик идёт название записи словаря, а не фраза из текста. Стаж — из прямого «опыт
 N лет», иначе из суммы периодов работы в разделе опыта. Софт-скиллы всегда неуверенные.
+
+Записи опыта — по периодам в разделе опыта: текст записи — от её периода до следующего. Место —
+первая строка записи без частей, которые называют роль, роль — название словаря в той же строке,
+технологии — справочника во всём тексте записи. «Что делал» правила не заполняют. Без заголовка
+раздела опыта записей нет: годы учёбы — не опыт. Записи всегда неуверенные.
 """
 
 import re
@@ -26,6 +31,7 @@ import yaml
 from pydantic import BaseModel, ConfigDict
 
 from app.domain.catalog import Catalog
+from app.domain.experience import ExperienceInput, Month
 from app.domain.need_draft import DraftField, NeedDraft, OutOfCatalog
 from app.domain.resume_draft import GradeHintRule, ResumeDraft, ResumeField
 from app.domain.work import WorkFormat
@@ -95,7 +101,7 @@ _MONTH_NAMES = re.compile("|".join(rf"(?:{m})" for m in _MONTHS))
 
 def _point(n: int) -> str:
     return (
-        rf"(?:(?P<m{n}>0?[1-9]|1[0-2])[./]|(?P<name{n}>{_MONTH_NAMES.pattern})\.? )?"
+        rf"(?:(?P<m{n}>0?[1-9]|1[0-2])[./]|(?P<name{n}>{_MONTH_NAMES.pattern})\.?\s)?"
         rf"(?P<y{n}>(?:19|20)\d{{2}})(?!\d)"
     )
 
@@ -107,6 +113,10 @@ _PRESENT = (
 _PERIOD = re.compile(
     rf"(?<!\d){_point(1)}\s?(?:-|–|—|по|to)?\s?(?:(?P<present>{_PRESENT})|{_point(2)})"
 )
+# Что отделяет период от заголовка записи: «03.2021 — н.в.: QA-инженер».
+_ENTRY_LEAD = re.compile(r"[\s:;,.—–-]+")
+# Заголовок записи кончается с первой фразой: дальше в той же строке — описание.
+_SENTENCE_END = re.compile(r"\.\s")
 
 _WORD = r"[\w+#]"
 _NUMBER = r"\d{1,3}(?: \d{3})+|\d+(?:[.,]\d+)?"
@@ -402,6 +412,9 @@ class RulesTextUnderstanding:
             experience = _experience_by_periods(normalized, today)
             if experience is not None:
                 confidence[ResumeField.experience_years] = UNSURE
+        entries = self._entries(text, vocabulary, today)
+        if entries:
+            confidence[ResumeField.experience] = UNSURE
 
         return ResumeDraft(
             full_name=full_name,
@@ -413,7 +426,60 @@ class RulesTextUnderstanding:
             experience_years=experience,
             soft_skills=soft_skills,
             confidence=confidence,
+            experience=entries,
         )
+
+    def _entries(
+        self, text: str, vocabulary: _Vocabulary, today: date
+    ) -> tuple[ExperienceInput, ...]:
+        """Записи опыта по периодам раздела опыта. Ищется по нормализованному тексту, место
+        берётся из текста с исходным регистром — они совпадают по позициям знаков. Конец после
+        сегодня записи не мешает — годы по технологиям его не досчитают."""
+        cased = "\n".join(" ".join(line.split()) for line in text.splitlines() if line.strip())
+        lowered = cased.lower().replace("ё", "е")
+        if len(lowered) != len(cased):
+            cased = lowered
+        bounds = _experience_section(lowered)
+        if bounds is None:
+            return ()
+        # Запись кончается на следующем периоде — любом, даже на том, который записью не станет:
+        # его текст не уходит в соседнюю запись.
+        periods = list(_PERIOD.finditer(lowered, bounds[0], bounds[1]))
+        now = Month.of(today)
+        entries = []
+        for i, found in enumerate(periods):
+            start, end = _entry_period(found)
+            if start > now or (end is not None and end < start):
+                continue
+            stop = periods[i + 1].start() if i + 1 < len(periods) else bounds[1]
+            lead = _ENTRY_LEAD.match(lowered, found.end(), stop)
+            body = lead.end() if lead else found.end()
+            block = lowered[body:stop]
+            title_end = body + len(_SENTENCE_END.split(block.split("\n", 1)[0], 1)[0])
+            title, title_cased = lowered[body:title_end], cased[body:title_end]
+            roles = self._labels(self._roles, title)
+            entries.append(
+                ExperienceInput(
+                    place=self._place(title, title_cased),
+                    role=roles[0] if roles else "",
+                    start=start,
+                    end=end,
+                    stack=tuple(sorted(_find(vocabulary.technologies, block).starts)),
+                    summary="",
+                )
+            )
+        return tuple(entries)
+
+    def _place(self, title: str, title_cased: str) -> str:
+        """Заголовок записи без частей через запятую, которые называют роль: «Тимлид бэкенда,
+        ООО «Сервисы»» → «ООО «Сервисы»». Весь заголовок — роль: место — он сам."""
+        parts = [
+            cased.strip()
+            for part, cased in zip(title.split(","), title_cased.split(","), strict=True)
+            if not any(m.search(part) for m in self._roles.values())
+        ]
+        place = ", ".join(p for p in parts if p) or title_cased.strip()
+        return place.rstrip(".,;: ")
 
     @staticmethod
     def _labels(matchers: Mapping[str, re.Pattern[str]], text: str) -> tuple[str, ...]:
@@ -562,33 +628,57 @@ def _month(number: str | None, name: str | None) -> int | None:
     return None
 
 
-def _experience_by_periods(text: str, today: date) -> int | None:
-    """Полных лет в объединении периодов «03.2019 — н.в.», «2017–2020», «январь 2021 — май 2023».
-    Есть раздел опыта — только периоды в нём: годы учёбы стажем не считаются. Период без месяцев
-    идёт от января до января: «2019–2023» — четыре года."""
+def _experience_section(text: str) -> tuple[int, int] | None:
+    """Где раздел опыта: от конца его заголовка до заголовка следующего раздела."""
     start = _EXPERIENCE_SECTION.search(text)
-    if start is not None:
-        end = _NEXT_SECTION.search(text, start.end())
-        text = text[start.end() : end.start() if end else len(text)]
+    if start is None:
+        return None
+    end = _NEXT_SECTION.search(text, start.end())
+    return start.end(), end.start() if end else len(text)
+
+
+def _periods(text: str, today: date, start: int = 0) -> Iterable[tuple[int, int]]:
+    """Периоды работы «03.2019 — н.в.», «2017–2020», «январь 2021 — май 2023» с `start` —
+    номерами месяцев: первый включительно, последний — исключительно. Период без месяцев идёт от
+    января до января: «2019–2023» — четыре года, «2023 — 2023» — год. Период, который ещё не
+    начался или кончается в будущем, пропускается."""
     now = today.year * 12 + today.month
-    periods = []
-    for found in _PERIOD.finditer(text):
+    for found in _PERIOD.finditer(text, start):
         first = int(found["y1"]) * 12 + (_month(found["m1"], found["name1"]) or 1) - 1
         if found["present"]:
             last = now
         else:
             month = _month(found["m2"], found["name2"])
             last = int(found["y2"]) * 12 + (month or 1) - 1 + (1 if month else 0)
-            # «2023 — 2023» без месяцев — год работы, а не пустой период.
             if month is None and last <= first:
                 last = first + 12
         if first < last <= now:
-            periods.append((first, last))
-    if not periods:
+            yield first, last
+
+
+def _entry_period(found: re.Match[str]) -> tuple[Month, Month | None]:
+    """Период записи опыта так, как его написали: год без месяцев — с января по декабрь,
+    «2019 — 2023» — по декабрь 2023, «по сейчас» — `None`."""
+    start = Month(int(found["y1"]), _month(found["m1"], found["name1"]) or 1)
+    if found["present"]:
+        return start, None
+    year = int(found["y2"])
+    month = _month(found["m2"], found["name2"])
+    return start, Month(year, month) if month else Month(max(year, start.year), 12)
+
+
+def _experience_by_periods(text: str, today: date) -> int | None:
+    """Полных лет в объединении периодов работы (`_periods`). Есть раздел опыта — только периоды
+    в нём: годы учёбы стажем не считаются."""
+    bounds = _experience_section(text)
+    if bounds is not None:
+        text = text[: bounds[1]]
+    spans = sorted(_periods(text, today, bounds[0] if bounds else 0))
+    if not spans:
         return None
     months = 0
     reached = 0
-    for first, last in sorted(periods):
+    for first, last in spans:
         first = max(first, reached)
         if last > first:
             months += last - first

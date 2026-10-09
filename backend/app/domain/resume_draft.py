@@ -3,7 +3,8 @@
 Порт `TextUnderstanding` превращает очищенный текст резюме в черновик анкеты. Адаптеру сценарий
 не доверяет: всё, чего нет в справочнике или что не похоже на своё поле, отбрасывает
 `checked_resume`. Черновик — не профиль: в профиль он попадает только формой, которую кандидат
-проверил и сохранил, и только самоописанием — низшим уровнем доверия.
+проверил и сохранил, и только самоописанием — низшим уровнем доверия. Черновые записи опыта
+попадают в карточку опыта той же формой: показ без веса.
 
 Подсказка грейда — по стажу и ролям. Выбирает грейд кандидат, категорию определяет только тест:
 подсказка ни на что, кроме экрана выбора грейда, не влияет.
@@ -13,8 +14,10 @@ import enum
 import re
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
+from datetime import date
 
 from app.domain.catalog import Catalog, CatalogRef, Grade
+from app.domain.experience import ExperienceEntry, ExperienceInput, ExperienceLimits, Month
 
 # Длина полей — как у формы профиля.
 FULL_NAME_MAX = 200
@@ -40,12 +43,14 @@ class ResumeField(enum.StrEnum):
     job_roles = "job_roles"
     experience_years = "experience_years"
     soft_skills = "soft_skills"
+    experience = "experience"
 
 
 @dataclass(frozen=True)
 class ResumeDraft:
-    """Что адаптер узнал в резюме: стек — кодами справочника, стаж — полных лет. Чего в тексте
-    нет, то `None` или пусто."""
+    """Что адаптер узнал в резюме: стек — кодами справочника, стаж — полных лет, записи опыта —
+    по периодам раздела опыта. Чего в тексте нет, то `None` или пусто; адаптер, который записи
+    опыта не умеет, оставляет их пустыми."""
 
     full_name: str | None
     contact_email: str | None
@@ -57,6 +62,7 @@ class ResumeDraft:
     soft_skills: tuple[str, ...]
     # Уверенность по полю в [0, 1]; `None` или нет ключа — адаптер её не считает.
     confidence: Mapping[ResumeField, float | None]
+    experience: tuple[ExperienceInput, ...] = ()
 
 
 EMPTY_RESUME = ResumeDraft(None, None, None, None, (), (), None, (), {})
@@ -94,9 +100,12 @@ class CheckedResumeDraft:
     experience_years: int | None
     soft_skills: tuple[str, ...]
     confidence: Mapping[ResumeField, float | None]
-    # Распознанные поля с уверенностью ниже порога — экран их подсвечивает.
+    # Распознанные поля с уверенностью ниже порога — экран их подсвечивает. Записи опыта
+    # подсвечены всегда: место, роль и период — догадка по вёрстке.
     uncertain: frozenset[ResumeField]
     grade_hint: GradeHint | None
+    # Черновые записи опыта; «что делал» пусто — его пишет кандидат.
+    experience: tuple[ExperienceEntry, ...] = ()
 
 
 def _line(value: object, limit: int) -> str | None:
@@ -134,12 +143,56 @@ def _confidence(given: object) -> float | None:
     return None
 
 
+def _entries(
+    given: object, catalog: Catalog, today: date, limits: ExperienceLimits
+) -> tuple[ExperienceEntry, ...]:
+    """Записи опыта в пределах формы: запись не того типа, без места или с периодом, который
+    форма не примет, отбрасывается; стек — только справочника, в порядке названий; «что делал» —
+    пусто, что бы ни прислал адаптер: свободный текст из резюме в карточку не переносится."""
+    if not isinstance(given, list | tuple):
+        return ()
+    names = {t.code: CatalogRef(t.code, t.name) for t in catalog.technologies}
+    now = Month.of(today)
+    entries = []
+    for e in given:
+        if not (
+            isinstance(e, ExperienceInput)
+            and isinstance(e.start, Month)
+            and (e.end is None or isinstance(e.end, Month))
+            and isinstance(e.stack, list | tuple)
+        ):
+            continue
+        place = _line(e.place, limits.line_max)
+        if place is None or e.start > now or (e.end is not None and e.start > e.end):
+            continue
+        codes = {c for c in e.stack if isinstance(c, str)}
+        stack = sorted((names[c] for c in codes if c in names), key=lambda t: t.name)
+        entries.append(
+            ExperienceEntry(
+                place=place,
+                role=_line(e.role, limits.line_max) or "",
+                start=e.start,
+                end=e.end,
+                stack=tuple(stack[: limits.stack_max]),
+                summary="",
+            )
+        )
+    return tuple(entries[: limits.entries_max])
+
+
 def checked_resume(
-    draft: ResumeDraft, catalog: Catalog, *, confident: float, rule: GradeHintRule
+    draft: ResumeDraft,
+    catalog: Catalog,
+    *,
+    confident: float,
+    rule: GradeHintRule,
+    today: date,
+    experience_limits: ExperienceLimits,
 ) -> CheckedResumeDraft:
     """Черновик в пределах справочника и формы: неизвестные коды стека, контакты не своего
-    вида, стаж вне [0, 60] и значения не того типа отбрасываются, а не роняют разбор. Поле с
-    уверенностью ниже `confident` — неуверенное."""
+    вида, стаж вне [0, 60], записи опыта, которые форма не примет, и значения не того типа
+    отбрасываются, а не роняют разбор. Поле с уверенностью ниже `confident` — неуверенное,
+    записи опыта — всегда."""
     asked_stack = (
         {c for c in draft.stack if isinstance(c, str)}
         if isinstance(draft.stack, list | tuple)
@@ -158,6 +211,7 @@ def checked_resume(
     experience = (
         experience if type(experience) is int and 0 <= experience <= EXPERIENCE_MAX else None
     )
+    entries = _entries(draft.experience, catalog, today, experience_limits)
     recognized = {
         ResumeField.full_name: full_name is not None,
         ResumeField.contact_email: email is not None,
@@ -167,6 +221,7 @@ def checked_resume(
         ResumeField.job_roles: bool(roles),
         ResumeField.experience_years: experience is not None,
         ResumeField.soft_skills: bool(soft_skills),
+        ResumeField.experience: bool(entries),
     }
     given = draft.confidence if isinstance(draft.confidence, Mapping) else {}
     confidence = {name: _confidence(given.get(name)) for name, found in recognized.items() if found}
@@ -181,9 +236,12 @@ def checked_resume(
         soft_skills=soft_skills,
         confidence=confidence,
         uncertain=frozenset(
-            name for name, level in confidence.items() if level is not None and level < confident
+            name
+            for name, level in confidence.items()
+            if (level is not None and level < confident) or name is ResumeField.experience
         ),
         grade_hint=grade_hint(experience, roles, catalog.grades, rule),
+        experience=entries,
     )
 
 

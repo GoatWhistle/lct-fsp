@@ -4,11 +4,13 @@ import io
 from dataclasses import replace
 from datetime import UTC, date, datetime
 
+import pytest
 from pypdf import PdfReader
 
-from app.adapter.profile_pdf import FpdfProfileRenderer
+from app.adapter.profile_pdf import FpdfProfileRenderer, years_words
 from app.domain.candidate import Disclosed, ProfileSheet, SelfReported
 from app.domain.catalog import CatalogRef
+from app.domain.experience import ExperienceEntry, Month, TechnologyYears
 from app.domain.fsp import ConfirmedAchievement, FspResult
 from app.domain.work import WorkFormat
 from app.usecase.interface import ProfilePdfRenderer
@@ -85,3 +87,39 @@ def test_fsp_achievements_are_a_confirmed_block_apart_from_self_description() ->
 
 def test_candidate_without_fsp_history_gets_neutral_note() -> None:
     assert "Нет истории ФСП" in text_of(SHEET)
+
+
+def test_experience_card_is_a_block_from_candidate_words_after_self_description() -> None:
+    entry = ExperienceEntry(
+        place="ООО «Ромашка»",
+        role="QA-инженер",
+        start=Month(2021, 3),
+        end=None,
+        stack=(CatalogRef("python", "Python"),),
+        summary="Автотесты платёжного шлюза",
+    )
+    disclosed = replace(SHEET.disclosed, experience=(entry,))
+    sheet = replace(
+        SHEET,
+        disclosed=disclosed,
+        technology_years=(TechnologyYears(CatalogRef("python", "Python"), 5.5),),
+    )
+
+    text = text_of(sheet)
+
+    block = text[text.index("ОПЫТ (СО СЛОВ КАНДИДАТА)") :]
+    assert text.index("СО СЛОВ КАНДИДАТА") < text.index("ОПЫТ (СО СЛОВ КАНДИДАТА)")
+    for part in ("03.2021 — по сейчас", "QA-инженер", "Ромашка", "платёжного", "5,5 года"):
+        assert part in block
+
+
+def test_empty_experience_card_has_no_block() -> None:
+    assert "ОПЫТ (СО СЛОВ" not in text_of(SHEET)
+
+
+@pytest.mark.parametrize(
+    ("years", "words"),
+    [(0.0, "меньше полугода"), (0.5, "полгода"), (1.0, "1 год"), (2.5, "2,5 года"), (5.0, "5 лет")],
+)
+def test_years_words(years: float, words: str) -> None:
+    assert years_words(years) == words

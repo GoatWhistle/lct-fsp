@@ -88,6 +88,7 @@ from composition import (
     build_platform_usecases,
     build_usecases,
     catalog_sync,
+    experience_limits,
     item_selector,
     model_understanding,
     named_completion,
@@ -159,6 +160,7 @@ def create_app(
     )
     app.state.engine = engine
     app.state.mechanics = mechanics
+    app.state.experience_limits = experience_limits(mechanics)
     session_factory = sessionmaker(engine)
     session_ttl = timedelta(hours=settings.session_ttl_hours)
     app.state.session_cookie = SessionCookie(

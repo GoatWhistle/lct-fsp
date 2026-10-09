@@ -1,0 +1,65 @@
+.enter {
+  animation: var(--motion-rise-in);
+}
+
+.formStep {
+  display: grid;
+  gap: var(--space-24);
+  min-inline-size: 0;
+  animation: var(--motion-rise-in);
+}
+
+.prose {
+  composes: secondaryText from "./compose.module.css";
+  max-inline-size: var(--prose-measure);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-12);
+}
+
+.split {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, var(--panel-detail));
+  align-items: start;
+  gap: var(--space-24);
+}
+
+.stack {
+  display: grid;
+  gap: var(--space-16);
+}
+
+.points {
+  display: grid;
+  gap: var(--space-12);
+  color: var(--text-secondary);
+  font-size: var(--font-size-body-sm);
+}
+
+.preWrap {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.screen {
+  display: grid;
+  grid-template-rows: auto 1fr;
+  min-block-size: 100dvh;
+  padding: var(--space-12) var(--space-page) var(--space-40);
+}
+
+@media (min-width: 75rem) {
+  .screen {
+    padding-inline: var(--space-page-wide);
+  }
+}
+
+@media (max-width: 63.99rem) {
+  .split {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

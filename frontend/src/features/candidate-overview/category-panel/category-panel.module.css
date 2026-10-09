@@ -1,0 +1,16 @@
+.head {
+  display: grid;
+  gap: var(--space-12);
+}
+
+.status {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-8) var(--space-16);
+}
+
+.since {
+  font-family: var(--font-mono);
+  font-variant-numeric: var(--font-numeric);
+}

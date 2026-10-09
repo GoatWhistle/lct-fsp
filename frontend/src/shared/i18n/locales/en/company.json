@@ -1,0 +1,61 @@
+{
+  "title": "Company profile",
+  "lead": "Candidates decide whether to accept an invitation partly by who sent it. You need a profile to publish vacancies and send invitations.",
+  "missing": "The profile is not filled in yet: without it you cannot publish a vacancy or send an invitation.",
+  "sections": {
+    "about": "About the company",
+    "aboutLead": "Name, industry and a couple of paragraphs about what you do.",
+    "contacts": "Contacts",
+    "contactsLead": "Where candidates can write with general questions. The contact for a specific invitation goes into the invitation itself."
+  },
+  "fields": {
+    "name": "Name",
+    "namePlaceholder": "For example, Alpha Payment Systems",
+    "industry": "Industry",
+    "industryPlaceholder": "Choose an industry",
+    "description": "What the company does",
+    "descriptionHint": "Product, team size, technologies. Candidates see the text as is.",
+    "website": "Website",
+    "websiteHint": "https:// is optional",
+    "websitePlaceholder": "example.com",
+    "email": "Email for candidates",
+    "emailPlaceholder": "hr@example.com",
+    "phone": "Phone",
+    "phoneHint": "Optional.",
+    "phonePlaceholder": "+7 900 000-00-00"
+  },
+  "errors": {
+    "name": "Enter the company name.",
+    "industry": "Choose an industry.",
+    "description": "Describe what the company does.",
+    "website": "A website address like example.com.",
+    "email": "An email like name@example.com."
+  },
+  "actions": {
+    "save": "Save",
+    "create": "Save profile",
+    "saving": "Saving",
+    "reset": "Revert changes"
+  },
+  "state": {
+    "dirty": "You have unsaved changes",
+    "saved": "Saved on {{date}}",
+    "new": "The profile is not saved yet"
+  },
+  "toast": {
+    "saved": "Company profile saved",
+    "created": "Company profile created, you can publish vacancies now",
+    "toVacancies": "To vacancies"
+  },
+  "preview": {
+    "title": "How candidates see you",
+    "lead": "This is how the company looks in an invitation and a vacancy. It updates as you type.",
+    "untitled": "Company name",
+    "noDescription": "The company description will appear here.",
+    "invitation": "Invitation from the company",
+    "website": "Website",
+    "email": "Email",
+    "phone": "Phone",
+    "note": "A candidate's contacts open to you only after they accept an invitation or apply themselves."
+  }
+}

@@ -1,0 +1,26 @@
+.list {
+  composes: cardFrame from "../../../shared/styles/compose.module.css";
+  display: grid;
+  grid-template-columns: minmax(0, 4fr) minmax(0, 4fr) minmax(0, 3fr) auto;
+  overflow: hidden;
+}
+
+@media (max-width: 89.99rem) {
+  .list {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 47.99rem) {
+  .list {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.list > :last-child {
+  border-block-end: 0;
+}
+
+.emptyActions {
+  composes: actions from "../../../shared/styles/layout.module.css";
+}

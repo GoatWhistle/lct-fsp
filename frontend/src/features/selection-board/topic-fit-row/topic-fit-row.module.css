@@ -1,0 +1,36 @@
+.row {
+  composes: listRowCompact from "../../../shared/styles/rows.module.css";
+  gap: var(--space-8);
+}
+
+.foot {
+  composes: bodySmText from "../../../shared/styles/compose.module.css";
+}
+
+.head,
+.foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-8);
+}
+
+.name {
+  composes: bodySmText from "../../../shared/styles/compose.module.css";
+  margin-inline-end: auto;
+  font-weight: var(--weight-medium);
+}
+
+.weight,
+.contribution {
+  composes: captionText monoText from "../../../shared/styles/compose.module.css";
+  color: var(--text-tertiary);
+}
+
+.contribution {
+  margin-inline-start: auto;
+}
+
+.contribution strong {
+  color: var(--text-primary);
+}

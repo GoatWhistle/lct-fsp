@@ -1,0 +1,97 @@
+.row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    "main side"
+    "actions side";
+  gap: var(--space-12) var(--space-32);
+  padding-block: var(--space-20);
+  border-block-start: var(--hairline) solid var(--border-hairline);
+  animation: var(--motion-rise-in);
+  animation-delay: calc(var(--i) * var(--stagger));
+}
+
+.row:first-child {
+  padding-block-start: 0;
+  border-block-start: 0;
+}
+
+.main {
+  display: grid;
+  grid-area: main;
+  gap: var(--space-12);
+  min-inline-size: 0;
+}
+
+.title {
+  composes: subheadingText from "../../../shared/styles/compose.module.css";
+  justify-self: start;
+  color: var(--text-primary);
+}
+
+.tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-8);
+}
+
+.side {
+  display: grid;
+  grid-area: side;
+  align-content: start;
+  justify-items: end;
+  gap: var(--space-12);
+}
+
+.figures {
+  display: flex;
+  gap: var(--space-24);
+  min-inline-size: var(--grade-value-width);
+}
+
+.figure {
+  display: grid;
+  justify-items: end;
+}
+
+.figureLabel {
+  composes: fieldLabel from "../../../shared/styles/compose.module.css";
+}
+
+.figureValue {
+  composes: monoText from "../../../shared/styles/compose.module.css";
+  font-size: var(--font-size-heading);
+  line-height: var(--line-height-heading);
+  font-variant-numeric: tabular-nums;
+}
+
+.none {
+  composes: secondaryText from "../../../shared/styles/compose.module.css";
+  text-align: end;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  grid-area: actions;
+  gap: var(--space-8);
+}
+
+@media (max-width: 47.99rem) {
+  .row {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      "main"
+      "side"
+      "actions";
+  }
+
+  .side,
+  .figure {
+    justify-items: start;
+  }
+
+  .none {
+    text-align: start;
+  }
+}

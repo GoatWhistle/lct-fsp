@@ -1,0 +1,7 @@
+.slot {
+  padding-inline: var(--space-page);
+}
+
+.slot:has(> *) {
+  padding-block-start: var(--space-16);
+}

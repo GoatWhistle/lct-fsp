@@ -1,0 +1,6 @@
+.placeholder {
+  justify-content: center;
+  min-block-size: var(--empty-panel-height);
+  border: var(--hairline) dashed var(--border-strong);
+  border-radius: var(--radius-card);
+}

@@ -25,7 +25,7 @@ from pypdf.generic import (
     NumberObject,
 )
 
-from app.adapter.profile_pdf import FONTS
+from app.adapter.brand.pdf_kit import FONTS
 
 TODAY = date(2026, 10, 8)
 
@@ -181,8 +181,8 @@ PEOPLE = (IVANOVA, PETROV, SMIRNOVA)
 def _pdf() -> FPDF:
     pdf = FPDF(format="A4")
     pdf.set_auto_page_break(auto=True, margin=15)
-    pdf.add_font("PT", "", str(FONTS / "PTSans-Regular.ttf"))
-    pdf.add_font("PT", "B", str(FONTS / "PTSans-Bold.ttf"))
+    pdf.add_font("PT", "", str(FONTS / "Onest-Regular.ttf"))
+    pdf.add_font("PT", "B", str(FONTS / "Onest-SemiBold.ttf"))
     pdf.set_font("PT", size=11)
     pdf.add_page()
     return pdf

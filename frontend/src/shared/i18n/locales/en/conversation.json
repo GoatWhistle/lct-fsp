@@ -1,0 +1,22 @@
+{
+  "label": "Conversation",
+  "history": "Message history",
+  "you": "You",
+  "author": {
+    "candidate": "Candidate",
+    "employer": "Company"
+  },
+  "read": "read",
+  "delivered": "delivered",
+  "empty": {
+    "title": "No messages yet",
+    "candidate": "Write to the company first. Messages are not sent by email: new ones show up as a counter next to Invitations.",
+    "employer": "Write to the candidate first. Messages are not sent by email: new ones show up as a counter next to Invitations."
+  },
+  "composer": {
+    "label": "Message",
+    "placeholder": "Write a message",
+    "send": "Send",
+    "hint": "Enter sends, Shift+Enter adds a line break"
+  }
+}

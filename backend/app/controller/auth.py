@@ -33,7 +33,7 @@ router = APIRouter(prefix="/api/auth", tags=["auth"])
     responses=error_responses(errors.EmailTaken),
 )
 def register(body: RegisterIn, accounts: AccountsDep) -> UserOut:
-    account = accounts.register(body.email, body.password, body.role)
+    account = accounts.register(body.email, body.password, body.role, body.locale)
     return UserOut.model_validate(account)
 
 
@@ -54,7 +54,7 @@ def verify_email(body: VerifyEmailIn, accounts: AccountsDep) -> UserOut:
     "зарегистрирован. Письмо уходит, только если адрес зарегистрирован и не подтверждён.",
 )
 def resend_verification(body: ResendVerificationIn, accounts: AccountsDep) -> None:
-    accounts.resend_verification(body.email)
+    accounts.resend_verification(body.email, body.locale)
 
 
 @router.post(

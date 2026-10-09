@@ -1,7 +1,7 @@
 # Issue tracker: GitHub Issues
 
-Issues и спеки живут в `https://github.com/GoatWhistle/new-lct/issues`. Все операции — через
-MCP-сервер **`github`**; во всех вызовах `owner: GoatWhistle`, `repo: new-lct`. Кто работает
+Issues и спеки живут в `https://github.com/GoatWhistle/lct-fsp-hack/issues`. Все операции — через
+MCP-сервер **`github`**; во всех вызовах `owner: GoatWhistle`, `repo: lct-fsp-hack`. Кто работает
 в сессии — `get_me` (логин нужен для assignee).
 
 Issues рабочие, **перед сдачей удаляются**. Отсюда два правила:

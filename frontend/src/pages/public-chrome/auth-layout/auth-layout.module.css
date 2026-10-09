@@ -1,0 +1,123 @@
+.layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  min-block-size: 100dvh;
+}
+
+.aside {
+  display: grid;
+  grid-template-rows: auto auto 1fr;
+  gap: var(--space-32);
+  padding: var(--space-24) var(--space-page-wide) var(--space-40);
+  background-color: var(--surface-focus);
+}
+
+.pitch {
+  display: grid;
+  gap: var(--space-12);
+  max-inline-size: var(--lead-measure);
+}
+
+.pitchTitle {
+  composes: headingLgText from "../../../shared/styles/compose.module.css";
+  font-family: var(--font-display);
+  text-wrap: balance;
+}
+
+.pitchText {
+  color: var(--text-secondary);
+}
+
+.art {
+  align-self: end;
+  inline-size: min(100%, var(--hero-art-size-compact));
+}
+
+.top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-16);
+}
+
+.main {
+  display: grid;
+  padding: var(--space-12) var(--space-page);
+}
+
+.tools {
+  display: flex;
+  gap: var(--space-4);
+}
+
+.panel {
+  display: grid;
+  align-content: center;
+  gap: var(--space-24);
+  inline-size: min(100%, var(--form-measure));
+  margin-inline: auto;
+  padding-block: var(--space-40);
+  animation: var(--motion-rise-in);
+}
+
+.title {
+  composes: headingLgText from "../../../shared/styles/compose.module.css";
+  outline: none;
+}
+
+@media (max-width: 63.99rem) {
+  .layout {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto 1fr;
+  }
+
+  .aside {
+    grid-template-rows: auto;
+    padding: var(--space-16) var(--space-page);
+  }
+
+  .pitch,
+  .art {
+    display: none;
+  }
+}
+
+.divider {
+  composes: labelText from "../../../shared/styles/compose.module.css";
+  display: flex;
+  align-items: center;
+  gap: var(--space-12);
+  color: var(--text-tertiary);
+}
+
+.divider::before,
+.divider::after {
+  content: "";
+  flex: 1;
+  block-size: var(--hairline);
+  background-color: var(--border-hairline);
+}
+
+.hint {
+  color: var(--text-secondary);
+  font-size: var(--font-size-body-sm);
+}
+
+.switch {
+  color: var(--text-secondary);
+  font-size: var(--font-size-body-sm);
+}
+
+.switchLink {
+  color: var(--text-accent);
+}
+
+.block {
+  display: grid;
+  gap: var(--space-12);
+}
+
+.group {
+  display: grid;
+  gap: var(--space-24);
+}

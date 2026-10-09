@@ -1,0 +1,23 @@
+.card[data-withdrawn="true"] {
+  --card-surface: var(--surface-canvas);
+}
+
+.tags {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-8);
+}
+
+.prompt {
+  composes: preWrap from "../../../shared/styles/layout.module.css";
+  display: -webkit-box;
+  max-inline-size: var(--prose-measure);
+  overflow: hidden;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+}
+
+.answers {
+  display: grid;
+}

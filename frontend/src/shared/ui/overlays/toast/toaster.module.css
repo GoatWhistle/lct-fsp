@@ -1,0 +1,46 @@
+.viewport {
+  position: fixed;
+  inset-block-end: var(--space-24);
+  inset-inline-end: var(--space-24);
+  z-index: var(--layer-toast);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+  inline-size: min(var(--toast-width), calc(100vw - var(--space-32)));
+  pointer-events: none;
+}
+
+.toast {
+  composes: bodySmText from "../../../styles/compose.module.css";
+  display: grid;
+  grid-template-columns: auto 1fr auto auto;
+  align-items: center;
+  gap: var(--space-12);
+  padding: var(--space-8) var(--space-8) var(--space-8) var(--space-16);
+  border: var(--hairline) solid var(--border-raised);
+  border-radius: var(--radius-inner);
+  background-color: var(--surface-raised);
+  box-shadow: var(--shadow-float);
+  pointer-events: auto;
+  animation: var(--motion-toast-in);
+}
+
+.toast[data-tone="error"] .icon {
+  color: var(--text-danger);
+}
+
+.toast[data-tone="success"] .icon {
+  color: var(--text-accent);
+}
+
+.message {
+  padding-block: var(--space-8);
+}
+
+@media (max-width: 47.99rem) {
+  .viewport {
+    inset-block-end: calc(var(--bottom-nav-height) + var(--space-12));
+    inset-inline: var(--space-16);
+    inline-size: auto;
+  }
+}

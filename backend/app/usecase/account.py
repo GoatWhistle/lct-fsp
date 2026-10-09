@@ -16,16 +16,17 @@ from app.domain.account import (
     issue_verification,
     normalize_email,
     sign_in,
-    verification_mail,
     verification_token_hash,
 )
 from app.domain.errors import EmailTaken, NotAuthenticated
+from app.domain.locale import DEFAULT_LOCALE, Locale
 from app.domain.mail import Mail
 from app.usecase.interface import (
     AccountRepository,
     Clock,
     EmailVerificationRepository,
     Mailer,
+    MailTemplates,
     PasswordHasher,
     SessionTokens,
     UnitOfWork,
@@ -57,6 +58,7 @@ class Accounts:
         mailer: Mailer,
         clock: Clock,
         links: VerificationLinks,
+        templates: MailTemplates,
     ) -> None:
         self._uow = uow
         self._accounts = accounts
@@ -66,8 +68,11 @@ class Accounts:
         self._mailer = mailer
         self._clock = clock
         self._links = links
+        self._templates = templates
 
-    def register(self, email: str, password: str, role: Role) -> Account:
+    def register(
+        self, email: str, password: str, role: Role, locale: Locale = DEFAULT_LOCALE
+    ) -> Account:
         """Учётка выбранной роли и письмо со ссылкой подтверждения; адрес занят — `EmailTaken`."""
         email = normalize_email(email)
         # Хэш — до транзакции: argon2 долгий, соединение с базой на это время не занимается.
@@ -77,17 +82,17 @@ class Accounts:
                 raise EmailTaken()
             now = self._clock.now()
             account = self._accounts.add(email, password_hash, role, now)
-            mail = self._verification(account, now)
+            mail = self._verification(account, now, locale)
         self._mailer.send(mail)
         return account
 
-    def resend_verification(self, email: str) -> None:
+    def resend_verification(self, email: str, locale: Locale = DEFAULT_LOCALE) -> None:
         """Для чужих и уже подтверждённых адресов молча ничего не делает — не раскрываем учётки."""
         with self._uow:
             account = self._accounts.by_email(normalize_email(email))
             if account is None or account.email_verified:
                 return
-            mail = self._verification(account, self._clock.now())
+            mail = self._verification(account, self._clock.now(), locale)
         self._mailer.send(mail)
 
     def verify_email(self, token: str) -> Account:
@@ -118,11 +123,11 @@ class Accounts:
             raise NotAuthenticated()
         return account
 
-    def _verification(self, account: Account, now: datetime) -> Mail:
+    def _verification(self, account: Account, now: datetime, locale: Locale) -> Mail:
         token = secrets.token_urlsafe(32)
         ttl_hours = self._links.ttl_hours
         self._verifications.add(
             issue_verification(account.id, token, now, timedelta(hours=ttl_hours))
         )
         link = f"{self._links.frontend_url}/verify-email?token={token}"
-        return verification_mail(account.email, link, ttl_hours)
+        return self._templates.verification(account.email, link, ttl_hours, locale)

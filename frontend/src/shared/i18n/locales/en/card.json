@@ -1,0 +1,55 @@
+{
+  "title": "Candidate {{id}}",
+  "back": "Candidates",
+  "anonymous": "Until an invitation is accepted or the candidate applies, the profile is anonymous: no name, photo, age, university or contacts.",
+  "level": "Overall test level",
+  "noCategory": "No category assigned",
+  "skills": {
+    "title": "Skill profile",
+    "lead": "Level and margin of error for each topic. Badges show what confirms the level.",
+    "empty": "The profile appears after the test"
+  },
+  "fsp": {
+    "title": "FSP achievements",
+    "lead": "The strongest signal in the profile. It does not change the grade or category.",
+    "empty": "The candidate has not linked an FSP ID. There is no penalty: the profile is built from the test.",
+    "details": "Competition details",
+    "event": "Competition",
+    "date": "Date",
+    "place": "Place",
+    "role": "Team role"
+  },
+  "self": {
+    "title": "Self-reported",
+    "lead": "Self-reported data does not affect the category or level; the stack adds to the fit up to a cap.",
+    "experience_one": "{{count}} year",
+    "experience_other": "{{count}} years",
+    "experienceLabel": "Experience",
+    "formats": "Work format",
+    "city": "City",
+    "relocation": "Relocation",
+    "relocationYes": "open to it",
+    "relocationNo": "not open to it",
+    "industries": "Industries of interest",
+    "stack": "Stack",
+    "hidden": "Hidden by the candidate: {{fields}}"
+  },
+  "hideable": {
+    "stack": "stack",
+    "experience_years": "experience",
+    "city": "city",
+    "relocation": "relocation",
+    "industries": "industries"
+  },
+  "contacts": {
+    "title": "Contacts",
+    "lead": "Visible because the candidate accepted an invitation or applied.",
+    "about": "About",
+    "roles": "Roles",
+    "soft": "Strengths"
+  },
+  "invite": {
+    "title": "Invitation",
+    "lead": "Contacts open once the candidate accepts the invitation."
+  }
+}

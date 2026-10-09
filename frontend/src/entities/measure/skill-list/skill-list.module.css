@@ -1,0 +1,32 @@
+.list {
+  display: grid;
+}
+
+.row {
+  display: grid;
+  gap: var(--space-8);
+  padding-block: var(--space-12);
+  border-block-end: var(--hairline) solid var(--border-hairline);
+}
+
+.row:last-child {
+  border-block-end: 0;
+}
+
+.head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-8);
+}
+
+.name {
+  font-weight: var(--weight-medium);
+}
+
+.sources {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+}

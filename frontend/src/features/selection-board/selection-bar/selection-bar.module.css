@@ -1,0 +1,71 @@
+.bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-16);
+}
+
+.counts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-8);
+}
+
+.count {
+  composes: cardFrame from "../../../shared/styles/compose.module.css";
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-8);
+  padding: var(--space-8) var(--space-12);
+}
+
+.count[data-block="exact"] {
+  border-color: var(--action-primary);
+}
+
+.countLabel {
+  composes: captionText from "../../../shared/styles/compose.module.css";
+  order: 2;
+  color: var(--text-secondary);
+}
+
+.countValue {
+  composes: monoText from "../../../shared/styles/compose.module.css";
+  order: 1;
+  font-size: var(--font-size-subheading);
+  font-weight: var(--weight-semibold);
+  font-variant-numeric: var(--font-numeric);
+}
+
+.tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-8);
+}
+
+.badge {
+  composes: captionText monoText badgeShape from "../../../shared/styles/compose.module.css";
+  padding-inline: var(--space-8);
+  background-color: var(--surface-tint);
+}
+
+.method {
+  display: grid;
+  gap: var(--space-12);
+  padding: var(--space-16);
+  max-inline-size: var(--method-width);
+}
+
+.methodTitle {
+  composes: strongBodyText from "../../../shared/styles/compose.module.css";
+}
+
+.points {
+  display: grid;
+  gap: var(--space-8);
+  padding-inline-start: var(--space-20);
+  color: var(--text-secondary);
+  font-size: var(--font-size-body-sm);
+  list-style: decimal;
+}

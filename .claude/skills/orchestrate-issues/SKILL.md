@@ -10,7 +10,7 @@ argument-hint: "<номера issues>"
 
 Набор issues — только явно названный (аргумент или номера в просьбе). Номеров нет — ответь одной строкой «назови issues» и закончи.
 
-Трекер, операции и лейблы — [`.claude/tracker.md`](../../tracker.md). Репо `GoatWhistle/new-lct`.
+Трекер, операции и лейблы — [`.claude/tracker.md`](../../tracker.md). Репо `GoatWhistle/lct-fsp-hack`.
 
 ## Шаги
 

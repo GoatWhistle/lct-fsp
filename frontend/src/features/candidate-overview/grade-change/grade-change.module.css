@@ -1,0 +1,18 @@
+.up {
+  composes: stack from "../../../shared/styles/layout.module.css";
+  padding-block-start: var(--space-16);
+  border-block-start: var(--hairline) solid var(--border-hairline);
+}
+
+.note {
+  composes: prose from "../../../shared/styles/layout.module.css";
+}
+
+.actions {
+  composes: actions from "../../../shared/styles/layout.module.css";
+}
+
+.date {
+  font-family: var(--font-mono);
+  font-variant-numeric: var(--font-numeric);
+}

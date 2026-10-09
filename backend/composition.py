@@ -50,6 +50,7 @@ from app.usecase.interface import (
     InvitationRepository,
     ItemSelector,
     Mailer,
+    MailTemplates,
     MessageRepository,
     NeedReader,
     NeedRepository,
@@ -290,6 +291,7 @@ def build_platform_usecases[U: UnitOfWork](
     passwords: PasswordHasher,
     sessions: SessionTokens,
     mailer: Mailer,
+    mail_templates: MailTemplates,
     clock: Clock,
     links: VerificationLinks,
     skill_model: SkillModel,
@@ -309,6 +311,7 @@ def build_platform_usecases[U: UnitOfWork](
             mailer,
             clock,
             links,
+            mail_templates,
         )
 
     def companies(uow: U) -> Companies:

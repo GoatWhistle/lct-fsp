@@ -1,7 +1,7 @@
 # Стенд целиком: docker compose up --build
 # Порты на хосте меняются переменными из .env (см. .env.example).
 
-name: new-lct
+name: calibr
 
 services:
   db:

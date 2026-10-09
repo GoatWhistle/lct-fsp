@@ -1,404 +1,248 @@
-"""Рендер PDF-профиля на fpdf2 — реализация порта `ProfilePdfRenderer`. Стандартизированный
-PDF-профиль: у всех один вид и один порядок разделов.
-
-Сначала — что подтвердил тест платформы (категория и профиль навыков), затем — достижения ФСП,
-затем — что кандидат сказал о себе сам, и последней — карточка опыта: читатель сразу видит уровни
-доверия (mechanics.md, §11).
-Что показать, решает сценарий: рендер выводит проекцию `ProfileSheet` как есть.
-
-Шрифт PT Sans лежит рядом под лицензией OFL — кириллица не зависит от шрифтов системы. Глифов
-θ и стрелок в нём нет, поэтому уровни подписаны словами.
-"""
-
 from collections.abc import Sequence
 from datetime import datetime, timedelta, timezone
-from pathlib import Path
 
-from fpdf import FPDF
-from fpdf.enums import XPos, YPos
-from fpdf.fonts import FontFace
-
+from app.adapter.brand.pdf_kit import (
+    MONO,
+    UI,
+    BrandDocument,
+    level_words,
+    pill,
+    pills,
+    ruler,
+    section,
+    terms,
+    text,
+    uncertainty_words,
+)
+from app.adapter.brand.words import Words
 from app.domain.candidate import (
     Category,
     Disclosed,
-    Level,
     ProfileSheet,
     SelfReported,
     SkillProfile,
+    TopicLevel,
 )
 from app.domain.experience import ExperienceEntry, Month, TechnologyYears
-from app.domain.fsp import ConfirmedAchievement, FspResult
-from app.domain.skill import LevelBand
-from app.domain.work import WorkFormat
+from app.domain.fsp import ConfirmedAchievement
+from app.domain.locale import DEFAULT_LOCALE, Locale
 
-FONTS = Path(__file__).with_name("fonts")
-FONT = "PTSans"
-PLATFORM = "Подбор ИТ-специалистов ФСП"
-# Москва живёт без перехода на летнее время; tzdata в образе не нужна.
 MOSCOW = timezone(timedelta(hours=3), "MSK")
-
-Color = tuple[int, int, int]
-TEXT: Color = (20, 23, 31)
-MUTED: Color = (93, 100, 117)
-BORDER: Color = (221, 225, 234)
-ACCENT: Color = (29, 78, 216)
-
-MONTHS = (
-    "января",
-    "февраля",
-    "марта",
-    "апреля",
-    "мая",
-    "июня",
-    "июля",
-    "августа",
-    "сентября",
-    "октября",
-    "ноября",
-    "декабря",
-)
-FSP_RESULTS = {
-    FspResult.winner: "победитель",
-    FspResult.prize: "призёр",
-    FspResult.finalist: "финалист",
-    FspResult.participant: "участник отбора",
-}
-WORK_FORMATS = {
-    WorkFormat.office: "офис",
-    WorkFormat.hybrid: "гибрид",
-    WorkFormat.remote: "удалённо",
-}
+TOPIC_COLUMN = 74.0
+RULER_WIDTH = 64.0
 
 
 class FpdfProfileRenderer:
-    def render(self, sheet: ProfileSheet, *, now: datetime) -> bytes:
+    def render(
+        self, sheet: ProfileSheet, *, now: datetime, locale: Locale = DEFAULT_LOCALE
+    ) -> bytes:
+        words = Words(locale)
+        generated = words("pdf.generated", date=words.date(now.astimezone(MOSCOW).date()))
+        footer = f"{words('brand.name')}. {words('brand.tagline')}. {generated}"
+        doc = BrandDocument(words, words("pdf.label"), footer)
         disclosed = sheet.disclosed
-        pdf = _Document(f"{PLATFORM} · профиль сформирован {date_words(now)}")
-        pdf.set_title(f"Профиль кандидата — {disclosed.full_name}")
-        pdf.set_author(disclosed.full_name)
-        pdf.set_creator(PLATFORM)
-        pdf.set_lang("ru")
-        pdf.set_creation_date(now)
-        pdf.add_page()
-
-        _header(pdf, disclosed)
-        _verified(pdf, sheet.category, sheet.skill_profile, sheet.grade_confidence)
-        _fsp(pdf, sheet.fsp_achievements)
-        _self_reported(pdf, sheet.self_reported, disclosed)
-        _experience(pdf, disclosed.experience, sheet.technology_years)
-        return bytes(pdf.output())
+        doc.set_title(words("pdf.documentTitle", name=disclosed.full_name))
+        doc.set_author(disclosed.full_name)
+        doc.set_creator(words("brand.name"))
+        doc.set_lang(locale)
+        doc.set_creation_date(now)
+        doc.add_page()
+        _hero(doc, disclosed)
+        _verified(doc, sheet.category, sheet.skill_profile, sheet.grade_confidence)
+        _fsp(doc, sheet.fsp_achievements)
+        _self_reported(doc, sheet.self_reported, disclosed)
+        _experience(doc, disclosed.experience, sheet.technology_years)
+        return bytes(doc.output())
 
 
-class _Document(FPDF):
-    def __init__(self, footer_text: str) -> None:
-        super().__init__(format="A4")
-        self.footer_text = footer_text
-        self.add_font(FONT, "", FONTS / "PTSans-Regular.ttf")
-        self.add_font(FONT, "B", FONTS / "PTSans-Bold.ttf")
-        self.set_margins(18, 16, 18)
-        self.set_auto_page_break(auto=True, margin=20)
-
-    def footer(self) -> None:
-        self.set_y(-14)
-        self.set_draw_color(*BORDER)
-        self.line(self.l_margin, self.get_y(), self.w - self.r_margin, self.get_y())
-        self.set_font(FONT, size=8)
-        self.set_text_color(*MUTED)
-        self.cell(self.epw * 0.8, 6, self.footer_text)
-        self.cell(0, 6, f"стр. {self.page_no()} из {{nb}}", align="R")
+def _caption(doc: BrandDocument, value: str) -> None:
+    text(doc, value, size=7.5, mono=True, tone=doc.ink.tertiary, height=4)
 
 
-def _header(pdf: _Document, profile: Disclosed) -> None:
-    _text(pdf, "ПРОФИЛЬ КАНДИДАТА", size=9, style="B", color=ACCENT, height=5)
-    _text(pdf, profile.full_name, size=22, style="B", height=10)
-    if profile.job_roles:
-        _text(pdf, " · ".join(profile.job_roles), size=12, color=MUTED, height=6)
-    contacts = [profile.contact_email, profile.contact_phone]
-    if profile.telegram:
-        contacts.append(f"Telegram @{profile.telegram}")
-    pdf.ln(1)
-    _text(pdf, " · ".join(c for c in contacts if c), size=10, height=5)
+def _hero(doc: BrandDocument, disclosed: Disclosed) -> None:
+    words = doc.words
+    text(doc, disclosed.full_name, size=22, bold=True, height=10)
+    if disclosed.job_roles:
+        doc.ln(1.5)
+        pills(doc, disclosed.job_roles, fill=doc.ink.tint, tone=doc.ink.accent)
+    telegram = f"@{disclosed.telegram}" if disclosed.telegram else ""
+    contacts = [
+        (words("pdf.contacts.email"), disclosed.contact_email),
+        (words("pdf.contacts.phone"), disclosed.contact_phone or ""),
+        (words("pdf.contacts.telegram"), telegram),
+    ]
+    shown = [(label, value) for label, value in contacts if value]
+    doc.ln(2)
+    y = doc.get_y()
+    column = doc.epw / max(len(shown), 1)
+    for index, (label, value) in enumerate(shown):
+        x = doc.l_margin + index * column
+        doc.set_xy(x, y)
+        doc.set_font(MONO, "", 7.5)
+        doc.set_text_color(*doc.ink.tertiary)
+        doc.cell(column, 4, label)
+        doc.set_xy(x, y + 4.5)
+        doc.set_font(UI, "", 10)
+        doc.set_text_color(*doc.ink.text)
+        doc.cell(column, 5, value)
+    doc.set_y(y + 11)
 
 
 def _verified(
-    pdf: _Document,
+    doc: BrandDocument,
     category: Category | None,
     skills: SkillProfile | None,
     confidence: float,
 ) -> None:
-    _section(pdf, "Подтверждено тестом платформы")
+    words = doc.words
+    section(doc, words("pdf.sections.verified"))
     if category is None:
-        _text(pdf, "Категория пока не присвоена: тест не пройден или ещё идёт.", size=11)
+        text(doc, words("pdf.category.none"), size=10.5, height=5.5)
     else:
-        _text(pdf, "Категория", size=9, color=MUTED, height=4.5)
-        _text(
-            pdf,
-            f"{category.specialization.name} · {category.grade.name}",
-            size=16,
-            style="B",
-            color=ACCENT,
-            height=8,
-        )
-        _text(
-            pdf,
-            f"Присвоена {date_words(category.assigned_at)} по адаптивному тесту",
-            size=9,
-            color=MUTED,
-            height=4.5,
-        )
+        _category(doc, category)
     if skills is None:
         return
-
-    pdf.ln(4)
-    _text(pdf, "Профиль навыков", size=9, color=MUTED, height=4.5)
-    _text(
-        pdf,
-        f"Общий уровень — {level_words(skills.overall.band)} ({theta_with_error(skills.overall)})",
-        size=11,
-        height=6,
-    )
-    pdf.ln(1)
-    pdf.set_font(FONT, size=10)
-    pdf.set_text_color(*TEXT)
-    pdf.set_draw_color(*BORDER)
-    with pdf.table(
-        col_widths=(50, 32, 18),
-        text_align=("LEFT", "LEFT", "RIGHT"),
-        borders_layout="HORIZONTAL_LINES",
-        headings_style=FontFace(emphasis="BOLD", color=MUTED, size_pt=9),
-        line_height=5.5,
-        padding=(1.2, 0),
-    ) as table:
-        table.row(("Тема", "Уровень", "Оценка"))
-        for row in skills.topics:
-            table.row((row.topic.name, level_words(row.level.band), theta_with_error(row.level)))
-    pdf.ln(2)
-    _text(
-        pdf,
-        "Оценка — уровень на общей шкале грейдов, ± — погрешность: чем она меньше, тем увереннее "
-        "оценка. «Уверенно middle» — уровень в полосе middle с вероятностью не ниже "
-        f"{round(confidence * 100)} %; «между middle и senior» — в одной из двух соседних полос, "
-        "уверенности для одной пока не хватает.",
-        size=8.5,
-        color=MUTED,
-        height=4,
-    )
+    doc.ln(4)
+    _caption(doc, words("pdf.skills.overall"))
+    overall = skills.overall
+    caption = f"{level_words(words, overall.band)}, {uncertainty_words(words, overall.theta_sd)}"
+    text(doc, caption, size=10.5, bold=True, height=6)
+    doc.set_y(ruler(doc, overall, doc.l_margin, doc.get_y() + 2, doc.epw, labels=True) + 3)
+    _caption(doc, words("pdf.skills.label"))
+    doc.ln(1)
+    for row in skills.topics:
+        _topic(doc, row)
+    doc.ln(2)
+    note = words("pdf.skills.note", confidence=round(confidence * 100))
+    text(doc, note, size=8, tone=doc.ink.tertiary, height=4)
 
 
-def _fsp(pdf: _Document, achievements: Sequence[ConfirmedAchievement]) -> None:
-    _section(pdf, "Подтверждено ФСП")
+def _category(doc: BrandDocument, category: Category) -> None:
+    words = doc.words
+    _caption(doc, words("pdf.category.label"))
+    doc.set_xy(doc.l_margin, doc.get_y() + 0.5)
+    specialization = words.catalog("specialization", category.specialization)
+    doc.set_font(MONO, "B", 17)
+    doc.set_text_color(*doc.ink.text)
+    doc.cell(doc.get_string_width(specialization) + 4, 9, specialization)
+    doc.set_text_color(*doc.ink.accent)
+    doc.cell(0, 9, words.catalog("grade", category.grade), new_x="LMARGIN", new_y="NEXT")
+    day = words.date(category.assigned_at.astimezone(MOSCOW).date())
+    text(doc, words("pdf.category.assigned", date=day), size=8.5, tone=doc.ink.secondary)
+
+
+def _topic(doc: BrandDocument, row: TopicLevel) -> None:
+    if doc.get_y() > doc.h - 34:
+        doc.add_page()
+    y = doc.get_y()
+    doc.set_draw_color(*doc.ink.hairline)
+    doc.set_line_width(0.2)
+    doc.line(doc.l_margin, y, doc.w - doc.r_margin, y)
+    doc.set_xy(doc.l_margin, y + 1.6)
+    doc.set_font(UI, "", 9.5)
+    doc.set_text_color(*doc.ink.text)
+    doc.multi_cell(TOPIC_COLUMN - 4, 4.6, doc.words.catalog("topic", row.topic))
+    doc.set_x(doc.l_margin)
+    doc.set_font(MONO, "", 7.5)
+    doc.set_text_color(*doc.ink.secondary)
+    doc.multi_cell(TOPIC_COLUMN - 4, 4, level_words(doc.words, row.level.band))
+    bottom = doc.get_y()
+    ruler(doc, row.level, doc.l_margin + TOPIC_COLUMN, y + 4.2, RULER_WIDTH, labels=False)
+    x = doc.l_margin + TOPIC_COLUMN + RULER_WIDTH + 5
+    for source in sorted(row.sources):
+        tone = doc.ink.fsp if source == "fsp" else doc.ink.accent
+        label = doc.words(f"pdf.sources.{source}")
+        x += pill(doc, label, x, y + 2.8, fill=doc.ink.tint, tone=tone, size=7.5) + 1.5
+    doc.set_y(max(bottom, y + 9) + 1.4)
+
+
+def _fsp(doc: BrandDocument, achievements: Sequence[ConfirmedAchievement]) -> None:
+    words = doc.words
+    section(doc, words("pdf.sections.fsp"))
     if not achievements:
-        _text(pdf, "Нет истории ФСП — профиль навыков построен по тесту платформы.", size=11)
+        text(doc, words("pdf.fsp.empty"), size=10.5, height=5.5)
         return
-    pdf.set_font(FONT, size=10)
-    pdf.set_text_color(*TEXT)
-    pdf.set_draw_color(*BORDER)
-    with pdf.table(
-        col_widths=(18, 40, 30, 20, 22),
-        text_align="LEFT",
-        v_align="TOP",
-        borders_layout="HORIZONTAL_LINES",
-        headings_style=FontFace(emphasis="BOLD", color=MUTED, size_pt=9),
-        line_height=5,
-        padding=(1.2, 0),
-    ) as table:
-        table.row(("Дата", "Мероприятие", "Дисциплина", "Результат", "Место, роль"))
-        for a in achievements:
-            table.row(
-                (
-                    a.date.strftime("%d.%m.%Y"),
-                    a.event,
-                    a.discipline.name,
-                    FSP_RESULTS[a.result],
-                    _place_and_role(a),
-                )
-            )
-    pdf.ln(2)
-    _text(
-        pdf,
-        "Результаты очных соревнований ФСП из реестра — высший уровень доверия. Победа, призовое "
-        "место и финал входят в профиль навыков; участие в отборе — факт, не оценка уровня.",
-        size=8.5,
-        color=MUTED,
-        height=4,
-    )
+    for item in achievements:
+        y = doc.get_y()
+        result = words.catalog("fspResult", item.result.value)
+        width = pill(doc, result, doc.l_margin, y, fill=doc.ink.tint, tone=doc.ink.fsp)
+        doc.set_xy(doc.l_margin + width + 3, y)
+        doc.set_font(MONO, "", 8.5)
+        doc.set_text_color(*doc.ink.secondary)
+        doc.cell(0, 5.4, item.date.strftime("%d.%m.%Y"), new_x="LMARGIN", new_y="NEXT")
+        doc.ln(1)
+        text(doc, item.event, size=10.5, bold=True, height=5.2)
+        details = [words.catalog("discipline", item.discipline)]
+        if item.place is not None:
+            details.append(words("pdf.fsp.place", place=item.place))
+        if item.team_role is not None:
+            details.append(words("pdf.fsp.role", role=item.team_role.name))
+        text(doc, ", ".join(details), size=9.5, tone=doc.ink.secondary, height=5)
+        doc.ln(3)
+    text(doc, words("pdf.fsp.note"), size=8, tone=doc.ink.tertiary, height=4)
 
 
-def _place_and_role(achievement: ConfirmedAchievement) -> str:
-    parts = []
-    if achievement.place is not None:
-        parts.append(f"{achievement.place} место")
-    if achievement.team_role is not None:
-        parts.append(f"в команде — {achievement.team_role.name}")
-    return ", ".join(parts)
-
-
-def _self_reported(pdf: _Document, profile: SelfReported, disclosed: Disclosed) -> None:
-    _section(pdf, "Со слов кандидата")
+def _self_reported(doc: BrandDocument, profile: SelfReported, disclosed: Disclosed) -> None:
+    words = doc.words
+    section(doc, words("pdf.sections.self"))
+    formats = ", ".join(words.catalog("workFormat", f.value) for f in profile.work_formats)
+    industries = ", ".join(words.catalog("industry", i) for i in profile.industries)
     rows = [
-        ("Стек", ", ".join(t.name for t in profile.stack)),
-        ("Стаж в ИТ", experience_words(profile.experience_years)),
-        ("Софт-скиллы", ", ".join(disclosed.soft_skills)),
-        ("Формат работы", formats_words(profile.work_formats)),
-        ("Город", _city_words(profile)),
-        ("Интересные сферы", ", ".join(i.name for i in profile.industries)),
+        (words("pdf.self.stack"), ", ".join(t.name for t in profile.stack)),
+        (words("pdf.self.experience"), words.years(profile.experience_years)),
+        (words("pdf.self.soft"), ", ".join(disclosed.soft_skills)),
+        (words("pdf.self.formats"), formats[:1].upper() + formats[1:]),
+        (words("pdf.self.city"), _city(words, profile)),
+        (words("pdf.self.industries"), industries),
     ]
-    _facts(pdf, [(label, value) for label, value in rows if value])
+    terms(doc, [(label, value) for label, value in rows if value])
     if disclosed.about:
-        pdf.ln(3)
-        _text(pdf, "О себе", size=9, style="B", color=MUTED, height=5)
-        _text(pdf, disclosed.about, size=10, height=5)
+        doc.ln(2)
+        _caption(doc, words("pdf.self.about"))
+        text(doc, disclosed.about, size=10, height=5)
 
 
-def _experience(
-    pdf: _Document, entries: Sequence[ExperienceEntry], years: Sequence[TechnologyYears]
-) -> None:
-    """Карточка опыта; пустая — блока нет."""
-    if not entries:
-        return
-    _section(pdf, "Опыт (со слов кандидата)")
-    for entry in entries:
-        _text(pdf, period_words(entry.start, entry.end), size=9, color=MUTED, height=4.5)
-        title = " · ".join(part for part in (entry.role, entry.place) if part)
-        _text(pdf, title, size=11, style="B", height=5.5)
-        if entry.stack:
-            _text(pdf, ", ".join(t.name for t in entry.stack), size=10, height=5)
-        if entry.summary:
-            _text(pdf, entry.summary, size=10, height=5)
-        pdf.ln(2)
-    if years:
-        _facts(
-            pdf,
-            [
-                (
-                    "Годы по технологиям",
-                    ", ".join(f"{y.technology.name} — {years_words(y.years)}" for y in years),
-                )
-            ],
-        )
-    pdf.ln(1)
-    _text(
-        pdf,
-        "Записи и годы по технологиям — со слов кандидата: тестом и ФСП не подтверждены и на "
-        "оценку уровня не влияют. Годы считаются из периодов записей без двойного счёта "
-        "пересечений, вниз до полугода.",
-        size=8.5,
-        color=MUTED,
-        height=4,
-    )
-
-
-def period_words(start: Month, end: Month | None) -> str:
-    def month(m: Month) -> str:
-        return f"{m.month:02d}.{m.year}"
-
-    return f"{month(start)} — {month(end) if end else 'по сейчас'}"
-
-
-def years_words(years: float) -> str:
-    """Годы, кратные половине: «меньше полугода», «полгода», «1,5 года», «5 лет»."""
-    if years < 0.5:
-        return "меньше полугода"
-    if years == 0.5:
-        return "полгода"
-    if years != int(years):
-        return f"{years:.1f}".replace(".", ",") + " года"
-    return experience_words(int(years))
-
-
-def _city_words(profile: SelfReported) -> str:
+def _city(words: Words, profile: SelfReported) -> str:
     if profile.city is None:
         return ""
-    relocation = "готов к переезду" if profile.relocation else "без переезда"
+    relocation = words("pdf.self.relocationYes" if profile.relocation else "pdf.self.relocationNo")
     return f"{profile.city}, {relocation}"
 
 
-def _facts(pdf: _Document, rows: Sequence[tuple[str, str]]) -> None:
-    pdf.set_font(FONT, size=10)
-    pdf.set_text_color(*TEXT)
-    with pdf.table(
-        col_widths=(22, 78),
-        text_align="LEFT",
-        v_align="TOP",
-        borders_layout="NONE",
-        first_row_as_headings=False,
-        line_height=5,
-        padding=(1, 0),
-    ) as table:
-        for label, value in rows:
-            row = table.row()
-            row.cell(label, style=FontFace(color=MUTED))
-            row.cell(value)
-
-
-def _section(pdf: _Document, title: str) -> None:
-    pdf.ln(6)
-    _text(pdf, title.upper(), size=9, style="B", color=ACCENT, height=5)
-    pdf.set_draw_color(*BORDER)
-    pdf.line(pdf.l_margin, pdf.get_y() + 0.5, pdf.w - pdf.r_margin, pdf.get_y() + 0.5)
-    pdf.ln(3)
-
-
-def _text(
-    pdf: _Document,
-    text: str,
-    *,
-    size: float,
-    style: str = "",
-    color: Color = TEXT,
-    height: float = 5.5,
+def _experience(
+    doc: BrandDocument, entries: Sequence[ExperienceEntry], years: Sequence[TechnologyYears]
 ) -> None:
-    pdf.set_font(FONT, style, size)
-    pdf.set_text_color(*color)
-    pdf.multi_cell(0, height, text, align="L", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+    if not entries:
+        return
+    words = doc.words
+    section(doc, words("pdf.sections.experience"))
+    for entry in entries:
+        period = period_words(entry.start, entry.end, words)
+        text(doc, period, size=8.5, mono=True, tone=doc.ink.secondary, height=4.5)
+        title = ", ".join(part for part in (entry.role, entry.place) if part)
+        text(doc, title, size=10.5, bold=True, height=5.4)
+        if entry.stack:
+            doc.ln(0.8)
+            pills(doc, [t.name for t in entry.stack], fill=doc.ink.canvas, tone=doc.ink.secondary)
+        if entry.summary:
+            text(doc, entry.summary, size=9.5, height=4.8)
+        doc.ln(3)
+    if years:
+        listed = ", ".join(f"{y.technology.name} {words.half_years(y.years)}" for y in years)
+        terms(doc, [(words("pdf.experience.technologyYears"), listed)])
+    doc.ln(1)
+    text(doc, words("pdf.experience.note"), size=8, tone=doc.ink.tertiary, height=4)
 
 
-# Слова — те же, что в интерфейсе кандидата (frontend/src/candidate/words.ts).
+def _month(month: Month) -> str:
+    return f"{month.month:02d}.{month.year}"
 
 
-def level_words(band: LevelBand) -> str:
-    low, high = band.low, band.high
-    if band.confident:
-        return f"уверенно {_grade_word(low)}" if low else "ниже стажёра"
-    if not low:
-        return "стажёр или ниже"
-    return f"между {_WITH_WHOM.get(low, low)} и {_grade_word(high or '')}"
+def period_words(start: Month, end: Month | None, words: Words | None = None) -> str:
+    vocabulary = words or Words(DEFAULT_LOCALE)
+    finish = _month(end) if end else vocabulary("pdf.experience.present")
+    return vocabulary("pdf.experience.period", start=_month(start), end=finish)
 
 
-_NAMED = {"intern": "стажёр"}
-_WITH_WHOM = {"intern": "стажёром"}
-
-
-def _grade_word(grade: str) -> str:
-    return _NAMED.get(grade, grade)
-
-
-def theta_with_error(level: Level) -> str:
-    return f"{_number(level.theta)} ± {_number(level.theta_sd)}"
-
-
-def _number(value: float) -> str:
-    # + 0.0 убирает «−0,0» у маленьких отрицательных.
-    return f"{round(value, 1) + 0.0:.1f}".replace(".", ",").replace("-", "−")
-
-
-def date_words(moment: datetime) -> str:
-    day = moment.astimezone(MOSCOW)
-    return f"{day.day} {MONTHS[day.month - 1]} {day.year}"
-
-
-def experience_words(years: int) -> str:
-    if years == 0:
-        return "меньше года"
-    if years % 10 == 1 and years % 100 != 11:
-        word = "год"
-    elif 2 <= years % 10 <= 4 and not 12 <= years % 100 <= 14:
-        word = "года"
-    else:
-        word = "лет"
-    return f"{years} {word}"
-
-
-def formats_words(formats: Sequence[WorkFormat]) -> str:
-    words = ", ".join(WORK_FORMATS[f] for f in formats)
-    return words[:1].upper() + words[1:]
+def years_words(years: float, locale: Locale = DEFAULT_LOCALE) -> str:
+    return Words(locale).half_years(years)

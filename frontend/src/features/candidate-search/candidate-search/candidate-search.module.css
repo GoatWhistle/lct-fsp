@@ -1,0 +1,56 @@
+.layout {
+  display: grid;
+  grid-template-columns: var(--panel-filters) minmax(0, 1fr);
+  align-items: start;
+  gap: var(--space-32);
+}
+
+.main {
+  min-inline-size: 0;
+}
+
+.results {
+  composes: stale from "../../../shared/styles/compose.module.css";
+  display: grid;
+  gap: var(--space-12);
+}
+
+.summary {
+  composes: captionText from "../../../shared/styles/compose.module.css";
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-8) var(--space-16);
+}
+
+.muted {
+  color: var(--text-tertiary);
+}
+
+.rows {
+  composes: cardFrame from "../../../shared/styles/compose.module.css";
+  display: grid;
+  grid-template-columns: var(--rank-column) minmax(0, 1fr) minmax(0, 1fr) max-content;
+  overflow: hidden;
+}
+
+.rows > :last-child {
+  border-block-end: 0;
+}
+
+.more {
+  display: flex;
+  justify-content: center;
+}
+
+@media (max-width: 47.99rem) {
+  .rows {
+    grid-template-columns: var(--rank-column) minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 63.99rem) {
+  .layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

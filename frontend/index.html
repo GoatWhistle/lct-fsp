@@ -1,10 +1,44 @@
 <!doctype html>
-<html lang="ru">
+<html lang="ru" data-theme="light">
   <head>
     <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <link rel="icon" href="/favicon.ico" sizes="48x48" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Подбор ИТ-специалистов ФСП</title>
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/site.webmanifest" />
+    <meta name="theme-color" content="#f5f5f8" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#1b1c21" media="(prefers-color-scheme: dark)" />
+    <meta name="apple-mobile-web-app-title" content="calibr" />
+    <meta name="application-name" content="calibr" />
+    <meta name="description" content="%meta.lead%" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="calibr" />
+    <meta property="og:title" content="%meta.title%" />
+    <meta property="og:description" content="%meta.lead%" />
+    <meta property="og:image" content="/brand/og-ru.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="%meta.title%" />
+    <meta property="og:locale" content="ru_RU" />
+    <meta property="og:locale:alternate" content="en_US" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="%meta.title%" />
+    <meta name="twitter:image" content="/brand/og-ru.png" />
+    <title>calibr</title>
+    <script>
+      try {
+        const choice = localStorage.getItem("calibr-theme")
+        const dark =
+          choice === "dark" ||
+          (choice !== "light" && matchMedia("(prefers-color-scheme: dark)").matches)
+        document.documentElement.dataset.theme = dark ? "dark" : "light"
+        const locale = localStorage.getItem("calibr-locale")
+        if (locale === "en" || locale === "ru") document.documentElement.lang = locale
+      } catch {
+        document.documentElement.dataset.theme = "light"
+      }
+    </script>
   </head>
   <body>
     <div id="root"></div>

@@ -1,0 +1,127 @@
+.page {
+  display: grid;
+  grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
+  min-block-size: 100dvh;
+  background-color: var(--surface-canvas);
+}
+
+.stage {
+  display: grid;
+  grid-template-rows: auto 1fr;
+  gap: var(--space-40);
+  padding: var(--space-16) var(--space-page-wide) var(--space-60);
+  background-color: var(--surface-focus);
+}
+
+.copy {
+  display: grid;
+  align-content: center;
+  justify-items: start;
+  gap: var(--space-24);
+}
+
+.label {
+  composes: labelText from "../../shared/styles/compose.module.css";
+  color: var(--text-secondary);
+}
+
+.trace {
+  composes: traceArt from "../../shared/styles/compose.module.css";
+}
+
+.line {
+  composes: traceLine from "../../shared/styles/compose.module.css";
+  stroke: var(--text-accent);
+}
+
+.start {
+  fill: var(--text-accent);
+}
+
+.node {
+  fill: var(--surface-focus);
+  stroke: var(--text-accent);
+  stroke-width: var(--focus-ring-width);
+}
+
+.title {
+  composes: displayText from "../../shared/styles/compose.module.css";
+  display: grid;
+  gap: var(--space-8);
+  font-size: var(--font-size-hero);
+  line-height: var(--line-height-hero);
+}
+
+.specialization,
+.grade {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-16);
+}
+
+.grade {
+  color: var(--text-accent);
+}
+
+.lead {
+  composes: leadText from "../../shared/styles/compose.module.css";
+  max-inline-size: var(--lead-measure);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-12);
+}
+
+.result {
+  display: grid;
+  align-content: center;
+  padding: var(--space-40) var(--space-page-wide);
+}
+
+.state {
+  display: grid;
+  place-items: center;
+  min-block-size: 100dvh;
+}
+
+.page:not([data-fresh="true"]) .line,
+.page:not([data-fresh="true"]) .node {
+  animation: none;
+}
+
+.page[data-fresh="true"] :is(.label, .specialization, .lead, .actions) {
+  animation: var(--motion-rise-in);
+  animation-delay: calc(var(--dur-draw) * var(--i) / 2);
+}
+
+.page[data-fresh="true"] .node {
+  animation: var(--motion-node-in);
+  animation-delay: var(--dur-draw);
+}
+
+.page[data-fresh="true"] .grade {
+  animation: var(--motion-verdict-emphatic);
+  animation-delay: var(--dur-draw);
+}
+
+@media (max-width: 63.99rem) {
+  .page {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .stage {
+    min-block-size: 80dvh;
+    padding-inline: var(--space-page);
+  }
+
+  .title {
+    font-size: var(--font-size-display-sm);
+    line-height: var(--line-height-display-sm);
+  }
+
+  .result {
+    padding: var(--space-24) var(--space-page);
+  }
+}

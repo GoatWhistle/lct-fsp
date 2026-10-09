@@ -1,0 +1,6 @@
+.gate {
+  display: grid;
+  min-block-size: 100%;
+  place-items: center;
+  padding-block: var(--space-40);
+}

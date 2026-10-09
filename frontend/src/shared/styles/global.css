@@ -1,0 +1,108 @@
+@import "./reset.css";
+@import "./tokens/palette.css";
+@import "./tokens/semantic.css";
+@import "./tokens/typography.css";
+@import "./tokens/space.css";
+@import "./tokens/radius.css";
+@import "./tokens/elevation.css";
+@import "./tokens/motion.css";
+@import "./tokens/keyframes.css";
+
+html {
+  background: var(--surface-canvas);
+  color: var(--text-primary);
+  font-family: var(--font-ui);
+  font-size: var(--font-size-body);
+  line-height: var(--line-height-body);
+  letter-spacing: var(--tracking-body);
+  font-feature-settings: var(--font-features);
+  scroll-padding-block-start: var(--sticky-top);
+}
+
+body {
+  background: var(--surface-canvas);
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--font-display);
+  font-weight: var(--weight-medium);
+  text-wrap: balance;
+}
+
+p {
+  text-wrap: pretty;
+}
+
+@supports not selector(::-webkit-scrollbar) {
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--scrollbar-thumb) transparent;
+  }
+}
+
+::-webkit-scrollbar {
+  inline-size: var(--scrollbar-size);
+  block-size: var(--scrollbar-size);
+  background-color: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  border: var(--scrollbar-gutter) solid transparent;
+  border-radius: var(--radius-round);
+  background-color: var(--scrollbar-thumb);
+  background-clip: padding-box;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  ::-webkit-scrollbar-thumb:hover {
+    background-color: var(--scrollbar-thumb-hover);
+  }
+}
+
+::-webkit-scrollbar-corner {
+  background-color: transparent;
+}
+
+::-webkit-scrollbar-button {
+  display: none;
+}
+
+[data-surface="inverse"] ::-webkit-scrollbar-thumb {
+  background-color: var(--scrollbar-thumb-inverse);
+}
+
+:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
+  outline-offset: var(--focus-ring-offset);
+}
+
+::selection {
+  background: var(--action-primary);
+  color: var(--text-on-action);
+}
+
+::placeholder {
+  color: var(--text-tertiary);
+}
+
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: var(--dur-base);
+  animation-timing-function: var(--ease-out);
+}
+
+:root[data-view-transition="theme"]::view-transition-old(root),
+:root[data-view-transition="theme"]::view-transition-new(root) {
+  animation-duration: var(--dur-base);
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}

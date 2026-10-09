@@ -18,7 +18,7 @@ from sqlalchemy import Engine
 from app.adapter.clock import FrozenClock
 from app.domain.account import Role
 from settings import Mechanics
-from tests.candidate_path import grant_category, with_company
+from tests.candidate_path import grant_category, publish_vacancy, with_company
 
 Json = dict[str, Any]
 
@@ -118,6 +118,8 @@ ENDPOINTS = {
             "подборка: сохранённая", "GET", lambda w: f"/api/employer/selections/{w.selection_id}"
         ),
         Endpoint("приглашения работодателя", "GET", lambda w: "/api/employer/invitations"),
+        Endpoint("отклики работодателя", "GET", lambda w: "/api/employer/applications"),
+        Endpoint("отклики кандидата", "GET", lambda w: "/api/candidate/applications"),
     ]
 }
 
@@ -128,6 +130,7 @@ EMPLOYER_ENDPOINTS = (
     "подборка: страница",
     "подборка: сохранённая",
     "приглашения работодателя",
+    "отклики работодателя",
 )
 
 # Эндпоинт × зритель → код и что из раскрываемого видно. Другой кандидат получает свой профиль
@@ -146,6 +149,10 @@ TABLE: list[tuple[str, str, int, frozenset[str]]] = [
     ("обратная связь", Viewer.other, 200, NONE),
     ("обратная связь", Viewer.employer, 403, NONE),
     ("обратная связь", Viewer.anonymous, 401, NONE),
+    ("отклики кандидата", Viewer.me, 200, NONE),
+    ("отклики кандидата", Viewer.other, 200, NONE),
+    ("отклики кандидата", Viewer.employer, 403, NONE),
+    ("отклики кандидата", Viewer.anonymous, 401, NONE),
 ]
 for endpoint in EMPLOYER_ENDPOINTS:
     TABLE += [
@@ -224,10 +231,12 @@ def test_table_covers_every_endpoint_and_viewer() -> None:
     )
 
 
-# Раскрытие работодателю по приглашениям (§14): каждый эндпоинт работодателя × состояние
-# приглашений этому кандидату. Раскрывает только принятое и не отозванное приглашение этой же
-# компании, и ожидаемой зарплаты нет и тогда; раскрытое отдаёт одна карточка. После отзыва
-# раскрывает только новое принятое приглашение.
+# Раскрытие работодателю по приглашениям и откликам (§14): каждый эндпоинт работодателя ×
+# состояние приглашений и откликов этого кандидата. Раскрывает только принятое приглашение этой же
+# компании или отклик на её вакансию в любом статусе, пока доступ не отозван, и ожидаемой зарплаты
+# нет и тогда; раскрытое отдаёт одна карточка. Отзыв по приглашению или по отклику закрывает
+# компании и то и другое; после отзыва раскрывает только новое принятое приглашение или новый
+# отклик.
 INVITATION_STATES = (
     "нет приглашения",
     "отправлено",
@@ -238,8 +247,21 @@ INVITATION_STATES = (
     "принято",
     "принято и отозвано",
     "отозвано, принято новое",
+    "откликнулся на вакансию",
+    "откликнулся, отклик отклонён",
+    "откликнулся на вакансию другой компании",
+    "откликнулся и отозвал доступ",
+    "откликнулся, доступ отозван по приглашению",
+    "принято, доступ отозван по отклику",
+    "отозвал доступ, откликнулся снова",
 )
-DISCLOSING = ("принято", "отозвано, принято новое")
+DISCLOSING = (
+    "принято",
+    "отозвано, принято новое",
+    "откликнулся на вакансию",
+    "откликнулся, отклик отклонён",
+    "отозвал доступ, откликнулся снова",
+)
 DISCLOSED_TO_EMPLOYER = ALL - {"зарплата"}
 
 
@@ -268,6 +290,16 @@ def bring_to(
     def act(invitation_id: str, action: str) -> None:
         me.post(f"/api/candidate/invitations/{invitation_id}/{action}").raise_for_status()
 
+    def apply(to: TestClient) -> str:
+        vacancy = publish_vacancy(to)
+        response = me.post(f"/api/candidate/vacancies/{vacancy['id']}/apply")
+        assert response.status_code == 201, response.text
+        application_id: str = response.json()["id"]
+        return application_id
+
+    def revoke_application(application_id: str) -> None:
+        me.post(f"/api/candidate/applications/{application_id}/revoke").raise_for_status()
+
     match state:
         case "нет приглашения":
             pass
@@ -295,13 +327,33 @@ def bring_to(
             act(invitation_id, "accept")
             act(invitation_id, "revoke")
             act(invite(employer), "accept")
+        case "откликнулся на вакансию":
+            apply(employer)
+        case "откликнулся, отклик отклонён":
+            application_id = apply(employer)
+            employer.post(f"/api/employer/applications/{application_id}/decline").raise_for_status()
+        case "откликнулся на вакансию другой компании":
+            apply(other_employer)
+        case "откликнулся и отозвал доступ":
+            revoke_application(apply(employer))
+        case "откликнулся, доступ отозван по приглашению":
+            apply(employer)
+            invitation_id = invite(employer)
+            act(invitation_id, "accept")
+            act(invitation_id, "revoke")
+        case "принято, доступ отозван по отклику":
+            act(invite(employer), "accept")
+            revoke_application(apply(employer))
+        case "отозвал доступ, откликнулся снова":
+            revoke_application(apply(employer))
+            apply(employer)
         case _:
             raise AssertionError(state)
 
 
 @pytest.mark.parametrize("state", INVITATION_STATES)
 @pytest.mark.parametrize("endpoint", EMPLOYER_ENDPOINTS)
-def test_employer_sees_candidate_disclosed_only_after_own_accepted_invitation(
+def test_employer_sees_candidate_disclosed_only_after_own_invitation_or_application(
     world: World,
     signed_in: Callable[[Role], TestClient],
     clock: FrozenClock,
@@ -463,3 +515,26 @@ def test_selection_score_and_order_do_not_depend_on_visibility(
 
     assert len(visible) == 2
     assert hidden == visible
+
+
+def test_card_of_applicant_without_category_opens_only_to_company_of_vacancy(
+    signed_in: Callable[[Role], TestClient],
+) -> None:
+    candidate = signed_in(Role.candidate)
+    candidate.put("/api/candidate/profile", json=PROFILE).raise_for_status()
+    candidate_id: str = candidate.get("/api/auth/me").json()["id"]
+    ours = with_company(signed_in(Role.employer))
+    theirs = with_company(signed_in(Role.employer), "Другая компания")
+    card = f"/api/employer/candidates/{candidate_id}"
+    assert ours.get(card).status_code == 404
+
+    vacancy = publish_vacancy(ours)
+    candidate.post(f"/api/candidate/vacancies/{vacancy['id']}/apply").raise_for_status()
+
+    response = ours.get(card)
+    assert response.status_code == 200, response.text
+    assert response.json()["category"] is None
+    assert {name for name, marker in SECRETS.items() if marker in response.text} == (
+        DISCLOSED_TO_EMPLOYER
+    )
+    assert theirs.get(card).status_code == 404

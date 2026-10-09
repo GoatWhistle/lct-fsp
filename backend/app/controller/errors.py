@@ -82,6 +82,11 @@ STATUS: dict[type[e.DomainError], int] = {
     e.InvitationBudgetExhausted: 409,
     e.InvitationNotAccepted: 409,
     e.InvalidMessageText: 422,
+    e.VacancyNotFound: 404,
+    e.VacancyArchived: 409,
+    e.AlreadyApplied: 409,
+    e.ApplicationNotFound: 404,
+    e.ApplicationTransitionNotAllowed: 409,
 }
 
 

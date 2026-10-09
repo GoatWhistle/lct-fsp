@@ -111,6 +111,7 @@ class SqlCalibrationRepository:
         )
         rows = self.session.execute(
             select(
+                PresentationRow.family_code,
                 PresentationRow.discrimination,
                 PresentationRow.difficulty,
                 PresentationRow.correct,
@@ -126,6 +127,7 @@ class SqlCalibrationRepository:
         ).all()
         return [
             AnchorAnswer(
+                family_code=code,
                 params=Parameters(a, b),
                 before=Response(Normal(before_mean, before_sd), correct),
                 rest=(
@@ -134,7 +136,7 @@ class SqlCalibrationRepository:
                     else None
                 ),
             )
-            for a, b, correct, before_mean, before_sd, rest_mean, rest_sd in rows
+            for code, a, b, correct, before_mean, before_sd, rest_mean, rest_sd in rows
             if correct is not None
         ]
 

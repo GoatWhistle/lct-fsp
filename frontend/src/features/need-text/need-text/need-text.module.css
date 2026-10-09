@@ -23,6 +23,10 @@
   min-block-size: var(--empty-panel-height);
 }
 
+.layout[data-hero="true"] {
+  grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+}
+
 @media (max-width: 63.99rem) {
   .layout {
     grid-template-columns: minmax(0, 1fr);

@@ -1,0 +1,76 @@
+.row {
+  composes: listRow from "../../../shared/styles/rows.module.css";
+  grid-column: 1 / -1;
+  grid-template-columns: subgrid;
+  align-items: center;
+  gap: var(--space-24);
+  padding: var(--space-20) var(--space-24);
+}
+
+.head {
+  display: grid;
+  justify-items: start;
+  gap: var(--space-8);
+  min-inline-size: 0;
+}
+
+.title {
+  composes: subheadingText from "../../../shared/styles/compose.module.css";
+  text-align: start;
+}
+
+.badges,
+.stack {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-8);
+  min-inline-size: 0;
+}
+
+.selection {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.date {
+  composes: captionText from "../../../shared/styles/compose.module.css";
+}
+
+.counts {
+  composes: bodySmText from "../../../shared/styles/compose.module.css";
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-16);
+  color: var(--text-secondary);
+}
+
+.counts strong {
+  font-family: var(--font-mono);
+  font-weight: var(--weight-semibold);
+  color: var(--text-primary);
+}
+
+.muted {
+  composes: captionText from "../../../shared/styles/compose.module.css";
+  color: var(--text-tertiary);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-8);
+}
+
+@media (max-width: 89.99rem) {
+  .actions {
+    justify-content: flex-start;
+  }
+}
+
+@media (max-width: 47.99rem) {
+  .row {
+    padding-inline: var(--space-16);
+  }
+}

@@ -1,0 +1,10 @@
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-8);
+}
+
+.hidden {
+  composes: captionText from "../../../shared/styles/compose.module.css";
+  margin-block-start: var(--space-16);
+}

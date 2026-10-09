@@ -1,0 +1,35 @@
+.chip {
+  composes: captionText pill from "../../../styles/compose.module.css";
+  gap: var(--space-4);
+  min-block-size: var(--chip-height);
+  padding-inline: var(--space-8);
+  border-radius: var(--radius-badge);
+  box-shadow: var(--shadow-ring);
+  animation: var(--motion-pop-in);
+}
+
+.chip[data-tone="accent"] {
+  background-color: var(--surface-selected);
+  box-shadow: none;
+  color: var(--text-accent);
+}
+
+.label {
+  composes: truncate from "../../../styles/compose.module.css";
+}
+
+.remove {
+  composes: pressable from "../../../styles/compose.module.css";
+  display: inline-grid;
+  place-items: center;
+  margin-inline-end: calc(var(--space-4) * -1);
+  border-radius: var(--radius-round);
+  color: var(--text-tertiary);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .remove:hover {
+    background-color: var(--action-ghost-hover);
+    color: var(--text-primary);
+  }
+}

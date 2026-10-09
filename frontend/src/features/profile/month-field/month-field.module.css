@@ -1,0 +1,21 @@
+.field {
+  composes: bareFieldset from "../../../shared/styles/compose.module.css";
+  display: grid;
+  gap: var(--space-8);
+}
+
+.legend {
+  composes: fieldLabel from "../../../shared/styles/compose.module.css";
+  padding-block-end: var(--space-8);
+}
+
+.controls {
+  display: grid;
+  grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+  gap: var(--space-8);
+}
+
+.error {
+  composes: captionText from "../../../shared/styles/compose.module.css";
+  color: var(--text-danger);
+}

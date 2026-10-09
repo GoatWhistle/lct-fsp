@@ -1,0 +1,12 @@
+.body {
+  display: grid;
+  align-content: start;
+  gap: var(--space-24);
+  padding: var(--space-8) var(--space-page) var(--space-40);
+}
+
+@media (min-width: 75rem) {
+  .body {
+    padding-inline: var(--space-page-wide);
+  }
+}

@@ -1,0 +1,21 @@
+.anchor {
+  scroll-margin-block-start: calc(var(--sticky-top) + var(--space-24));
+}
+
+.anchor:empty {
+  display: none;
+}
+
+.list {
+  display: grid;
+}
+
+.link {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-8);
+  min-block-size: var(--target-min);
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}

@@ -1,0 +1,8 @@
+.step {
+  composes: formStep from "../../../shared/styles/layout.module.css";
+}
+
+.error {
+  composes: captionText from "../../../shared/styles/compose.module.css";
+  margin-block-start: calc(var(--space-16) * -1);
+}

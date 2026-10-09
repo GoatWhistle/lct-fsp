@@ -1,0 +1,29 @@
+.block {
+  display: grid;
+  gap: var(--space-8);
+}
+
+.title {
+  composes: fieldLabel from "../../../shared/styles/compose.module.css";
+}
+
+.list {
+  display: grid;
+}
+
+.item {
+  composes: listRow from "../../../shared/styles/rows.module.css";
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--space-12);
+  padding-block: var(--space-8);
+  font-size: var(--font-size-body-sm);
+}
+
+.years {
+  composes: monoText from "../../../shared/styles/compose.module.css";
+  color: var(--text-secondary);
+}
+
+.note {
+  composes: footnote from "../../../shared/styles/compose.module.css";
+}

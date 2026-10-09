@@ -1,0 +1,8 @@
+.fields {
+  display: grid;
+  gap: var(--space-20);
+}
+
+.pair {
+  composes: fieldPair from "../../../shared/styles/compose.module.css";
+}

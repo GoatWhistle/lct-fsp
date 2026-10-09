@@ -1,0 +1,31 @@
+.list {
+  display: grid;
+  gap: var(--space-8);
+}
+
+.item {
+  animation: var(--motion-slide-in);
+  animation-delay: calc(var(--i) * var(--stagger));
+}
+
+.row {
+  composes: linkRow from "../../../shared/styles/compose.module.css";
+  padding: var(--space-12) var(--space-16);
+  border: var(--hairline) solid var(--border-strong);
+  border-radius: var(--radius-button);
+}
+
+.icon {
+  color: var(--text-accent);
+}
+
+.chevron {
+  color: var(--text-secondary);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .row:hover {
+    border-color: var(--text-accent);
+    background-color: var(--surface-tint);
+  }
+}

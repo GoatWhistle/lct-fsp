@@ -1,0 +1,119 @@
+{
+  "brand": {
+    "name": "calibr",
+    "tagline": "IT hiring by FSP"
+  },
+  "months": [
+    "January",
+    "February",
+    "March",
+    "April",
+    "May",
+    "June",
+    "July",
+    "August",
+    "September",
+    "October",
+    "November",
+    "December"
+  ],
+  "date": "{month} {day}, {year}",
+  "pdf": {
+    "label": "Candidate profile",
+    "documentTitle": "Candidate profile of {name}",
+    "generated": "Generated on {date}",
+    "page": "page {page} of {total}",
+    "contacts": {
+      "email": "Email",
+      "phone": "Phone",
+      "telegram": "Telegram"
+    },
+    "sections": {
+      "verified": "Confirmed by the platform test",
+      "fsp": "Confirmed by FSP",
+      "self": "Self-reported",
+      "experience": "Experience (self-reported)"
+    },
+    "category": {
+      "label": "Category",
+      "none": "No category yet: the test has not been passed or is still in progress.",
+      "assigned": "Assigned on {date} by the adaptive test"
+    },
+    "skills": {
+      "label": "Skill profile",
+      "overall": "Overall level",
+      "topic": "Topic",
+      "level": "Level",
+      "note": "The scale shows the level and its margin of error: the narrower the band, the more confident the estimate. “Confidently Middle” means the level is within the Middle band with a probability of at least {confidence} %; “between Middle and Senior” means there is not yet enough confidence for a single band.",
+      "below": "below"
+    },
+    "sources": {
+      "fsp": "FSP",
+      "test": "test",
+      "regular_task": "task"
+    },
+    "level": {
+      "confident": "confidently {grade}",
+      "below": "below intern",
+      "internOrBelow": "intern or below",
+      "between": "between {low} and {high}",
+      "internWith": "intern",
+      "internLower": "intern"
+    },
+    "uncertainty": {
+      "small": "small margin of error",
+      "medium": "noticeable margin of error",
+      "large": "large margin of error"
+    },
+    "fsp": {
+      "empty": "No FSP history: the skill profile is built from the platform test, with no penalty.",
+      "date": "Date",
+      "event": "Competition",
+      "discipline": "Discipline",
+      "result": "Result",
+      "placeRole": "Place and role",
+      "place": "place {place}",
+      "role": "role {role}",
+      "note": "Results of in-person FSP competitions from the registry are the highest level of trust. Wins, prizes and finals count towards the skill profile; taking part in a qualifier is a fact, not a level estimate."
+    },
+    "self": {
+      "stack": "Stack",
+      "experience": "IT experience",
+      "soft": "Soft skills",
+      "formats": "Work format",
+      "city": "City",
+      "industries": "Industries of interest",
+      "about": "About",
+      "relocationYes": "open to relocation",
+      "relocationNo": "not relocating"
+    },
+    "years": {
+      "lessThanYear": "under a year",
+      "lessThanHalf": "under half a year",
+      "half": "half a year",
+      "one": "{n} year",
+      "few": "{n} years",
+      "many": "{n} years",
+      "fraction": "{n} years"
+    },
+    "experience": {
+      "period": "{start} to {end}",
+      "present": "present",
+      "technologyYears": "Years by technology",
+      "note": "Entries and years by technology are self-reported: they are not confirmed by the test or FSP and do not affect the level estimate. Years are counted from entry periods without double-counting overlaps, rounded down to half a year."
+    }
+  },
+  "mail": {
+    "verification": {
+      "subject": "Confirm your email address",
+      "preheader": "The last step of signing up to calibr",
+      "greeting": "Hello!",
+      "lead": "To finish signing up to calibr, confirm your email address.",
+      "button": "Confirm email",
+      "fallback": "If the button does not open, copy the link into your browser:",
+      "ttl": "The link is valid for {hours} hours.",
+      "ignore": "If you did not sign up, just delete this email."
+    },
+    "footer": "calibr, IT hiring by FSP"
+  }
+}

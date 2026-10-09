@@ -1,0 +1,73 @@
+.status {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-12) var(--space-24);
+}
+
+.linked {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-8) var(--space-16);
+}
+
+.id {
+  composes: labelText from "../../../shared/styles/compose.module.css";
+  font-variant-numeric: var(--font-numeric);
+}
+
+.actions {
+  composes: actions from "../../../shared/styles/layout.module.css";
+}
+
+.note {
+  composes: prose from "../../../shared/styles/layout.module.css";
+  flex: 1 1 var(--column-min);
+}
+
+.achievements {
+  display: grid;
+}
+
+.achievement {
+  composes: ruledRow from "../../../shared/styles/compose.module.css";
+  display: grid;
+  gap: var(--space-8);
+  padding-block: var(--space-12);
+}
+
+.achievementHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-8);
+}
+
+.event {
+  composes: bodySmText from "../../../shared/styles/compose.module.css";
+  font-weight: var(--weight-medium);
+}
+
+.attributes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4) var(--space-16);
+  font-size: var(--font-size-body-sm);
+}
+
+.divergences {
+  display: grid;
+  gap: var(--space-16);
+}
+
+.divergence {
+  display: grid;
+  gap: var(--space-8);
+}
+
+.topic {
+  font-weight: var(--weight-medium);
+}

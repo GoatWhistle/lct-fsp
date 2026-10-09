@@ -1,0 +1,7 @@
+.plain {
+  composes: pressable from "../../../styles/compose.module.css";
+  display: block;
+  min-inline-size: 0;
+  color: inherit;
+  text-align: start;
+}

@@ -1,0 +1,150 @@
+.row {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) var(--row-actions);
+  align-items: center;
+  gap: var(--space-12);
+  padding-inline-end: var(--space-16);
+  border-block-end: var(--hairline) solid var(--border-hairline);
+  background-color: var(--surface-card);
+  transition: var(--transition-control);
+}
+
+.row[data-animate="true"] {
+  animation: var(--motion-rise-in);
+  animation-delay: calc(var(--i) * var(--stagger));
+}
+
+.row:has(.main:focus-visible) {
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
+  outline-offset: calc(var(--focus-ring-width) * -1);
+}
+
+.main:focus-visible {
+  outline: none;
+}
+
+.row[data-selected="true"] {
+  background-color: var(--surface-selected);
+}
+
+.row[data-block="unconfirmed"] {
+  background-color: var(--surface-canvas);
+  color: var(--text-secondary);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .row:not([data-selected="true"]):hover {
+    background-color: var(--surface-card-hover);
+  }
+}
+
+.main {
+  display: grid;
+  grid-template-columns: var(--rank-column) minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-areas:
+    "rank identity score"
+    "rank facts facts";
+  align-items: center;
+  gap: var(--space-8) var(--space-16);
+  min-block-size: var(--target-min);
+  padding: var(--space-12) var(--space-16);
+}
+
+.position {
+  composes: rank from "../../../shared/styles/rows.module.css";
+}
+
+.identity {
+  grid-area: identity;
+  display: grid;
+  gap: var(--space-4);
+  min-inline-size: 0;
+}
+
+.id {
+  composes: monoText from "../../../shared/styles/compose.module.css";
+  font-size: var(--font-size-body-sm);
+  font-weight: var(--weight-semibold);
+}
+
+.status {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-8);
+}
+
+.statusText {
+  composes: captionText from "../../../shared/styles/compose.module.css";
+}
+
+.stale {
+  display: inline-grid;
+  place-items: center;
+  color: var(--text-danger);
+}
+
+.score {
+  grid-area: score;
+  min-inline-size: 0;
+}
+
+.muted {
+  composes: captionText from "../../../shared/styles/compose.module.css";
+  color: var(--text-tertiary);
+}
+
+.facts {
+  composes: captionText from "../../../shared/styles/compose.module.css";
+  grid-area: facts;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-8) var(--space-16);
+  color: var(--text-secondary);
+}
+
+.fact {
+  display: inline-flex;
+  white-space: nowrap;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.fact strong {
+  font-family: var(--font-mono);
+  color: var(--text-primary);
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-4);
+}
+
+.star[data-on="true"] {
+  color: var(--text-accent);
+}
+
+.star[data-on="true"] svg {
+  fill: currentColor;
+}
+
+@media (max-width: 47.99rem) {
+  .row {
+    grid-template-columns: minmax(0, 1fr);
+    padding-block-end: var(--space-12);
+    padding-inline-start: var(--space-16);
+  }
+
+  .main {
+    grid-template-columns: var(--rank-column) minmax(0, 1fr);
+    grid-template-areas:
+      "rank identity"
+      "rank score"
+      "rank facts";
+    padding-inline: 0;
+  }
+}

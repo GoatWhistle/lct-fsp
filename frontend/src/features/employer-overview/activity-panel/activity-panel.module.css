@@ -1,0 +1,52 @@
+.list {
+  display: grid;
+  margin-inline: calc(var(--space-12) * -1);
+}
+
+.item {
+  animation: var(--motion-rise-in);
+  animation-delay: calc(var(--i) * var(--stagger));
+}
+
+.row {
+  composes: linkRow from "../../../shared/styles/compose.module.css";
+  padding: var(--space-12);
+  border-radius: var(--radius-button);
+}
+
+.icon {
+  align-self: start;
+  color: var(--text-secondary);
+}
+
+.text {
+  display: grid;
+  gap: var(--space-8);
+  min-inline-size: 0;
+}
+
+.meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-4) var(--space-12);
+}
+
+.chevron {
+  color: var(--text-tertiary);
+}
+
+.title {
+  composes: truncate from "../../../shared/styles/compose.module.css";
+}
+
+.date {
+  composes: labelText from "../../../shared/styles/compose.module.css";
+  color: var(--text-secondary);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .row:hover {
+    background-color: var(--action-ghost-hover);
+  }
+}

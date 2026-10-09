@@ -21,6 +21,8 @@ class SmtpMailer:
         msg["To"] = mail.to
         msg["Subject"] = mail.subject
         msg.set_content(mail.text)
+        if mail.html is not None:
+            msg.add_alternative(mail.html, subtype="html")
         try:
             with smtplib.SMTP(self.host, self.port, timeout=10) as smtp:
                 smtp.send_message(msg)

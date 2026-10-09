@@ -1,0 +1,68 @@
+.panel {
+  position: sticky;
+  inset-block-start: calc(var(--sticky-top) + var(--space-16));
+}
+
+.scroll {
+  max-block-size: calc(100dvh - var(--sticky-top) - var(--explain-chrome));
+}
+
+.title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-8);
+}
+
+.id {
+  composes: monoText from "../../../shared/styles/compose.module.css";
+  color: var(--text-accent);
+}
+
+.body {
+  display: grid;
+  gap: var(--space-20);
+}
+
+.section {
+  display: grid;
+  gap: var(--space-8);
+}
+
+.subtitle {
+  composes: labelText from "../../../shared/styles/compose.module.css";
+  color: var(--text-tertiary);
+}
+
+.topics {
+  display: grid;
+  border-block-start: var(--hairline) solid var(--border-hairline);
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-8);
+}
+
+.stackFacts {
+  composes: captionText from "../../../shared/styles/compose.module.css";
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: var(--space-8);
+}
+
+.mono {
+  composes: monoText from "../../../shared/styles/compose.module.css";
+  color: var(--text-secondary);
+}
+
+.muted {
+  composes: captionText from "../../../shared/styles/compose.module.css";
+  color: var(--text-tertiary);
+}
+
+.actions {
+  composes: actions from "../../../shared/styles/layout.module.css";
+}

@@ -1,0 +1,34 @@
+.list {
+  display: grid;
+}
+
+.item {
+  composes: listRowCompact from "../../../shared/styles/rows.module.css";
+  gap: var(--space-8);
+}
+
+.item:last-child {
+  border-block-end: 0;
+}
+
+.head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-8) var(--space-12);
+}
+
+.discipline {
+  composes: bodySmText from "../../../shared/styles/compose.module.css";
+  font-weight: var(--weight-medium);
+}
+
+.year {
+  composes: captionText monoText from "../../../shared/styles/compose.module.css";
+  margin-inline-start: auto;
+  color: var(--text-tertiary);
+}
+
+.empty {
+  composes: captionText from "../../../shared/styles/compose.module.css";
+}

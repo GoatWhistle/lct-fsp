@@ -1,0 +1,62 @@
+.list {
+  display: grid;
+}
+
+.row {
+  composes: listRow from "../../../shared/styles/rows.module.css";
+  gap: var(--space-12);
+  padding-block: var(--space-20);
+}
+
+.row:first-child {
+  padding-block-start: 0;
+}
+
+.row:last-child {
+  border-block-end: 0;
+}
+
+.head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-8) var(--space-16);
+}
+
+.tags {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-8) var(--space-16);
+}
+
+.date {
+  composes: labelText from "../../../shared/styles/compose.module.css";
+  font-variant-numeric: var(--font-numeric);
+}
+
+.prompt {
+  max-inline-size: var(--prose-measure);
+  font-weight: var(--weight-medium);
+  text-wrap: pretty;
+}
+
+.response {
+  composes: tintBlock from "../../../shared/styles/blocks.module.css";
+  display: grid;
+  gap: var(--space-4);
+}
+
+.label {
+  composes: fieldLabel from "../../../shared/styles/compose.module.css";
+}
+
+.text {
+  composes: preWrap from "../../../shared/styles/layout.module.css";
+  max-inline-size: var(--prose-measure);
+}
+
+.explain {
+  composes: footnote from "../../../shared/styles/compose.module.css";
+}

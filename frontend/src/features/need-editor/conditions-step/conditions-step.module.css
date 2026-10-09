@@ -1,0 +1,30 @@
+.step {
+  composes: formStep from "../../../shared/styles/layout.module.css";
+}
+
+.city {
+  max-inline-size: var(--field-max-width);
+}
+
+.salary {
+  composes: bareFieldset from "../../../shared/styles/compose.module.css";
+  display: grid;
+  gap: var(--space-8);
+}
+
+.legend {
+  composes: fieldLabel from "../../../shared/styles/compose.module.css";
+  margin-block-end: var(--space-8);
+}
+
+.range {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-16);
+  max-inline-size: var(--field-max-width);
+}
+
+.hint {
+  composes: captionText from "../../../shared/styles/compose.module.css";
+  color: var(--text-tertiary);
+}

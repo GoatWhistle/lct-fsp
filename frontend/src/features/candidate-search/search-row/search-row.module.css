@@ -1,0 +1,92 @@
+.row {
+  composes: listRowCompact from "../../../shared/styles/rows.module.css";
+  grid-column: 1 / -1;
+  grid-template-columns: subgrid;
+  grid-template-areas:
+    "rank identity level actions"
+    "rank facts facts actions";
+  align-items: center;
+  gap: var(--space-8) var(--space-16);
+  padding-inline: var(--space-16);
+  background-color: var(--surface-card);
+}
+
+.row:not([data-animate="true"]) {
+  animation: none;
+}
+
+.row[data-confirmed="false"] {
+  background-color: var(--surface-canvas);
+}
+
+.position {
+  composes: rank from "../../../shared/styles/rows.module.css";
+}
+
+.identity {
+  grid-area: identity;
+  display: grid;
+  gap: var(--space-4);
+  min-inline-size: 0;
+}
+
+.id {
+  composes: monoText from "../../../shared/styles/compose.module.css";
+  font-size: var(--font-size-body-sm);
+  font-weight: var(--weight-semibold);
+}
+
+.status {
+  composes: captionText from "../../../shared/styles/compose.module.css";
+}
+
+.level {
+  grid-area: level;
+  min-inline-size: 0;
+}
+
+.unmeasured {
+  composes: captionText from "../../../shared/styles/compose.module.css";
+  color: var(--text-tertiary);
+}
+
+.facts {
+  grid-area: facts;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-8) var(--space-12);
+}
+
+.probability {
+  composes: captionText from "../../../shared/styles/compose.module.css";
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.probability strong {
+  font-family: var(--font-mono);
+  color: var(--text-primary);
+}
+
+.actions {
+  grid-area: actions;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-4);
+}
+
+@media (max-width: 47.99rem) {
+  .row {
+    grid-template-areas:
+      "rank identity"
+      "rank level"
+      "rank facts"
+      "rank actions";
+  }
+
+  .actions {
+    justify-content: flex-start;
+  }
+}

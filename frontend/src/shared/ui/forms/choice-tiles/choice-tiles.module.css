@@ -1,0 +1,148 @@
+.tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, var(--tile-min)), 1fr));
+  gap: var(--space-12);
+  min-inline-size: 0;
+  border: 0;
+  padding: 0;
+}
+
+.tiles[data-columns="compact"] {
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, var(--tile-min-compact)), 1fr));
+}
+
+.legend {
+  composes: fieldLabel from "../../../styles/compose.module.css";
+  grid-column: 1 / -1;
+  margin-block-end: var(--space-4);
+}
+
+.tile {
+  composes: pressable cardFrame from "../../../styles/compose.module.css";
+  position: relative;
+  display: grid;
+  align-content: start;
+  gap: var(--space-8);
+  min-block-size: var(--tile-height);
+  padding: var(--space-16);
+  cursor: pointer;
+  animation: var(--motion-rise-in);
+  animation-delay: calc(var(--i) * var(--stagger));
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .tile:hover:not([data-disabled="true"]) {
+    border-color: var(--border-strong);
+  }
+}
+
+.tile:active:not([data-disabled="true"]) {
+  scale: var(--press-scale-surface);
+}
+
+.tile[data-checked="true"] {
+  border-color: var(--action-primary);
+  background-color: var(--surface-selected);
+}
+
+.tile[data-disabled="true"] {
+  border-style: dashed;
+  background-color: transparent;
+  cursor: not-allowed;
+}
+
+.tile:has(.input:focus-visible) {
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
+  outline-offset: var(--focus-ring-offset);
+}
+
+.input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: inherit;
+}
+
+.head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-8);
+}
+
+.icon {
+  color: var(--text-accent);
+}
+
+.tile[data-disabled="true"] .icon {
+  color: var(--text-tertiary);
+}
+
+.badge {
+  composes: badgeShape captionText monoText from "../../../styles/compose.module.css";
+  background-color: var(--surface-tint);
+  color: var(--text-accent);
+}
+
+.title {
+  font-family: var(--font-mono);
+  font-weight: var(--weight-medium);
+}
+
+.description {
+  composes: secondaryText from "../../../styles/compose.module.css";
+}
+
+.check {
+  composes: mark from "../../../styles/compose.module.css";
+  position: absolute;
+  inset-block-start: var(--space-12);
+  inset-inline-end: var(--space-12);
+  display: grid;
+  place-items: center;
+  inline-size: var(--icon-md);
+  block-size: var(--icon-md);
+  border-radius: var(--radius-round);
+  background-color: var(--action-primary);
+  color: var(--text-on-action);
+}
+
+.tiles[data-layout="inline"] .tile {
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-areas:
+    "icon title"
+    "icon badge"
+    "icon description";
+  align-content: center;
+  align-items: center;
+  gap: 0 var(--space-12);
+  min-block-size: var(--target-min);
+  padding-block: var(--space-12);
+  padding-inline-end: var(--space-40);
+}
+
+.tiles[data-layout="inline"] .head {
+  display: contents;
+}
+
+.tiles[data-layout="inline"] .icon {
+  grid-area: icon;
+}
+
+.tiles[data-layout="inline"] .badge {
+  grid-area: badge;
+  justify-self: start;
+  margin-block-start: var(--space-4);
+}
+
+.tiles[data-layout="inline"] .title {
+  grid-area: title;
+}
+
+.tiles[data-layout="inline"] .description {
+  grid-area: description;
+}
+
+.tiles[data-instant="true"] .check {
+  transition: none;
+}

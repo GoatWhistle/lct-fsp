@@ -1,0 +1,43 @@
+.board {
+  display: grid;
+  grid-template-columns: minmax(0, var(--panel-filters)) minmax(0, 1fr);
+  align-items: start;
+  gap: var(--space-24);
+}
+
+.filters {
+  position: sticky;
+  inset-block-start: calc(var(--sticky-top) + var(--space-16));
+}
+
+.results {
+  composes: stale from "../../../shared/styles/compose.module.css";
+  display: grid;
+  gap: var(--space-16);
+  min-inline-size: 0;
+}
+
+.count {
+  composes: labelText from "../../../shared/styles/compose.module.css";
+  color: var(--text-secondary);
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, var(--panel-list)), 1fr));
+  gap: var(--space-24);
+}
+
+.basis {
+  composes: footnote from "../../../shared/styles/compose.module.css";
+}
+
+@media (max-width: 63.99rem) {
+  .board {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .filters {
+    position: static;
+  }
+}

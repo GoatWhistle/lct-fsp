@@ -1,0 +1,70 @@
+.frame {
+  display: grid;
+  gap: var(--space-20);
+  padding: var(--space-20);
+  border: var(--hairline) dashed var(--border-strong);
+  border-radius: var(--radius-inner);
+}
+
+.eyebrow {
+  composes: labelText from "../../../shared/styles/compose.module.css";
+}
+
+.head {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: var(--space-16);
+}
+
+.mark {
+  composes: monoText from "../../../shared/styles/compose.module.css";
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: calc(var(--space-12) * 4);
+  aspect-ratio: 1;
+  border-radius: var(--radius-inner);
+  background-color: var(--surface-brand);
+  color: var(--text-on-brand);
+  font-size: var(--font-size-body);
+  font-weight: var(--weight-medium);
+}
+
+.identity {
+  display: grid;
+  justify-items: start;
+  gap: var(--space-8);
+  min-inline-size: 0;
+}
+
+.name {
+  composes: subheadingText from "../../../shared/styles/compose.module.css";
+  overflow-wrap: anywhere;
+}
+
+.description {
+  composes: bodySmText from "../../../shared/styles/compose.module.css";
+  max-inline-size: var(--prose-measure);
+  color: var(--text-secondary);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.name[data-empty="true"],
+.description[data-empty="true"] {
+  color: var(--text-tertiary);
+}
+
+.terms {
+  padding-block-start: var(--space-16);
+  border-block-start: var(--hairline) solid var(--border-hairline);
+}
+
+.link {
+  color: var(--text-accent);
+}
+
+.note {
+  composes: secondaryText from "../../../shared/styles/compose.module.css";
+}

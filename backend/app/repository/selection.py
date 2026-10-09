@@ -23,6 +23,9 @@ from app.domain.invitation import OPEN
 from app.domain.match import Verdict
 from app.domain.search import NO_FILTERS, CandidateFacts, CandidateFilters, CategoryFilter
 from app.domain.selection import (
+    AcceptanceDetails,
+    AcceptanceExplanation,
+    AcceptanceFeatures,
     Expectations,
     Explanation,
     NeedRequirement,
@@ -386,6 +389,7 @@ class SqlSelections:
                         "mutual_score": e.mutual_score,
                         "explanation": explanation_json(e.explanation),
                         "stale": e.stale,
+                        "acceptance": None if e.acceptance is None else details_json(e.acceptance),
                     }
                     for e in entries
                 ],
@@ -549,6 +553,7 @@ def _entry(row: EntryRow) -> SelectionEntry:
         mutual_score=row.mutual_score,
         explanation=explanation_of(row.explanation),
         stale=row.stale,
+        acceptance=None if row.acceptance is None else details_of(row.acceptance),
     )
 
 
@@ -637,6 +642,52 @@ def filters_of(data: Json) -> CandidateFilters:
         fsp_confirmed=data.get("fsp_confirmed", False),
         confident=data.get("confident", False),
         grade_status=frozenset(GradeStatusKind(k) for k in data.get("grade_status", ())),
+    )
+
+
+def details_json(details: AcceptanceDetails) -> Json:
+    """Признаки и объяснение P в JSONB: подсказка по вилке читает их без пересчёта подборки."""
+    f, why = details.features, details.explanation
+    return {
+        "features": {
+            "salary_from": f.salary.low if f.salary else None,
+            "salary_to": f.salary.high if f.salary else None,
+            "expected_salary": f.expected_salary,
+            "market_salary": f.market_salary,
+            "work_formats": [w.value for w in f.work_formats],
+            "city": f.city,
+            "relocation": f.relocation,
+            "need_work_format": f.need_work_format.value,
+            "need_city": f.need_city,
+            "grade": f.grade,
+            "match_score": f.match_score,
+            "open_invitations": f.open_invitations,
+            "industries": sorted(f.industries),
+            "company_industry": f.company_industry,
+        },
+        "explanation": {"base": why.base, "contributions": dict(why.contributions)},
+    }
+
+
+def details_of(data: Json) -> AcceptanceDetails:
+    f, why = data["features"], data["explanation"]
+    return AcceptanceDetails(
+        features=AcceptanceFeatures(
+            salary=SalaryRange.optional(f["salary_from"], f["salary_to"]),
+            expected_salary=f["expected_salary"],
+            market_salary=f["market_salary"],
+            work_formats=tuple(WorkFormat(w) for w in f["work_formats"]),
+            city=f["city"],
+            relocation=f["relocation"],
+            need_work_format=WorkFormat(f["need_work_format"]),
+            need_city=f["need_city"],
+            grade=f["grade"],
+            match_score=f["match_score"],
+            open_invitations=f["open_invitations"],
+            industries=frozenset(f["industries"]),
+            company_industry=f["company_industry"],
+        ),
+        explanation=AcceptanceExplanation(why["base"], dict(why["contributions"])),
     )
 
 

@@ -219,6 +219,47 @@ class StackFitOut(BaseModel):
     )
 
 
+AcceptanceFactor = Literal["salary", "grade", "format", "city", "load", "match", "industry"]
+
+
+class AcceptanceFactorOut(BaseModel):
+    factor: AcceptanceFactor
+    contribution: float = Field(
+        description="Вклад фактора в логит P: положительный повышает P, отрицательный снижает"
+    )
+
+
+class AcceptanceExplanationOut(BaseModel):
+    """Вклады точно аддитивны в логите: `base` плюс сумма вкладов равна `logit`, а P — его
+    сигмоида. Ожидания кандидата здесь нет, только вклад вилки в P."""
+
+    base: float = Field(description="Логит P при средних признаках обучения")
+    logit: float = Field(description="Логит P(принятия) строки")
+    factors: list[AcceptanceFactorOut]
+
+
+class SalaryHintOut(SalaryBasisOut):
+    available: bool = Field(
+        description="`false` — P нет (нет файла модели, у потребности не было вилки, кандидат "
+        "в нижнем блоке): ни вероятности, ни подсказки"
+    )
+    probability: float | None = Field(
+        description="P(принятия) при вилке работодателя, округлённой до шага подсказки"
+    )
+    evaluated_from: Salary | None = Field(description="«От» вилки, по которой посчитана P")
+    evaluated_to: Salary | None = Field(description="«До» вилки, по которой посчитана P")
+    target_probability: float | None = Field(description="Целевая P(принятия)")
+    reachable: bool = Field(
+        description="Есть ли вилка, при которой P достигает цели, в пределах сетки подсказки"
+    )
+    hint_from: Salary | None = Field(
+        description="«От» самой низкой вилки сетки с P не ниже цели; кратно шагу округления; "
+        "`null` — цель недостижима"
+    )
+    hint_to: Salary | None = Field(description="«До» той же вилки; кратно шагу округления")
+    rounding: int | None = Field(description="Шаг округления вилки в подсказке, ₽")
+
+
 class SelectionEntryOut(BaseModel):
     """Кандидат в подборке — обезличенно: место, статус грейда, соответствие и его объяснение.
     Карточка — `GET /api/employer/candidates/{candidate_id}`."""
@@ -254,6 +295,9 @@ class SelectionEntryOut(BaseModel):
     )
     stack: StackFitOut
     stale: bool = Field(description="Давно не подтверждал уровень: сигналов не было дольше срока")
+    acceptance_explanation: AcceptanceExplanationOut | None = Field(
+        description="SHAP-объяснение P(принятия); `null` — P нет"
+    )
 
 
 class SelectionSummaryOut(BaseModel):

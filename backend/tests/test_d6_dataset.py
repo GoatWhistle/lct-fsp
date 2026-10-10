@@ -8,7 +8,11 @@ from pathlib import Path
 
 import pytest
 
+from settings import Mechanics, Settings
 from validation import d6
+from validation.resume_parsing import visible_texts
+
+MECHANICS = Mechanics.from_yaml(Settings().mechanics_file)
 
 pytestmark = pytest.mark.unit
 BACKEND = Path(__file__).resolve().parents[1]
@@ -105,3 +109,16 @@ def test_dataset_is_not_used_by_the_product() -> None:
             if path.suffix in {".py", ".yaml"} and path.is_file():
                 text = path.read_text(encoding="utf-8")
                 assert "data/d6" not in text and "validation.d6" not in text, path
+
+
+def test_hidden_payload_is_really_hidden() -> None:
+    """Скрытая инъекция в файле действительно скрыта: видимый текст, который читает продукт, её
+    не содержит. Видимые инструкции — наоборот, на месте."""
+    dataset = d6.load()
+    texts = visible_texts(dataset, MECHANICS)
+    for record in dataset.records:
+        if record.injection is None:
+            continue
+        shown = d6.squeeze(record.injection.text) in d6.squeeze(texts[record.id])
+        visible = record.injection.type == "visible_instruction"
+        assert shown == visible, record.id

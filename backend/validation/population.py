@@ -291,6 +291,10 @@ class GeneratorParams:
     acceptance_load_mean: float = 1.5
     acceptance_train_top_k: int = 20
     acceptance_random_share: float = 0.2
+    # Рынок приглашений (M6): недель симуляции и средняя задержка ответа кандидата в днях —
+    # экспонента; не ответил за `invitation_ttl_days` — приглашение истекло.
+    market_weeks: int = 8
+    market_response_mean_days: float = 3.0
 
 
 D1 = GeneratorParams("d1", D1_SEED)

@@ -1,0 +1,70 @@
+{
+ "model": "claude-sonnet-5-5",
+ "answers": {
+  "0448f2e592fe04587295192219d804fca0af21a9a7e98f1e70df2fbf574934c8": {
+   "raw": "{\"stack\": [\"javascript\", \"typescript\", \"react\", \"html-css\", \"jest\", \"vite\"], \"job_roles\": [\"Фронтенд-разработчик\"], \"soft_skills\": [], \"experience_years\": 6}",
+   "error": null,
+   "ms": 8960.080374992685
+  },
+  "11d372e47e8ae70d446db82b8f5723b1b1726e0fe7c1467cdecaa99d23f32eaf": {
+   "raw": "{\"stack\": [\"python\", \"pytorch\", \"mlflow\", \"docker\", \"spark\", \"clickhouse\", \"airflow\"], \"job_roles\": [\"ML-инженер\", \"Инженер данных\"], \"soft_skills\": [], \"experience_years\": 5}",
+   "error": null,
+   "ms": 5946.242459001951
+  },
+  "197d04b0e9087a6bed17b30e7a218ae3a201d1371ca4a8ccfc57d3f07b4c8b01": {
+   "raw": "{\"stack\": [\"kubernetes\", \"terraform\", \"gitlab-ci\", \"prometheus\", \"grafana\", \"linux\", \"bash\", \"ansible\", \"docker\"], \"job_roles\": [\"DevOps-инженер\", \"Системный администратор\"], \"soft_skills\": [], \"experience_years\": 9}",
+   "error": null,
+   "ms": 6684.475665999344
+  },
+  "48d0ed701fa63b788105d6146e01855d19c8acdf26a2189cabdb54cde07e7e20": {
+   "raw": "{\"stack\": [\"java\", \"selenium\", \"jmeter\", \"postman\", \"mysql\"], \"job_roles\": [\"QA-инженер\", \"Стажёр\"], \"soft_skills\": [], \"experience_years\": 2}",
+   "error": null,
+   "ms": 5534.262833010871
+  },
+  "5028ed5784ef4c4c5f3208e792ed187fb894da5aea2ae5fe64adad98407017cf": {
+   "raw": "{\"stack\": [\"python\", \"pytest\", \"postman\", \"selenium\"], \"job_roles\": [\"QA-инженер\"], \"soft_skills\": [], \"experience_years\": 2}",
+   "error": null,
+   "ms": 8314.670708001358
+  },
+  "6bd1e73070fed4c03f4849a280e01932bda13d782bd37ff1ea1bd0d4e773c489": {
+   "raw": "{\"stack\": [\"vue\", \"typescript\", \"playwright\", \"javascript\", \"nodejs\", \"postgresql\", \"html-css\"], \"job_roles\": [\"Фронтенд-разработчик\", \"Fullstack-разработчик\"], \"soft_skills\": [\"Работа в команде\", \"Наставничество\"], \"experience_years\": 8}",
+   "error": null,
+   "ms": 6938.064292015042
+  },
+  "90d18e0e4e1b611d284b9affec4700137aea535a504c10b92001480b1ee7c242": {
+   "raw": "{\"stack\": [\"java\", \"spring\", \"postgresql\", \"kafka\", \"docker\"], \"job_roles\": [\"Тимлид\", \"Бэкенд-разработчик\"], \"soft_skills\": [\"Лидерство\", \"Управление проектами\"], \"experience_years\": 7}",
+   "error": null,
+   "ms": 6385.123040992767
+  },
+  "d1ef1ac9dd8e1f6f12e3c9d583dce64996ac97f0ebe9ab1e3f1fb047de8dcaa3": {
+   "raw": "{\"stack\": [\"java\", \"spring\", \"postgresql\", \"kafka\", \"docker\"], \"job_roles\": [\"Тимлид\", \"Бэкенд-разработчик\"], \"soft_skills\": [\"Лидерство\", \"Управление проектами\"], \"experience_years\": 7}",
+   "error": null,
+   "ms": 6503.444375004619
+  },
+  "d9d8aa171ddd35f0a6874777c15e49f83ea4c1f1b9275c3786cdb7a99cbc4614": {
+   "raw": "{\"stack\": [\"python\", \"fastapi\", \"postgresql\", \"redis\", \"docker\", \"pytest\"], \"job_roles\": [\"Бэкенд-разработчик\", \"Стажёр\"], \"soft_skills\": [], \"experience_years\": 4}",
+   "error": null,
+   "ms": 8434.074332995806
+  },
+  "daa340dfb7bcad3b1cb24fc2a697360fb0a82d533d21f1a78cba0906cf014df5": {
+   "raw": "{\"stack\": [\"kubernetes\", \"terraform\", \"gitlab-ci\", \"prometheus\", \"grafana\", \"linux\", \"bash\", \"ansible\", \"docker\"], \"job_roles\": [\"DevOps-инженер\", \"Системный администратор\"], \"soft_skills\": [], \"experience_years\": 9}",
+   "error": null,
+   "ms": 6285.75408301549
+  },
+  "dde3de9441e17ac98eb661365968d8fcb98494f033324236c8b840cbb8a761ba": {
+   "raw": "{\"stack\": [\"linux\", \"docker\", \"github-actions\", \"ansible\", \"prometheus\", \"nginx\"], \"job_roles\": [\"DevOps-инженер\"], \"soft_skills\": [], \"experience_years\": 4}",
+   "error": null,
+   "ms": 5407.863957982045
+  },
+  "fe9c4305636beee037d1cc47db5a3e4af07cb68b5c15219416b08a5333846319": {
+   "raw": "{\"stack\": [\"python\", \"pytorch\", \"mlflow\", \"docker\", \"spark\", \"clickhouse\", \"airflow\"], \"job_roles\": [\"ML-инженер\", \"Инженер данных\"], \"soft_skills\": [], \"experience_years\": 5}",
+   "error": null,
+   "ms": 6716.310375020839
+  },
+  "feccb58ac6b13fc01c883f424700bf6b8aa86f7bb68408980746b47c5884c4f7": {
+   "raw": "{\"stack\": [\"python\", \"pandas\", \"numpy\", \"scikit-learn\", \"catboost\", \"postgresql\", \"airflow\"], \"job_roles\": [\"Data Scientist\", \"Аналитик данных\"], \"soft_skills\": [\"Аналитическое мышление\"], \"experience_years\": 7}",
+   "error": null,
+   "ms": 8571.78012499935
+  }
+ }
+}

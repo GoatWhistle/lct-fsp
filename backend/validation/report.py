@@ -25,7 +25,7 @@ from app.domain.determination import grades_by_threshold
 from app.domain.selection import NeedSnapshot, SelectionBlock
 from app.usecase.skill_profile import specialization_prior
 from settings import BACKEND_DIR, Mechanics, Settings
-from validation import d4
+from validation import d4, resume_parsing
 from validation.acceptance import (
     HOLDOUT_PAIRS,
     Offer,
@@ -58,8 +58,11 @@ from validation.figures import (
     ecdf_svg,
     reliability_svg,
 )
+from validation.invitation_market import STRATEGIES
+from validation.invitation_market import metrics as market_metrics
 from validation.llm_attack import CLAIMED
 from validation.main import Catalog, catalog
+from validation.market_weeks import MarketInput
 from validation.metrics import (
     cohen_kappa,
     ece,
@@ -166,7 +169,7 @@ METRICS: dict[str, tuple[str, str]] = {
 }
 # Чего не хватает метрикам, которые этот прогон не считает.
 PENDING: dict[str, str] = {
-    "M6": "нет рыночной симуляции приглашений",
+    "M6": "нет файла модели принятия: стратегии B нечем упорядочить выдачу",
     "M7": "нет файла модели принятия: `uv run python -m validation acceptance`",
     "M8": "нет проверки вкладов объяснений на выдачах стенда",
     "M14": "прогон без экспериментов защиты",
@@ -298,6 +301,7 @@ def collect(
             generated[name] = dataset
             offered[name] = offer_needs(generator, dataset, HOLDOUT_PAIRS)
             stacks = {o.id: frozenset(o.stack) for o in dataset.observed}
+            employer_needs = Counter(n.employer for n in dataset.needs)
             for code in codes:
                 job = Job(
                     DATASETS[name],
@@ -309,9 +313,17 @@ def collect(
                     stacks,
                     twins=tuple(tw for tw in doubles[name] if tw.observed.specialization == code),
                     offer_needs=tuple(n for n in offered[name] if n.form.specialization == code),
+                    market=MarketInput(
+                        DATASETS[name],
+                        tuple(n for n in dataset.needs if n.form.specialization == code),
+                        dataset.employers,
+                        employer_needs,
+                        {o.id: o for o in dataset.observed if o.specialization == code},
+                        {t.id: t for t in dataset.truths if t.specialization == code},
+                    ),
                 )
                 futures[name, code, "runs"] = pool.submit(run_spec, job)
-                light = replace(job, mechanics=before, full=False, offer_needs=())
+                light = replace(job, mechanics=before, full=False, offer_needs=(), market=None)
                 futures[name, code, "before"] = pool.submit(run_spec, light)
                 futures[name, code, "cold"] = pool.submit(run_cold, job)
                 if name in FIT_SETS:
@@ -1944,6 +1956,168 @@ def m17(runs: Runs) -> Section:
     return judged("M17", body, verdicts)
 
 
+# --- M22 ---------------------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class FitShares:
+    """Доли определений, помеченных флагами времени, l_z и хотя бы одним из них."""
+
+    count: int
+    time: float
+    misfit: float
+    any: float
+
+
+def fit_shares(rows: Sequence[tuple[int, float | None]], mechanics: Mechanics) -> FitShares | None:
+    """`rows` — (флагов времени, l_z) определений. Событий фокуса на стенде нет: согласия на них
+    синтетика не даёт."""
+    if not rows:
+        return None
+    time = [flags >= mechanics.rt_flags_for_verification for flags, _ in rows]
+    misfit = [fit is not None and fit <= -mechanics.person_fit_lz for _, fit in rows]
+    n = len(rows)
+    return FitShares(
+        n,
+        sum(time) / n,
+        sum(misfit) / n,
+        sum(a or b for a, b in zip(time, misfit, strict=True)) / n,
+    )
+
+
+@section("M22")
+def m22(runs: Runs) -> Section:
+    if not any(d.protection for d in runs.sets.values()):
+        return pending("M22")
+    mechanics = runs.mechanics
+    rank = rank_of(mechanics)
+    verdicts, rows = {}, []
+    for name, data in runs.sets.items():
+        found = _protection(data)
+        signals = [s for run in found for s in run.signals]
+        if not signals:
+            continue
+        honest = [s for s in signals if s.persona == Persona.honest]
+        fpr = sum(
+            s.person_fit is not None and s.person_fit <= -mechanics.person_fit_lz for s in honest
+        ) / max(1, len(honest))
+        cheaters = fit_shares(
+            [
+                (s.time_flags, s.person_fit)
+                for s in signals
+                if s.persona == Persona.bank_leak and rank[s.result] > rank[s.truth]
+            ],
+            mechanics,
+        )
+        helpers = fit_shares(
+            [
+                (h.time_flags, h.person_fit)
+                for run in found
+                for h in run.helpers
+                if rank[h.before] > rank[h.truth]
+            ],
+            mechanics,
+        )
+        added = cheaters.any - cheaters.time if cheaters else math.nan
+        verdicts[name] = verdict_of([fpr <= 0.05, added >= 0.10])
+        for who, shares in (("читеры, слито 30 %", cheaters), ("LLM-помощник", helpers)):
+            rows.append(
+                [
+                    name.upper(),
+                    who,
+                    f(fpr, 3),
+                    "0" if shares is None else str(shares.count),
+                    "—" if shares is None else f(shares.time, 3),
+                    "—" if shares is None else f(shares.misfit, 3),
+                    "—" if shares is None else f(shares.any, 3),
+                ]
+            )
+    if not rows:
+        return pending("M22")
+    body = (
+        f"$l_z$ определения на остановке, порог `person_fit_lz` = {f(mechanics.person_fit_lz, 1)} "
+        "подобран на D3 (`uv run python -m validation person-fit`). FPR — доля честных определений "
+        "потока S3 M14 с $l_z$ не выше −порога. Ниже — определения с завышением категории до "
+        "проверочного блока: у читеров со слитыми 30 % банка (ρ = 0,5) и у LLM-помощника — доля "
+        "помеченных флагами времени, $l_z$ и хотя бы одним из них. Событий фокуса на стенде нет. "
+        "Порог: FPR не выше 0,05; у читеров $l_z$ добавляет к флагам времени не меньше 0,10; у "
+        "помощника — без порога.\n\n"
+        + table(
+            [
+                "Набор",
+                "Кто",
+                "FPR честных",
+                "Определений с завышением",
+                "Флаги времени",
+                "$l_z$",
+                "Хотя бы один",
+            ],
+            rows,
+        )
+        + "\n\n"
+        + resume_part(runs.mechanics)
+    )
+    return judged("M22", body, verdicts)
+
+
+# Записи ответов моделей и таймаут модели — как у команд стенда.
+RECORDED_DIR = BACKEND_DIR / "validation" / "data" / "recorded"
+MODEL_TIMEOUT = Settings.model_fields["text_understanding_timeout_seconds"].default
+
+
+def resume_measures(mechanics: Mechanics) -> list[resume_parsing.Measured]:
+    """Разбор резюме на D6: правила и модель из записи, если она есть."""
+    found = [resume_parsing.measure(mechanics, None, MODEL_TIMEOUT)]
+    recording = Recording(RECORDED_DIR / "d6.agent_sdk.json")
+    if recording.answers:
+        measured = resume_parsing.measure(mechanics, recording, MODEL_TIMEOUT)
+        if not measured.missing:
+            found.append(measured)
+    return found
+
+
+def resume_part(mechanics: Mechanics) -> str:
+    found = resume_measures(mechanics)
+    pending, total = resume_parsing.pending_review()
+    lines = [
+        "**Разбор резюме на D6.** Видимый текст PDF портом продукта, разбор и проверка черновика "
+        "сценарием; модель — из записи `validation/data/recorded/d6.agent_sdk.json`, откат на "
+        "правила — как в проде. ФИО, email, телефон, роли и стаж — доля точных совпадений на "
+        f"чистых резюме, стек — F1 по кодам. Порог: не ниже {f(resume_parsing.FIELD_THRESHOLD)} "
+        "по каждому полю. Время — p95 разбора: у правил — CPU, у модели — записанное время ответа "
+        "модели разработки поверх правил; локальная модель сдачи на D6 не мерилась.",
+        "",
+        resume_parsing.markdown(found, exact=False).split("\n\n")[0],
+    ]
+    if pending:
+        lines += [
+            "",
+            f"Разметка D6 ждёт проверки человеком ({pending} из {total} записей): цифры — "
+            "против черновой разметки генератора, вердикт части — после проверки.",
+        ]
+    return "\n".join(lines)
+
+
+@section("M18")
+def m18(runs: Runs) -> Section:
+    found = resume_measures(runs.mechanics)
+    ok = all(i.same_fields and i.same_stack for m in found for i in m.injections)
+    body = (
+        "Варианты D6 с инъекциями против своих чистых двойников: все поля разбора совпадают, и "
+        "самоописанный стек — единственное, что резюме даёт подборке, — тот же, поэтому выдачи "
+        "по всем потребностям не меняются. Скрытый текст продукт отбрасывает до разбора, видимая "
+        "инструкция остаётся данными: схема ответа модели — только значения справочника. Сетевых "
+        "вызовов наружу нет: правила локальны, модель отвечает из записи, адаптер локальной модели "
+        "ходит только на адрес из конфига (`tests/test_text_llama.py`). Порог — 100 %.\n\n"
+        + resume_parsing.markdown(found, exact=False).split("\n\n")[1]
+    )
+    pending, _ = resume_parsing.pending_review()
+    if pending:
+        body += f"\n\nРазметка D6 ждёт проверки человеком: {pending} записей."
+        return Section("M18", body, f"{PASSED if ok else FAILED}; разметка не проверена человеком")
+    return Section("M18", body, PASSED if ok else FAILED)
+
+
 # --- M20, D4 -----------------------------------------------------------------------------------
 
 
@@ -2187,6 +2361,77 @@ def m7(runs: Runs) -> Section:
         "точек.\n\n" + "\n\n".join(parts)
     )
     return judged("M7", body, verdicts)
+
+
+# --- M6 ----------------------------------------------------------------------------------------
+
+
+@section("M6")
+def m6(runs: Runs) -> Section:
+    verdicts, parts = {}, []
+    for name, data in runs.sets.items():
+        if not all(run.market for run in data.runs.values()):
+            continue
+        pool = [c for run in data.runs.values() for c in run.pool]
+
+        def share(need: uuid.UUID, candidate: uuid.UUID, data: DatasetRuns = data) -> float:
+            return data.pairs[need, candidate].share
+
+        found = {
+            strategy: market_metrics(
+                [s for run in data.runs.values() for s in run.market[strategy]], pool, share
+            )
+            for strategy in STRATEGIES
+        }
+        a, b = found["A"], found["B"]
+        ratio = b.accepted_share / a.accepted_share if a.accepted_share else math.inf
+        match_ratio = (
+            b.true_match / a.true_match
+            if a.true_match is not None and b.true_match is not None and a.true_match > 0
+            else math.nan
+        )
+        checks = [ratio >= 1.2, b.gini <= a.gini, match_ratio >= 0.95]
+        verdicts[name] = verdict_of(checks)
+        rows = [
+            [
+                label,
+                str(m.sent),
+                str(m.accepted),
+                f(m.accepted_share),
+                f(m.gini),
+                "—" if m.true_match is None else f(m.true_match),
+            ]
+            for label, m in (("A — по S", a), ("B — по S × P(принятия)", b))
+        ]
+        parts.append(
+            f"**{name.upper()}.** Кандидатов в пуле {len(pool)}.\n\n"
+            + table(
+                ["Стратегия", "Отправлено", "Принято", "Доля принятых", "Джини", "Средний M*"],
+                rows,
+            )
+            + f"\n\nДоля принятых B / A — **{f(ratio)}** (порог ≥ 1,2); Джини B "
+            f"{'не выше' if checks[1] else 'выше'}, чем A; средний M* B / A — "
+            f"**{f(match_ratio)}** (порог ≥ 0,95)."
+        )
+    if not parts:
+        return pending("M6")
+    mechanics = runs.mechanics
+    body = (
+        f"Восемь недель рынка по каждой специализации набора. Компания перестраивает подборку по "
+        f"своей потребности каждую неделю и шлёт приглашения сверху выдачи: бюджет недели "
+        f"`invitation_weekly_budget` = {mechanics.invitation_weekly_budget} делится поровну между "
+        f"потребностями компании. Стратегия A — порядок «только соответствие» (по S), B — "
+        f"сохранённый порядок по S × P(принятия) с моделью из `acceptance_model.cbm`, обученной "
+        f"на своём сиде; обе — из той же подборки продукта. Одно открытое приглашение компании "
+        f"кандидату, срок ответа `invitation_ttl_days` = {mechanics.invitation_ttl_days} дней, "
+        f"задержка ответа — экспонента со средним "
+        f"{f(DATASETS['d1'].market_response_mean_days, 1)} дня. Решение — правило синтетики по "
+        f"скрытой склонности, вилке против ожиданий, загрузке открытыми приглашениями на момент "
+        f"ответа, формату и городу. Джини — по числу приглашений на кандидата пула, включая "
+        f"неприглашённых. Порог: доля принятых у B не ниже 1,2 доли у A; Джини у B не выше, чем "
+        f"у A; средний M* принятых у B не ниже 0,95 от A.\n\n" + "\n\n".join(parts)
+    )
+    return judged("M6", body, verdicts)
 
 
 # --- M19 ---------------------------------------------------------------------------------------

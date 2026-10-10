@@ -111,6 +111,8 @@ class TestAttempt(Base):
     planned_items: Mapped[int | None]
     # Экспресс-тест режима жюри: лимит заданий; NULL — полный тест.
     express_limit: Mapped[int | None]
+    # l_z определения на остановке (mechanics.md, §8): для стенда и разбора, наружу не отдаётся.
+    person_fit: Mapped[float | None]
     # Тест по вакансии: чей план он проходит; один тест — одна попытка.
     vacancy_test_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("vacancy_tests.id", ondelete="CASCADE"), unique=True

@@ -105,6 +105,7 @@ def _attempt_of(row: models.TestAttempt, *, presentations: bool = True) -> Attem
         planned_items=row.planned_items,
         express_limit=row.express_limit,
         vacancy_test_id=row.vacancy_test_id,
+        person_fit=row.person_fit,
     )
 
 
@@ -332,6 +333,7 @@ class SqlAttemptRepository(SqlAttemptReader):
         row.expected_correct = attempt.expected_correct
         row.correct_count = attempt.correct_count
         row.planned_items = attempt.planned_items
+        row.person_fit = attempt.person_fit
         self.session.flush()
 
     def lift_express_limit(self, attempt: Attempt) -> None:

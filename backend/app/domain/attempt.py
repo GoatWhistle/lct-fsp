@@ -241,6 +241,9 @@ class Attempt:
     express_limit: int | None = None
     # Тест по вакансии: чей план он проходит — только у `vacancy_test`.
     vacancy_test_id: uuid.UUID | None = None
+    # l_z определения на остановке (§8) — для стенда и разбора; наружу не отдаётся. None — не
+    # считался: попытка вне пути или ответов для l_z нет.
+    person_fit: float | None = None
 
     @property
     def express(self) -> bool:

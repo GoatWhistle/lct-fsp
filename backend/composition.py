@@ -100,7 +100,13 @@ def model_understanding(
 ) -> TextUnderstanding:
     """Разбор моделью за `complete` с откатом на правила того же словаря: сбой или ответ позже
     `timeout` секунд — черновик правил в том же запросе."""
-    model = ModelTextUnderstanding(complete, list(synonyms.cities), synonyms.experience_years)
+    model = ModelTextUnderstanding(
+        complete,
+        list(synonyms.cities),
+        synonyms.experience_years,
+        roles=list(synonyms.roles),
+        soft_skills=list(synonyms.soft_skills),
+    )
     return WithFallback(model, RulesTextUnderstanding(synonyms), timeout=timeout)
 
 

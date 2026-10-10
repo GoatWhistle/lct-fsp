@@ -98,6 +98,7 @@ from app.domain.protection import (
     AttemptSignals,
     ResponseTimes,
     SuspicionRule,
+    person_fit,
     suspicion,
     time_flag,
     verification_choice,
@@ -127,6 +128,9 @@ from app.usecase.skill_profile import (
 from settings import Mechanics
 
 log = logging.getLogger(__name__)
+
+# Экземпляров заданий в памяти сценария — хватает на показ, текущее задание и ответ.
+INSTANCE_CACHE = 8
 
 
 def blueprint_of(prior: Prior, mechanics: Mechanics) -> Blueprint:
@@ -226,6 +230,9 @@ class CandidatePath:
         self._freshness = ProfileFreshness(skill_model, mechanics)
         # Априорное специализации — от тем и конфига: на запрос считается один раз.
         self._priors: dict[str, Prior] = {}
+        # Экземпляр задания — чистая функция семейства и seed: показ, текущее задание и проверка
+        # ответа берут одно и то же, генерировать его трижды незачем.
+        self._instances: dict[tuple[str, int], bank.Instance] = {}
 
     def path(self, user_id: uuid.UUID) -> PathView:
         """Шаг пути и итоги теста. Пишет, только если срок проверочного блока прошёл: блок
@@ -498,9 +505,7 @@ class CandidatePath:
                 f"тема {presentation.topic_code} не в справочнике специализации "
                 f"{attempt.specialization_code}"
             )
-        instance = bank.get_family(presentation.family_code).instance(
-            presentation.seed, self._runner
-        )
+        instance = self._instance(presentation.family_code, presentation.seed)
         block = attempt.purpose == AttemptPurpose.topic_block
         verification = attempt.purpose == AttemptPurpose.verification
         vacancy = attempt.purpose == AttemptPurpose.vacancy_test
@@ -550,7 +555,9 @@ class CandidatePath:
                 self._finish_side(attempt, prior, now)
                 return Answered(self._view(self._attempts.state(user_id), now, user_id), None)
             family = bank.get_family(presentation.family_code)
-            correct = family.check(family.instance(presentation.seed, self._runner), response)
+            correct = family.check(
+                self._instance(presentation.family_code, presentation.seed), response
+            )
             presentation.response = response
             presentation.correct = correct
             presentation.answered_at = now
@@ -727,7 +734,7 @@ class CandidatePath:
         self, attempt: Attempt, option: Option, before: Normal, now: datetime
     ) -> Presentation:
         seed = self._seeds.seed()
-        instance = bank.get_family(option.code).instance(seed, self._runner)
+        instance = self._instance(option.code, seed)
         return self._attempts.add_presentation(
             attempt,
             family_code=option.code,
@@ -788,6 +795,7 @@ class CandidatePath:
         for i, level in zip(mine, rest, strict=True):
             answered[i].topic_theta_rest, answered[i].topic_theta_rest_sd = level.mean, level.sd
         flagged = self._flag_times(attempt)
+        attempt.person_fit = self._person_fit(answered, estimate)
         match decision:
             case Assign(grade):
                 attempt.outcome, attempt.outcome_grade_code = AttemptOutcome.assigned, grade
@@ -800,7 +808,9 @@ class CandidatePath:
                 attempt.retest_after = now + timedelta(days=self._mechanics.no_category_retest_days)
         # Присвоение и повышение — единственные исходы, которые меняют категорию: остальные
         # проверять нечего.
-        if attempt.outcome == AttemptOutcome.assigned and self._suspicious(chain):
+        if attempt.outcome == AttemptOutcome.assigned and self._suspicious(
+            chain, attempt.person_fit
+        ):
             attempt.outcome = AttemptOutcome.verification
             for link in chain:
                 link.withheld = True
@@ -856,17 +866,37 @@ class CandidatePath:
             )
         return answered
 
-    def _suspicious(self, chain: Sequence[Attempt]) -> bool:
+    def _person_fit(
+        self, answered: Sequence[Presentation], estimate: SkillEstimate
+    ) -> float | None:
+        """l_z определения (§8): ответы без выпавших, итоговые оценки тем, текущие параметры
+        семейств; у семейства, выведенного из выдачи, — параметры на момент показа."""
+        current = self._calibration.current([bank.get_family(p.family_code) for p in answered])
+        items = []
+        for p in answered:
+            params = current.get(p.family_code)
+            a, b = (
+                (params.discrimination, params.difficulty)
+                if params is not None
+                else (p.discrimination, p.difficulty)
+            )
+            assert p.correct is not None
+            items.append((a, b, estimate.topic(p.topic_code).mean, p.correct))
+        return person_fit(items)
+
+    def _suspicious(self, chain: Sequence[Attempt], fit: float | None) -> bool:
         """Подозрительный результат (§8): сигналы — по всему определению, оно одно измерение."""
         presentations = [p for a in chain for p in a.presentations]
         consented = any(a.focus_consent for a in chain)
         signals = AttemptSignals(
             time_flags=sum(1 for p in presentations if p.time_flag),
             focus_events=(sum(p.focus_events or 0 for p in presentations) if consented else None),
+            person_fit=fit,
         )
         rule = SuspicionRule(
             time_flags=self._mechanics.rt_flags_for_verification,
             focus_events=self._mechanics.focus_events_for_verification,
+            person_fit=self._mechanics.person_fit_lz,
         )
         return bool(suspicion(signals, rule))
 
@@ -1234,6 +1264,17 @@ class CandidatePath:
         if available_at is not None and available_at <= now:
             available_at = None
         return GradeUp(target, available_at)
+
+    def _instance(self, family_code: str, seed: int) -> bank.Instance:
+        key = (family_code, seed)
+        instance = self._instances.get(key)
+        if instance is None:
+            # Нужны только экземпляры текущего задания: старые выбрасываются.
+            if len(self._instances) >= INSTANCE_CACHE:
+                self._instances.clear()
+            instance = bank.get_family(family_code).instance(seed, self._runner)
+            self._instances[key] = instance
+        return instance
 
     def _attempt_in_progress(self, user_id: uuid.UUID) -> Attempt:
         attempt = self._attempts.attempt_in_progress(user_id)

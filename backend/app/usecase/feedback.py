@@ -120,6 +120,17 @@ class CandidateFeedback:
                 rules=self._rules,
             )
 
+    def levels(self, candidate_id: uuid.UUID) -> dict[str, tuple[float, float]]:
+        """Уровни профиля навыков по темам — для ключа кэша плана развития."""
+        with self._uow:
+            person = self._freshness.candidate(
+                self._candidates.get(candidate_id), self._clock.now()
+            )
+            profile = person.skill_profile
+            if profile is None:
+                return {}
+            return {t.topic.code: (t.level.theta, t.level.theta_sd) for t in profile.topics}
+
     def _task_topics(self, candidate_id: uuid.UUID, specialization: str) -> frozenset[str]:
         """Темы активных заданий специализации, на которые кандидат ещё не ответил."""
         answered = self._tasks.answered_task_ids(candidate_id)

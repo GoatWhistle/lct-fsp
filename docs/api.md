@@ -79,6 +79,7 @@ uv run python -c "import json, main; json.dump(main.create_app().openapi(), open
 | POST | `/api/candidate/path/item/answer` | ответ; время меряет сервер |
 | POST | `/api/candidate/path/step-down` | перейти на грейд ниже без теста |
 | POST | `/api/candidate/path/topic-block` | короткий блок по одной теме |
+| GET | `/api/candidate/feedback/plan` | план развития на модели по темам подсказок; `null` без модели |
 | GET | `/api/candidate/feedback` | обратная связь по подборкам: место, доля точного блока, что поднимет выше |
 
 ### Профиль кандидата

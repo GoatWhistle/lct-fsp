@@ -23,6 +23,7 @@ from app.usecase.calibration import AnswerCalibration
 from app.usecase.catalog import CatalogQueries
 from app.usecase.company import Companies
 from app.usecase.conversation import Conversations
+from app.usecase.development_plan import DevelopmentPlans
 from app.usecase.feedback import CandidateFeedback
 from app.usecase.fsp import FspAccounts
 from app.usecase.interface import (
@@ -239,7 +240,15 @@ AnswerCalibrationDep = Annotated[AnswerCalibration, Depends(get_answer_calibrati
 CandidatesDep = Annotated[CandidateRepository, Depends(get_candidates)]
 InvitationsDep = Annotated[Invitations, Depends(get_invitations)]
 ConversationsDep = Annotated[Conversations, Depends(get_conversations)]
+
+
+def get_development_plans(request: Request, uow: UnitOfWorkDep) -> DevelopmentPlans:
+    plans: DevelopmentPlans = request.app.state.development_plans(uow)
+    return plans
+
+
 FeedbackDep = Annotated[CandidateFeedback, Depends(get_feedback)]
+DevelopmentPlansDep = Annotated[DevelopmentPlans, Depends(get_development_plans)]
 InvitationReaderDep = Annotated[InvitationReader, Depends(get_invitation_reader)]
 ApplicationReaderDep = Annotated[ApplicationReader, Depends(get_application_reader)]
 VacanciesDep = Annotated[Vacancies, Depends(get_vacancies)]

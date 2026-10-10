@@ -3,8 +3,21 @@
 
 from fastapi import APIRouter
 
-from app.controller.deps import ROLE_RESPONSES, CurrentUser, FeedbackDep, role_guard
-from app.controller.feedback_schemas import ActionOut, FeedbackOut, HintOut, PlacementOut
+from app.controller.deps import (
+    ROLE_RESPONSES,
+    CurrentUser,
+    DevelopmentPlansDep,
+    FeedbackDep,
+    role_guard,
+)
+from app.controller.feedback_schemas import (
+    ActionOut,
+    DevelopmentPlanOut,
+    FeedbackOut,
+    HintOut,
+    PlacementOut,
+    PlanStepOut,
+)
 from app.controller.schemas import CatalogRef
 from app.domain.account import Role
 
@@ -51,3 +64,18 @@ def get_feedback(user: CurrentUser, feedback: FeedbackDep) -> FeedbackOut:
             for h in result.hints
         ],
     )
+
+
+@router.get(
+    "/plan",
+    summary="План развития",
+    description="3–5 пунктов с шагами по темам подсказок, текст пишет локальная модель; темы "
+    "только из подсказок, цифры системы — без работодателей и потребностей. `null` — модели нет, "
+    "она не ответила или ответ не прошёл сверку: кабинет показывает подсказки как есть. Кэш — до "
+    "изменения профиля навыков.",
+)
+def get_plan(user: CurrentUser, plans: DevelopmentPlansDep) -> DevelopmentPlanOut | None:
+    plan = plans.own(user.id)
+    if plan is None:
+        return None
+    return DevelopmentPlanOut(steps=[PlanStepOut(topic=s.topic, step=s.step) for s in plan.steps])

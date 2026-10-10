@@ -9,6 +9,7 @@ import {
   Button,
   Checkbox,
   ConfirmDialog,
+  Dialog,
   Disclosure,
   IconLabel,
   Menu,
@@ -27,13 +28,20 @@ export function GradeUp({ path }: GradeChangeProps) {
   const format = useFormatters()
   const errorText = useErrorText()
   const navigate = useNavigate()
+  const [open, setOpen] = useState(false)
   const [consent, setConsent] = useState(false)
   const start = useStartAttempt(consent)
   const up = path.grade_up
-  if (up === null) return <p className={styles.note}>{t("gradeUp.top")}</p>
+  if (up === null) return <p className={styles.top}>{t("gradeUp.topShort")}</p>
   const grade = names.grade(up.grade)
   const until = up.available_at ?? availableAt(start.error)
   const hinted = path.result?.grade_up_hint === up.grade && until === null
+  const from =
+    until === null ? null : (
+      <IconLabel icon="calendar" tone="secondary" className={styles.date}>
+        {t("gradeUp.from", { date: format.dateMoscow(until) })}
+      </IconLabel>
+    )
 
   const run = () =>
     start.mutate(up.grade, {
@@ -45,29 +53,47 @@ export function GradeUp({ path }: GradeChangeProps) {
 
   return (
     <div className={styles.up}>
-      {hinted ? <Banner tone="info" icon="match" title={t("gradeUp.hint", { grade })} /> : null}
-      <p className={styles.note}>{t("gradeUp.text", { grade })}</p>
-      <Checkbox checked={consent} onChange={setConsent} label={t("test:protection.consent")} />
-      <Disclosure summary={<span className={styles.more}>{t("gradeUp.consentMore")}</span>}>
-        <p className={styles.note}>{t("test:protection.consentHint")}</p>
-      </Disclosure>
-      <div className={styles.actions}>
-        <Button
-          icon={gradeIcon(up.grade)}
-          variant={hinted ? "primary" : "secondary"}
-          disabled={until !== null}
-          pending={start.isPending}
-          pendingLabel={t("gradeUp.pending")}
-          onClick={run}
-        >
-          {t("gradeUp.action", { grade })}
-        </Button>
-        {until === null ? null : (
-          <IconLabel icon="calendar" tone="secondary" className={styles.date}>
-            {t("gradeUp.from", { date: format.dateMoscow(until) })}
-          </IconLabel>
-        )}
-      </div>
+      {hinted ? (
+        <IconLabel icon="match" tone="accent" className={styles.hint}>
+          {t("gradeUp.hintShort")}
+        </IconLabel>
+      ) : null}
+      <Button
+        icon={gradeIcon(up.grade)}
+        variant={hinted ? "primary" : "secondary"}
+        size="compact"
+        disabled={until !== null}
+        onClick={() => setOpen(true)}
+      >
+        {t("gradeUp.action", { grade })}
+      </Button>
+      {from}
+      <Dialog
+        open={open}
+        onClose={() => setOpen(false)}
+        title={t("gradeUp.action", { grade })}
+        description={t("gradeUp.text", { grade })}
+        actions={
+          <Button
+            icon={gradeIcon(up.grade)}
+            disabled={until !== null}
+            pending={start.isPending}
+            pendingLabel={t("gradeUp.pending")}
+            onClick={run}
+          >
+            {t("gradeUp.start")}
+          </Button>
+        }
+      >
+        <div className={styles.dialog}>
+          {hinted ? <Banner tone="info" icon="match" title={t("gradeUp.hint", { grade })} /> : null}
+          <Checkbox checked={consent} onChange={setConsent} label={t("test:protection.consent")} />
+          <Disclosure summary={<span className={styles.more}>{t("gradeUp.consentMore")}</span>}>
+            <p className={styles.note}>{t("test:protection.consentHint")}</p>
+          </Disclosure>
+          {from}
+        </div>
+      </Dialog>
     </div>
   )
 }

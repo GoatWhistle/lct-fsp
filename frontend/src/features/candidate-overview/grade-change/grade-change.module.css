@@ -1,24 +1,25 @@
 .up {
-  composes: stack from "../../../shared/styles/layout.module.css";
-  padding-block-start: var(--space-16);
-  border-block-start: var(--hairline) solid var(--border-hairline);
+  display: grid;
+  justify-items: end;
+  gap: var(--space-8);
 }
 
-@media (min-width: 64rem) {
-  .up {
-    padding-block-start: 0;
-    padding-inline-start: var(--space-32);
-    border-block-start: 0;
-    border-inline-start: var(--hairline) solid var(--border-hairline);
-  }
+.hint {
+  composes: labelText from "../../../shared/styles/compose.module.css";
+}
+
+.top {
+  composes: secondaryText from "../../../shared/styles/compose.module.css";
+  max-inline-size: var(--tile-min);
+  text-align: end;
+}
+
+.dialog {
+  composes: stack from "../../../shared/styles/layout.module.css";
 }
 
 .note {
   composes: prose from "../../../shared/styles/layout.module.css";
-}
-
-.actions {
-  composes: actions from "../../../shared/styles/layout.module.css";
 }
 
 .date {
@@ -29,4 +30,15 @@
 .more {
   composes: labelText from "../../../shared/styles/compose.module.css";
   color: var(--text-secondary);
+}
+
+@media (max-width: 63.99rem) {
+  .up {
+    justify-items: start;
+  }
+
+  .top {
+    max-inline-size: none;
+    text-align: start;
+  }
 }

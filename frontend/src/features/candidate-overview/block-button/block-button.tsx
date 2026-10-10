@@ -1,19 +1,21 @@
 import { useNavigate } from "react-router"
 import { useStartTopicBlock } from "@/entities/candidate-path"
 import { useErrorText, useFormatters, useTranslation } from "@/shared/i18n"
-import { Button, type ButtonVariant, IconLabel, toast } from "@/shared/ui"
+import { Button, type ButtonVariant, IconLabel, Tooltip, toast } from "@/shared/ui"
 import { availableAt, TEST_ROUTE } from "../available-at"
 
 export interface BlockButtonProps {
   readonly topic: string
   readonly blockedUntil?: string | null | undefined
   readonly variant?: ButtonVariant
+  readonly compact?: boolean
 }
 
 export function BlockButton({
   topic,
   blockedUntil = null,
   variant = "secondary",
+  compact = false,
 }: BlockButtonProps) {
   const { t } = useTranslation("overview")
   const format = useFormatters()
@@ -21,6 +23,19 @@ export function BlockButton({
   const navigate = useNavigate()
   const start = useStartTopicBlock()
   const until = blockedUntil ?? availableAt(start.error)
+
+  if (until !== null && compact)
+    return (
+      <Button
+        variant="ghost"
+        size="icon"
+        icon="calendar"
+        disabled
+        disabledReason={t("block.availableFrom", { date: format.dateMoscow(until) })}
+      >
+        {t("block.availableFrom", { date: format.dateMoscow(until) })}
+      </Button>
+    )
 
   if (until !== null)
     return (
@@ -36,6 +51,15 @@ export function BlockButton({
         if (availableAt(error) === null) toast.error(errorText(error))
       },
     })
+
+  if (compact)
+    return (
+      <Tooltip content={t("block.hint")}>
+        <Button variant="ghost" size="icon" icon="test" pending={start.isPending} onClick={run}>
+          {t("block.hint")}
+        </Button>
+      </Tooltip>
+    )
 
   return (
     <Button

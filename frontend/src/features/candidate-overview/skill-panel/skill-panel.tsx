@@ -1,9 +1,8 @@
 import { useState } from "react"
 import { useLevelWords } from "@/entities/measure"
-import { PROFILE_FSP_LINK } from "@/entities/profile"
 import type { SkillProfile, TopicLevel } from "@/shared/api"
 import { useTranslation } from "@/shared/i18n"
-import { ButtonLink, Card, IconLabel, Segmented } from "@/shared/ui"
+import { Card, Segmented } from "@/shared/ui"
 import styles from "./skill-panel.module.css"
 import { TopicRow } from "./topic-row"
 
@@ -13,7 +12,6 @@ const WIDEST_COUNT = 2
 
 export interface SkillPanelProps {
   readonly profile: SkillProfile
-  readonly fspLinked: boolean | null
   readonly motionIndex?: number
   readonly className?: string | undefined
 }
@@ -37,7 +35,7 @@ function widestTopics(topics: readonly TopicLevel[]): ReadonlySet<string> {
   return new Set(sorted.slice(0, WIDEST_COUNT).map((topic) => topic.topic.code))
 }
 
-export function SkillPanel({ profile, fspLinked, motionIndex, className }: SkillPanelProps) {
+export function SkillPanel({ profile, motionIndex, className }: SkillPanelProps) {
   const { t } = useTranslation("overview")
   const [order, setOrder] = useState<SkillOrder>("catalog")
   const words = useLevelWords()
@@ -62,16 +60,6 @@ export function SkillPanel({ profile, fspLinked, motionIndex, className }: Skill
         />
       }
     >
-      {fspLinked === false ? (
-        <div className={styles.fsp}>
-          <IconLabel icon="fsp" tone="secondary">
-            {t("skills.noFsp")}
-          </IconLabel>
-          <ButtonLink to={PROFILE_FSP_LINK} variant="link" size="compact">
-            {t("skills.linkFsp")}
-          </ButtonLink>
-        </div>
-      ) : null}
       {common === "" ? null : (
         <p className={styles.common}>{t("skills.common", { value: common })}</p>
       )}

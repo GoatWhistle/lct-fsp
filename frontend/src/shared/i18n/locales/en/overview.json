@@ -7,13 +7,15 @@
     "since": "since {{date}}"
   },
   "gradeUp": {
-    "top": "This is the top grade. You can still refine topic levels with topic blocks.",
     "hint": "Worth trying {{grade}}: your level is already close",
     "text": "The {{grade}} test starts from scratch. Your category changes only if the grade is confirmed; otherwise it stays and the attempt is not lost.",
     "action": "Try {{grade}}",
     "pending": "Preparing the test",
     "from": "Available from {{date}}",
-    "consentMore": "What this means"
+    "consentMore": "What this means",
+    "topShort": "Top grade: nowhere higher",
+    "hintShort": "Your level is close",
+    "start": "Start the test"
   },
   "stepDown": {
     "menu": "Move to {{grade}}",
@@ -27,7 +29,8 @@
     "pending": "Preparing the block",
     "availableFrom": "Block available from {{date}}",
     "open": "Topic block “{{topic}}” is unfinished: {{answered}} of {{items}}",
-    "continue": "Continue"
+    "continue": "Continue",
+    "hint": "Take a topic block: refines the level, keeps the category"
   },
   "skills": {
     "title": "Skill profile",
@@ -35,11 +38,7 @@
     "order": "Topic order",
     "byCatalog": "Default order",
     "weakFirst": "Weakest first",
-    "noFsp": "FSP achievements are not linked",
-    "linkFsp": "Link in profile",
     "widest": "widest margin of error",
-    "refine": "Refine the level",
-    "blockText": "A topic block is a short test on this topic only. It narrows the margin of error and refines the level without changing your category or grade.",
     "common": "Most topics: {{value}}"
   },
   "history": {
@@ -62,7 +61,9 @@
       "topic_block": "Topic block",
       "verification": "Verification block",
       "vacancy_test": "Vacancy test"
-    }
+    },
+    "showMore": "Show {{count}} more",
+    "showLess": "Show less"
   },
   "feedback": {
     "title": "What moves you up",
@@ -108,5 +109,15 @@
       "title": "Tasks open after your category",
       "text": "Regular tasks are matched to your category and refine your skill profile. Complete the path to a category and tasks will appear here."
     }
+  },
+  "next": {
+    "title": "Next steps",
+    "empty": "Nothing urgent",
+    "invitations_one": "{{count}} invitation awaits a reply",
+    "invitations_other": "{{count}} invitations await a reply",
+    "messages_one": "New messages in {{count}} conversation",
+    "messages_other": "New messages in {{count}} conversations",
+    "fsp": "Link your FSP ID, it is the strongest signal",
+    "profile": "Profile {{value}} complete"
   }
 }

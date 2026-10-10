@@ -75,10 +75,16 @@ class EloCalibration:
         self.item_fit_ceiling_gain_max = item_fit_ceiling_gain_max
         self.item_fit_ceiling_min = item_fit_ceiling_min
         self.item_fit_ceiling_step = item_fit_ceiling_step
+        # Экспертные параметры по грейду: неизменяемы, считаются один раз.
+        self._experts: dict[str, Parameters] = {}
 
     def expert(self, grade: str) -> Parameters:
         """Стартовые параметры семейства по грейду эксперта: середина полосы и общая a₀ (§2)."""
-        return Parameters(self.expert_discrimination, self.expert_difficulty_by_grade[grade])
+        found = self._experts.get(grade)
+        if found is None:
+            found = Parameters(self.expert_discrimination, self.expert_difficulty_by_grade[grade])
+            self._experts[grade] = found
+        return found
 
     def current(self, families: Sequence[bank.Family]) -> dict[str, Parameters]:
         """Текущие параметры семейств в выдаче; до первого ответа — экспертные."""
@@ -88,8 +94,10 @@ class EloCalibration:
             row = rows.get(family.code)
             if row is None:
                 result[family.code] = self.expert(family.grade)
-            elif row.issued:
-                result[family.code] = row.parameters
+            # То же, что `row.issued` и `row.parameters`, без двух свойств на семейство: путь
+            # кандидата спрашивает текущие параметры на каждом задании.
+            elif row.in_rotation and row.compromised_at is None:
+                result[family.code] = Parameters(row.discrimination, row.difficulty)
         return result
 
     def compromised(self, codes: Iterable[str]) -> set[str]:

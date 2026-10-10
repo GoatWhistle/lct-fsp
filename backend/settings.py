@@ -122,6 +122,8 @@ class Mechanics(BaseModel):
     topic_block_items: int
     topic_block_interval_days: int
     express_max_items: int = Field(gt=0)
+    vacancy_test_items: int = Field(gt=0)
+    vacancy_test_min_items_per_topic: int = Field(ge=0)
 
     # Калибровка
     elo_k_initial: float

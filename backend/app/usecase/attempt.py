@@ -47,6 +47,7 @@ from app.domain.attempt import (
     Stage,
     TestResult,
     TopicBlockProgress,
+    VacancyTestProgress,
     VerificationProgress,
     VerificationResult,
     VerificationView,
@@ -104,6 +105,7 @@ from app.domain.protection import (
     verification_verdict,
 )
 from app.domain.skill import Normal, Observation, Prior, SkillEstimate, sigmoid
+from app.domain.vacancy_test import VacancyTestPlan, next_topic
 from app.usecase.interface import (
     AttemptRepository,
     Calibration,
@@ -114,6 +116,7 @@ from app.usecase.interface import (
     SeedSource,
     SkillModel,
     UnitOfWork,
+    VacancyTestReader,
 )
 from app.usecase.skill_profile import (
     ProfileFreshness,
@@ -205,6 +208,7 @@ class CandidatePath:
         seeds: SeedSource,
         runner: CodeRunner,
         mechanics: Mechanics,
+        vacancy_tests: VacancyTestReader | None = None,
     ) -> None:
         self._uow = uow
         self._attempts = attempts
@@ -217,6 +221,8 @@ class CandidatePath:
         self._seeds = seeds
         self._runner = runner
         self._mechanics = mechanics
+        # Планы тестов по вакансии; стенд валидации их не заводит.
+        self._vacancy_tests = vacancy_tests
         self._freshness = ProfileFreshness(skill_model, mechanics)
         # Априорное специализации — от тем и конфига: на запрос считается один раз.
         self._priors: dict[str, Prior] = {}
@@ -497,6 +503,7 @@ class CandidatePath:
         )
         block = attempt.purpose == AttemptPurpose.topic_block
         verification = attempt.purpose == AttemptPurpose.verification
+        vacancy = attempt.purpose == AttemptPurpose.vacancy_test
         return Item(
             presentation.id,
             presentation.position + 1,
@@ -506,6 +513,7 @@ class CandidatePath:
             max_items=self._max_items(attempt),
             topic_block=block,
             verification=verification,
+            vacancy_test=vacancy,
             deadline=attempt.deadline,
             focus_consent=attempt.focus_consent,
         )
@@ -597,6 +605,8 @@ class CandidatePath:
         prior = self._prior(attempt.specialization_code)
         if attempt.purpose == AttemptPurpose.verification:
             return self._present_verification(attempt, prior, now)
+        if attempt.purpose == AttemptPurpose.vacancy_test:
+            return self._present_vacancy(attempt, prior, now)
         if attempt.purpose == AttemptPurpose.topic_block:
             observations = self._test_observations(attempt)
             selection = self._skill_model.estimate(prior, observations)
@@ -626,6 +636,48 @@ class CandidatePath:
             )
         before = self._skill_model.estimate(prior, observations).topic(option.topic)
         return self._show(attempt, option, before, now)
+
+    def _present_vacancy(self, attempt: Attempt, prior: Prior, now: datetime) -> Presentation:
+        """Задание теста по вакансии: тема — с наибольшим недобором квоты плана, задание в ней —
+        тем же шагом, что в блоке по теме, по оценке из всех ответов кандидата по специализации
+        и ответов этого теста. Тема, у которой в выдаче не осталось семейств, пропускается."""
+        plan = self._vacancy_plan(attempt)
+        observations = self._vacancy_observations(attempt)
+        selection = self._skill_model.estimate(prior, observations)
+        options, window = self._options(attempt, prior)
+        counts = attempt.counts()
+        while (topic := next_topic(plan, counts)) is not None:
+            fresh = [o for o in options if o.topic == topic]
+            if fresh:
+                blueprint = Blueprint(
+                    topics=(topic,),
+                    weights=(1.0,),
+                    min_items=plan.items,
+                    max_items=plan.items,
+                    min_per_topic=0,
+                    max_topic_share=1.0,
+                    stop_sd=0.0,
+                )
+                rng = random.Random(self._seeds.seed())
+                choice = self._selector.choose(blueprint, counts, selection, fresh, window, rng)
+                if choice is not None:
+                    option = next(o for o in fresh if o.code == choice.code)
+                    return self._show(attempt, option, selection.topic(option.topic), now)
+            # Квоту темы выбрать нечем — её задания не показываются.
+            counts = {**counts, topic: plan.quotas()[topic]}
+        raise NoTestInProgress()
+
+    def _vacancy_plan(self, attempt: Attempt) -> VacancyTestPlan:
+        assert attempt.vacancy_test_id is not None and self._vacancy_tests is not None
+        return self._vacancy_tests.get(attempt.vacancy_test_id).plan
+
+    def _vacancy_observations(self, attempt: Attempt) -> list[Observation]:
+        """Оценка для теста по вакансии: ответы кандидата по специализации и ответы этого теста.
+        Ответы теста по вакансии в профиль не входят, поэтому порт их не отдаёт."""
+        return [
+            *self._test_observations(attempt),
+            *(p.answered().observation() for p in attempt.presentations if p.answered_at),
+        ]
 
     def _present_verification(self, attempt: Attempt, prior: Prior, now: datetime) -> Presentation:
         """Задание проверочного блока: темы основной попытки, невиданные семейства первыми,
@@ -822,6 +874,8 @@ class CandidatePath:
         """Остановка попытки вне пути: блока по теме или проверочного блока."""
         if attempt.purpose == AttemptPurpose.verification:
             self._finish_verification(attempt, prior, now)
+        elif attempt.purpose == AttemptPurpose.vacancy_test:
+            self._finish_vacancy(attempt, prior, now)
         else:
             self._finish_block(attempt, prior, now)
 
@@ -902,6 +956,8 @@ class CandidatePath:
                 return self._mechanics.topic_block_items
             case AttemptPurpose.verification:
                 return self._mechanics.verification_items
+            case AttemptPurpose.vacancy_test:
+                return self._vacancy_plan(attempt).items
             case _:
                 return (
                     attempt.express_limit
@@ -1013,6 +1069,21 @@ class CandidatePath:
         self._attempts.save_rest_levels(answered)
         self._refresh_profile(attempt, prior, now)
 
+    def _finish_vacancy(self, attempt: Attempt, prior: Prior, now: datetime) -> None:
+        """Остановка теста по вакансии: оценка на момент остановки и итоговые оценки темы без
+        каждого ответа — для переоценки семейств (§7). Профиль, категория и грейд не меняются:
+        итог — сигнал одной компании (`app.usecase.vacancy_test`)."""
+        observations = self._vacancy_observations(attempt)
+        attempt.finished_at = now
+        attempt.overall = self._skill_model.estimate(prior, observations).overall()
+        answered = [p for p in attempt.presentations if p.answered_at is not None]
+        mine = range(len(observations) - len(answered), len(observations))
+        rest = rest_levels(self._skill_model, prior, observations, mine)
+        for p, level in zip(answered, rest, strict=True):
+            p.topic_theta_rest, p.topic_theta_rest_sd = level.mean, level.sd
+        self._attempts.finish_attempt(attempt)
+        self._attempts.save_rest_levels(answered)
+
     def _refresh_profile(self, attempt: Attempt, prior: Prior, now: datetime) -> None:
         """Профиль навыков по всем ответам и достижениям ФСП (§11) — после теста и блока."""
         levels = refresh_skill_profile(
@@ -1110,6 +1181,17 @@ class CandidatePath:
                 else None
             ),
             express=express,
+            vacancy_test=self._vacancy_progress(user_id),
+        )
+
+    def _vacancy_progress(self, user_id: uuid.UUID) -> VacancyTestProgress | None:
+        attempt = self._attempts.attempt_in_progress(user_id)
+        if attempt is None or attempt.purpose != AttemptPurpose.vacancy_test:
+            return None
+        assert attempt.vacancy_test_id is not None and self._vacancy_tests is not None
+        test = self._vacancy_tests.get(attempt.vacancy_test_id)
+        return VacancyTestProgress(
+            test.invitation_id, test.need_title, attempt.answered_count, test.plan.items
         )
 
     def _block_progress(self, user_id: uuid.UUID) -> TopicBlockProgress | None:
@@ -1160,15 +1242,23 @@ class CandidatePath:
         return attempt
 
     def _remaining(self, attempt: Attempt, prior: Prior) -> bool:
-        """Есть ли в выдаче семейства тем попытки, ещё не показанные в ней."""
+        """Есть ли в выдаче семейства тем попытки, ещё не показанные в ней. У теста по вакансии —
+        только тем, чья квота ещё не выбрана."""
         shown = attempt.shown()
         fresh = [f for f in self._families(attempt, prior) if f.code not in shown]
+        if attempt.purpose == AttemptPurpose.vacancy_test:
+            quotas, counts = self._vacancy_plan(attempt).quotas(), attempt.counts()
+            fresh = [f for f in fresh if counts.get(f.topic, 0) < quotas[f.topic]]
         return bool(self._calibration.current(fresh))
 
     def _families(self, attempt: Attempt, prior: Prior) -> list[bank.Family]:
         """Семейства, из которых попытка берёт задания: у блока — только своей темы."""
         if attempt.topic_code is not None:
             return bank.families_for_topics([attempt.topic_code])
+        if attempt.purpose == AttemptPurpose.vacancy_test:
+            return bank.families_for_topics(
+                t.topic.code for t in self._vacancy_plan(attempt).topics
+            )
         return _bank(prior)
 
     def _chain_observations(self, chain: Sequence[Attempt]) -> list[Observation]:

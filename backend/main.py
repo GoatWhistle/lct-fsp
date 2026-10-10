@@ -55,6 +55,8 @@ from app.controller.regular_task import candidate_router as candidate_tasks_rout
 from app.controller.regular_task import employer_router as employer_tasks_router
 from app.controller.vacancy import candidate_router as candidate_vacancies_router
 from app.controller.vacancy import employer_router as employer_vacancies_router
+from app.controller.vacancy_test import candidate_router as vacancy_test_inbox_router
+from app.controller.vacancy_test import employer_router as vacancy_test_router
 from app.repository.account import SqlAccounts, SqlEmailVerifications
 from app.repository.attempt import SqlAttemptRepository
 from app.repository.calibration import SqlCalibrationRepository
@@ -70,6 +72,7 @@ from app.repository.regular_task import SqlRegularTasks
 from app.repository.selection import SqlCandidatePool, SqlSelections
 from app.repository.unit_of_work import SqlUnitOfWork
 from app.repository.vacancy import SqlApplications, SqlVacancies
+from app.repository.vacancy_test import SqlVacancyTests
 from app.usecase.account import VerificationLinks
 from app.usecase.interface import (
     AcceptanceModel,
@@ -216,6 +219,7 @@ def create_app(
             catalog=lambda uow: SqlCatalog(uow.session),
             pool=lambda uow: SqlCandidatePool(uow.session),
             selections=lambda uow: SqlSelections(uow.session),
+            vacancy_tests=lambda uow: SqlVacancyTests(uow.session),
         ),
         mechanics=mechanics,
         selector=selector,
@@ -250,6 +254,7 @@ def create_app(
             calibration=lambda uow: SqlCalibrationRepository(uow.session),
             vacancies=lambda uow: SqlVacancies(uow.session),
             applications=application_repository,
+            vacancy_tests=lambda uow: SqlVacancyTests(uow.session),
         ),
         mechanics=mechanics,
         passwords=passwords or Argon2Passwords(),
@@ -277,6 +282,8 @@ def create_app(
         ),
         text_understanding=understanding,
         grade_hints=grade_hint_rule(load_synonyms(settings.synonyms_file)),
+        seeds=seeds,
+        code_runner=InProcessCodeRunner(),
     )
     app.state.accounts = platform.accounts
     app.state.jury = jury_mode(
@@ -298,6 +305,7 @@ def create_app(
     app.state.feedback = platform.feedback
     app.state.resume_drafts = platform.resume_drafts
     app.state.vacancies = platform.vacancies
+    app.state.vacancy_tests = platform.vacancy_tests
     app.state.applications = platform.applications
 
     install_error_handlers(app)
@@ -318,6 +326,8 @@ def create_app(
     app.include_router(candidate_tasks_router)
     app.include_router(invitations_router)
     app.include_router(inbox_router)
+    app.include_router(vacancy_test_router)
+    app.include_router(vacancy_test_inbox_router)
     app.include_router(employer_vacancies_router)
     app.include_router(candidate_vacancies_router)
     app.include_router(feedback_router)

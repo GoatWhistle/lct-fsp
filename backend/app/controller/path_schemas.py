@@ -160,6 +160,13 @@ class ExpressOut(BaseModel):
     )
 
 
+class VacancyTestProgressOut(BaseModel):
+    invitation_id: uuid.UUID = Field(description="Приглашение, к которому приложен тест")
+    need_title: str
+    answered: int
+    items: int = Field(description="Заданий в тесте по вакансии — ровно столько")
+
+
 class TopicBlockOut(BaseModel):
     topic: CatalogRef
     answered: int
@@ -269,6 +276,9 @@ class PathOut(BaseModel):
         description="Экспресс-тест режима жюри: идёт, ждёт продолжения или дал итог пути — "
         "итог помечается «экспресс-оценка»"
     )
+    vacancy_test: VacancyTestProgressOut | None = Field(
+        description="Незавершённый тест по вакансии из приглашения: задания — те же `item`"
+    )
 
 
 class OptionOut(BaseModel):
@@ -285,6 +295,7 @@ class ItemOut(BaseModel):
     )
     topic_block: bool = Field(description="Задание блока по теме, а не теста")
     verification: bool = Field(description="Задание проверочного блока")
+    vacancy_test: bool = Field(description="Задание теста по вакансии из приглашения")
     deadline: datetime | None = Field(description="Срок проверочного блока по часам сервера")
     focus_consent: bool = Field(
         description="Кандидат согласился на счётчики событий в этой попытке: без согласия их не "

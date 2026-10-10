@@ -22,6 +22,7 @@ import enTasks from "./locales/en/tasks.json"
 import enTest from "./locales/en/test.json"
 import enVacancies from "./locales/en/vacancies.json"
 import enVacancyEditor from "./locales/en/vacancyEditor.json"
+import enVacancyTest from "./locales/en/vacancyTest.json"
 import ruApplications from "./locales/ru/applications.json"
 import ruAuth from "./locales/ru/auth.json"
 import ruCard from "./locales/ru/card.json"
@@ -45,6 +46,7 @@ import ruTasks from "./locales/ru/tasks.json"
 import ruTest from "./locales/ru/test.json"
 import ruVacancies from "./locales/ru/vacancies.json"
 import ruVacancyEditor from "./locales/ru/vacancyEditor.json"
+import ruVacancyTest from "./locales/ru/vacancyTest.json"
 
 export const NAMESPACES = [
   "common",
@@ -70,6 +72,7 @@ export const NAMESPACES = [
   "test",
   "vacancies",
   "vacancyEditor",
+  "vacancyTest",
 ] as const
 
 export type Namespace = (typeof NAMESPACES)[number]
@@ -100,6 +103,7 @@ const en = {
   test: enTest,
   vacancies: enVacancies,
   vacancyEditor: enVacancyEditor,
+  vacancyTest: enVacancyTest,
 }
 
 const ru = {
@@ -126,6 +130,7 @@ const ru = {
   test: ruTest,
   vacancies: ruVacancies,
   vacancyEditor: ruVacancyEditor,
+  vacancyTest: ruVacancyTest,
 }
 
 export type Dictionary = typeof en

@@ -14,6 +14,7 @@
 import importlib
 from collections.abc import Callable
 from dataclasses import dataclass
+from functools import partial
 
 from app.adapter.adaptive import MaxInformationSelector
 from app.adapter.calibration import EloCalibration
@@ -66,6 +67,8 @@ from app.usecase.interface import (
     TextUnderstanding,
     UnitOfWork,
     VacancyRepository,
+    VacancyTestReader,
+    VacancyTestRepository,
 )
 from app.usecase.invitation import Invitations
 from app.usecase.jury import JuryMode
@@ -76,6 +79,7 @@ from app.usecase.resume_draft import ResumeDrafts
 from app.usecase.selection import Selections
 from app.usecase.skill_profile import ProfileFreshness
 from app.usecase.vacancy import Applications, Vacancies
+from app.usecase.vacancy_test import VacancyTests, plan_of_need
 from settings import Mechanics
 
 # Пакет моделей разбора текста, которые собираются только по имени: модуль `<пакет>.<имя>` с
@@ -174,6 +178,8 @@ class Repositories[U: UnitOfWork]:
     catalog: Callable[[U], CatalogRepository]
     pool: Callable[[U], CandidatePool]
     selections: Callable[[U], SelectionRepository]
+    # Планы тестов по вакансии — у прода; стенд валидации их не заводит.
+    vacancy_tests: Callable[[U], VacancyTestReader] | None = None
 
 
 @dataclass(frozen=True)
@@ -217,6 +223,7 @@ def build_usecases[U: UnitOfWork](
             seeds,
             code_runner,
             mechanics,
+            repositories.vacancy_tests(uow) if repositories.vacancy_tests else None,
         )
 
     def answer_calibration(uow: U) -> AnswerCalibration:
@@ -275,6 +282,7 @@ class PlatformRepositories[U: UnitOfWork]:
     calibration: Callable[[U], CalibrationRepository]
     vacancies: Callable[[U], VacancyRepository]
     applications: Callable[[U], ApplicationRepository]
+    vacancy_tests: Callable[[U], VacancyTestRepository]
 
 
 @dataclass(frozen=True)
@@ -293,6 +301,7 @@ class PlatformUsecases[U: UnitOfWork]:
     resume_drafts: Callable[[U], ResumeDrafts]
     vacancies: Callable[[U], Vacancies]
     applications: Callable[[U], Applications]
+    vacancy_tests: Callable[[U], VacancyTests]
 
 
 def build_platform_usecases[U: UnitOfWork](
@@ -311,6 +320,8 @@ def build_platform_usecases[U: UnitOfWork](
     resume_text: ResumeText,
     text_understanding: TextUnderstanding,
     grade_hints: GradeHintRule,
+    seeds: SeedSource,
+    code_runner: CodeRunner,
 ) -> PlatformUsecases[U]:
     def accounts(uow: U) -> Accounts:
         return Accounts(
@@ -378,6 +389,24 @@ def build_platform_usecases[U: UnitOfWork](
             clock,
             weekly_budget=mechanics.invitation_weekly_budget,
             ttl_days=mechanics.invitation_ttl_days,
+            needs=repositories.needs(uow),
+            vacancy_tests=repositories.vacancy_tests(uow),
+            test_plan=partial(plan_of_need, mechanics=mechanics),
+        )
+
+    def vacancy_tests(uow: U) -> VacancyTests:
+        return VacancyTests(
+            uow,
+            repositories.needs(uow),
+            repositories.vacancy_tests(uow),
+            repositories.invitations(uow),
+            repositories.attempts(uow),
+            elo_calibration(repositories.calibration(uow), mechanics),
+            skill_model,
+            clock,
+            seeds,
+            code_runner,
+            mechanics,
         )
 
     def conversations(uow: U) -> Conversations:
@@ -450,6 +479,7 @@ def build_platform_usecases[U: UnitOfWork](
         resume_drafts,
         vacancies,
         applications,
+        vacancy_tests,
     )
 
 

@@ -3,6 +3,7 @@ import { gradeIcon, specializationIcon } from "@/entities/catalog"
 import { anonymousId, useBuildSelection, useSelection } from "@/entities/selection"
 import { InviteAction } from "@/features/invite"
 import { SelectionBoard } from "@/features/selection-board"
+import { VacancyTestAction } from "@/features/vacancy-test-preview"
 import type { NeedDraft, Selection } from "@/shared/api"
 import {
   useCatalogNames,
@@ -52,6 +53,7 @@ function HeaderActions({ selection }: { readonly selection: Selection }) {
       <ButtonLink to={`/employer/needs/${needId}`} variant="secondary" icon="need">
         {t("need")}
       </ButtonLink>
+      <VacancyTestAction needId={needId} />
       <Button
         icon="refresh"
         pending={build.isPending}
@@ -113,6 +115,7 @@ export function EmployerSelectionPage() {
             <InviteAction
               candidateId={entry.candidate_id}
               selectionId={current.id}
+              needId={current.need_id}
               label={anonymousId(entry.candidate_id)}
               defaults={{
                 description: current.need.title,

@@ -42,6 +42,7 @@ from app.usecase.resume_draft import ResumeDrafts
 from app.usecase.selection import Selections
 from app.usecase.skill_profile import ProfileFreshness
 from app.usecase.vacancy import Applications, Vacancies
+from app.usecase.vacancy_test import VacancyTests
 from settings import Mechanics
 
 ACCESS_COOKIE = "access_token"
@@ -218,6 +219,11 @@ def get_applications(request: Request, uow: UnitOfWorkDep) -> Applications:
     return applications
 
 
+def get_vacancy_tests(request: Request, uow: UnitOfWorkDep) -> VacancyTests:
+    tests: VacancyTests = request.app.state.vacancy_tests(uow)
+    return tests
+
+
 AccountsDep = Annotated[Accounts, Depends(get_accounts)]
 JuryDep = Annotated[JuryMode, Depends(get_jury)]
 FspAccountsDep = Annotated[FspAccounts, Depends(get_fsp_accounts)]
@@ -238,6 +244,7 @@ InvitationReaderDep = Annotated[InvitationReader, Depends(get_invitation_reader)
 ApplicationReaderDep = Annotated[ApplicationReader, Depends(get_application_reader)]
 VacanciesDep = Annotated[Vacancies, Depends(get_vacancies)]
 ApplicationsDep = Annotated[Applications, Depends(get_applications)]
+VacancyTestsDep = Annotated[VacancyTests, Depends(get_vacancy_tests)]
 
 _cookie_scheme = APIKeyCookie(
     name=ACCESS_COOKIE,

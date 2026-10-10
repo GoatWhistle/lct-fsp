@@ -69,7 +69,11 @@
     "unknown_specialization": "There is no such specialization in the catalog.",
     "unknown_technology": "There is no such technology in the catalog.",
     "vacancy_archived": "The vacancy has been unpublished.",
-    "vacancy_not_found": "Vacancy not found."
+    "vacancy_not_found": "Vacancy not found.",
+    "vacancy_test_not_found": "No vacancy test is attached to the invitation.",
+    "vacancy_test_specialization_mismatch": "A vacancy test can be attached only when the candidate's specialization matches.",
+    "vacancy_test_closed": "The invitation was declined or expired, the test is no longer available.",
+    "vacancy_test_taken": "The test for this vacancy is already completed."
   },
   "fsp": {
     "fsp_id_unavailable": "FSP ID is unavailable right now. Try later or sign in with email.",

@@ -101,6 +101,7 @@ uv run python -c "import json, main; json.dump(main.create_app().openapi(), open
 | POST | `/api/employer/needs/topic-importance` | важность тем по стеку до сохранения |
 | POST | `/api/employer/needs/parse` | разобрать потребность из текста в черновик с уверенностью полей |
 | POST | `/api/employer/needs/{need_id}/selections` | сформировать подборку по потребности |
+| GET | `/api/employer/needs/{need_id}/test` | тест по вакансии: темы, задания по темам, пример экземпляра на тему |
 | POST | `/api/employer/selections` | сформировать подборку по черновику без сохранения потребности |
 | GET | `/api/employer/selections`, `/api/employer/selections/{selection_id}` | подборки; подборка с блоками, скором, P(принятия) и вкладами объяснения |
 | PUT | `/api/employer/selections/{selection_id}/filters` | уточнить фильтрами, не теряя исходную выдачу |
@@ -112,11 +113,12 @@ uv run python -c "import json, main; json.dump(main.create_app().openapi(), open
 
 | Метод | Путь | Что делает |
 |---|---|---|
-| GET, POST | `/api/employer/invitations` | отправленные приглашения и остаток бюджета; пригласить с вилкой |
+| GET, POST | `/api/employer/invitations` | отправленные приглашения и остаток бюджета; пригласить с вилкой и, по желанию, тестом по вакансии (`test_need_id`) |
 | GET | `/api/employer/invitations/{invitation_id}` | приглашение и его статус |
 | GET | `/api/candidate/invitations` | входящие приглашения |
 | POST | `/api/candidate/invitations/{invitation_id}/view\|accept\|decline` | открыть, принять, отклонить |
 | POST | `/api/candidate/invitations/{invitation_id}/revoke` | отозвать доступ компании к своим данным |
+| POST | `/api/candidate/invitations/{invitation_id}/test` | начать тест по вакансии из приглашения; задания — через `/api/candidate/path/item` |
 | GET, POST | `/api/{employer,candidate}/invitations/{invitation_id}/messages` | переписка внутри принятого приглашения |
 | GET | `/api/employer/cabinet` | сводка кабинета: непрочитанные сообщения |
 

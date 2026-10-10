@@ -18,11 +18,20 @@ export interface FieldProps {
   readonly hint?: string | undefined
   readonly error?: string | undefined
   readonly hideLabel?: boolean | undefined
+  readonly required?: boolean | undefined
   readonly className?: string | undefined
   readonly children: (control: FieldControlProps, meta: FieldMeta) => ReactNode
 }
 
-export function Field({ label, hint, error, hideLabel = false, className, children }: FieldProps) {
+export function Field({
+  label,
+  hint,
+  error,
+  hideLabel = false,
+  required = false,
+  className,
+  children,
+}: FieldProps) {
   const id = useId()
   const labelId = `${id}-label`
   const hintId = `${id}-hint`
@@ -34,7 +43,12 @@ export function Field({ label, hint, error, hideLabel = false, className, childr
 
   return (
     <div className={clsx(styles.field, className)} data-invalid={error !== undefined}>
-      <label id={labelId} htmlFor={id} className={hideLabel ? "visually-hidden" : styles.label}>
+      <label
+        id={labelId}
+        htmlFor={id}
+        className={hideLabel ? "visually-hidden" : styles.label}
+        data-required={required}
+      >
         {label}
       </label>
       {children(

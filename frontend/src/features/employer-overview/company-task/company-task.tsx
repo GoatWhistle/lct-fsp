@@ -1,3 +1,4 @@
+import { COMPANY_DIALOG_LINK } from "@/entities/company"
 import { useTranslation } from "@/shared/i18n"
 import { ButtonLink, Card, IconLabel } from "@/shared/ui"
 import styles from "./company-task.module.css"
@@ -20,7 +21,7 @@ export function CompanyTask() {
           </li>
         </ul>
         <div>
-          <ButtonLink to="/employer/company" icon="company">
+          <ButtonLink to={COMPANY_DIALOG_LINK} icon="company">
             {t("overview.company.action")}
           </ButtonLink>
         </div>

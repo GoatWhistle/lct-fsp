@@ -39,7 +39,7 @@ from app.adapter.seed import DerivedSeeds
 from app.domain.account import Account, Role
 from app.domain.attempt import PathView, Stage
 from app.domain.candidate import ProfileForm
-from app.domain.company import CompanyForm
+from app.domain.company import CompanyForm, CompanySize
 from app.domain.errors import EmailNotVerified, EmailTaken
 from app.domain.fsp import FspIdentity, FspIntent
 from app.usecase import candidate as candidate_usecase
@@ -99,6 +99,7 @@ class DemoEmployer:
     position: SalaryPosition
     # Потребности: специализация и грейд.
     needs: tuple[tuple[str, str], ...]
+    fsp_partner: bool = False
 
 
 EMPLOYERS = (
@@ -112,6 +113,15 @@ EMPLOYERS = (
             website=f"https://tech.{DOMAIN}",
             contact_email=f"hr@{DOMAIN}",
             contact_phone=None,
+            size=CompanySize.up_to_200,
+            it_accredited=True,
+            benefits=("health", "education", "conferences", "equipment"),
+            links=(
+                "https://t.me/demo_tech",
+                "https://habr.com/ru/companies/demo-tech",
+                "https://github.com/demo-tech",
+                "https://vk.com/demo_tech",
+            ),
         ),
         SalaryPosition.market,
         (
@@ -121,6 +131,7 @@ EMPLOYERS = (
             ("qa", "junior"),
             ("devops", "senior"),
         ),
+        fsp_partner=True,
     ),
     DemoEmployer(
         f"employer-2@{DOMAIN}",
@@ -131,6 +142,9 @@ EMPLOYERS = (
             website=f"https://retail.{DOMAIN}",
             contact_email=f"jobs@{DOMAIN}",
             contact_phone=None,
+            size=CompanySize.over_1000,
+            benefits=("health", "sport", "meals", "relocation"),
+            links=("https://t.me/demo_retail", "https://vk.com/demo_retail"),
         ),
         SalaryPosition.below,
         (
@@ -348,7 +362,9 @@ class Seeder:
         """Работодатель, компания и недостающие потребности; возвращает число потребностей."""
         account = self.account(demo.email, Role.employer)
         with closing(self.state.unit_of_work()) as uow:
-            self.state.companies(uow).save(account.id, demo.company)
+            companies = self.state.companies(uow)
+            companies.save(account.id, demo.company)
+            companies.mark_fsp_partner(account.id, demo.fsp_partner)
             needs = self.state.needs(uow)
             titles = {view.record.need.title for view in needs.all(account.id)}
             for code, grade in demo.needs:

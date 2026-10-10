@@ -124,6 +124,359 @@ technologies:
   - {code: ansible, name: Ansible, topics: [devops.iac]}
   - {code: prometheus, name: Prometheus, topics: [devops.observability]}
   - {code: grafana, name: Grafana, topics: [devops.observability]}
+  - {code: c, name: C (язык), topics: [backend.programming, backend.algorithms]}
+  - {code: cpp, name: C++, topics: [backend.programming, backend.algorithms]}
+  - {code: rust, name: Rust, topics: [backend.programming, backend.concurrency]}
+  - {code: php, name: PHP, topics: [backend.programming]}
+  - {code: ruby, name: Ruby, topics: [backend.programming]}
+  - {code: scala, name: Scala, topics: [backend.programming, data-ml.sql]}
+  - {code: elixir, name: Elixir, topics: [backend.programming, backend.concurrency]}
+  - {code: erlang, name: Erlang, topics: [backend.programming, backend.concurrency]}
+  - {code: haskell, name: Haskell, topics: [backend.programming]}
+  - {code: clojure, name: Clojure, topics: [backend.programming]}
+  - {code: fsharp, name: "F#", topics: [backend.programming]}
+  - {code: ocaml, name: OCaml, topics: [backend.programming]}
+  - {code: swift, name: Swift, topics: []}
+  - {code: objective-c, name: Objective-C, topics: []}
+  - {code: dart, name: Dart, topics: []}
+  - {code: lua, name: Lua, topics: [backend.programming]}
+  - {code: perl, name: Perl, topics: [devops.scripting]}
+  - {code: r-lang, name: R (язык), topics: [data-ml.math, data-ml.ml]}
+  - {code: julia, name: Julia (язык), topics: [data-ml.math]}
+  - {code: matlab, name: MATLAB, topics: [data-ml.math]}
+  - {code: groovy, name: Groovy, topics: [backend.programming, devops.ci-cd]}
+  - {code: zig, name: Zig, topics: [backend.programming]}
+  - {code: fortran, name: Fortran, topics: [data-ml.math]}
+  - {code: delphi, name: Delphi, topics: [backend.programming]}
+  - {code: vb-net, name: Visual Basic .NET, topics: [backend.programming]}
+  - {code: assembler, name: Ассемблер, topics: [backend.programming]}
+  - {code: solidity, name: Solidity, topics: [backend.programming]}
+  - {code: powershell, name: PowerShell, topics: [devops.scripting]}
+  - {code: sql, name: SQL, topics: [backend.databases, data-ml.sql, qa.databases]}
+  - {code: plsql, name: PL/SQL, topics: [backend.databases]}
+  - {code: tsql, name: T-SQL, topics: [backend.databases]}
+  - {code: abap, name: ABAP, topics: [backend.programming]}
+  - {code: one-c, name: "1С:Предприятие", topics: [backend.programming]}
+  - {code: bitrix, name: 1С-Битрикс, topics: [backend.programming]}
+  - {code: common-lisp, name: Common Lisp, topics: [backend.programming]}
+  - {code: verilog, name: Verilog, topics: []}
+  - {code: vhdl, name: VHDL, topics: []}
+  - {code: webassembly, name: WebAssembly, topics: [frontend.browser]}
+  - {code: flask, name: Flask, topics: [backend.api]}
+  - {code: aiohttp, name: aiohttp, topics: [backend.api, backend.concurrency]}
+  - {code: celery, name: Celery, topics: [backend.distributed]}
+  - {code: sqlalchemy, name: SQLAlchemy, topics: [backend.databases]}
+  - {code: pydantic, name: Pydantic, topics: [backend.api]}
+  - {code: asyncio, name: asyncio, topics: [backend.concurrency]}
+  - {code: litestar, name: Litestar, topics: [backend.api]}
+  - {code: tornado, name: Tornado, topics: [backend.api, backend.concurrency]}
+  - {code: alembic, name: Alembic, topics: [backend.databases]}
+  - {code: express, name: Express, topics: [backend.api]}
+  - {code: nestjs, name: NestJS, topics: [backend.api]}
+  - {code: fastify, name: Fastify, topics: [backend.api]}
+  - {code: koa, name: Koa, topics: [backend.api]}
+  - {code: prisma, name: Prisma, topics: [backend.databases]}
+  - {code: typeorm, name: TypeORM, topics: [backend.databases]}
+  - {code: deno, name: Deno, topics: [backend.programming]}
+  - {code: bun, name: Bun, topics: [backend.programming]}
+  - {code: spring-boot, name: Spring Boot, topics: [backend.api]}
+  - {code: micronaut, name: Micronaut, topics: [backend.api]}
+  - {code: quarkus, name: Quarkus, topics: [backend.api]}
+  - {code: hibernate, name: Hibernate, topics: [backend.databases]}
+  - {code: ktor, name: Ktor, topics: [backend.api]}
+  - {code: aspnet-core, name: ASP.NET Core, topics: [backend.api]}
+  - {code: entity-framework, name: Entity Framework, topics: [backend.databases]}
+  - {code: dotnet, name: .NET, topics: [backend.programming]}
+  - {code: gin, name: Gin (Go), topics: [backend.api]}
+  - {code: echo-go, name: Echo (Go), topics: [backend.api]}
+  - {code: fiber-go, name: Fiber (Go), topics: [backend.api]}
+  - {code: laravel, name: Laravel, topics: [backend.api]}
+  - {code: symfony, name: Symfony, topics: [backend.api]}
+  - {code: yii, name: Yii, topics: [backend.api]}
+  - {code: rails, name: Ruby on Rails, topics: [backend.api]}
+  - {code: phoenix, name: Phoenix (Elixir), topics: [backend.api]}
+  - {code: actix, name: Actix Web, topics: [backend.api]}
+  - {code: axum, name: Axum, topics: [backend.api]}
+  - {code: tokio, name: Tokio, topics: [backend.concurrency]}
+  - {code: akka, name: Akka, topics: [backend.concurrency, backend.distributed]}
+  - {code: vertx, name: Vert.x, topics: [backend.concurrency]}
+  - {code: rest, name: REST API, topics: [backend.api, qa.api]}
+  - {code: graphql, name: GraphQL, topics: [backend.api, qa.api]}
+  - {code: grpc, name: gRPC, topics: [backend.api, backend.distributed]}
+  - {code: websocket, name: WebSocket, topics: [backend.api, frontend.browser]}
+  - {code: openapi, name: OpenAPI, topics: [backend.api, qa.api]}
+  - {code: protobuf, name: Protocol Buffers, topics: [backend.api]}
+  - {code: soap, name: SOAP, topics: [backend.api, qa.api]}
+  - {code: trpc, name: tRPC, topics: [backend.api]}
+  - {code: apollo, name: Apollo GraphQL, topics: [backend.api, frontend.frameworks]}
+  - {code: oauth, name: OAuth 2.0, topics: [backend.security]}
+  - {code: oidc, name: OpenID Connect, topics: [backend.security]}
+  - {code: jwt, name: JWT, topics: [backend.security]}
+  - {code: keycloak, name: Keycloak, topics: [backend.security]}
+  - {code: sqlite, name: SQLite, topics: [backend.databases]}
+  - {code: oracle-db, name: Oracle Database, topics: [backend.databases, data-ml.sql]}
+  - {code: mssql, name: Microsoft SQL Server, topics: [backend.databases, data-ml.sql]}
+  - {code: mariadb, name: MariaDB, topics: [backend.databases]}
+  - {code: mongodb, name: MongoDB, topics: [backend.databases]}
+  - {code: cassandra, name: Cassandra, topics: [backend.databases, backend.distributed]}
+  - {code: scylladb, name: ScyllaDB, topics: [backend.databases, backend.distributed]}
+  - {code: dynamodb, name: DynamoDB, topics: [backend.databases]}
+  - {code: elasticsearch, name: Elasticsearch, topics: [backend.databases, devops.observability]}
+  - {code: opensearch, name: OpenSearch, topics: [backend.databases]}
+  - {code: neo4j, name: Neo4j, topics: [backend.databases]}
+  - {code: influxdb, name: InfluxDB, topics: [backend.databases, devops.observability]}
+  - {code: timescaledb, name: TimescaleDB, topics: [backend.databases]}
+  - {code: greenplum, name: Greenplum, topics: [data-ml.sql]}
+  - {code: tarantool, name: Tarantool, topics: [backend.databases]}
+  - {code: memcached, name: Memcached, topics: [backend.distributed]}
+  - {code: etcd, name: etcd, topics: [backend.distributed]}
+  - {code: cockroachdb, name: CockroachDB, topics: [backend.databases, backend.distributed]}
+  - {code: ydb, name: YDB, topics: [backend.databases, backend.distributed]}
+  - {code: vertica, name: Vertica, topics: [data-ml.sql]}
+  - {code: snowflake, name: Snowflake, topics: [data-ml.sql]}
+  - {code: bigquery, name: BigQuery, topics: [data-ml.sql]}
+  - {code: redshift, name: Amazon Redshift, topics: [data-ml.sql]}
+  - {code: duckdb, name: DuckDB, topics: [data-ml.sql]}
+  - {code: supabase, name: Supabase, topics: [backend.databases]}
+  - {code: firebase, name: Firebase, topics: [backend.databases]}
+  - {code: nats, name: NATS, topics: [backend.distributed]}
+  - {code: activemq, name: ActiveMQ, topics: [backend.distributed]}
+  - {code: pulsar, name: Apache Pulsar, topics: [backend.distributed]}
+  - {code: sqs, name: Amazon SQS, topics: [backend.distributed]}
+  - {code: kafka-streams, name: Kafka Streams, topics: [backend.distributed]}
+  - {code: debezium, name: Debezium, topics: [backend.distributed]}
+  - {code: consul, name: Consul, topics: [backend.distributed]}
+  - {code: zookeeper, name: ZooKeeper, topics: [backend.distributed]}
+  - {code: temporal, name: Temporal, topics: [backend.distributed]}
+  - {code: nextjs, name: Next.js, topics: [frontend.frameworks]}
+  - {code: nuxt, name: Nuxt, topics: [frontend.frameworks]}
+  - {code: svelte, name: Svelte, topics: [frontend.frameworks]}
+  - {code: sveltekit, name: SvelteKit, topics: [frontend.frameworks]}
+  - {code: solidjs, name: SolidJS, topics: [frontend.frameworks]}
+  - {code: remix, name: Remix (React), topics: [frontend.frameworks]}
+  - {code: astro, name: Astro, topics: [frontend.frameworks]}
+  - {code: gatsby, name: Gatsby, topics: [frontend.frameworks]}
+  - {code: preact, name: Preact, topics: [frontend.frameworks]}
+  - {code: qwik, name: Qwik, topics: [frontend.frameworks]}
+  - {code: jquery, name: jQuery, topics: [frontend.javascript]}
+  - {code: redux, name: Redux, topics: [frontend.frameworks]}
+  - {code: mobx, name: MobX, topics: [frontend.frameworks]}
+  - {code: zustand, name: Zustand, topics: [frontend.frameworks]}
+  - {code: effector, name: Effector, topics: [frontend.frameworks]}
+  - {code: tanstack-query, name: TanStack Query, topics: [frontend.frameworks]}
+  - {code: rxjs, name: RxJS, topics: [frontend.javascript]}
+  - {code: ngrx, name: NgRx, topics: [frontend.frameworks]}
+  - {code: pinia, name: Pinia, topics: [frontend.frameworks]}
+  - {code: react-router, name: React Router, topics: [frontend.frameworks]}
+  - {code: webpack, name: Webpack, topics: [frontend.browser]}
+  - {code: rollup, name: Rollup, topics: [frontend.browser]}
+  - {code: esbuild, name: esbuild, topics: [frontend.browser]}
+  - {code: babel, name: Babel, topics: [frontend.javascript]}
+  - {code: turborepo, name: Turborepo, topics: [frontend.browser]}
+  - {code: nx, name: Nx, topics: [frontend.browser]}
+  - {code: pnpm, name: pnpm, topics: [frontend.browser]}
+  - {code: sass, name: Sass, topics: [frontend.markup]}
+  - {code: less, name: Less (CSS), topics: [frontend.markup]}
+  - {code: tailwind, name: Tailwind CSS, topics: [frontend.markup]}
+  - {code: bootstrap, name: Bootstrap, topics: [frontend.markup]}
+  - {code: styled-components, name: styled-components, topics: [frontend.markup]}
+  - {code: css-modules, name: CSS Modules, topics: [frontend.markup]}
+  - {code: postcss, name: PostCSS, topics: [frontend.markup]}
+  - {code: mui, name: Material UI, topics: [frontend.frameworks]}
+  - {code: ant-design, name: Ant Design, topics: [frontend.frameworks]}
+  - {code: chakra-ui, name: Chakra UI, topics: [frontend.frameworks]}
+  - {code: shadcn, name: shadcn/ui, topics: [frontend.frameworks]}
+  - {code: storybook, name: Storybook, topics: [frontend.frameworks, frontend.testing]}
+  - {code: threejs, name: Three.js, topics: [frontend.browser]}
+  - {code: d3, name: D3.js, topics: [frontend.browser]}
+  - {code: webgl, name: WebGL, topics: [frontend.browser]}
+  - {code: pwa, name: PWA, topics: [frontend.browser]}
+  - {code: web-components, name: Web Components, topics: [frontend.browser, frontend.markup]}
+  - {code: electron, name: Electron, topics: [frontend.frameworks]}
+  - {code: tauri, name: Tauri, topics: [frontend.frameworks]}
+  - {code: react-native, name: React Native, topics: [frontend.frameworks]}
+  - {code: flutter, name: Flutter, topics: []}
+  - {code: ionic, name: Ionic, topics: [frontend.frameworks]}
+  - {code: framer-motion, name: Framer Motion, topics: [frontend.frameworks]}
+  - {code: gsap, name: GSAP, topics: [frontend.browser]}
+  - {code: figma, name: Figma, topics: [frontend.markup]}
+  - {code: zod, name: Zod, topics: [frontend.javascript]}
+  - {code: axios, name: Axios, topics: [frontend.javascript]}
+  - {code: vitest, name: Vitest, topics: [frontend.testing]}
+  - {code: cypress, name: Cypress, topics: [frontend.testing, qa.automation]}
+  - {code: testing-library, name: Testing Library, topics: [frontend.testing]}
+  - {code: mocha, name: Mocha, topics: [frontend.testing]}
+  - {code: puppeteer, name: Puppeteer, topics: [frontend.testing, qa.automation]}
+  - {code: webdriverio, name: WebdriverIO, topics: [qa.automation]}
+  - {code: eslint, name: ESLint, topics: [frontend.javascript]}
+  - {code: prettier, name: Prettier, topics: [frontend.javascript]}
+  - {code: swiftui, name: SwiftUI, topics: []}
+  - {code: uikit, name: UIKit, topics: []}
+  - {code: jetpack-compose, name: Jetpack Compose, topics: []}
+  - {code: android-sdk, name: Android SDK, topics: []}
+  - {code: kotlin-multiplatform, name: Kotlin Multiplatform, topics: []}
+  - {code: rxswift, name: RxSwift, topics: []}
+  - {code: core-data, name: Core Data, topics: []}
+  - {code: polars, name: Polars, topics: [data-ml.python]}
+  - {code: scipy, name: SciPy, topics: [data-ml.python, data-ml.math]}
+  - {code: matplotlib, name: Matplotlib, topics: [data-ml.python]}
+  - {code: seaborn, name: Seaborn, topics: [data-ml.python]}
+  - {code: plotly, name: Plotly, topics: [data-ml.python]}
+  - {code: jupyter, name: Jupyter, topics: [data-ml.python]}
+  - {code: tensorflow, name: TensorFlow, topics: [data-ml.deep-learning]}
+  - {code: keras, name: Keras, topics: [data-ml.deep-learning]}
+  - {code: jax, name: JAX, topics: [data-ml.deep-learning, data-ml.math]}
+  - {code: pytorch-lightning, name: PyTorch Lightning, topics: [data-ml.deep-learning]}
+  - {code: xgboost, name: XGBoost, topics: [data-ml.ml]}
+  - {code: lightgbm, name: LightGBM, topics: [data-ml.ml]}
+  - {code: statsmodels, name: statsmodels, topics: [data-ml.math, data-ml.ml]}
+  - {code: nltk, name: NLTK, topics: [data-ml.ml]}
+  - {code: spacy, name: spaCy, topics: [data-ml.ml]}
+  - {code: opencv, name: OpenCV, topics: [data-ml.deep-learning]}
+  - {code: ultralytics, name: YOLO (Ultralytics), topics: [data-ml.deep-learning]}
+  - {code: transformers, name: Hugging Face Transformers, topics: [data-ml.deep-learning]}
+  - {code: huggingface-hub, name: Hugging Face Hub, topics: [data-ml.deep-learning, data-ml.mlops]}
+  - {code: sentence-transformers, name: Sentence Transformers, topics: [data-ml.deep-learning]}
+  - {code: diffusers, name: Diffusers, topics: [data-ml.deep-learning]}
+  - {code: peft, name: PEFT / LoRA, topics: [data-ml.deep-learning]}
+  - {code: deepspeed, name: DeepSpeed, topics: [data-ml.deep-learning, data-ml.mlops]}
+  - {code: onnx, name: ONNX, topics: [data-ml.mlops]}
+  - {code: tensorrt, name: TensorRT, topics: [data-ml.mlops]}
+  - {code: triton, name: Triton Inference Server, topics: [data-ml.mlops]}
+  - {code: vllm, name: vLLM, topics: [data-ml.mlops]}
+  - {code: llama-cpp, name: llama.cpp, topics: [data-ml.mlops]}
+  - {code: ollama, name: Ollama, topics: [data-ml.mlops]}
+  - {code: openai-api, name: OpenAI API, topics: [data-ml.ml]}
+  - {code: anthropic-api, name: Anthropic API, topics: [data-ml.ml]}
+  - {code: gigachat-api, name: GigaChat API, topics: [data-ml.ml]}
+  - {code: yandexgpt-api, name: YandexGPT API, topics: [data-ml.ml]}
+  - {code: langchain, name: LangChain, topics: [data-ml.ml]}
+  - {code: langgraph, name: LangGraph, topics: [data-ml.ml]}
+  - {code: llamaindex, name: LlamaIndex, topics: [data-ml.ml]}
+  - {code: semantic-kernel, name: Semantic Kernel, topics: [data-ml.ml]}
+  - {code: dspy, name: DSPy, topics: [data-ml.ml]}
+  - {code: haystack, name: Haystack, topics: [data-ml.ml]}
+  - {code: mcp, name: Model Context Protocol, topics: [data-ml.ml, backend.api]}
+  - {code: rag, name: RAG, topics: [data-ml.ml]}
+  - {code: faiss, name: FAISS, topics: [data-ml.ml]}
+  - {code: qdrant, name: Qdrant, topics: [data-ml.ml, backend.databases]}
+  - {code: weaviate, name: Weaviate, topics: [data-ml.ml, backend.databases]}
+  - {code: milvus, name: Milvus, topics: [data-ml.ml, backend.databases]}
+  - {code: chroma, name: Chroma, topics: [data-ml.ml, backend.databases]}
+  - {code: pinecone, name: Pinecone, topics: [data-ml.ml, backend.databases]}
+  - {code: pgvector, name: pgvector, topics: [data-ml.ml, backend.databases]}
+  - {code: ray, name: Ray (ML), topics: [data-ml.mlops]}
+  - {code: dask, name: Dask, topics: [data-ml.python]}
+  - {code: flink, name: Apache Flink, topics: [data-ml.sql]}
+  - {code: hadoop, name: Hadoop, topics: [data-ml.sql]}
+  - {code: hive, name: Apache Hive, topics: [data-ml.sql]}
+  - {code: trino, name: Trino, topics: [data-ml.sql]}
+  - {code: dbt, name: dbt, topics: [data-ml.sql]}
+  - {code: superset, name: Apache Superset, topics: [data-ml.sql]}
+  - {code: tableau, name: Tableau, topics: [data-ml.sql]}
+  - {code: power-bi, name: Power BI, topics: [data-ml.sql]}
+  - {code: metabase, name: Metabase, topics: [data-ml.sql]}
+  - {code: datalens, name: DataLens, topics: [data-ml.sql]}
+  - {code: excel, name: Microsoft Excel, topics: [data-ml.sql]}
+  - {code: kubeflow, name: Kubeflow, topics: [data-ml.mlops]}
+  - {code: dvc, name: DVC, topics: [data-ml.mlops]}
+  - {code: wandb, name: "Weights & Biases", topics: [data-ml.mlops]}
+  - {code: optuna, name: Optuna, topics: [data-ml.ml]}
+  - {code: feast, name: Feast, topics: [data-ml.mlops]}
+  - {code: great-expectations, name: Great Expectations, topics: [data-ml.mlops]}
+  - {code: iceberg, name: Apache Iceberg, topics: [data-ml.sql]}
+  - {code: delta-lake, name: Delta Lake, topics: [data-ml.sql]}
+  - {code: databricks, name: Databricks, topics: [data-ml.sql, data-ml.mlops]}
+  - {code: clearml, name: ClearML, topics: [data-ml.mlops]}
+  - {code: junit, name: JUnit, topics: [backend.testing, qa.automation]}
+  - {code: testng, name: TestNG, topics: [qa.automation]}
+  - {code: allure, name: Allure, topics: [qa.automation]}
+  - {code: cucumber, name: Cucumber, topics: [qa.automation, qa.theory]}
+  - {code: locust, name: Locust, topics: [qa.performance]}
+  - {code: gatling, name: Gatling, topics: [qa.performance]}
+  - {code: rest-assured, name: REST Assured, topics: [qa.api, qa.automation]}
+  - {code: soapui, name: SoapUI, topics: [qa.api]}
+  - {code: appium, name: Appium, topics: [qa.automation]}
+  - {code: charles, name: Charles Proxy, topics: [qa.api]}
+  - {code: fiddler, name: Fiddler, topics: [qa.api]}
+  - {code: testrail, name: TestRail, topics: [qa.theory]}
+  - {code: testit, name: Test IT, topics: [qa.theory]}
+  - {code: qase, name: Qase, topics: [qa.theory]}
+  - {code: karate, name: Karate, topics: [qa.api]}
+  - {code: jira, name: Jira, topics: [qa.theory]}
+  - {code: confluence, name: Confluence, topics: []}
+  - {code: helm, name: Helm, topics: [devops.containers]}
+  - {code: argocd, name: Argo CD, topics: [devops.ci-cd]}
+  - {code: fluxcd, name: Flux CD, topics: [devops.ci-cd]}
+  - {code: jenkins, name: Jenkins, topics: [devops.ci-cd]}
+  - {code: teamcity, name: TeamCity, topics: [devops.ci-cd]}
+  - {code: circleci, name: CircleCI, topics: [devops.ci-cd]}
+  - {code: azure-devops, name: Azure DevOps, topics: [devops.ci-cd]}
+  - {code: pulumi, name: Pulumi, topics: [devops.iac]}
+  - {code: packer, name: Packer, topics: [devops.iac]}
+  - {code: vagrant, name: Vagrant, topics: [devops.iac]}
+  - {code: puppet, name: Puppet, topics: [devops.iac]}
+  - {code: chef, name: Chef Infra, topics: [devops.iac]}
+  - {code: saltstack, name: SaltStack, topics: [devops.iac]}
+  - {code: vault, name: HashiCorp Vault, topics: [devops.iac, backend.security]}
+  - {code: istio, name: Istio, topics: [devops.containers]}
+  - {code: linkerd, name: Linkerd, topics: [devops.containers]}
+  - {code: envoy, name: Envoy Proxy, topics: [devops.containers]}
+  - {code: traefik, name: Traefik, topics: [devops.containers]}
+  - {code: haproxy, name: HAProxy, topics: [devops.linux]}
+  - {code: apache-httpd, name: Apache HTTP Server, topics: [devops.linux]}
+  - {code: caddy, name: Caddy, topics: [devops.linux]}
+  - {code: podman, name: Podman, topics: [devops.containers]}
+  - {code: containerd, name: containerd, topics: [devops.containers]}
+  - {code: openshift, name: OpenShift, topics: [devops.containers]}
+  - {code: docker-compose, name: Docker Compose, topics: [devops.containers]}
+  - {code: aws, name: AWS, topics: [devops.iac]}
+  - {code: gcp, name: Google Cloud, topics: [devops.iac]}
+  - {code: azure, name: Microsoft Azure, topics: [devops.iac]}
+  - {code: yandex-cloud, name: Yandex Cloud, topics: [devops.iac]}
+  - {code: vk-cloud, name: VK Cloud, topics: [devops.iac]}
+  - {code: selectel, name: Selectel, topics: [devops.iac]}
+  - {code: cloudflare, name: Cloudflare, topics: [devops.linux]}
+  - {code: elk, name: ELK Stack, topics: [devops.observability]}
+  - {code: loki, name: Grafana Loki, topics: [devops.observability]}
+  - {code: jaeger, name: Jaeger, topics: [devops.observability]}
+  - {code: opentelemetry, name: OpenTelemetry, topics: [devops.observability]}
+  - {code: zabbix, name: Zabbix, topics: [devops.observability]}
+  - {code: victoriametrics, name: VictoriaMetrics, topics: [devops.observability]}
+  - {code: sentry, name: Sentry, topics: [devops.observability]}
+  - {code: datadog, name: Datadog, topics: [devops.observability]}
+  - {code: alertmanager, name: Alertmanager, topics: [devops.observability]}
+  - {code: nexus, name: Nexus Repository, topics: [devops.ci-cd]}
+  - {code: artifactory, name: Artifactory, topics: [devops.ci-cd]}
+  - {code: harbor, name: Harbor, topics: [devops.containers]}
+  - {code: sonarqube, name: SonarQube, topics: [devops.ci-cd]}
+  - {code: git, name: Git, topics: [devops.ci-cd]}
+  - {code: gitlab, name: GitLab, topics: [devops.ci-cd]}
+  - {code: github, name: GitHub, topics: [devops.ci-cd]}
+  - {code: bitbucket, name: Bitbucket, topics: [devops.ci-cd]}
+  - {code: make, name: GNU Make, topics: [devops.scripting]}
+  - {code: cmake, name: CMake, topics: [backend.programming]}
+  - {code: gradle, name: Gradle, topics: [backend.programming]}
+  - {code: maven, name: Maven, topics: [backend.programming]}
+  - {code: ceph, name: Ceph, topics: [devops.linux]}
+  - {code: minio, name: MinIO, topics: [devops.linux]}
+  - {code: s3, name: Amazon S3, topics: [devops.iac]}
+  - {code: systemd, name: systemd, topics: [devops.linux]}
+  - {code: python-scripting, name: Python-скрипты, topics: [devops.scripting]}
+  - {code: burp-suite, name: Burp Suite, topics: [backend.security]}
+  - {code: wireshark, name: Wireshark, topics: [devops.linux, backend.security]}
+  - {code: nmap, name: Nmap, topics: [backend.security]}
+  - {code: owasp-zap, name: OWASP ZAP, topics: [backend.security]}
+  - {code: unity, name: Unity, topics: []}
+  - {code: unreal, name: Unreal Engine, topics: []}
+  - {code: godot, name: Godot, topics: []}
+  - {code: arduino, name: Arduino, topics: []}
+  - {code: stm32, name: STM32, topics: []}
+  - {code: freertos, name: FreeRTOS, topics: []}
+  - {code: ros, name: ROS, topics: []}
+  - {code: qt, name: Qt, topics: [backend.programming]}
+  - {code: web3, name: Web3.js, topics: [frontend.javascript]}
+  - {code: hardhat, name: Hardhat, topics: []}
 
 # Дисциплины ФСП → темы, о которых говорит результат в дисциплине (mechanics.md, §11). Темы — любых
 # специализаций: в профиль идут темы его специализации, в командном зачёте с ролью — темы роли.

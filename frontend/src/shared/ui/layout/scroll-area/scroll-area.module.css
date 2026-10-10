@@ -30,15 +30,20 @@
   transition: var(--transition-scrollbar);
 }
 
-@supports not selector(::-webkit-scrollbar) {
-  .viewport {
-    scrollbar-width: thin;
-    scrollbar-color: var(--scrollbar-thumb-color) transparent;
-  }
+.viewport {
+  scrollbar-color: var(--scrollbar-thumb-color) transparent;
 }
 
 .viewport::-webkit-scrollbar-thumb {
   background-color: var(--scrollbar-thumb-color);
+}
+
+.root[data-bar="hidden"] .viewport {
+  scrollbar-width: none;
+}
+
+.root[data-bar="hidden"] .viewport::-webkit-scrollbar {
+  display: none;
 }
 
 .root[data-scrolling="true"] .viewport {

@@ -15,20 +15,40 @@
   gap: var(--space-20);
 }
 
+.area {
+  max-inline-size: none;
+}
+
 .actions {
   composes: actions from "../../../shared/styles/layout.module.css";
 }
 
-.empty {
-  min-block-size: var(--empty-panel-height);
+.side {
+  display: grid;
+  gap: var(--space-16);
+}
+
+.placeholder {
+  block-size: 100%;
 }
 
 .layout[data-hero="true"] {
   grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+  align-items: stretch;
+  gap: var(--space-24);
+}
+
+.layout[data-hero="true"][data-filled="true"] {
+  align-items: start;
+}
+
+.layout[data-hero="true"] .input {
+  position: static;
 }
 
 @media (max-width: 63.99rem) {
-  .layout {
+  .layout,
+  .layout[data-hero="true"] {
     grid-template-columns: minmax(0, 1fr);
   }
 

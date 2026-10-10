@@ -1,0 +1,7 @@
+.grid {
+  composes: fieldGrid from "../../../shared/styles/blocks.module.css";
+}
+
+.span {
+  grid-column: 1 / -1;
+}

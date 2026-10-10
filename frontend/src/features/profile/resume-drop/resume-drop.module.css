@@ -1,15 +1,14 @@
 .zone {
   composes: pressable from "../../../shared/styles/compose.module.css";
   display: grid;
-  justify-items: center;
-  align-content: center;
-  gap: var(--space-8);
-  min-block-size: var(--dropzone-min-height);
-  padding: var(--space-24);
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: var(--space-16);
+  padding: var(--space-16) var(--space-20);
   border: var(--hairline) dashed var(--border-input);
   border-radius: var(--radius-button);
+  background-color: var(--surface-tint);
   color: var(--text-secondary);
-  text-align: center;
   cursor: pointer;
 }
 
@@ -28,27 +27,26 @@
   cursor: progress;
 }
 
-.icon {
-  color: var(--text-accent);
+.mark {
+  composes: markTile from "../../../shared/styles/blocks.module.css";
 }
 
 .spin {
-  color: var(--text-accent);
   animation: var(--motion-spin);
 }
 
+.text {
+  display: grid;
+  gap: var(--space-4);
+  min-inline-size: 0;
+}
+
 .title {
-  composes: labelText from "../../../shared/styles/compose.module.css";
-  color: var(--text-primary);
-  font-weight: var(--weight-medium);
-  text-align: center;
-  text-wrap: balance;
+  composes: strongBodyText from "../../../shared/styles/compose.module.css";
 }
 
 .limit {
-  composes: captionText from "../../../shared/styles/compose.module.css";
-  text-align: center;
-  text-wrap: balance;
+  composes: secondaryText from "../../../shared/styles/compose.module.css";
 }
 
 .summary {
@@ -73,6 +71,6 @@
 @media (hover: hover) and (pointer: fine) {
   .zone:hover {
     border-color: var(--action-primary);
-    background-color: var(--surface-tint);
+    background-color: var(--surface-selected);
   }
 }

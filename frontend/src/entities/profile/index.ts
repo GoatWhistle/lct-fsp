@@ -7,3 +7,4 @@ export {
   useProfile,
   useSaveProfile,
 } from "./profile.queries"
+export { PROFILE_DIALOG_LINK, PROFILE_FSP_LINK, PROFILE_PARAM } from "./profile-link"

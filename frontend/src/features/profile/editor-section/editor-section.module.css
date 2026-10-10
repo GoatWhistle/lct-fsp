@@ -2,9 +2,7 @@
   scroll-margin-block-start: calc(var(--sticky-top) + var(--space-24));
 }
 
-.row {
+.body {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(var(--tile-min), 1fr));
-  align-items: start;
-  gap: var(--space-16);
+  gap: var(--space-20);
 }

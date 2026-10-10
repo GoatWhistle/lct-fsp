@@ -1,0 +1,72 @@
+.field {
+  display: grid;
+  justify-items: start;
+  gap: var(--space-8);
+  inline-size: var(--logo-tile);
+}
+
+.label {
+  composes: fieldLabel from "../../../shared/styles/compose.module.css";
+}
+
+.tile {
+  composes: logoMark from "../../../shared/styles/blocks.module.css";
+  position: relative;
+  inline-size: var(--logo-tile);
+  font-size: var(--font-size-heading);
+}
+
+.tile[data-empty="true"] {
+  border: var(--hairline) dashed var(--border-input);
+  background-color: var(--surface-tint);
+  color: var(--text-accent);
+}
+
+.image {
+  composes: logoImage from "../../../shared/styles/blocks.module.css";
+  animation: var(--motion-fade-in);
+}
+
+.overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-4);
+  background-color: var(--surface-scrim);
+  color: var(--text-on-inverse);
+  opacity: 0;
+  transition: var(--transition-fade);
+}
+
+.tile:focus-within .overlay,
+.tile[data-empty="true"]:has(.initials:empty) .overlay {
+  opacity: 1;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .tile:hover .overlay {
+    opacity: 1;
+  }
+}
+
+@media (hover: none) {
+  .overlay {
+    opacity: 1;
+  }
+}
+
+.action {
+  color: inherit;
+}
+
+.hint {
+  composes: captionText from "../../../shared/styles/compose.module.css";
+  display: grid;
+  color: var(--text-tertiary);
+}
+
+.hint[data-error="true"] {
+  color: var(--text-danger);
+}

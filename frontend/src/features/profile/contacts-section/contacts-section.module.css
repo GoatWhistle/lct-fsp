@@ -1,0 +1,3 @@
+.grid {
+  composes: fieldGrid from "../../../shared/styles/blocks.module.css";
+}

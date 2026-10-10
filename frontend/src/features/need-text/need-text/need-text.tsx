@@ -3,8 +3,9 @@ import { useNavigate } from "react-router"
 import { useParseNeed } from "@/entities/need"
 import { useCatalogNames, useErrorText, useFormatters, useTranslation } from "@/shared/i18n"
 import { Swap } from "@/shared/motion"
-import { Banner, Button, Card, EmptyState, Form, TextArea, Trace } from "@/shared/ui"
+import { Banner, Button, Card, Form, TextArea, Trace } from "@/shared/ui"
 import { draftWithSpecialization } from "../draft-input"
+import { DraftPlaceholder } from "../draft-result/draft-placeholder"
 import { DraftResult } from "../draft-result/draft-result"
 import { PARSE_STAGES, useParseStatuses } from "../parse-stage/parse-stage"
 import styles from "./need-text.module.css"
@@ -27,7 +28,7 @@ export function NeedText({ hero = false }: NeedTextProps) {
   const result = parse.data
 
   return (
-    <div className={styles.layout} data-hero={hero}>
+    <div className={styles.layout} data-hero={hero} data-filled={result !== undefined}>
       <Card
         title={hero ? t("employer:overview.hero.title") : t("text.field")}
         description={hero ? t("employer:overview.hero.lead") : undefined}
@@ -42,7 +43,8 @@ export function NeedText({ hero = false }: NeedTextProps) {
             onChange={setText}
             placeholder={t("text.placeholder")}
             maxLength={MAX_LENGTH}
-            minRows={hero ? 7 : 10}
+            minRows={hero ? 8 : 10}
+            className={styles.area}
             hint={t("text.counter", {
               length: format.integer(text.length),
               max: format.integer(MAX_LENGTH),
@@ -73,15 +75,10 @@ export function NeedText({ hero = false }: NeedTextProps) {
           />
         </Form>
       </Card>
-      <Swap swapKey={result === undefined ? "empty" : result.kind} as="div">
+      <Swap swapKey={result === undefined ? "empty" : result.kind} as="div" className={styles.side}>
         {parse.isError ? <Banner tone="critical" title={errorText(parse.error)} /> : null}
         {result === undefined ? (
-          <EmptyState
-            icon="need"
-            title={t("text.emptyResultTitle")}
-            description={t("text.emptyResult")}
-            className={styles.empty}
-          />
+          <DraftPlaceholder pending={parse.isPending} className={styles.placeholder} />
         ) : result.kind === "draft" ? (
           <DraftResult draft={result} />
         ) : (

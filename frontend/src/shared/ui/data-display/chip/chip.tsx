@@ -8,6 +8,7 @@ export type ChipTone = "neutral" | "accent"
 
 export interface ChipProps {
   readonly icon?: IconName | undefined
+  readonly leading?: ReactNode
   readonly tone?: ChipTone
   readonly removeLabel?: string | undefined
   readonly onRemove?: (() => void) | undefined
@@ -17,6 +18,7 @@ export interface ChipProps {
 
 export function Chip({
   icon,
+  leading,
   tone = "neutral",
   removeLabel,
   onRemove,
@@ -26,7 +28,7 @@ export function Chip({
   const { t } = useTranslation()
   return (
     <span className={clsx(styles.chip, className)} data-tone={tone}>
-      {icon === undefined ? null : <Icon name={icon} size="sm" />}
+      {leading ?? (icon === undefined ? null : <Icon name={icon} size="sm" />)}
       <span className={styles.label}>{children}</span>
       {onRemove === undefined ? null : (
         <button

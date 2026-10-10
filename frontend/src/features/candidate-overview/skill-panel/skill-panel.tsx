@@ -1,5 +1,6 @@
 import { useState } from "react"
 import { useLevelWords } from "@/entities/measure"
+import { PROFILE_FSP_LINK } from "@/entities/profile"
 import type { SkillProfile, TopicLevel } from "@/shared/api"
 import { useTranslation } from "@/shared/i18n"
 import { ButtonLink, Card, IconLabel, Segmented } from "@/shared/ui"
@@ -66,7 +67,7 @@ export function SkillPanel({ profile, fspLinked, motionIndex, className }: Skill
           <IconLabel icon="fsp" tone="secondary">
             {t("skills.noFsp")}
           </IconLabel>
-          <ButtonLink to="/candidate/profile#fsp" variant="link" size="compact">
+          <ButtonLink to={PROFILE_FSP_LINK} variant="link" size="compact">
             {t("skills.linkFsp")}
           </ButtonLink>
         </div>

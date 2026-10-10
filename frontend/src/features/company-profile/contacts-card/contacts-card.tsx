@@ -1,17 +1,12 @@
 import { useTranslation } from "@/shared/i18n"
-import { Card, TextField } from "@/shared/ui"
+import { Card, PhoneField, TextField } from "@/shared/ui"
 import type { CompanyCardProps } from "../about-card/about-card"
 import styles from "./contacts-card.module.css"
 
 export function ContactsCard({ form, error, onChange, className }: CompanyCardProps) {
   const { t } = useTranslation("company")
   return (
-    <Card
-      title={t("sections.contacts")}
-      description={t("sections.contactsLead")}
-      motionIndex={1}
-      className={className}
-    >
+    <Card level="section" title={t("sections.contacts")} motionIndex={1} className={className}>
       <div className={styles.fields}>
         <TextField
           label={t("fields.website")}
@@ -23,7 +18,6 @@ export function ContactsCard({ form, error, onChange, className }: CompanyCardPr
           onChange={(website) => onChange({ website })}
           maxLength={300}
           placeholder={t("fields.websitePlaceholder")}
-          hint={t("fields.websiteHint")}
           error={error("website")}
         />
         <TextField
@@ -36,17 +30,14 @@ export function ContactsCard({ form, error, onChange, className }: CompanyCardPr
           onChange={(email) => onChange({ email })}
           placeholder={t("fields.emailPlaceholder")}
           error={error("email")}
+          required
         />
-        <TextField
+        <PhoneField
           label={t("fields.phone")}
-          type="tel"
-          icon="phone"
-          autoComplete="tel"
           value={form.phone}
           onChange={(phone) => onChange({ phone })}
-          maxLength={32}
           placeholder={t("fields.phonePlaceholder")}
-          hint={t("fields.phoneHint")}
+          error={error("phone")}
         />
       </div>
     </Card>

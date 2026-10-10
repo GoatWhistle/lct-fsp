@@ -563,7 +563,10 @@ export interface paths {
          * @description `null` — профиль ещё не заполнен.
          */
         get: operations["get_company_api_employer_company_get"];
-        /** Заполнить или изменить профиль компании */
+        /**
+         * Заполнить или изменить профиль компании
+         * @description Партнёрство с ФСП и логотип этим запросом не меняются.
+         */
         put: operations["save_company_api_employer_company_put"];
         post?: never;
         delete?: never;
@@ -592,6 +595,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/employer/company/logo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Загрузить логотип
+         * @description Тело — картинка как есть: PNG, JPEG или WebP, до 512 КБ. Сначала профиль.
+         */
+        put: operations["upload_logo_api_employer_company_logo_put"];
+        post?: never;
+        /** Убрать логотип */
+        delete: operations["remove_logo_api_employer_company_logo_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/company-domain/confirm": {
         parameters: {
             query?: never;
@@ -603,6 +627,26 @@ export interface paths {
         put?: never;
         /** Подтверждение домена по токену из письма */
         post: operations["confirm_domain_api_company_domain_confirm_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/companies/{employer_id}/logo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Логотип компании
+         * @description Для любой вошедшей учётки: кандидат видит его в приглашении и вакансии.
+         */
+        get: operations["get_logo_api_companies__employer_id__logo_get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -2192,6 +2236,24 @@ export interface components {
             contact_email: string;
             /** Contact Phone */
             contact_phone?: string | null;
+            /** @description Сколько человек — диапазоном */
+            size?: components["schemas"]["CompanySize"] | null;
+            /**
+             * It Accredited
+             * @description Аккредитованная ИТ-компания
+             * @default false
+             */
+            it_accredited: boolean;
+            /**
+             * Benefits
+             * @description Что даёт сверх зарплаты: health, education, conferences, equipment, sport, meals, relocation
+             */
+            benefits?: string[];
+            /**
+             * Links
+             * @description Соцсети и блоги; площадку фронт узнаёт по адресу
+             */
+            links?: string[];
         };
         /** CompanyOut */
         CompanyOut: {
@@ -2221,7 +2283,30 @@ export interface components {
              * @description Метка доверия: подтверждённый домен совпадает с доменом сайта компании
              */
             domain_verified: boolean;
+            size: components["schemas"]["CompanySize"] | null;
+            /** It Accredited */
+            it_accredited: boolean;
+            /** Benefits */
+            benefits: string[];
+            /** Links */
+            links: string[];
+            /**
+             * Fsp Partner
+             * @description Партнёр ФСП — отмечает федерация, не работодатель
+             */
+            fsp_partner: boolean;
+            /**
+             * Logo Url
+             * @description Логотип; `null` — не загружен
+             */
+            logo_url: string | null;
         };
+        /**
+         * CompanySize
+         * @description Сколько человек в компании — диапазоном, точное число кандидату не нужно.
+         * @enum {string}
+         */
+        CompanySize: "up_to_50" | "up_to_200" | "up_to_1000" | "over_1000";
         /** DemoCandidateIn */
         DemoCandidateIn: {
             /**
@@ -6137,6 +6222,119 @@ export interface operations {
             };
         };
     };
+    upload_logo_api_employer_company_logo_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "image/png": string;
+                "image/jpeg": string;
+                "image/webp": string;
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CompanyOut"];
+                };
+            };
+            /**
+             * @description `logo_too_large` — Логотип больше 512 КБ — уменьшите картинку
+             *
+             *     `logo_unsupported` — Логотип — PNG, JPEG или WebP
+             */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description `not_authenticated` — Войдите, чтобы продолжить */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description `wrong_role` — Раздел доступен другой роли */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description `company_required` — Сначала заполните профиль компании */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    remove_logo_api_employer_company_logo_delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CompanyOut"];
+                };
+            };
+            /** @description `not_authenticated` — Войдите, чтобы продолжить */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description `wrong_role` — Раздел доступен другой роли */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description `company_required` — Сначала заполните профиль компании */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
     confirm_domain_api_company_domain_confirm_post: {
         parameters: {
             query?: never;
@@ -6171,6 +6369,46 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["ErrorOut"];
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_logo_api_companies__employer_id__logo_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                employer_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "image/png": unknown;
+                    "image/jpeg": unknown;
+                    "image/webp": unknown;
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {

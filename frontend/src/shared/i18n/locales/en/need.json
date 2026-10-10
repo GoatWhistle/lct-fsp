@@ -100,7 +100,6 @@
     "outTitle": "This specialization is not in the catalog",
     "outText": "Found in the text: “{{asked}}”. Pick the closest specialization and the draft opens in the editor.",
     "emptyResult": "Paste the text and press Parse: the draft appears here with doubtful fields marked.",
-    "emptyResultTitle": "No draft yet",
     "fields": {
       "title": "Title",
       "specialization": "Specialization",

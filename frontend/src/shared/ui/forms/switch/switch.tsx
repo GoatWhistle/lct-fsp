@@ -7,10 +7,18 @@ export interface SwitchProps {
   readonly checked: boolean
   readonly onChange: (checked: boolean) => void
   readonly disabled?: boolean | undefined
+  readonly hideLabel?: boolean | undefined
   readonly className?: string | undefined
 }
 
-export function Switch({ label, checked, onChange, disabled = false, className }: SwitchProps) {
+export function Switch({
+  label,
+  checked,
+  onChange,
+  disabled = false,
+  hideLabel = false,
+  className,
+}: SwitchProps) {
   const modality = useInputModality()
   return (
     <button
@@ -28,7 +36,7 @@ export function Switch({ label, checked, onChange, disabled = false, className }
       <span className={styles.track} aria-hidden="true">
         <span className={styles.thumb} />
       </span>
-      <span>{label}</span>
+      <span className={hideLabel ? "visually-hidden" : undefined}>{label}</span>
     </button>
   )
 }

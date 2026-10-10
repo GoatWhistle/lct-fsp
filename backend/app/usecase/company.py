@@ -6,14 +6,21 @@ import uuid
 from datetime import timedelta
 
 from app.domain.company import (
+    LOGO_TYPES,
     Company,
     CompanyForm,
+    CompanyLogo,
     check_domain_email,
     check_domain_verification,
     domain_token_hash,
     issue_domain_verification,
 )
-from app.domain.errors import CompanyProfileRequired, UnknownIndustry
+from app.domain.errors import (
+    CompanyProfileRequired,
+    CompanyRequired,
+    LogoUnsupported,
+    UnknownIndustry,
+)
 from app.domain.locale import DEFAULT_LOCALE, Locale
 from app.usecase.account import VerificationLinks
 from app.usecase.interface import (
@@ -85,7 +92,7 @@ class Companies:
             )
         self._mailer.send(mail)
 
-    def confirm_domain(self, token: str) -> Company:
+    def confirm_domain(self, token: str) -> tuple[uuid.UUID, Company]:
         """Ссылка из письма: домен компании подтверждён. Неизвестная ссылка — `TokenInvalid`,
         истёкшая — `TokenExpired`."""
         with self._uow:
@@ -95,7 +102,7 @@ class Companies:
             self._companies.mark_domain_verified(verification.user_id, verification.domain, now)
             company = self._companies.get(verification.user_id)
             assert company is not None
-            return company
+            return verification.user_id, company
 
     def trusted(self, user_ids: set[uuid.UUID]) -> set[uuid.UUID]:
         """Работодатели из `user_ids`, у которых домен сайта подтверждён."""
@@ -105,3 +112,35 @@ class Companies:
                 for user_id in user_ids
                 if (company := self._companies.get(user_id)) is not None and company.domain_verified
             }
+
+    def logo(self, user_id: uuid.UUID) -> CompanyLogo | None:
+        with self._uow:
+            return self._companies.logo(user_id)
+
+    def save_logo(self, user_id: uuid.UUID, content: bytes, media_type: str) -> Company:
+        """Логотип — PNG, JPEG или WebP, иначе `LogoUnsupported`; сначала профиль, иначе
+        `CompanyRequired`. Размер проверяет контроллер, не дочитывая лишнего."""
+        if media_type not in LOGO_TYPES:
+            raise LogoUnsupported()
+        with self._uow:
+            if self._companies.get(user_id) is None:
+                raise CompanyRequired()
+            self._companies.save_logo(user_id, CompanyLogo(content, media_type, self._clock.now()))
+            company = self._companies.get(user_id)
+            assert company is not None, "профиль есть"
+            return company
+
+    def remove_logo(self, user_id: uuid.UUID) -> Company:
+        with self._uow:
+            company = self._companies.get(user_id)
+            if company is None:
+                raise CompanyRequired()
+            self._companies.save_logo(user_id, None)
+            updated = self._companies.get(user_id)
+            assert updated is not None, "профиль есть"
+            return updated
+
+    def mark_fsp_partner(self, user_id: uuid.UUID, partner: bool) -> None:
+        """Партнёрство ставит федерация: засев демо и будущая сверка с реестром ФСП."""
+        with self._uow:
+            self._companies.mark_fsp_partner(user_id, partner)

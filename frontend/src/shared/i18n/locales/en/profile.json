@@ -1,7 +1,5 @@
 {
   "title": "Profile",
-  "lead": "What employers see, how to reach you and what you expect from work",
-  "nav": "Profile sections",
   "sections": {
     "resume": "Resume",
     "about": "About",
@@ -16,33 +14,29 @@
     "fullName": "Full name",
     "experience": "IT experience",
     "experienceUnit": "years",
-    "experienceHint": "Full years, 0 means under a year",
     "about": "About you",
-    "aboutHint": "Employers see this text after you accept an invitation or apply yourself",
     "roles": "Roles",
-    "listHint": "Separate with commas",
     "softSkills": "Soft skills",
-    "contactsNote": "Contacts open to a company only after you accept its invitation or apply",
     "email": "Contact email",
     "phone": "Phone",
     "telegram": "Telegram",
     "telegramPlaceholder": "@username",
     "stack": "Technologies",
-    "stackLead": "Self-reported: the lightest signal, it never changes your category. Only the test does.",
-    "stackHint": "Start typing a technology name",
     "formats": "Work format",
     "city": "City",
-    "cityRequired": "Required for office and hybrid",
-    "cityHint": "Where you live",
     "salary": "Salary from",
     "salaryUnit": "₽",
-    "salaryNote": "Employers do not see it: it is used to estimate how likely you are to accept an invitation.",
     "relocation": "Open to relocation",
     "industries": "Business areas of interest",
-    "industriesHint": "Optional"
+    "phonePlaceholder": "+7 (900) 000-00-00",
+    "rolesPlaceholder": "Backend developer, team lead",
+    "softSkillsPlaceholder": "Fast learner, communication",
+    "aboutPlaceholder": "What you do, what you are best at, what you are looking for",
+    "cityPlaceholder": "Moscow",
+    "relocationNote": "Open to offers from other cities",
+    "industriesPlaceholder": "Fintech, e-commerce, games"
   },
   "resume": {
-    "lead": "Upload a PDF and the fields fill in by themselves. Your profile changes only when you save.",
     "drop": "Drop a PDF here or choose a file",
     "reading": "Reading the resume",
     "limit": "PDF up to 5 MB and 10 pages, with a text layer",
@@ -67,11 +61,8 @@
     "experience": "Experience"
   },
   "visibility": {
-    "lead": "What employers see on your anonymised card before you accept an invitation. It does not affect matching.",
     "shown": "visible right away",
-    "hidden": "after disclosure",
-    "always": "Always visible: category, skill profile, work format",
-    "never": "Always hidden until disclosure: name, contacts, about, roles, soft skills"
+    "hidden": "after disclosure"
   },
   "hideable": {
     "stack": "Stack",
@@ -81,8 +72,6 @@
     "industries": "Business areas"
   },
   "fsp": {
-    "lead": "FSP achievements carry the most weight in your profile. There is no penalty without them: the profile is built from the test.",
-    "notLinked": "FSP ID is not linked. If you took part in FSP competitions, link it and your results will be pulled from the registry.",
     "link": "Link FSP ID",
     "linked": "FSP ID linked",
     "snapshot": "Registry snapshot from {{date}}",
@@ -101,14 +90,14 @@
     "byFsp": "by FSP",
     "returnLinked": "FSP ID linked",
     "returnLinkedText": "Achievements came from the registry and are already counted in your skill profile.",
-    "returnError": "FSP ID not linked"
+    "returnError": "FSP ID not linked",
+    "notLinkedTitle": "FSP ID not linked",
+    "notLinkedNote": "Competition results will be pulled from the registry"
   },
   "preview": {
     "title": "How employers see you",
-    "lead": "Anonymised card before you accept an invitation or apply",
     "anonymous": "Candidate",
     "noCategory": "no category yet",
-    "concealed": "shown after disclosure",
     "years_one": "{{count}} year",
     "years_other": "{{count}} years",
     "relocationYes": "open to relocation",
@@ -117,7 +106,10 @@
     "yearsTitle": "Years by technology",
     "yearsNote": "Counted from experience entries: overlaps are not doubled, gaps are left out. Self-reported, not used in matching.",
     "techYears_one": "{{value}} year",
-    "techYears_other": "{{value}} years"
+    "techYears_other": "{{value}} years",
+    "concealedField": "{{field}}: after disclosure",
+    "fsp_one": "{{count}} FSP achievement",
+    "fsp_other": "{{count}} FSP achievements"
   },
   "errors": {
     "full_name": "Enter your full name",
@@ -125,7 +117,8 @@
     "experience_years": "Enter your experience, 0 means under a year",
     "work_formats": "Choose at least one work format",
     "city": "Enter your city: it is required for office and hybrid",
-    "salary_from": "Enter the salary you would consider offers from"
+    "salary_from": "Enter the salary you would consider offers from",
+    "contact_phone": "A number like +7 (900) 000-00-00."
   },
   "save": {
     "dirty": "You have unsaved changes",
@@ -136,14 +129,15 @@
     "reset": "Discard",
     "action": "Save",
     "saving": "Saving",
-    "done": "Profile saved"
+    "done": "Profile saved",
+    "new": "Profile not saved yet",
+    "saved": "All changes saved"
   },
   "pdf": {
     "action": "Download PDF",
     "pending": "Preparing PDF"
   },
   "experience": {
-    "lead": "Jobs and projects. Employers see them after disclosure, marked as self-reported. Experience does not affect matching or your category.",
     "add": "Add",
     "addTitle": "New experience entry",
     "editTitle": "Experience entry",
@@ -167,7 +161,6 @@
     "periodOpen": "from {{start}} until now",
     "emptyTitle": "No experience entries yet",
     "emptyText": "Add jobs and projects or upload a resume and the entries will be filled from it.",
-    "note": "Entry changes are saved together with the profile.",
     "errors": {
       "required": "Fill in this field",
       "future": "The start cannot be in the future",

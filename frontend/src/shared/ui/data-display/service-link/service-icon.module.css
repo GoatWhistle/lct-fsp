@@ -1,0 +1,5 @@
+.glyph {
+  flex: none;
+  inline-size: var(--icon-sm);
+  block-size: var(--icon-sm);
+}

@@ -39,6 +39,7 @@ from app.controller.cabinets import candidate_router, employer_router
 from app.controller.catalog import router as catalog_router
 from app.controller.chat import router as chat_router
 from app.controller.company import domain_router as company_domain_router
+from app.controller.company import logos as company_logos_router
 from app.controller.company import router as company_router
 from app.controller.deps import SessionCookie
 from app.controller.errors import install_error_handlers
@@ -351,6 +352,7 @@ def create_app(
     app.include_router(employer_router)
     app.include_router(company_router)
     app.include_router(company_domain_router)
+    app.include_router(company_logos_router)
     app.include_router(needs_router)
     app.include_router(selections_router)
     app.include_router(candidate_search_router)

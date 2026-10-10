@@ -75,7 +75,7 @@ export function ResumeDrop({ onParsed, parsed }: ResumeDropProps) {
   const stage = parse.isPending ? "reading" : "idle"
 
   return (
-    <EditorSection id="resume" title={t("sections.resume")} description={t("resume.lead")}>
+    <EditorSection id="resume" title={t("sections.resume")}>
       <label
         className={styles.zone}
         data-dragging={dragging}
@@ -91,15 +91,19 @@ export function ResumeDrop({ onParsed, parsed }: ResumeDropProps) {
           disabled={parse.isPending}
           onChange={onInput}
         />
-        <Icon
-          name={parse.isPending ? "loader" : "upload"}
-          size="lg"
-          className={parse.isPending ? styles.spin : styles.icon}
-        />
-        <Swap swapKey={stage} className={styles.title}>
-          {parse.isPending ? t("resume.reading") : t("resume.drop")}
-        </Swap>
-        <span className={styles.limit}>{t("resume.limit")}</span>
+        <span className={styles.mark}>
+          <Icon
+            name={parse.isPending ? "loader" : "upload"}
+            size="md"
+            className={parse.isPending ? styles.spin : undefined}
+          />
+        </span>
+        <span className={styles.text}>
+          <Swap swapKey={stage} className={styles.title}>
+            {parse.isPending ? t("resume.reading") : t("resume.drop")}
+          </Swap>
+          <span className={styles.limit}>{t("resume.limit")}</span>
+        </span>
       </label>
       {parse.isError ? (
         <Banner tone="critical" title={errorText(parse.error)}>

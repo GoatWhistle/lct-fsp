@@ -1,6 +1,3 @@
 .fields {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, var(--tile-min)), 1fr));
-  align-items: start;
-  gap: var(--space-20) var(--space-16);
+  composes: fieldGrid from "../../../shared/styles/blocks.module.css";
 }

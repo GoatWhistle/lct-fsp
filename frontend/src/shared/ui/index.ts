@@ -3,7 +3,14 @@ export { FspMark, type FspMarkProps, type FspMarkTone } from "./brand/fsp-mark/f
 export { Lockup, type LockupProps, type LockupSize, Wordmark } from "./brand/lockup/lockup"
 export { LockupLink, type LockupLinkProps } from "./brand/lockup/lockup-link"
 export { Chip, type ChipProps, type ChipTone } from "./data-display/chip/chip"
+export { FlagList, FlagRow, type FlagRowProps } from "./data-display/flag-row/flag-row"
 export { Meter, type MeterProps, type MeterTone } from "./data-display/meter/meter"
+export { linkHostname, normalizeLinkUrl } from "./data-display/service-link/detect-service"
+export {
+  ServiceIcon,
+  type ServiceIconProps,
+  serviceLabel,
+} from "./data-display/service-link/service-icon"
 export { Stat, type StatProps } from "./data-display/stat/stat"
 export {
   StatusBadge,
@@ -28,6 +35,8 @@ export { Field, type FieldControlProps, type FieldMeta, type FieldProps } from "
 export { Form, type FormProps } from "./forms/form/form"
 export { NumberField, type NumberFieldProps } from "./forms/number-field/number-field"
 export { PasswordField, type PasswordFieldProps } from "./forms/password-field/password-field"
+export { formatPhone, isPhoneComplete } from "./forms/phone-field/format-phone"
+export { PhoneField, type PhoneFieldProps } from "./forms/phone-field/phone-field"
 export { RadioGroup, type RadioGroupProps, type RadioOption } from "./forms/radio-group/radio-group"
 export { SalaryInput, type SalaryInputProps } from "./forms/salary-input/salary-input"
 export { Segmented, type SegmentedOption, type SegmentedProps } from "./forms/segmented/segmented"

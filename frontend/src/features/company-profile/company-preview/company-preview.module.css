@@ -1,13 +1,5 @@
-.frame {
-  display: grid;
-  gap: var(--space-20);
-  padding: var(--space-20);
-  border: var(--hairline) dashed var(--border-strong);
-  border-radius: var(--radius-inner);
-}
-
-.eyebrow {
-  composes: labelText from "../../../shared/styles/compose.module.css";
+.card {
+  composes: previewCard from "../../../shared/styles/blocks.module.css";
 }
 
 .head {
@@ -18,23 +10,19 @@
 }
 
 .mark {
-  composes: monoText from "../../../shared/styles/compose.module.css";
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  inline-size: calc(var(--space-12) * 4);
-  aspect-ratio: 1;
-  border-radius: var(--radius-inner);
-  background-color: var(--surface-brand);
-  color: var(--text-on-brand);
-  font-size: var(--font-size-body);
+  composes: logoMark from "../../../shared/styles/blocks.module.css";
+  inline-size: calc(var(--space-12) * 5);
+  font-size: var(--font-size-subheading);
   font-weight: var(--weight-medium);
+}
+
+.logo {
+  composes: logoImage from "../../../shared/styles/blocks.module.css";
 }
 
 .identity {
   display: grid;
-  justify-items: start;
-  gap: var(--space-8);
+  gap: var(--space-4);
   min-inline-size: 0;
 }
 
@@ -43,9 +31,30 @@
   overflow-wrap: anywhere;
 }
 
+.meta {
+  composes: secondaryText from "../../../shared/styles/compose.module.css";
+}
+
+.trust {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-8) var(--space-20);
+}
+
+.partner {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-8);
+  color: var(--text-primary);
+}
+
+.partnerMark {
+  block-size: var(--icon-md);
+}
+
 .description {
   composes: bodySmText from "../../../shared/styles/compose.module.css";
-  max-inline-size: var(--prose-measure);
   color: var(--text-secondary);
   white-space: pre-wrap;
   overflow-wrap: anywhere;
@@ -56,13 +65,51 @@
   color: var(--text-tertiary);
 }
 
-.terms {
-  padding-block-start: var(--space-16);
+.benefits {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-8) var(--space-16);
+}
+
+.benefit {
+  composes: bodySmText from "../../../shared/styles/compose.module.css";
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+}
+
+.benefitIcon {
+  flex: none;
+  color: var(--text-accent);
+}
+
+.contacts {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-16);
+  padding-block-start: var(--space-20);
   border-block-start: var(--hairline) solid var(--border-hairline);
 }
 
-.link {
-  color: var(--text-accent);
+.reach {
+  display: grid;
+  gap: var(--space-8);
+  min-inline-size: 0;
+}
+
+.links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-8);
+}
+
+.linkItem {
+  composes: iconTile from "../../../shared/styles/blocks.module.css";
+  inline-size: var(--control-height-compact);
+  block-size: var(--control-height-compact);
+  color: var(--text-secondary);
 }
 
 .note {

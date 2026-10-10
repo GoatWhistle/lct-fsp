@@ -34,12 +34,9 @@
 }
 
 .badge {
-  display: grid;
-  place-items: center;
+  composes: iconTile from "../../../shared/styles/blocks.module.css";
   inline-size: var(--space-40);
   block-size: var(--space-40);
-  border: var(--hairline) solid var(--border-hairline);
-  border-radius: var(--radius-button);
   background-color: var(--surface-inverse);
 }
 

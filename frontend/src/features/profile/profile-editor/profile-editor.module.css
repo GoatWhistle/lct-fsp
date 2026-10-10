@@ -1,81 +1,19 @@
 .editor {
-  display: grid;
-  grid-template-columns: minmax(0, var(--panel-trace)) minmax(0, 1fr) minmax(0, var(--panel-list));
-  align-items: start;
-  gap: var(--space-24);
-}
-
-.nav {
-  position: sticky;
-  inset-block-start: calc(var(--sticky-top) + var(--space-8));
+  composes: sheetEditor from "../../../shared/styles/blocks.module.css";
 }
 
 .form {
-  display: grid;
-  gap: var(--space-24);
-  min-inline-size: 0;
+  composes: sheetFields from "../../../shared/styles/blocks.module.css";
 }
 
 .preview {
-  position: sticky;
-  inset-block-start: calc(var(--sticky-top) + var(--space-8));
+  composes: sheetPreview from "../../../shared/styles/blocks.module.css";
+}
+
+.footer {
+  composes: sheetFooter from "../../../shared/styles/blocks.module.css";
 }
 
 .placeholder {
   min-block-size: var(--empty-panel-height);
-}
-
-.navPlaceholder {
-  composes: placeholder;
-}
-
-.previewPlaceholder {
-  composes: placeholder;
-}
-
-.previewScroll {
-  max-block-size: calc(100dvh - var(--sticky-top) - var(--space-24));
-}
-
-.previewToggle {
-  display: none;
-  justify-self: start;
-}
-
-@media (min-width: 120rem) {
-  .editor {
-    grid-template-columns:
-      minmax(0, var(--panel-trace)) minmax(0, 1fr)
-      minmax(0, var(--panel-detail));
-  }
-}
-
-@media (max-width: 89.99rem) {
-  .editor {
-    grid-template-columns: minmax(0, var(--panel-trace)) minmax(0, 1fr);
-  }
-
-  .preview,
-  .previewPlaceholder {
-    display: none;
-  }
-
-  .previewToggle {
-    display: inline-flex;
-  }
-}
-
-@media (max-width: 63.99rem) {
-  .editor {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .nav,
-  .navPlaceholder {
-    display: none;
-  }
-
-  .previewToggle {
-    justify-self: stretch;
-  }
 }

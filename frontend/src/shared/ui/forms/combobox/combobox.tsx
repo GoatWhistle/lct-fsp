@@ -18,6 +18,7 @@ export interface ComboboxOption {
 
 export interface ComboboxProps {
   readonly label: string
+  readonly hideLabel?: boolean | undefined
   readonly values: readonly string[]
   readonly options: readonly ComboboxOption[]
   readonly onChange: (values: readonly string[]) => void
@@ -41,6 +42,7 @@ function filtered(options: readonly ComboboxOption[], values: readonly string[],
 
 export function Combobox({
   label,
+  hideLabel,
   values,
   options,
   onChange,
@@ -95,7 +97,7 @@ export function Combobox({
   }
 
   return (
-    <Field label={label} hint={hint} error={error} className={className}>
+    <Field label={label} hideLabel={hideLabel} hint={hint} error={error} className={className}>
       {(control, meta) => (
         <>
           <div
@@ -152,7 +154,7 @@ export function Combobox({
             matchAnchorWidth
             className={styles.popover}
           >
-            <ScrollArea className={styles.scroller}>
+            <ScrollArea className={styles.scroller} bar="hidden">
               <div
                 role="listbox"
                 id={listId}

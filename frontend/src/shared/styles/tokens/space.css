@@ -66,6 +66,7 @@
   --map-max-width: 960px;
   --hero-max-width: 1920px;
   --hero-actions-width: 480px;
+  --logo-tile: 152px;
   --column-min: 420px;
   --tile-min: 220px;
   --tile-min-compact: 160px;
@@ -91,6 +92,7 @@
   --combobox-input-min: 120px;
   --dialog-width: 480px;
   --dialog-width-wide: 720px;
+  --dialog-width-sheet: 1640px;
   --tooltip-max-width: 280px;
   --toast-width: 400px;
   --drawer-width: 560px;

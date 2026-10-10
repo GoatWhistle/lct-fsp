@@ -1,14 +1,7 @@
 import type { Role } from "@/shared/api"
 import type { IconName } from "@/shared/ui"
 
-export type NavKey =
-  | "overview"
-  | "profile"
-  | "invitations"
-  | "vacancies"
-  | "tasks"
-  | "needs"
-  | "candidates"
+export type NavKey = "overview" | "invitations" | "vacancies" | "tasks" | "needs" | "candidates"
 
 export interface NavItem {
   readonly key: NavKey
@@ -21,7 +14,6 @@ export interface NavItem {
 export const NAV_ITEMS: Readonly<Record<Role, readonly NavItem[]>> = {
   candidate: [
     { key: "overview", to: "/candidate", icon: "overview", end: true },
-    { key: "profile", to: "/candidate/profile", icon: "profile" },
     { key: "invitations", to: "/candidate/invitations", icon: "invitation", unread: true },
     { key: "vacancies", to: "/candidate/vacancies", icon: "vacancy" },
     { key: "tasks", to: "/candidate/tasks", icon: "task" },

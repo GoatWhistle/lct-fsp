@@ -9,6 +9,7 @@ const SECTION_OF: Partial<Record<DraftField, SectionId>> = {
   full_name: "about",
   experience_years: "about",
   contact_email: "contacts",
+  contact_phone: "contacts",
   work_formats: "expectations",
   city: "expectations",
   salary_from: "expectations",

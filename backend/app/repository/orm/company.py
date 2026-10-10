@@ -3,7 +3,8 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import ForeignKey, String
+from sqlalchemy import Boolean, ForeignKey, LargeBinary, String
+from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.repository.database import Base
@@ -27,6 +28,14 @@ class Company(Base):
     # Метка доверия: домен, подтверждённый письмом на адрес этого домена, и когда.
     verified_domain: Mapped[str | None] = mapped_column(String(253))
     domain_verified_at: Mapped[datetime | None]
+    size: Mapped[str | None] = mapped_column(String(16))
+    it_accredited: Mapped[bool] = mapped_column(Boolean, server_default="false")
+    benefits: Mapped[list[str]] = mapped_column(ARRAY(String(32)), server_default="{}")
+    links: Mapped[list[str]] = mapped_column(ARRAY(String(300)), server_default="{}")
+    fsp_partner: Mapped[bool] = mapped_column(Boolean, server_default="false")
+    logo: Mapped[bytes | None] = mapped_column(LargeBinary)
+    logo_type: Mapped[str | None] = mapped_column(String(32))
+    logo_updated_at: Mapped[datetime | None]
 
     industry: Mapped[Industry] = relationship()
 

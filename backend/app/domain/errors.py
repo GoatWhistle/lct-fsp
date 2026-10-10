@@ -354,6 +354,16 @@ class CompanyRequired(DomainError):
     message = "Сначала заполните профиль компании"
 
 
+class LogoTooLarge(DomainError):
+    code = "logo_too_large"
+    message = "Логотип больше 512 КБ — уменьшите картинку"
+
+
+class LogoUnsupported(DomainError):
+    code = "logo_unsupported"
+    message = "Логотип — PNG, JPEG или WebP"
+
+
 # Регулярные задания.
 
 

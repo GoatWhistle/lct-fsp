@@ -1,12 +1,11 @@
 {
   "title": "Company profile",
-  "lead": "Candidates decide whether to accept an invitation partly by who sent it. You need a profile to publish vacancies and send invitations.",
   "missing": "The profile is not filled in yet: without it you cannot publish a vacancy or send an invitation.",
   "sections": {
     "about": "About the company",
-    "aboutLead": "Name, industry and a couple of paragraphs about what you do.",
     "contacts": "Contacts",
-    "contactsLead": "Where candidates can write with general questions. The contact for a specific invitation goes into the invitation itself."
+    "conditions": "Conditions",
+    "links": "Links"
   },
   "fields": {
     "name": "Name",
@@ -14,22 +13,29 @@
     "industry": "Industry",
     "industryPlaceholder": "Choose an industry",
     "description": "What the company does",
-    "descriptionHint": "Product, team size, technologies. Candidates see the text as is.",
     "website": "Website",
-    "websiteHint": "https:// is optional",
     "websitePlaceholder": "example.com",
     "email": "Email for candidates",
     "emailPlaceholder": "hr@example.com",
     "phone": "Phone",
-    "phoneHint": "Optional.",
-    "phonePlaceholder": "+7 900 000-00-00"
+    "phonePlaceholder": "+7 (900) 000-00-00",
+    "size": "Company size",
+    "sizePlaceholder": "Not set",
+    "accredited": "Accredited IT company",
+    "benefits": "Benefits",
+    "logo": "Logo",
+    "accreditedNote": "In the Ministry of Digital Development register"
   },
   "errors": {
     "name": "Enter the company name.",
     "industry": "Choose an industry.",
     "description": "Describe what the company does.",
     "website": "A website address like example.com.",
-    "email": "An email like name@example.com."
+    "email": "An email like name@example.com.",
+    "phone": "A number like +7 (900) 000-00-00.",
+    "links": "A link like t.me/company.",
+    "logoType": "Logo: PNG, JPEG or WebP.",
+    "logoSize": "Logo is larger than 512 KB."
   },
   "actions": {
     "save": "Save",
@@ -49,30 +55,67 @@
   },
   "preview": {
     "title": "How candidates see you",
-    "lead": "This is how the company looks in an invitation and a vacancy. It updates as you type.",
     "untitled": "Company name",
     "noDescription": "The company description will appear here.",
-    "invitation": "Invitation from the company",
-    "website": "Website",
-    "email": "Email",
-    "phone": "Phone",
-    "note": "A candidate's contacts open to you only after they accept an invitation or apply themselves."
+    "note": "A candidate's contacts open to you only after they accept an invitation or apply themselves.",
+    "partner": "FSP partner",
+    "accredited": "IT accreditation",
+    "benefits": "Benefits",
+    "links": "Links"
   },
   "domain": {
     "title": "Trust mark",
-    "lead": "Confirm that an address on the company website domain is yours. Candidates will see the “domain confirmed” mark in invitations and vacancies. Everything works without it.",
     "mark": "Domain confirmed",
     "verified": "Domain {{domain}} is confirmed",
     "email": "Address on the website domain",
-    "emailHint": "For example, hr@your-domain.com. The link will be sent there",
     "send": "Send the email",
     "sending": "Sending",
     "sent": "The email went to {{email}}. Open the link in it",
-    "noWebsite": "Add the company website and save the profile: the address on its domain is confirmed",
     "confirmChecking": "Confirming the domain",
     "confirmDone": "Domain confirmed",
     "confirmFailed": "Could not confirm the domain",
     "noToken": "The link has no confirmation token",
-    "toCompany": "To the company profile"
+    "toCompany": "To the company profile",
+    "note": "An email to an address on the website domain, candidates see the mark",
+    "noWebsiteShort": "Add the website and save the profile first",
+    "start": "Confirm",
+    "cancel": "Cancel",
+    "emailPlaceholder": "hr@your-domain.com"
+  },
+  "sizes": {
+    "up_to_50": "Up to 50 people",
+    "up_to_200": "50–200 people",
+    "up_to_1000": "200–1000 people",
+    "over_1000": "Over 1000 people"
+  },
+  "benefits": {
+    "health": "Health insurance",
+    "education": "Learning",
+    "conferences": "Conferences",
+    "equipment": "Equipment",
+    "sport": "Sport",
+    "meals": "Meals",
+    "relocation": "Relocation"
+  },
+  "fsp": {
+    "partner": "FSP partner",
+    "partnerNote": "Marked by the federation",
+    "none": "Marked by the federation, cannot be set by the company",
+    "confirmed": "Confirmed",
+    "missing": "Not a partner"
+  },
+  "links": {
+    "add": "Add link",
+    "remove": "Remove link",
+    "label": "Link",
+    "placeholder": "t.me/company",
+    "other": "Website"
+  },
+  "logo": {
+    "upload": "Upload",
+    "replace": "Replace",
+    "remove": "Remove",
+    "formats": "PNG, JPEG, WebP",
+    "limit": "up to 512 KB"
   }
 }

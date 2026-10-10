@@ -1,5 +1,6 @@
 import type { ReactNode } from "react"
 import { useApplications } from "@/entities/application"
+import { COMPANY_DIALOG_LINK } from "@/entities/company"
 import { useOwnVacancies } from "@/entities/vacancy"
 import { VacancyCard } from "@/features/vacancy-editor"
 import type { Vacancy } from "@/shared/api"
@@ -44,7 +45,7 @@ export function VacancyGrid({ tab, noCompany, create, onEdit }: VacancyGridProps
   const shown = vacancies.data.filter((vacancy) => isShown(vacancy, tab))
   if (shown.length === 0) {
     const action = noCompany ? (
-      <ButtonLink to="/employer/company" icon="company">
+      <ButtonLink to={COMPANY_DIALOG_LINK} icon="company">
         {t("toCompany")}
       </ButtonLink>
     ) : tab === "published" ? (

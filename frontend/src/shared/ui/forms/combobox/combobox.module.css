@@ -12,6 +12,11 @@
   border-color: var(--action-primary);
 }
 
+.frame:has(.input:focus-visible) {
+  border-color: var(--focus-ring-color);
+  box-shadow: var(--shadow-ring-focus);
+}
+
 .frame[data-disabled="true"] {
   cursor: not-allowed;
   color: var(--text-disabled);
@@ -25,6 +30,10 @@
   border: 0;
   background: none;
   outline: none;
+}
+
+.input:focus-visible {
+  outline: 0;
 }
 
 .input::placeholder {

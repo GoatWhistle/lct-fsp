@@ -1,9 +1,8 @@
-import { type ReactNode, useState } from "react"
+import { type ReactNode, useEffect } from "react"
 import { useProfile } from "@/entities/profile"
 import { useSession } from "@/entities/session"
 import type { Profile } from "@/shared/api"
-import { useTranslation } from "@/shared/i18n"
-import { Button, Dialog, LoadError, ScrollArea, Skeleton } from "@/shared/ui"
+import { LoadError, Skeleton } from "@/shared/ui"
 import { AboutSection } from "../about-section/about-section"
 import { ContactsSection } from "../contacts-section/contacts-section"
 import { ErrorSummary } from "../error-summary/error-summary"
@@ -11,10 +10,10 @@ import { ExpectationsSection } from "../expectations-section/expectations-sectio
 import { ExperienceSection } from "../experience-section/experience-section"
 import { FspSection } from "../fsp-section/fsp-section"
 import { LeaveGuard } from "../leave-guard/leave-guard"
+import { PdfButton } from "../pdf-button/pdf-button"
 import { ProfilePreview } from "../profile-preview/profile-preview"
 import { ResumeDrop } from "../resume-drop/resume-drop"
 import { SaveBar } from "../save-bar/save-bar"
-import { SectionNav } from "../section-nav/section-nav"
 import { StackSection } from "../stack-section/stack-section"
 import { VisibilitySection } from "../visibility-section/visibility-section"
 import styles from "./profile-editor.module.css"
@@ -22,6 +21,9 @@ import { useProfileEditor } from "./use-profile-editor"
 
 export interface ProfileEditorProps {
   readonly fspLinkAction: ReactNode
+  readonly focus?: "fsp" | null | undefined
+  readonly onSaved?: (() => void) | undefined
+  readonly onDirtyChange?: ((dirty: boolean) => void) | undefined
 }
 
 interface EditorFormProps extends ProfileEditorProps {
@@ -29,30 +31,28 @@ interface EditorFormProps extends ProfileEditorProps {
   readonly email: string
 }
 
-function EditorForm({ profile, email, fspLinkAction }: EditorFormProps) {
-  const { t } = useTranslation("profile")
-  const editor = useProfileEditor(profile, email)
-  const [previewing, setPreviewing] = useState(false)
+function EditorForm({
+  profile,
+  email,
+  fspLinkAction,
+  focus,
+  onSaved,
+  onDirtyChange,
+}: EditorFormProps) {
+  const editor = useProfileEditor(profile, email, onSaved)
   const section = {
     draft: editor.draft,
     onChange: editor.change,
     errors: editor.errors,
     marks: editor.marks,
   }
+  useEffect(() => onDirtyChange?.(editor.dirty), [editor.dirty, onDirtyChange])
+  useEffect(() => {
+    if (focus === "fsp") document.getElementById("fsp")?.scrollIntoView({ block: "start" })
+  }, [focus])
   return (
     <div className={styles.editor}>
-      <aside className={styles.nav}>
-        <SectionNav />
-      </aside>
       <div className={styles.form}>
-        <Button
-          variant="secondary"
-          icon="eye"
-          className={styles.previewToggle}
-          onClick={() => setPreviewing(true)}
-        >
-          {t("preview.title")}
-        </Button>
         <ErrorSummary missing={editor.missing} attempts={editor.attempts} />
         <ResumeDrop onParsed={editor.takeResume} parsed={editor.parsed} />
         <AboutSection {...section} />
@@ -62,33 +62,24 @@ function EditorForm({ profile, email, fspLinkAction }: EditorFormProps) {
         <ExpectationsSection {...section} />
         <VisibilitySection {...section} />
         <FspSection linkAction={fspLinkAction} />
-        <SaveBar
-          open={editor.dirty}
-          saving={editor.saving}
-          missing={editor.missing.length}
-          onSave={editor.save}
-          onReset={editor.reset}
-        />
       </div>
-      <aside className={styles.preview}>
-        <ScrollArea label={t("preview.title")} surface="canvas" className={styles.previewScroll}>
-          <ProfilePreview draft={editor.draft} />
-        </ScrollArea>
-      </aside>
-      <Dialog
-        open={previewing}
-        onClose={() => setPreviewing(false)}
-        title={t("preview.title")}
-        description={t("preview.lead")}
-      >
-        <ProfilePreview draft={editor.draft} framed={false} />
-      </Dialog>
+      <ProfilePreview draft={editor.draft} className={styles.preview} />
+      <SaveBar
+        dirty={editor.dirty}
+        created={profile !== null}
+        saving={editor.saving}
+        missing={editor.missing.length}
+        onSave={editor.save}
+        onReset={editor.reset}
+        extra={profile === null ? null : <PdfButton />}
+        className={styles.footer}
+      />
       <LeaveGuard when={editor.dirty} />
     </div>
   )
 }
 
-export function ProfileEditor({ fspLinkAction }: ProfileEditorProps) {
+export function ProfileEditor(props: ProfileEditorProps) {
   const profile = useProfile()
   const session = useSession()
   if (profile.isError)
@@ -100,18 +91,6 @@ export function ProfileEditor({ fspLinkAction }: ProfileEditorProps) {
       />
     )
   if (profile.data === undefined || session.data === undefined)
-    return (
-      <div className={styles.editor} aria-hidden="true">
-        <Skeleton shape="block" className={styles.navPlaceholder} />
-        <Skeleton shape="block" className={styles.placeholder} />
-        <Skeleton shape="block" className={styles.previewPlaceholder} />
-      </div>
-    )
-  return (
-    <EditorForm
-      profile={profile.data}
-      email={session.data?.email ?? ""}
-      fspLinkAction={fspLinkAction}
-    />
-  )
+    return <Skeleton shape="block" className={styles.placeholder} />
+  return <EditorForm {...props} profile={profile.data} email={session.data?.email ?? ""} />
 }

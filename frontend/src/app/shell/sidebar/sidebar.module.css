@@ -5,7 +5,8 @@
   gap: var(--space-24);
   block-size: 100dvh;
   padding: var(--space-20) var(--space-12) var(--space-16);
-  background-color: var(--surface-sidebar);
+  border-inline-end: var(--hairline) solid var(--border-hairline);
+  background-color: var(--surface-nav);
 }
 
 .scroll {
@@ -17,11 +18,6 @@
   display: grid;
   gap: var(--space-8);
   padding-inline: var(--space-8);
-}
-
-.role {
-  composes: labelText from "../../../shared/styles/compose.module.css";
-  color: var(--text-tertiary);
 }
 
 .list {
@@ -86,38 +82,36 @@
   border-block-start: var(--hairline) solid var(--border-hairline);
 }
 
-.email {
-  composes: captionText truncate from "../../../shared/styles/compose.module.css";
-  padding-inline: var(--space-8);
-  color: var(--text-tertiary);
-}
-
-.account > button {
-  inline-size: 100%;
-  justify-content: flex-start;
-  border: var(--hairline) solid var(--border-hairline);
-  background-color: var(--surface-tint);
-}
-
-.tools {
+.prefs,
+.account {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: var(--space-8);
+  align-items: center;
+  gap: var(--space-4);
 }
 
-.tools > button {
-  inline-size: 100%;
+.prefs {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  padding: var(--space-4);
   border: var(--hairline) solid var(--border-hairline);
+  border-radius: var(--radius-inner);
 }
 
-@media (hover: hover) and (pointer: fine) {
-  .account > button:hover,
-  .tools > button:hover {
-    border-color: var(--border-strong);
-  }
+.account {
+  grid-template-columns: minmax(0, 1fr) auto;
 }
 
-.sidebar[data-collapsed="true"] .brand {
+.prefs {
+  justify-items: center;
+}
+
+.accountMenu {
+  justify-content: flex-start;
+  min-inline-size: 0;
+}
+
+.sidebar[data-collapsed="true"] .brand,
+.sidebar[data-collapsed="true"] .prefs,
+.sidebar[data-collapsed="true"] .account {
   justify-items: center;
 }
 
@@ -132,10 +126,14 @@
   inset-inline-end: var(--space-4);
 }
 
-.sidebar[data-collapsed="true"] .tools {
-  grid-template-columns: minmax(0, 1fr);
+.sidebar[data-collapsed="true"] .prefs,
+.sidebar[data-collapsed="true"] .account {
+  grid-template-columns: auto;
+  justify-items: center;
+  padding: 0;
+  border: none;
 }
 
-.sidebar[data-collapsed="true"] .account > button {
+.sidebar[data-collapsed="true"] .accountMenu {
   justify-content: center;
 }

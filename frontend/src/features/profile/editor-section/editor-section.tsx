@@ -26,27 +26,22 @@ const ORDER: readonly SectionId[] = [
 export interface EditorSectionProps {
   readonly id: SectionId
   readonly title: string
-  readonly description?: string | undefined
   readonly actions?: ReactNode
   readonly children: ReactNode
 }
 
-export function EditorSection({ id, title, description, actions, children }: EditorSectionProps) {
+export function EditorSection({ id, title, actions, children }: EditorSectionProps) {
   return (
     <Card
       id={id}
+      level="section"
       title={title}
-      description={description}
       actions={actions}
       motionIndex={ORDER.indexOf(id)}
       className={styles.section}
       data-section={id}
     >
-      {children}
+      <div className={styles.body}>{children}</div>
     </Card>
   )
-}
-
-export function FieldRow({ children }: { readonly children: ReactNode }) {
-  return <div className={styles.row}>{children}</div>
 }

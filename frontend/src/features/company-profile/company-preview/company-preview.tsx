@@ -1,60 +1,58 @@
 import { useIndustries } from "@/entities/catalog"
 import { BackendText, useCatalogNames, useTranslation } from "@/shared/i18n"
-import { Swap } from "@/shared/motion"
-import { Card, Chip, Icon, IconLabel, NoValue, Terms } from "@/shared/ui"
-import { type CompanyForm, hostOf, initialsOf } from "../company-form"
+import { Card, Icon, IconLabel } from "@/shared/ui"
+import { type CompanyForm, initialsOf } from "../company-form"
 import styles from "./company-preview.module.css"
+import { PreviewBenefits, PreviewContacts, PreviewTrust } from "./preview-extras"
 
 export interface CompanyPreviewProps {
   readonly form: CompanyForm
+  readonly logo: string | null
+  readonly partner: boolean
+  readonly verified: boolean
   readonly className?: string | undefined
 }
 
-function valueOr(text: string) {
-  const trimmed = text.trim()
-  return trimmed === "" ? <NoValue /> : <BackendText>{trimmed}</BackendText>
-}
-
-export function CompanyPreview({ form, className }: CompanyPreviewProps) {
+function useMeta(form: CompanyForm): string {
   const { t } = useTranslation("company")
   const names = useCatalogNames()
   const industries = useIndustries()
   const industry = industries.data?.find((item) => item.code === form.industry)
+  return [
+    industry === undefined ? null : names.industry(industry),
+    form.size === null ? null : t(`sizes.${form.size}`),
+  ]
+    .filter((part): part is string => part !== null)
+    .join(", ")
+}
+
+export function CompanyPreview({ form, logo, partner, verified, className }: CompanyPreviewProps) {
+  const { t } = useTranslation("company")
+  const meta = useMeta(form)
   const name = form.name.trim()
   const initials = initialsOf(name)
   const description = form.description.trim()
-  const website = hostOf(form.website)
   return (
-    <Card
-      as="aside"
-      title={t("preview.title")}
-      description={t("preview.lead")}
-      motionIndex={2}
-      className={className}
-    >
-      <div className={styles.frame}>
-        <IconLabel icon="invitation" tone="secondary" className={styles.eyebrow}>
-          {t("preview.invitation")}
-        </IconLabel>
-        <div className={styles.head}>
+    <Card level="section" title={t("preview.title")} motionIndex={3} className={className}>
+      <article className={styles.card}>
+        <header className={styles.head}>
           <span className={styles.mark} aria-hidden="true">
-            {initials === "" ? <Icon name="company" size="md" /> : initials}
+            {logo !== null ? (
+              <img className={styles.logo} src={logo} alt="" />
+            ) : initials === "" ? (
+              <Icon name="company" size="md" />
+            ) : (
+              initials
+            )}
           </span>
           <div className={styles.identity}>
             <p className={styles.name} data-empty={name === ""}>
               {name === "" ? t("preview.untitled") : <BackendText>{name}</BackendText>}
             </p>
-            <Swap swapKey={industry?.code ?? "none"} as="div">
-              {industry === undefined ? (
-                <NoValue />
-              ) : (
-                <Chip icon="company" tone="accent">
-                  {names.industry(industry)}
-                </Chip>
-              )}
-            </Swap>
+            {meta === "" ? null : <p className={styles.meta}>{meta}</p>}
           </div>
-        </div>
+        </header>
+        <PreviewTrust accredited={form.accredited} partner={partner} verified={verified} />
         <p className={styles.description} data-empty={description === ""}>
           {description === "" ? (
             t("preview.noDescription")
@@ -62,20 +60,9 @@ export function CompanyPreview({ form, className }: CompanyPreviewProps) {
             <BackendText>{description}</BackendText>
           )}
         </p>
-        <Terms
-          className={styles.terms}
-          items={[
-            {
-              key: "website",
-              label: t("preview.website"),
-              icon: "link",
-              value: website === "" ? <NoValue /> : <span className={styles.link}>{website}</span>,
-            },
-            { key: "email", label: t("preview.email"), icon: "mail", value: valueOr(form.email) },
-            { key: "phone", label: t("preview.phone"), icon: "phone", value: valueOr(form.phone) },
-          ]}
-        />
-      </div>
+        <PreviewBenefits benefits={form.benefits} />
+        <PreviewContacts form={form} />
+      </article>
       <IconLabel icon="lock" tone="secondary" className={styles.note}>
         {t("preview.note")}
       </IconLabel>

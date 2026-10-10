@@ -17,6 +17,7 @@ export interface ChoiceTile<Value extends string> {
 export interface ChoiceTilesProps<Value extends string> {
   readonly legend: string
   readonly hideLegend?: boolean
+  readonly required?: boolean | undefined
   readonly tiles: readonly ChoiceTile<Value>[]
   readonly value: Value | null
   readonly onChange: (value: Value) => void
@@ -29,6 +30,7 @@ export interface ChoiceTilesProps<Value extends string> {
 export function ChoiceTiles<Value extends string>({
   legend,
   hideLegend = false,
+  required = false,
   tiles,
   value,
   onChange,
@@ -49,7 +51,12 @@ export function ChoiceTiles<Value extends string>({
       onKeyDown={modality.onKeyDown}
       onPointerDown={modality.onPointerDown}
     >
-      <legend className={hideLegend ? "visually-hidden" : styles.legend}>{legend}</legend>
+      <legend
+        className={hideLegend ? "visually-hidden" : styles.legend}
+        data-required={required || undefined}
+      >
+        {legend}
+      </legend>
       {tiles.map((tile, index) => (
         <label
           key={tile.value}

@@ -12,6 +12,7 @@
   --surface-inverse: var(--fsp-graphite);
   --surface-inverse-strong: var(--fsp-graphite-deep);
   --surface-sidebar: var(--fsp-graphite);
+  --surface-nav: var(--fsp-white);
   --surface-focus: var(--fsp-graphite);
   --surface-brand: var(--fsp-blue);
   --surface-scrim: color-mix(in oklab, var(--fsp-graphite) 48%, transparent);
@@ -49,9 +50,9 @@
   --signal-attention: var(--fsp-blue);
   --signal-critical: var(--fsp-red-deep);
 
-  --border-hairline: color-mix(in oklab, var(--fsp-graphite) 12%, transparent);
-  --border-strong: color-mix(in oklab, var(--fsp-graphite) 28%, transparent);
-  --border-input: color-mix(in oklab, var(--fsp-graphite) 56%, transparent);
+  --border-hairline: color-mix(in oklab, var(--fsp-graphite) 9%, transparent);
+  --border-strong: color-mix(in oklab, var(--fsp-graphite) 16%, transparent);
+  --border-input: color-mix(in oklab, var(--fsp-graphite) 48%, transparent);
   --border-invalid: var(--fsp-red-deep);
   --border-inverse: color-mix(in oklab, var(--fsp-white) 16%, transparent);
   --border-raised: transparent;
@@ -105,6 +106,7 @@
   --surface-inverse: var(--fsp-graphite-deep);
   --surface-inverse-strong: var(--fsp-graphite-deep);
   --surface-sidebar: var(--fsp-graphite-deep);
+  --surface-nav: var(--fsp-graphite-deep);
   --surface-focus: var(--fsp-graphite-deep);
   --surface-brand: var(--fsp-blue);
   --surface-scrim: color-mix(in oklab, var(--fsp-graphite-deep) 70%, transparent);

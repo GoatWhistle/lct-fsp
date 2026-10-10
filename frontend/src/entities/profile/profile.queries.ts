@@ -7,9 +7,10 @@ const GRADE_HINT_KEY = ["candidate", "grade-hint"] as const
 const PDF_FALLBACK = "profile.pdf"
 const ENCODED_NAME = /filename\*=UTF-8''([^;]+)/i
 
-export function useProfile() {
+export function useProfile(enabled = true) {
   return useQuery({
     queryKey: PROFILE_KEY,
+    enabled,
     queryFn: () => unwrap(api.GET("/api/candidate/profile")),
   })
 }

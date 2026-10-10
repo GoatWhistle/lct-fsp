@@ -5,12 +5,19 @@ export const EMPLOYER = "employer@demo.example"
 export const CANDIDATE = "devops-middle@demo.example"
 export const MAILPIT = process.env.E2E_MAILPIT_URL ?? "http://localhost:8025"
 
-export async function prepare(context: BrowserContext, theme: "light" | "dark" = "light") {
-  await context.addInitScript((chosen) => {
-    localStorage.setItem("calibr-theme", chosen)
-    localStorage.setItem("calibr-locale", "en")
-    localStorage.setItem("calibr-test-intro", "false")
-  }, theme)
+export async function prepare(
+  context: BrowserContext,
+  theme: "light" | "dark" = "light",
+  locale: "ru" | "en" = "en",
+) {
+  await context.addInitScript(
+    (chosen) => {
+      localStorage.setItem("calibr-theme", chosen.theme)
+      localStorage.setItem("calibr-locale", chosen.locale)
+      localStorage.setItem("calibr-test-intro", "false")
+    },
+    { theme, locale },
+  )
 }
 
 export async function signIn(page: Page, email: string, password = PASSWORD) {

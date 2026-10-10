@@ -5,7 +5,7 @@
 
 .row {
   display: grid;
-  grid-template-columns: var(--grade-label-width) minmax(0, 1fr) var(--grade-value-width);
+  grid-template-columns: var(--grade-label-width) minmax(0, 1fr) minmax(0, 1.5fr);
   align-items: center;
   gap: var(--space-12);
 }

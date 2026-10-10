@@ -107,7 +107,6 @@
 
 .fact {
   display: inline-flex;
-  white-space: nowrap;
   align-items: center;
   gap: var(--space-4);
 }

@@ -1,19 +1,17 @@
 import { useCallback } from "react"
 import type { Level } from "@/shared/api"
-import { useCatalogNames, useFormatters, useTranslation } from "@/shared/i18n"
+import { useCatalogNames, useTranslation } from "@/shared/i18n"
 import { isGradeCode, uncertaintySize } from "./grade-scale"
 
 export interface LevelWords {
   readonly band: (band: Level["band"]) => string
   readonly uncertainty: (sd: number) => string
   readonly describe: (level: Level) => string
-  readonly probability: (ratio: number) => string
 }
 
 export function useLevelWords(): LevelWords {
   const { t } = useTranslation("measure")
   const names = useCatalogNames()
-  const format = useFormatters()
 
   const gradeWord = useCallback(
     (code: string) => (code === "intern" ? names.grade(code).toLowerCase() : names.grade(code)),
@@ -40,14 +38,5 @@ export function useLevelWords(): LevelWords {
     [t, band, uncertainty],
   )
 
-  const probability = useCallback(
-    (ratio: number) => {
-      if (ratio > 0.99) return t("percent.above")
-      if (ratio < 0.01) return t("percent.below")
-      return format.percent(ratio)
-    },
-    [t, format],
-  )
-
-  return { band, uncertainty, describe, probability }
+  return { band, uncertainty, describe }
 }

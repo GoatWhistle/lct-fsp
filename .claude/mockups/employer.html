@@ -1,0 +1,657 @@
+<!doctype html>
+<html lang="ru" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>calibr — обзор работодателя</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Onest:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --blue: #402fff;
+  --blue-deep: #3324e0;
+  --blue-bright: #6355ff;
+  --blue-light: #9b93ff;
+  --red: #ec1d35;
+  --red-deep: #d01730;
+  --red-light: #ff6b7a;
+  --graphite: #1b1c21;
+  --graphite-deep: #131418;
+  --graphite-raised: #222329;
+  --graphite-high: #2a2b31;
+  --smoke: #ededed;
+  --ash: #c8c9ca;
+  --ash-dim: #9c9da2;
+  --ink-soft: #55565c;
+  --ink-mute: #66676d;
+  --mist: #f5f5f8;
+  --white: #fff;
+
+  --font-ui: "Onest", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, Menlo, monospace;
+  --r-card: 16px;
+  --r-inner: 12px;
+  --r-btn: 8px;
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-draw: cubic-bezier(0.65, 0, 0.35, 1);
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+  --canvas: var(--mist);
+  --card: var(--white);
+  --tint: color-mix(in oklab, var(--white), var(--blue) 7%);
+  --tint-hi: color-mix(in oklab, var(--white), var(--blue) 12%);
+  --inverse: var(--graphite);
+  --sidebar: var(--graphite);
+  --text: var(--graphite);
+  --text-2: var(--ink-soft);
+  --text-3: var(--ink-mute);
+  --accent-text: var(--blue);
+  --danger-text: var(--red-deep);
+  --action: var(--blue);
+  --action-hover: var(--blue-deep);
+  --hair: color-mix(in oklab, var(--graphite) 12%, transparent);
+  --strong: color-mix(in oklab, var(--graphite) 28%, transparent);
+  --track: color-mix(in oklab, var(--graphite) 14%, transparent);
+  --skeleton: color-mix(in oklab, var(--white), var(--graphite) 7%);
+  --signal: var(--blue);
+  --signal-warn: var(--red-deep);
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --canvas: var(--graphite);
+  --card: var(--graphite-raised);
+  --tint: color-mix(in oklab, var(--graphite-raised), var(--blue) 12%);
+  --tint-hi: color-mix(in oklab, var(--graphite-raised), var(--blue) 18%);
+  --inverse: var(--graphite-deep);
+  --sidebar: var(--graphite-deep);
+  --text: var(--smoke);
+  --text-2: var(--ash);
+  --text-3: var(--ash-dim);
+  --accent-text: var(--blue-light);
+  --danger-text: var(--red-light);
+  --action: var(--blue-bright);
+  --action-hover: color-mix(in oklab, var(--blue-bright), var(--white) 10%);
+  --hair: color-mix(in oklab, var(--smoke) 11%, transparent);
+  --strong: color-mix(in oklab, var(--smoke) 24%, transparent);
+  --track: color-mix(in oklab, var(--smoke) 18%, transparent);
+  --skeleton: color-mix(in oklab, var(--graphite-raised), var(--smoke) 8%);
+  --signal: var(--blue-light);
+  --signal-warn: var(--red-light);
+}
+
+* { box-sizing: border-box; margin: 0; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  min-block-size: 100dvh;
+  background: var(--canvas);
+  color: var(--text);
+  font: 400 15px/1.5 var(--font-ui);
+  display: grid;
+  grid-template-columns: 232px minmax(0, 1fr);
+  transition: background-color 200ms, color 200ms;
+}
+button, textarea { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 2px solid var(--blue-light); outline-offset: 2px; }
+.mono { font-family: var(--font-mono); font-feature-settings: "tnum"; }
+
+.side {
+  position: sticky;
+  inset-block-start: 0;
+  block-size: 100dvh;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  padding: 24px 16px;
+  background: var(--sidebar);
+  color: var(--smoke);
+}
+.brand { display: flex; align-items: center; gap: 10px; padding-inline: 8px; font: 700 18px var(--font-mono); letter-spacing: -0.02em; }
+.brand svg { inline-size: 26px; block-size: 26px; }
+.nav { display: grid; gap: 2px; }
+.nav a {
+  display: flex; align-items: center; gap: 10px;
+  padding: 9px 12px;
+  border-radius: var(--r-btn);
+  color: var(--ash);
+  text-decoration: none;
+  font-size: 14px;
+  transition: background-color 150ms, color 150ms;
+}
+.nav a:hover { background: color-mix(in oklab, #fff 8%, transparent); color: var(--smoke); }
+.nav a[aria-current] { background: color-mix(in oklab, var(--blue-bright) 28%, transparent); color: #fff; }
+.nav svg { inline-size: 18px; block-size: 18px; stroke: currentColor; fill: none; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+.nav .count {
+  margin-inline-start: auto;
+  min-inline-size: 22px; padding: 0 6px;
+  border-radius: 999px;
+  background: var(--red);
+  color: #fff;
+  font: 600 11px/20px var(--font-mono);
+  text-align: center;
+}
+.side-foot { margin-block-start: auto; display: grid; gap: 8px; padding-inline: 8px; color: var(--ash-dim); font-size: 13px; }
+.theme {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 8px 12px;
+  border: 1px solid var(--border-inverse, rgba(255,255,255,.16));
+  border-radius: var(--r-btn);
+  background: transparent;
+  color: var(--ash);
+  font-size: 13px;
+  transition: background-color 150ms;
+}
+.theme:hover { background: color-mix(in oklab, #fff 8%, transparent); }
+.theme:active { transform: scale(0.97); }
+
+.main { min-inline-size: 0; padding: 28px 40px 64px; display: grid; gap: 28px; align-content: start; }
+.head { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; }
+.eyebrow { font: 500 12px var(--font-mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-3); }
+h1 { font: 700 28px/1.2 var(--font-mono); letter-spacing: -0.02em; }
+.head p { color: var(--text-2); margin-block-start: 4px; }
+
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  min-block-size: 40px; padding: 0 18px;
+  border: 0; border-radius: var(--r-btn);
+  background: var(--action);
+  color: #fff;
+  font: 600 14px var(--font-ui);
+  text-decoration: none;
+  transition: background-color 150ms, transform 120ms var(--ease-out);
+}
+.btn:hover { background: var(--action-hover); }
+.btn:active { transform: scale(0.97); }
+.btn svg { inline-size: 16px; block-size: 16px; stroke: currentColor; fill: none; stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; }
+.btn.ghost { background: transparent; color: var(--text); box-shadow: inset 0 0 0 1px var(--strong); }
+.btn.ghost:hover { background: color-mix(in oklab, currentColor 7%, transparent); }
+.btn.compact { min-block-size: 34px; padding: 0 14px; font-size: 13px; }
+.btn[disabled] { opacity: 0.5; pointer-events: none; }
+
+.hero {
+  position: relative;
+  overflow: hidden;
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+  gap: 40px;
+  padding: 32px;
+  border-radius: var(--r-card);
+  background: var(--inverse);
+  color: var(--smoke);
+}
+.hero::before {
+  content: "";
+  position: absolute;
+  inset-block: 0; inset-inline-end: 0;
+  inline-size: 46%;
+  background: radial-gradient(circle at 80% 20%, color-mix(in oklab, var(--blue) 40%, transparent), transparent 62%);
+  pointer-events: none;
+}
+.hero > * { position: relative; }
+.hero .eyebrow { color: var(--blue-light); }
+.hero h2 { font: 700 24px/1.25 var(--font-mono); letter-spacing: -0.02em; margin-block: 8px 6px; }
+.hero .lead { color: var(--ash); max-inline-size: 52ch; }
+.field {
+  margin-block-start: 20px;
+  border-radius: var(--r-inner);
+  background: color-mix(in oklab, #fff 6%, transparent);
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.16);
+  transition: box-shadow 150ms;
+}
+.field:focus-within { box-shadow: inset 0 0 0 2px var(--blue-light); }
+.field textarea {
+  display: block;
+  inline-size: 100%;
+  min-block-size: 132px;
+  padding: 16px 16px 8px;
+  border: 0;
+  background: transparent;
+  color: #fff;
+  resize: vertical;
+  line-height: 1.55;
+}
+.field textarea:focus-visible { outline: 0; }
+.field textarea::placeholder { color: var(--ash-dim); }
+.field-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; padding: 8px 12px 12px 16px; }
+.examples { display: flex; flex-wrap: wrap; gap: 6px; }
+.example {
+  padding: 4px 10px;
+  border: 0; border-radius: 999px;
+  background: rgba(255,255,255,.08);
+  color: var(--ash);
+  font-size: 12px;
+  transition: background-color 150ms, color 150ms;
+}
+.example:hover { background: rgba(255,255,255,.16); color: #fff; }
+.actions { display: flex; gap: 8px; margin-block-start: 16px; flex-wrap: wrap; }
+.hero .btn.ghost { color: var(--smoke); box-shadow: inset 0 0 0 1px rgba(255,255,255,.28); }
+
+.scan { display: grid; align-content: center; gap: 14px; }
+.scan-title { font: 500 12px var(--font-mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--ash-dim); }
+.hero-trace { --done: var(--blue-light); }
+.scan-result {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  opacity: 0.35;
+  transform: translateY(4px);
+  transition: opacity 400ms var(--ease-out), transform 400ms var(--ease-out);
+}
+.scan-result.on { opacity: 1; transform: none; }
+.big { padding: 14px 16px; border-radius: var(--r-inner); background: rgba(255,255,255,.06); box-shadow: inset 0 0 0 1px rgba(255,255,255,.1); }
+.big b { display: block; font: 700 32px/1.1 var(--font-mono); letter-spacing: -0.02em; }
+.big span { font-size: 13px; color: var(--ash); }
+.scan-open { justify-self: start; opacity: 0; pointer-events: none; transition: opacity 300ms 200ms; }
+.scan-open.on { opacity: 1; pointer-events: auto; }
+.parsed { display: flex; flex-wrap: wrap; gap: 6px; min-block-size: 28px; }
+.parsed span {
+  padding: 3px 10px; border-radius: 999px;
+  background: color-mix(in oklab, var(--blue-bright) 30%, transparent);
+  color: #fff; font-size: 12px;
+  animation: pop 320ms var(--ease-out) both;
+}
+@keyframes pop { from { opacity: 0; transform: scale(0.9); } }
+
+.cols { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 24px; align-items: start; }
+.panel { background: var(--card); border-radius: var(--r-card); box-shadow: inset 0 0 0 1px var(--hair); padding: 24px; }
+.panel-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-block-end: 8px; }
+.panel-head h3 { font: 600 16px var(--font-mono); letter-spacing: -0.01em; }
+.panel-head .sub { color: var(--text-3); font-size: 13px; }
+
+.need { padding-block: 20px; border-block-start: 1px solid var(--hair); display: grid; gap: 16px; }
+.need:first-of-type { border-block-start: 0; }
+.need-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+.need-title { font: 600 17px/1.3 var(--font-mono); letter-spacing: -0.01em; color: var(--text); text-decoration: none; }
+.need-title:hover { color: var(--accent-text); }
+.need-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; margin-block-start: 4px; color: var(--text-2); font-size: 13px; }
+.need-meta .dot { inline-size: 3px; block-size: 3px; border-radius: 50%; background: var(--text-3); }
+.pill { padding: 1px 9px; border-radius: 999px; background: var(--tint); color: var(--accent-text); font: 500 12px var(--font-mono); }
+
+.trace { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.step { position: relative; display: grid; justify-items: start; gap: 2px; padding-block-start: 22px; }
+.step::before, .step::after {
+  content: "";
+  position: absolute;
+  inset-block-start: 7px;
+  inset-inline: 14px calc(-100% + 14px);
+  block-size: 2px;
+  border-radius: 2px;
+}
+.step::before { background: var(--track); }
+.step::after {
+  background: var(--done, var(--signal));
+  transform: scaleX(0);
+  transform-origin: left;
+}
+.step:last-child::before, .step:last-child::after { display: none; }
+.step.done::after { transform: scaleX(1); transition: transform 600ms var(--ease-draw); transition-delay: calc(var(--i) * 140ms + 200ms); }
+.node {
+  position: absolute;
+  inset-block-start: 0; inset-inline-start: 0;
+  inline-size: 16px; block-size: 16px;
+  border-radius: 50%;
+  background: var(--card);
+  box-shadow: inset 0 0 0 2px var(--track);
+  z-index: 1;
+  transition: background-color 300ms, box-shadow 300ms;
+  transition-delay: calc(var(--i) * 140ms);
+}
+.step.done .node { background: var(--done, var(--signal)); box-shadow: none; }
+.step.now .node { background: var(--card); box-shadow: inset 0 0 0 2px var(--done, var(--signal)); }
+.step.now .node::after {
+  content: "";
+  position: absolute; inset: -6px;
+  border-radius: 50%;
+  border: 2px solid var(--done, var(--signal));
+  opacity: 0;
+  animation: ping 2s var(--ease-out) infinite;
+}
+@keyframes ping { 0% { opacity: 0.6; transform: scale(0.6); } 100% { opacity: 0; transform: scale(1.3); } }
+.step b { font: 700 22px/1.1 var(--font-mono); letter-spacing: -0.02em; padding-inline-start: 0; }
+.step.idle b { color: var(--text-3); }
+.step span { font-size: 12px; color: var(--text-2); }
+.step.warn { --done: var(--signal-warn); }
+
+.need-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.next { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-2); }
+.next .led { inline-size: 8px; block-size: 8px; border-radius: 50%; background: var(--signal-warn); }
+
+.more { display: grid; }
+.rows { display: grid; grid-template-rows: 0fr; transition: grid-template-rows 360ms var(--ease-out); }
+.rows.open { grid-template-rows: 1fr; }
+.rows > div { overflow: hidden; }
+.mini {
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) repeat(4, minmax(48px, 0.5fr)) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 0;
+  border-block-start: 1px solid var(--hair);
+  font-size: 14px;
+}
+.mini .t { font: 500 14px var(--font-mono); text-decoration: none; color: var(--text); }
+.mini .t small { display: block; font: 400 12px var(--font-ui); color: var(--text-3); }
+.mini .n { font: 600 14px var(--font-mono); text-align: end; }
+.mini .n.z { color: var(--text-3); font-weight: 400; }
+.mini .bar { display: none; }
+.toggle { margin-block-start: 12px; justify-self: start; }
+
+.budget { display: grid; gap: 8px; padding: 14px 16px; border-radius: var(--r-inner); background: var(--tint); margin-block-end: 8px; }
+.budget-row { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; font-size: 13px; color: var(--text-2); }
+.budget-row b { font: 700 20px var(--font-mono); color: var(--text); }
+.meter { block-size: 6px; border-radius: 6px; background: var(--track); overflow: hidden; }
+.meter i { display: block; block-size: 100%; inline-size: 40%; background: var(--signal); border-radius: 6px; transform-origin: left; animation: grow 900ms var(--ease-draw) both 300ms; }
+@keyframes grow { from { transform: scaleX(0); } }
+
+.wait { list-style: none; padding: 0; display: grid; }
+.wait li { border-block-start: 1px solid var(--hair); }
+.wait li:first-child { border-block-start: 0; }
+.wait a {
+  display: grid; grid-template-columns: 8px minmax(0, 1fr) auto; align-items: center; gap: 12px;
+  padding: 14px 6px; margin-inline: -6px;
+  border-radius: var(--r-btn);
+  color: inherit; text-decoration: none;
+  transition: background-color 150ms;
+}
+.wait a:hover { background: var(--tint); }
+.wait .u { inline-size: 8px; block-size: 8px; border-radius: 50%; background: var(--text-3); }
+.wait .u.hot { background: var(--signal-warn); }
+.wait .u.mid { background: var(--signal); }
+.wait strong { display: block; font-weight: 500; font-size: 14px; }
+.wait small { color: var(--text-3); font-size: 12px; }
+.wait .when { font: 400 12px var(--font-mono); color: var(--text-3); }
+.wait svg { inline-size: 16px; block-size: 16px; stroke: var(--text-3); fill: none; stroke-width: 1.5; }
+
+.enter { animation: rise 520ms var(--ease-out) both; animation-delay: calc(var(--e, 0) * 70ms); }
+@keyframes rise { from { opacity: 0; transform: translateY(10px); } }
+
+@media (max-width: 1100px) {
+  .hero { grid-template-columns: minmax(0, 1fr); gap: 24px; }
+  .cols { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 800px) {
+  body { grid-template-columns: minmax(0, 1fr); }
+  .side { position: static; block-size: auto; flex-direction: row; flex-wrap: wrap; align-items: center; padding: 12px 16px; }
+  .nav { display: none; }
+  .side-foot { margin: 0 0 0 auto; }
+  .main { padding: 20px 16px 48px; }
+  .hero { padding: 20px; }
+  .trace { grid-template-columns: repeat(2, minmax(0, 1fr)); row-gap: 8px; }
+  .mini { grid-template-columns: minmax(0, 1fr) auto; }
+  .mini .n { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 1ms !important; animation-iteration-count: 1 !important; transition-duration: 1ms !important; transition-delay: 0ms !important; }
+}
+</style>
+</head>
+<body>
+<aside class="side">
+  <div class="brand">
+    <svg viewBox="0 0 26 26" fill="none" aria-hidden="true"><path d="M3 20 L9 8 L14 15 L18 6 L23 13" stroke="#9b93ff" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/><circle cx="3" cy="20" r="2.5" fill="#ec1d35"/><circle cx="23" cy="13" r="2.5" fill="#6355ff"/></svg>
+    calibr
+  </div>
+  <nav class="nav" aria-label="Кабинет">
+    <a href="#" aria-current="page"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>Обзор</a>
+    <a href="#"><svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h10M4 18h6"/></svg>Потребности</a>
+    <a href="#"><svg viewBox="0 0 24 24"><path d="M4 5h16v11H8l-4 4z"/></svg>Приглашения<span class="count">3</span></a>
+    <a href="#"><svg viewBox="0 0 24 24"><rect x="4" y="7" width="16" height="13" rx="2"/><path d="M9 7V5h6v2"/></svg>Вакансии</a>
+    <a href="#"><svg viewBox="0 0 24 24"><path d="M9 11l3 3 8-8M4 12v7h14"/></svg>Задания</a>
+    <a href="#"><svg viewBox="0 0 24 24"><path d="M4 20V10l8-6 8 6v10zM10 20v-6h4v6"/></svg>Компания</a>
+  </nav>
+  <div class="side-foot">
+    <button class="theme" id="theme" type="button"><span id="theme-label">Тёмная тема</span></button>
+    <span>Нова Лаб</span>
+  </div>
+</aside>
+
+<main class="main">
+  <header class="head enter" style="--e:0">
+    <div>
+      <div class="eyebrow">Обзор</div>
+      <h1>Подбор, который нельзя накрутить</h1>
+      <p>Нова Лаб · 9 потребностей, 3 в работе</p>
+    </div>
+    <a class="btn ghost" href="#"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Собрать мастером</a>
+  </header>
+
+  <section class="hero enter" style="--e:1" aria-labelledby="hero-title">
+    <div>
+      <div class="eyebrow">Новая потребность</div>
+      <h2 id="hero-title">Опишите, кого ищете. Своими словами</h2>
+      <p class="lead">Вставьте текст вакансии или напишите пару строк. Разберём стек, грейд и условия, соберём подбор с объяснением по темам.</p>
+      <div class="field">
+        <textarea id="text" rows="5" placeholder="Например: нужен backend-разработчик уровня middle, Go и PostgreSQL, офис или гибрид в Москве, вилка 280–350 тыс. ₽ до вычета НДФЛ"></textarea>
+        <div class="field-foot">
+          <div class="examples" aria-label="Примеры">
+            <button class="example" type="button" data-text="Ищем middle backend на Go, PostgreSQL, Kafka. Москва, гибрид, 300–380 тыс. ₽ в месяц до вычета НДФЛ">Backend, Go</button>
+            <button class="example" type="button" data-text="Нужен senior ML-инженер: Python, PyTorch, MLOps. Удалённо, 450–550 тыс. ₽ в месяц до вычета НДФЛ">ML senior</button>
+            <button class="example" type="button" data-text="Junior frontend, React и TypeScript, Казань, 120–160 тыс. ₽ в месяц до вычета НДФЛ">Frontend junior</button>
+          </div>
+          <span class="mono" style="font-size:12px;color:var(--ash-dim)" id="count">0 / 4000</span>
+        </div>
+      </div>
+      <div class="actions">
+        <button class="btn" id="go" type="button" disabled>
+          <svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg>Подобрать
+        </button>
+        <a class="btn ghost" href="#">Загрузить файл</a>
+      </div>
+    </div>
+
+    <div class="scan" aria-live="polite">
+      <div class="scan-title">Ход подбора</div>
+      <div class="trace hero-trace" id="hero-trace">
+        <div class="step idle" style="--i:0"><i class="node"></i><b>1</b><span>Разбор текста</span></div>
+        <div class="step idle" style="--i:1"><i class="node"></i><b>2</b><span>Сверка с тестом</span></div>
+        <div class="step idle" style="--i:2"><i class="node"></i><b>3</b><span>Ранжирование</span></div>
+        <div class="step idle" style="--i:3"><i class="node"></i><b>4</b><span>Объяснение</span></div>
+      </div>
+      <div class="parsed" id="parsed"></div>
+      <div class="scan-result" id="result">
+        <div class="big"><b id="exact">0</b><span>подходят точно</span></div>
+        <div class="big"><b id="near">0</b><span>близки к требованиям</span></div>
+      </div>
+      <a class="btn scan-open" id="open" href="#">Открыть подборку</a>
+    </div>
+  </section>
+
+  <div class="cols">
+    <section class="panel enter" style="--e:2" aria-labelledby="needs-title">
+      <div class="panel-head">
+        <h3 id="needs-title">Потребности в работе</h3>
+        <span class="sub">путь от подбора до переписки</span>
+      </div>
+
+      <article class="need">
+        <div class="need-top">
+          <div>
+            <a class="need-title" href="#">Backend-разработчик, платёжное ядро</a>
+            <div class="need-meta"><span class="pill">Backend</span><span class="pill">Middle</span><span>Go, PostgreSQL, Kafka</span><i class="dot"></i><span>280–350 тыс. ₽</span></div>
+          </div>
+          <a class="btn compact" href="#">Открыть подборку</a>
+        </div>
+        <div class="trace">
+          <div class="step done" style="--i:0"><i class="node"></i><b>47</b><span>в подборке</span></div>
+          <div class="step done" style="--i:1"><i class="node"></i><b>12</b><span>приглашено</span></div>
+          <div class="step done now" style="--i:2"><i class="node"></i><b>3</b><span>приняли</span></div>
+          <div class="step done warn" style="--i:3"><i class="node"></i><b>2</b><span>в переписке</span></div>
+        </div>
+        <div class="need-foot"><span class="next"><i class="led"></i>2 непрочитанных от кандидатов</span><a class="btn ghost compact" href="#">К переписке</a></div>
+      </article>
+
+      <article class="need">
+        <div class="need-top">
+          <div>
+            <a class="need-title" href="#">ML-инженер, рекомендации</a>
+            <div class="need-meta"><span class="pill">ML</span><span class="pill">Senior</span><span>Python, PyTorch, MLOps</span><i class="dot"></i><span>450–550 тыс. ₽</span></div>
+          </div>
+          <a class="btn compact" href="#">Пригласить</a>
+        </div>
+        <div class="trace">
+          <div class="step done" style="--i:0"><i class="node"></i><b>18</b><span>в подборке</span></div>
+          <div class="step done now" style="--i:1"><i class="node"></i><b>4</b><span>приглашено</span></div>
+          <div class="step idle" style="--i:2"><i class="node"></i><b>0</b><span>приняли</span></div>
+          <div class="step idle" style="--i:3"><i class="node"></i><b>0</b><span>в переписке</span></div>
+        </div>
+        <div class="need-foot"><span class="next"><i class="led" style="background:var(--signal)"></i>Ждём ответ на 4 приглашения, самое старое 3 дня</span><a class="btn ghost compact" href="#">Пересобрать</a></div>
+      </article>
+
+      <article class="need">
+        <div class="need-top">
+          <div>
+            <a class="need-title" href="#">Frontend-разработчик, кабинет клиента</a>
+            <div class="need-meta"><span class="pill">Frontend</span><span class="pill">Junior</span><span>React, TypeScript</span><i class="dot"></i><span>120–160 тыс. ₽</span></div>
+          </div>
+          <a class="btn compact" href="#">Собрать подбор</a>
+        </div>
+        <div class="trace">
+          <div class="step now" style="--i:0"><i class="node"></i><b>0</b><span>в подборке</span></div>
+          <div class="step idle" style="--i:1"><i class="node"></i><b>0</b><span>приглашено</span></div>
+          <div class="step idle" style="--i:2"><i class="node"></i><b>0</b><span>приняли</span></div>
+          <div class="step idle" style="--i:3"><i class="node"></i><b>0</b><span>в переписке</span></div>
+        </div>
+        <div class="need-foot"><span class="next"><i class="led" style="background:var(--text-3)"></i>Подбор ещё не собирали</span></div>
+      </article>
+
+      <div class="more">
+        <div class="rows" id="rows">
+          <div>
+            <div class="mini"><a class="t" href="#">DevOps-инженер<small>DevOps · Middle</small></a><span class="n">31</span><span class="n">6</span><span class="n">1</span><span class="n z">0</span><a class="btn ghost compact" href="#">Открыть</a></div>
+            <div class="mini"><a class="t" href="#">QA automation<small>QA · Middle</small></a><span class="n">22</span><span class="n">0</span><span class="n z">0</span><span class="n z">0</span><a class="btn ghost compact" href="#">Открыть</a></div>
+            <div class="mini"><a class="t" href="#">Data-аналитик<small>Data · Junior</small></a><span class="n">64</span><span class="n">9</span><span class="n">2</span><span class="n">1</span><a class="btn ghost compact" href="#">Открыть</a></div>
+            <div class="mini"><a class="t" href="#">Android-разработчик<small>Mobile · Senior</small></a><span class="n">9</span><span class="n">3</span><span class="n z">0</span><span class="n z">0</span><a class="btn ghost compact" href="#">Открыть</a></div>
+            <div class="mini"><a class="t" href="#">Системный аналитик<small>Analyst · Middle</small></a><span class="n">27</span><span class="n">0</span><span class="n z">0</span><span class="n z">0</span><a class="btn ghost compact" href="#">Открыть</a></div>
+            <div class="mini"><a class="t" href="#">Go-разработчик, шлюз<small>Backend · Senior</small></a><span class="n">15</span><span class="n">5</span><span class="n">2</span><span class="n z">0</span><a class="btn ghost compact" href="#">Открыть</a></div>
+          </div>
+        </div>
+        <button class="btn ghost compact toggle" id="toggle" type="button" aria-expanded="false">Показать ещё 6</button>
+      </div>
+    </section>
+
+    <aside class="panel enter" style="--e:3" aria-labelledby="wait-title">
+      <div class="panel-head"><h3 id="wait-title">Ждёт вас</h3><span class="sub">по срочности</span></div>
+      <div class="budget">
+        <div class="budget-row"><span>Приглашения в этом месяце</span><b>18<span style="font-size:13px;font-weight:400;color:var(--text-3)"> / 30</span></b></div>
+        <div class="meter"><i style="inline-size:60%"></i></div>
+      </div>
+      <ul class="wait">
+        <li><a href="#"><i class="u hot"></i><span><strong>Отклик на «Data-аналитик»</strong><small>Кандидат C-4821 · подходит на 86 %</small></span><span class="when">2 ч</span></a></li>
+        <li><a href="#"><i class="u hot"></i><span><strong>Новое сообщение</strong><small>Кандидат C-3307 · Backend, платёжное ядро</small></span><span class="when">5 ч</span></a></li>
+        <li><a href="#"><i class="u hot"></i><span><strong>Новое сообщение</strong><small>Кандидат C-1190 · Backend, платёжное ядро</small></span><span class="when">вчера</span></a></li>
+        <li><a href="#"><i class="u mid"></i><span><strong>Приглашение без ответа</strong><small>Кандидат C-2754 · ML, рекомендации</small></span><span class="when">3 дн</span></a></li>
+        <li><a href="#"><i class="u"></i><span><strong>Задание ждёт проверки</strong><small>3 ответа кандидатов</small></span><span class="when">4 дн</span></a></li>
+      </ul>
+    </aside>
+  </div>
+</main>
+
+<script>
+(function () {
+  var root = document.documentElement
+  var themeBtn = document.getElementById("theme")
+  var themeLabel = document.getElementById("theme-label")
+  themeBtn.addEventListener("click", function () {
+    var dark = root.dataset.theme !== "dark"
+    root.dataset.theme = dark ? "dark" : "light"
+    themeLabel.textContent = dark ? "Светлая тема" : "Тёмная тема"
+  })
+
+  var text = document.getElementById("text")
+  var count = document.getElementById("count")
+  var go = document.getElementById("go")
+  function sync() {
+    count.textContent = text.value.length + " / 4000"
+    go.disabled = text.value.trim().length < 10
+  }
+  text.addEventListener("input", sync)
+  document.querySelectorAll(".example").forEach(function (b) {
+    b.addEventListener("click", function () { text.value = b.dataset.text; sync(); text.focus() })
+  })
+
+  var steps = document.querySelectorAll("#hero-trace .step")
+  var parsed = document.getElementById("parsed")
+  var result = document.getElementById("result")
+  var open = document.getElementById("open")
+  var exact = document.getElementById("exact")
+  var near = document.getElementById("near")
+  var timers = []
+
+  function reset() {
+    timers.forEach(clearTimeout)
+    timers = []
+    steps.forEach(function (s) { s.className = "step idle" })
+    parsed.innerHTML = ""
+    result.classList.remove("on")
+    open.classList.remove("on")
+    exact.textContent = "0"
+    near.textContent = "0"
+  }
+  function later(ms, fn) { timers.push(setTimeout(fn, ms)) }
+  function tags(value) {
+    var list = []
+    var v = value.toLowerCase()
+    ;[["go", "Go"], ["postgres", "PostgreSQL"], ["kafka", "Kafka"], ["python", "Python"], ["pytorch", "PyTorch"], ["react", "React"], ["typescript", "TypeScript"], ["mlops", "MLOps"]].forEach(function (p) {
+      if (v.indexOf(p[0]) > -1) list.push(p[1])
+    })
+    if (v.indexOf("senior") > -1) list.unshift("Senior")
+    else if (v.indexOf("junior") > -1) list.unshift("Junior")
+    else if (v.indexOf("middle") > -1) list.unshift("Middle")
+    if (v.indexOf("москв") > -1) list.push("Москва")
+    if (v.indexOf("удал") > -1) list.push("Удалённо")
+    var m = value.match(/(\d{2,3})\s*[–-]\s*(\d{2,3})/)
+    if (m) list.push(m[1] + "–" + m[2] + " тыс. ₽")
+    return list
+  }
+  function countUp(el, to) {
+    var start = performance.now()
+    function frame(now) {
+      var k = Math.min(1, (now - start) / 700)
+      el.textContent = Math.round(to * (1 - Math.pow(1 - k, 3)))
+      if (k < 1) requestAnimationFrame(frame)
+    }
+    requestAnimationFrame(frame)
+  }
+
+  go.addEventListener("click", function () {
+    reset()
+    go.disabled = true
+    var list = tags(text.value)
+    steps[0].className = "step now"
+    later(500, function () {
+      steps[0].className = "step done"
+      list.forEach(function (t, i) {
+        var s = document.createElement("span")
+        s.textContent = t
+        s.style.animationDelay = i * 60 + "ms"
+        parsed.appendChild(s)
+      })
+      steps[1].className = "step now"
+    })
+    later(1300, function () { steps[1].className = "step done"; steps[2].className = "step now" })
+    later(2100, function () { steps[2].className = "step done"; steps[3].className = "step now" })
+    later(2800, function () {
+      steps[3].className = "step done"
+      result.classList.add("on")
+      open.classList.add("on")
+      countUp(exact, 14)
+      countUp(near, 37)
+      go.disabled = false
+    })
+  })
+
+  var rows = document.getElementById("rows")
+  var toggle = document.getElementById("toggle")
+  toggle.addEventListener("click", function () {
+    var on = rows.classList.toggle("open")
+    toggle.setAttribute("aria-expanded", on)
+    toggle.textContent = on ? "Свернуть" : "Показать ещё 6"
+  })
+})()
+</script>
+</body>
+</html>

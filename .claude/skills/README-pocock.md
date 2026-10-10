@@ -17,3 +17,16 @@ AI-дисклеймер.
 
 Обновление: скачать нужные файлы с нового коммита тем же списком и поднять SHA здесь.
 Каталоги `agents/openai.yaml` не тащим — это конфиги для Codex.
+
+## Скилы для фронтенда
+
+Вендорены в `.claude/skills/` и нужны при работе в `frontend/` (см. `.claude/frontend-rules.md`):
+
+- `impeccable` — [pbakaus/impeccable](https://github.com/pbakaus/impeccable) v4.5.2
+  (Apache 2.0), коммит `d631a8827f99414d2b6daba4ef08b7f8701751d7` (2026-10-10);
+- `ui-ux-pro-max` — [nextlevelbuilder/ui-ux-pro-max-skill](https://github.com/nextlevelbuilder/ui-ux-pro-max-skill)
+  (MIT), копия из установленного плагина;
+- анимации: `emil-design-eng`, `review-animations`, `improve-animations`,
+  `find-animation-opportunities`, `animation-vocabulary`.
+
+Правила `.claude/frontend-rules.md` сильнее рекомендаций этих скилов.

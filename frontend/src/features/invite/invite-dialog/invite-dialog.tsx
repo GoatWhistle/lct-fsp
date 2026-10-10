@@ -6,6 +6,7 @@ import { useErrorText, useFormatters, useTranslation } from "@/shared/i18n"
 import {
   Banner,
   Button,
+  Checkbox,
   Dialog,
   Form,
   IconLabel,
@@ -28,6 +29,7 @@ export interface InviteDialogProps {
   readonly onClose: () => void
   readonly candidateId: string
   readonly selectionId?: string | undefined
+  readonly needId?: string | null | undefined
   readonly label: string
   readonly defaults: InviteDefaults
   readonly budget: InvitationBudget | null
@@ -38,11 +40,12 @@ export function InviteDialog({
   onClose,
   candidateId,
   selectionId,
+  needId = null,
   label,
   defaults,
   budget,
 }: InviteDialogProps) {
-  const { t } = useTranslation(["selection", "common"])
+  const { t } = useTranslation(["selection", "common", "vacancyTest"])
   const errorText = useErrorText()
   const format = useFormatters()
   const navigate = useNavigate()
@@ -51,6 +54,7 @@ export function InviteDialog({
   const [salaryFrom, setSalaryFrom] = useState(defaults.salaryFrom)
   const [salaryTo, setSalaryTo] = useState(defaults.salaryTo)
   const [contact, setContact] = useState("")
+  const [withTest, setWithTest] = useState(false)
   const [touched, setTouched] = useState(false)
   const exhausted = budget !== null && budget.remaining <= 0
   const order = salaryFrom !== null && salaryTo !== null && salaryTo < salaryFrom
@@ -67,6 +71,7 @@ export function InviteDialog({
         salary_from: salaryFrom,
         salary_to: salaryTo,
         contact: contact.trim(),
+        test_need_id: withTest ? needId : null,
       },
       {
         onSuccess: () => {
@@ -151,6 +156,14 @@ export function InviteDialog({
           icon="email"
           maxLength={200}
         />
+        {needId === null ? null : (
+          <Checkbox
+            label={t("vacancyTest:attach")}
+            hint={t("vacancyTest:attachHint")}
+            checked={withTest}
+            onChange={setWithTest}
+          />
+        )}
         {touched && !ready ? <Banner tone="attention" title={t("invite.required")} /> : null}
         {send.isError ? <Banner tone="critical" title={errorText(send.error)} /> : null}
       </Form>

@@ -1,0 +1,35 @@
+{
+  "action": "Vacancy test",
+  "title": "Vacancy test",
+  "lead": "This is how the system will check a candidate for this need. The test covers key and important topics, and items are split by topic weight. It is attached to an invitation and never changes the candidate's category.",
+  "items_one": "{{count}} item",
+  "items_few": "{{count}} items",
+  "items_many": "{{count}} items",
+  "items_other": "{{count}} items",
+  "topics": "Test topics",
+  "weight": "weight {{value}}",
+  "examples": "Sample items",
+  "examplesLead": "Difficulty is close to the required level. Every time a new instance, no answer here.",
+  "another": "Other samples",
+  "loading": "Building the test",
+  "attach": "Attach the vacancy test",
+  "attachHint": "The candidate will answer items on the need's topics. Only you will see the result",
+  "status": {
+    "not_started": "Test not started",
+    "in_progress": "Test in progress: {{answered}} of {{items}}",
+    "finished": "Test completed"
+  },
+  "candidate": {
+    "lead": "The company attached a test on the vacancy topics. It does not change your category or grade, and only this company will see the result.",
+    "start": "Take the test",
+    "continue": "Continue the test",
+    "done": "Test completed. The result went to the company",
+    "closed": "The invitation is closed, the test is unavailable"
+  },
+  "result": {
+    "title": "Vacancy test result",
+    "match": "Requirements met",
+    "correct": "{{correct}} of {{answered}} correct",
+    "requirement": "Probability of meeting the requirement"
+  }
+}

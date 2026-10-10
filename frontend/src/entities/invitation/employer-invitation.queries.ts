@@ -9,6 +9,7 @@ export interface InvitationDraft {
   readonly salary_from: number
   readonly salary_to: number
   readonly contact: string
+  readonly test_need_id?: string | null
 }
 
 export function useSentInvitations() {

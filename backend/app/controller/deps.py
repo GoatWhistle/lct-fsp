@@ -21,8 +21,10 @@ from app.usecase.account import Accounts
 from app.usecase.attempt import CandidatePath
 from app.usecase.calibration import AnswerCalibration
 from app.usecase.catalog import CatalogQueries
+from app.usecase.chat import SearchChat
 from app.usecase.company import Companies
 from app.usecase.conversation import Conversations
+from app.usecase.development_plan import DevelopmentPlans
 from app.usecase.feedback import CandidateFeedback
 from app.usecase.fsp import FspAccounts
 from app.usecase.interface import (
@@ -42,6 +44,7 @@ from app.usecase.resume_draft import ResumeDrafts
 from app.usecase.selection import Selections
 from app.usecase.skill_profile import ProfileFreshness
 from app.usecase.vacancy import Applications, Vacancies
+from app.usecase.vacancy_test import VacancyTests
 from settings import Mechanics
 
 ACCESS_COOKIE = "access_token"
@@ -218,6 +221,11 @@ def get_applications(request: Request, uow: UnitOfWorkDep) -> Applications:
     return applications
 
 
+def get_vacancy_tests(request: Request, uow: UnitOfWorkDep) -> VacancyTests:
+    tests: VacancyTests = request.app.state.vacancy_tests(uow)
+    return tests
+
+
 AccountsDep = Annotated[Accounts, Depends(get_accounts)]
 JuryDep = Annotated[JuryMode, Depends(get_jury)]
 FspAccountsDep = Annotated[FspAccounts, Depends(get_fsp_accounts)]
@@ -233,11 +241,28 @@ AnswerCalibrationDep = Annotated[AnswerCalibration, Depends(get_answer_calibrati
 CandidatesDep = Annotated[CandidateRepository, Depends(get_candidates)]
 InvitationsDep = Annotated[Invitations, Depends(get_invitations)]
 ConversationsDep = Annotated[Conversations, Depends(get_conversations)]
+
+
+def get_development_plans(request: Request, uow: UnitOfWorkDep) -> DevelopmentPlans:
+    plans: DevelopmentPlans = request.app.state.development_plans(uow)
+    return plans
+
+
 FeedbackDep = Annotated[CandidateFeedback, Depends(get_feedback)]
+
+
+def get_search_chat(request: Request, uow: UnitOfWorkDep) -> SearchChat:
+    chat: SearchChat = request.app.state.search_chat(uow)
+    return chat
+
+
+SearchChatDep = Annotated[SearchChat, Depends(get_search_chat)]
+DevelopmentPlansDep = Annotated[DevelopmentPlans, Depends(get_development_plans)]
 InvitationReaderDep = Annotated[InvitationReader, Depends(get_invitation_reader)]
 ApplicationReaderDep = Annotated[ApplicationReader, Depends(get_application_reader)]
 VacanciesDep = Annotated[Vacancies, Depends(get_vacancies)]
 ApplicationsDep = Annotated[Applications, Depends(get_applications)]
+VacancyTestsDep = Annotated[VacancyTests, Depends(get_vacancy_tests)]
 
 _cookie_scheme = APIKeyCookie(
     name=ACCESS_COOKIE,

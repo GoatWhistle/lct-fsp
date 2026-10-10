@@ -33,6 +33,12 @@ from tests.text_model_contract import (
     test_instruction_in_text_stays_data_and_inside_catalog,
     test_model_failure_answers_by_rules,
     test_out_of_catalog_offers_only_catalog_specializations,
+    test_resume_answer_outside_catalog_is_dropped,
+    test_resume_instruction_stays_data,
+    test_resume_model_failure_answers_by_rules,
+    test_resume_schema_lists_only_catalog_values,
+    test_resume_takes_model_fields_and_rules_contacts,
+    test_resume_timeout_answers_by_rules,
     test_schema_lists_only_catalog_values,
     test_timeout_answers_by_rules_in_time,
     test_unreadable_answer_answers_by_rules,
@@ -44,6 +50,12 @@ __all__ = [
     "test_instruction_in_text_stays_data_and_inside_catalog",
     "test_model_failure_answers_by_rules",
     "test_out_of_catalog_offers_only_catalog_specializations",
+    "test_resume_answer_outside_catalog_is_dropped",
+    "test_resume_instruction_stays_data",
+    "test_resume_model_failure_answers_by_rules",
+    "test_resume_schema_lists_only_catalog_values",
+    "test_resume_takes_model_fields_and_rules_contacts",
+    "test_resume_timeout_answers_by_rules",
     "test_schema_lists_only_catalog_values",
     "test_timeout_answers_by_rules_in_time",
     "test_unreadable_answer_answers_by_rules",
@@ -193,13 +205,15 @@ def test_any_model_failure_answers_by_rules() -> None:
     assert understanding.need(TEXT, CATALOG) == RulesTextUnderstanding(SYNONYMS).need(TEXT, CATALOG)
 
 
-def test_resume_is_parsed_by_rules_without_asking_the_model(llama: FakeLlama) -> None:
-    """Резюме модель ещё не разбирает (lct-91): обёртка отвечает правилами и в модель не
-    ходит."""
+def test_resume_asks_the_model_for_stack_roles_and_experience(llama: FakeLlama) -> None:
+    """Резюме — правила и модель вместе (lct-91): модель получает видимый текст и схему со
+    значениями справочника и словаря, ФИО и контакты достают правила."""
     understanding = text_understanding(Settings(text_understanding="llama", llama_url=llama.url))
     resume = "Иванова Мария Сергеевна\nmaria@example.ru\nPython, pytest"
 
     draft = understanding.resume(resume, CATALOG, date(2026, 10, 8))
 
-    assert draft == RulesTextUnderstanding(SYNONYMS).resume(resume, CATALOG, date(2026, 10, 8))
-    assert llama.bodies == []
+    rules = RulesTextUnderstanding(SYNONYMS).resume(resume, CATALOG, date(2026, 10, 8))
+    assert (draft.full_name, draft.contact_email) == (rules.full_name, rules.contact_email)
+    assert len(llama.bodies) == 1
+    assert llama.bodies[0]["messages"][1]["content"] == resume

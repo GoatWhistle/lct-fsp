@@ -114,6 +114,16 @@
       "ttl": "The link is valid for {hours} hours.",
       "ignore": "If you did not sign up, just delete this email."
     },
-    "footer": "calibr, IT hiring by FSP"
+    "footer": "calibr, IT hiring by FSP",
+    "domain": {
+      "subject": "Confirm the domain {domain}",
+      "preheader": "Company trust mark in calibr",
+      "greeting": "Hello!",
+      "lead": "The company “{company}” confirms in calibr that the address on the {domain} domain belongs to it. Once confirmed, candidates will see the “domain confirmed” mark in invitations and vacancies.",
+      "button": "Confirm the domain",
+      "fallback": "If the button does not open, copy the link into your browser:",
+      "ttl": "The link is valid for {hours} h.",
+      "ignore": "If you did not request this, just delete the email."
+    }
   }
 }

@@ -5,12 +5,19 @@ export const EMPLOYER = "employer@demo.example"
 export const CANDIDATE = "devops-middle@demo.example"
 export const MAILPIT = process.env.E2E_MAILPIT_URL ?? "http://localhost:8025"
 
-export async function prepare(context: BrowserContext, theme: "light" | "dark" = "light") {
-  await context.addInitScript((chosen) => {
-    localStorage.setItem("calibr-theme", chosen)
-    localStorage.setItem("calibr-locale", "en")
-    localStorage.setItem("calibr-test-intro", "false")
-  }, theme)
+export async function prepare(
+  context: BrowserContext,
+  theme: "light" | "dark" = "light",
+  locale: "ru" | "en" = "en",
+) {
+  await context.addInitScript(
+    (chosen) => {
+      localStorage.setItem("calibr-theme", chosen.theme)
+      localStorage.setItem("calibr-locale", chosen.locale)
+      localStorage.setItem("calibr-test-intro", "false")
+    },
+    { theme, locale },
+  )
 }
 
 export async function signIn(page: Page, email: string, password = PASSWORD) {
@@ -51,4 +58,13 @@ export async function settle(page: Page) {
       .filter((animation) => animation.effect?.getTiming().iterations !== Number.POSITIVE_INFINITY)
       .every((animation) => animation.playState !== "running"),
   )
+}
+
+export async function openExplanation(page: Page) {
+  await page.goto("/employer/needs", { waitUntil: "networkidle" })
+  await page.locator("main a[href*='/employer/selections/']").first().click()
+  await page.waitForURL(/\/employer\/selections\//)
+  await page.locator("[data-candidate]").first().click()
+  await page.waitForURL(/candidate=/)
+  await page.waitForLoadState("networkidle")
 }

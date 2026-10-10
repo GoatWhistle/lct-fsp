@@ -1,6 +1,6 @@
 import AxeBuilder from "@axe-core/playwright"
 import { expect, type Page, test } from "@playwright/test"
-import { CANDIDATE, EMPLOYER, prepare, signIn } from "./support"
+import { CANDIDATE, EMPLOYER, openExplanation, prepare, signIn } from "./support"
 
 const PUBLIC = ["/", "/login", "/register", "/missing-page"]
 const CANDIDATE_ROUTES = [
@@ -23,8 +23,8 @@ const EMPLOYER_ROUTES = [
 ]
 const THEMES = ["light", "dark"] as const
 
-async function audit(page: Page, route: string) {
-  await page.goto(route, { waitUntil: "networkidle" })
+async function audit(page: Page, route: string | null) {
+  if (route !== null) await page.goto(route, { waitUntil: "networkidle" })
   await page.waitForTimeout(800)
   const result = await new AxeBuilder({ page })
     .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"])
@@ -36,7 +36,7 @@ async function audit(page: Page, route: string) {
       help: violation.help,
       targets: violation.nodes.slice(0, 3).map((node) => node.target.join(" ")),
     }))
-  expect(serious, `${route}`).toEqual([])
+  expect(serious, `${route ?? page.url()}`).toEqual([])
 }
 
 for (const theme of THEMES) {
@@ -56,6 +56,8 @@ for (const theme of THEMES) {
       await prepare(context, theme)
       await signIn(page, EMPLOYER)
       for (const route of EMPLOYER_ROUTES) await audit(page, route)
+      await openExplanation(page)
+      await audit(page, null)
     })
   })
 }

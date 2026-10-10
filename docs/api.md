@@ -79,6 +79,7 @@ uv run python -c "import json, main; json.dump(main.create_app().openapi(), open
 | POST | `/api/candidate/path/item/answer` | ответ; время меряет сервер |
 | POST | `/api/candidate/path/step-down` | перейти на грейд ниже без теста |
 | POST | `/api/candidate/path/topic-block` | короткий блок по одной теме |
+| GET | `/api/candidate/feedback/plan` | план развития на модели по темам подсказок; `null` без модели |
 | GET | `/api/candidate/feedback` | обратная связь по подборкам: место, доля точного блока, что поднимет выше |
 
 ### Профиль кандидата
@@ -96,15 +97,19 @@ uv run python -c "import json, main; json.dump(main.create_app().openapi(), open
 | Метод | Путь | Что делает |
 |---|---|---|
 | GET, PUT | `/api/employer/company` | профиль компании |
+| POST | `/api/employer/company/domain` | письмо со ссылкой на адрес домена сайта — метка доверия |
+| POST | `/api/company-domain/confirm` | подтвердить домен по токену из письма; вход не нужен |
 | GET, POST | `/api/employer/needs` | потребности компании; новая потребность |
 | GET, PUT, DELETE | `/api/employer/needs/{need_id}` | потребность |
 | POST | `/api/employer/needs/topic-importance` | важность тем по стеку до сохранения |
 | POST | `/api/employer/needs/parse` | разобрать потребность из текста в черновик с уверенностью полей |
 | POST | `/api/employer/needs/{need_id}/selections` | сформировать подборку по потребности |
+| GET | `/api/employer/needs/{need_id}/test` | тест по вакансии: темы, задания по темам, пример экземпляра на тему |
 | POST | `/api/employer/selections` | сформировать подборку по черновику без сохранения потребности |
 | GET | `/api/employer/selections`, `/api/employer/selections/{selection_id}` | подборки; подборка с блоками, скором, P(принятия) и вкладами объяснения |
 | PUT | `/api/employer/selections/{selection_id}/filters` | уточнить фильтрами, не теряя исходную выдачу |
 | GET, PUT, DELETE | `/api/employer/selections/{selection_id}/shortlist[/{candidate_id}]` | шортлист |
+| POST | `/api/employer/chat` | сообщение чат-поиска: подборка и фильтры теми же сценариями, пересказ с проверкой чисел; GET `/status` — доступен ли чат |
 | POST | `/api/employer/candidates/search` | поиск по банку: специализация, грейд, стек, ФСП, уверенность |
 | GET | `/api/employer/candidates/{candidate_id}` | карточка кандидата: обезличенная или полная после раскрытия |
 
@@ -112,11 +117,12 @@ uv run python -c "import json, main; json.dump(main.create_app().openapi(), open
 
 | Метод | Путь | Что делает |
 |---|---|---|
-| GET, POST | `/api/employer/invitations` | отправленные приглашения и остаток бюджета; пригласить с вилкой |
+| GET, POST | `/api/employer/invitations` | отправленные приглашения и остаток бюджета; пригласить с вилкой и, по желанию, тестом по вакансии (`test_need_id`) |
 | GET | `/api/employer/invitations/{invitation_id}` | приглашение и его статус |
 | GET | `/api/candidate/invitations` | входящие приглашения |
 | POST | `/api/candidate/invitations/{invitation_id}/view\|accept\|decline` | открыть, принять, отклонить |
 | POST | `/api/candidate/invitations/{invitation_id}/revoke` | отозвать доступ компании к своим данным |
+| POST | `/api/candidate/invitations/{invitation_id}/test` | начать тест по вакансии из приглашения; задания — через `/api/candidate/path/item` |
 | GET, POST | `/api/{employer,candidate}/invitations/{invitation_id}/messages` | переписка внутри принятого приглашения |
 | GET | `/api/employer/cabinet` | сводка кабинета: непрочитанные сообщения |
 

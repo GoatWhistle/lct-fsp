@@ -1,6 +1,7 @@
 import { useLocation, useNavigate, useParams } from "react-router"
 import { useNeed } from "@/entities/need"
 import { EMPTY_FORM, formFromDraft, formFromNeed, NeedEditor } from "@/features/need-editor"
+import { VacancyTestAction } from "@/features/vacancy-test-preview"
 import type { NeedDraft } from "@/shared/api"
 import { useDocumentTitle, useTranslation } from "@/shared/i18n"
 import { Banner, LoadError, PageBody, PageHeader, Skeleton, toast } from "@/shared/ui"
@@ -70,6 +71,7 @@ export function EmployerNeedEditorPage() {
         title={title}
         description={t("editor.lead")}
         crumbs={[{ label: t("list.title"), to: "/employer/needs" }]}
+        actions={id === undefined ? undefined : <VacancyTestAction needId={id} />}
       />
       <PageBody>
         {draft === null ? null : <Banner tone="info" icon="llm" title={t("editor.fromDraft")} />}

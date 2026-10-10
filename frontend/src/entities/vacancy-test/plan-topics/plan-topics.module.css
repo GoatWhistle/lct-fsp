@@ -1,0 +1,43 @@
+.plan {
+  display: grid;
+  gap: var(--space-12);
+}
+
+.head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-16);
+}
+
+.total {
+  composes: strongBodyText from "../../../shared/styles/compose.module.css";
+}
+
+.list {
+  display: grid;
+}
+
+.row {
+  composes: listRowCompact from "../../../shared/styles/rows.module.css";
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-8);
+}
+
+.name {
+  composes: bodySmText from "../../../shared/styles/compose.module.css";
+  margin-inline-end: auto;
+  font-weight: var(--weight-medium);
+}
+
+.weight,
+.items {
+  composes: captionText monoText from "../../../shared/styles/compose.module.css";
+  color: var(--text-secondary);
+}
+
+.items {
+  color: var(--text-primary);
+}

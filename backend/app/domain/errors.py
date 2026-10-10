@@ -479,3 +479,50 @@ class ApplicationNotFound(DomainError):
 class ApplicationTransitionNotAllowed(DomainError):
     code = "application_transition_not_allowed"
     message = "На отклик уже ответили или срок ответа истёк — обновите страницу"
+
+
+# Тест по вакансии.
+
+
+class VacancyTestNotFound(DomainError):
+    code = "vacancy_test_not_found"
+    message = "К приглашению не приложен тест по вакансии"
+
+
+class VacancyTestSpecializationMismatch(DomainError):
+    """Тест строится по темам специализации потребности: кандидат другой специализации его не
+    пройдёт по своей категории."""
+
+    code = "vacancy_test_specialization_mismatch"
+    message = "Тест по вакансии можно приложить, только если специализация кандидата совпадает"
+
+
+class VacancyTestClosed(DomainError):
+    code = "vacancy_test_closed"
+    message = "Приглашение отклонено или истекло — тест по вакансии больше недоступен"
+
+
+class VacancyTestTaken(DomainError):
+    code = "vacancy_test_taken"
+    message = "Тест по этой вакансии уже пройден"
+
+
+# Чат-поиск.
+
+
+class ChatUnavailable(DomainError):
+    code = "chat_unavailable"
+    message = "Чат сейчас недоступен — соберите подборку из текста вакансии и фильтров"
+
+
+# Метка доверия компании.
+
+
+class CompanyWebsiteRequired(DomainError):
+    code = "company_website_required"
+    message = "Укажите сайт компании: подтверждается адрес на его домене"
+
+
+class DomainEmailMismatch(DomainError):
+    code = "domain_email_mismatch"
+    message = "Адрес должен быть на домене сайта компании"

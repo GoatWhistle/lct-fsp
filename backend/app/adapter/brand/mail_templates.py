@@ -86,61 +86,79 @@ def _button(label: str, link: str) -> str:
     )
 
 
+def _link_mail(
+    words: Words, key: str, to: str, link: str, ttl_hours: int, **values: object
+) -> Mail:
+    """Письмо со ссылкой подтверждения: приветствие, пояснение, кнопка, ссылка текстом и срок."""
+    greeting = words(f"{key}.greeting")
+    lead = words(f"{key}.lead", **values)
+    ttl = words(f"{key}.ttl", hours=ttl_hours)
+    ignore = words(f"{key}.ignore")
+    safe = escape(link, quote=True)
+    muted = hex_color("text-tertiary")
+    link_style = _style(
+        margin="0 0 24px",
+        font_family=MONO_STACK,
+        font_size="12px",
+        line_height="18px",
+        word_break="break-all",
+    )
+    body = "".join(
+        [
+            _paragraph(
+                greeting,
+                margin="0 0 8px",
+                font_size="22px",
+                line_height="28px",
+                font_weight="600",
+            ),
+            _paragraph(
+                lead,
+                margin="0 0 24px",
+                font_size="16px",
+                line_height="24px",
+                color=hex_color("text-secondary"),
+            ),
+            _button(words(f"{key}.button"), safe),
+            _paragraph(
+                words(f"{key}.fallback"),
+                margin="24px 0 4px",
+                font_size="13px",
+                line_height="20px",
+                color=muted,
+            ),
+            f'<p style="{link_style}"><a href="{safe}" '
+            f'style="color:{hex_color("action-primary")};">{safe}</a></p>',
+            _paragraph(
+                f"{ttl} {ignore}",
+                margin="0",
+                font_size="13px",
+                line_height="20px",
+                color=muted,
+            ),
+        ]
+    )
+    return Mail(
+        to=to,
+        subject=words(f"{key}.subject", **values),
+        text="\n\n".join([greeting, lead, link, ttl, ignore]),
+        html=_page(words, words(f"{key}.preheader", **values), body),
+    )
+
+
 class BrandMailTemplates:
     def verification(self, to: str, link: str, ttl_hours: int, locale: Locale) -> Mail:
-        words = Words(locale)
-        key = "mail.verification"
-        greeting = words(f"{key}.greeting")
-        lead = words(f"{key}.lead")
-        ttl = words(f"{key}.ttl", hours=ttl_hours)
-        ignore = words(f"{key}.ignore")
-        safe = escape(link, quote=True)
-        muted = hex_color("text-tertiary")
-        link_style = _style(
-            margin="0 0 24px",
-            font_family=MONO_STACK,
-            font_size="12px",
-            line_height="18px",
-            word_break="break-all",
-        )
-        body = "".join(
-            [
-                _paragraph(
-                    greeting,
-                    margin="0 0 8px",
-                    font_size="22px",
-                    line_height="28px",
-                    font_weight="600",
-                ),
-                _paragraph(
-                    lead,
-                    margin="0 0 24px",
-                    font_size="16px",
-                    line_height="24px",
-                    color=hex_color("text-secondary"),
-                ),
-                _button(words(f"{key}.button"), safe),
-                _paragraph(
-                    words(f"{key}.fallback"),
-                    margin="24px 0 4px",
-                    font_size="13px",
-                    line_height="20px",
-                    color=muted,
-                ),
-                f'<p style="{link_style}"><a href="{safe}" '
-                f'style="color:{hex_color("action-primary")};">{safe}</a></p>',
-                _paragraph(
-                    f"{ttl} {ignore}",
-                    margin="0",
-                    font_size="13px",
-                    line_height="20px",
-                    color=muted,
-                ),
-            ]
-        )
-        return Mail(
-            to=to,
-            subject=words(f"{key}.subject"),
-            text="\n\n".join([greeting, lead, link, ttl, ignore]),
-            html=_page(words, words(f"{key}.preheader"), body),
+        return _link_mail(Words(locale), "mail.verification", to, link, ttl_hours)
+
+    def domain_verification(
+        self, to: str, link: str, ttl_hours: int, company: str, domain: str, locale: Locale
+    ) -> Mail:
+        return _link_mail(
+            Words(locale),
+            "mail.domain",
+            to,
+            link,
+            ttl_hours,
+            company=company,
+            domain=domain,
         )

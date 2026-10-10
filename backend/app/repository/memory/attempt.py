@@ -85,7 +85,9 @@ class MemoryAttemptRepository:
         return [
             p.answered(a.source)
             for a in self._of_user(user_id)
-            if a.specialization_code == specialization_code and not a.withheld
+            if a.specialization_code == specialization_code
+            and not a.withheld
+            and a.purpose != AttemptPurpose.vacancy_test
             for p in a.presentations
             if p.answered_at is not None and not p.dropped
         ]
@@ -139,6 +141,7 @@ class MemoryAttemptRepository:
         verifies: Attempt | None = None,
         deadline: datetime | None = None,
         express_limit: int | None = None,
+        vacancy_test_id: uuid.UUID | None = None,
     ) -> Attempt:
         mine = self._store.collection("user_attempts").setdefault(user_id, [])
         attempt = Attempt(
@@ -156,6 +159,7 @@ class MemoryAttemptRepository:
             verifies_attempt_id=verifies.id if verifies else None,
             deadline=deadline,
             express_limit=express_limit,
+            vacancy_test_id=vacancy_test_id,
         )
         self._attempts()[attempt.id] = attempt
         mine.append(attempt)
@@ -165,6 +169,13 @@ class MemoryAttemptRepository:
 
     def attempts(self, user_id: uuid.UUID) -> list[Attempt]:
         return list(self._of_user(user_id))
+
+    def vacancy_attempts(self, test_ids: Collection[uuid.UUID]) -> dict[uuid.UUID, Attempt]:
+        return {
+            a.vacancy_test_id: a
+            for a in self._attempts().values()
+            if a.vacancy_test_id is not None and a.vacancy_test_id in test_ids
+        }
 
     def attempt(self, attempt_id: uuid.UUID) -> Attempt:
         return self._attempts()[attempt_id]

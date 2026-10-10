@@ -108,7 +108,8 @@ EMPLOYERS = (
             name="Демо-Технологии",
             industry="fintech",
             description="Платёжные сервисы для малого бизнеса. Компания синтетическая.",
-            website=None,
+            # Сайт — для метки доверия: адрес hr@tech.demo.example подтверждается письмом в Mailpit.
+            website=f"https://tech.{DOMAIN}",
             contact_email=f"hr@{DOMAIN}",
             contact_phone=None,
         ),
@@ -127,7 +128,7 @@ EMPLOYERS = (
             name="Демо-Ритейл",
             industry="e-commerce",
             description="Маркетплейс товаров для дома. Компания синтетическая.",
-            website=None,
+            website=f"https://retail.{DOMAIN}",
             contact_email=f"jobs@{DOMAIN}",
             contact_phone=None,
         ),

@@ -9,3 +9,12 @@ export function useFeedback() {
     queryFn: () => unwrap(api.GET("/api/candidate/feedback")),
   })
 }
+
+export function useDevelopmentPlan(enabled: boolean) {
+  return useQuery({
+    queryKey: [...FEEDBACK_KEY, "plan"],
+    queryFn: () => unwrap(api.GET("/api/candidate/feedback/plan")),
+    enabled,
+    retry: false,
+  })
+}

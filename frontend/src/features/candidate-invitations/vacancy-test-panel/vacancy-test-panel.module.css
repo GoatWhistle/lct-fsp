@@ -1,0 +1,20 @@
+.panel {
+  display: grid;
+  gap: var(--space-12);
+  padding-block-start: var(--space-20);
+  border-block-start: var(--hairline) solid var(--border-hairline);
+}
+
+.action {
+  justify-self: start;
+}
+
+.heading {
+  composes: labelText from "../../../shared/styles/compose.module.css";
+  font-weight: var(--weight-medium);
+}
+
+.lead {
+  composes: secondaryText from "../../../shared/styles/compose.module.css";
+  max-inline-size: 70ch;
+}

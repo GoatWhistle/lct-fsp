@@ -20,6 +20,7 @@ export function isInProgress(path: CandidatePath): boolean {
   return (
     (path.stage === "test" && path.express?.paused !== true) ||
     path.topic_block !== null ||
+    path.vacancy_test !== null ||
     !!path.verification?.progress
   )
 }

@@ -1,8 +1,8 @@
 import type { KeyboardEvent, ReactNode } from "react"
-import { MatchScore, TrustBadge } from "@/entities/measure"
+import { MatchScore, ProbabilityLabel, TrustBadge } from "@/entities/measure"
 import { anonymousId } from "@/entities/selection"
 import type { SelectionEntry } from "@/shared/api"
-import { useCatalogNames, useFormatters, useTranslation } from "@/shared/i18n"
+import { useCatalogNames, useTranslation } from "@/shared/i18n"
 import { staggerStyle } from "@/shared/motion"
 import { Button, Icon, IconLabel, PlainButton, Tooltip } from "@/shared/ui"
 import { hasFsp } from "../selection-model"
@@ -35,7 +35,6 @@ export function ResultRow({
 }: ResultRowProps) {
   const { t } = useTranslation(["selection", "measure"])
   const names = useCatalogNames()
-  const format = useFormatters()
   const id = anonymousId(entry.candidate_id)
   const status = entry.grade_status
   const statusText =
@@ -95,13 +94,16 @@ export function ResultRow({
             />
           )}
         </span>
-        <span className={styles.facts}>
+        <span className={styles.facts} data-probability-surface>
           {entry.acceptance_probability === null ? null : (
             <span className={styles.fact}>
               <Icon name="accepted" size="sm" />
               <span>
                 {t("row.acceptance")}{" "}
-                <strong>{format.percent(entry.acceptance_probability)}</strong>
+                <ProbabilityLabel
+                  value={entry.acceptance_probability}
+                  label={t("row.acceptance")}
+                />
               </span>
             </span>
           )}

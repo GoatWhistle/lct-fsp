@@ -1,0 +1,37 @@
+.preview {
+  display: grid;
+  gap: var(--space-20);
+}
+
+.lead {
+  composes: secondaryText from "../../../shared/styles/compose.module.css";
+  max-inline-size: 70ch;
+}
+
+.examples {
+  display: grid;
+  gap: var(--space-12);
+}
+
+.head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-12);
+}
+
+.title {
+  composes: strongBodyText from "../../../shared/styles/compose.module.css";
+}
+
+.note {
+  composes: captionText from "../../../shared/styles/compose.module.css";
+  margin: 0;
+  color: var(--text-secondary);
+}
+
+.list {
+  display: grid;
+  gap: var(--space-12);
+}

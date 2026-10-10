@@ -1,9 +1,11 @@
 import type { ReactNode } from "react"
+import { CompanyTrustMark } from "@/entities/company"
 import { InboxStatusBadge, isOpenStatus } from "@/entities/invitation"
 import type { Invitation } from "@/shared/api"
 import { BackendText, useFormatters, useMoneyRange, useTranslation } from "@/shared/i18n"
 import { Banner, Card, IconLabel, NoValue, type TermItem, Terms } from "@/shared/ui"
 import { InvitationActions } from "../invitation-actions/invitation-actions"
+import { VacancyTestPanel } from "../vacancy-test-panel/vacancy-test-panel"
 import styles from "./invitation-detail.module.css"
 
 const URGENT_MS = 48 * 60 * 60 * 1000
@@ -100,6 +102,7 @@ export function InvitationDetail({ invitation, conversation }: InvitationDetailP
     >
       <div className={styles.status}>
         <InboxStatusBadge status={invitation.status} revoked={invitation.revoked_at !== null} />
+        <CompanyTrustMark verified={invitation.company_domain_verified} />
       </div>
       <StateNote invitation={invitation} />
       <Terms items={items} />
@@ -108,6 +111,9 @@ export function InvitationDetail({ invitation, conversation }: InvitationDetailP
           {invitation.description}
         </BackendText>
       </section>
+      {invitation.vacancy_test === null ? null : (
+        <VacancyTestPanel invitation={invitation} test={invitation.vacancy_test} />
+      )}
       <InvitationActions invitation={invitation} part="decision" />
       {talking ? (
         <section className={styles.section} aria-label={t("detail.conversation")}>

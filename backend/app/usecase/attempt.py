@@ -47,6 +47,7 @@ from app.domain.attempt import (
     Stage,
     TestResult,
     TopicBlockProgress,
+    VacancyTestProgress,
     VerificationProgress,
     VerificationResult,
     VerificationView,
@@ -97,6 +98,7 @@ from app.domain.protection import (
     AttemptSignals,
     ResponseTimes,
     SuspicionRule,
+    person_fit,
     suspicion,
     time_flag,
     verification_choice,
@@ -104,6 +106,7 @@ from app.domain.protection import (
     verification_verdict,
 )
 from app.domain.skill import Normal, Observation, Prior, SkillEstimate, sigmoid
+from app.domain.vacancy_test import VacancyTestPlan, next_topic
 from app.usecase.interface import (
     AttemptRepository,
     Calibration,
@@ -114,6 +117,7 @@ from app.usecase.interface import (
     SeedSource,
     SkillModel,
     UnitOfWork,
+    VacancyTestReader,
 )
 from app.usecase.skill_profile import (
     ProfileFreshness,
@@ -124,6 +128,9 @@ from app.usecase.skill_profile import (
 from settings import Mechanics
 
 log = logging.getLogger(__name__)
+
+# Экземпляров заданий в памяти сценария — хватает на показ, текущее задание и ответ.
+INSTANCE_CACHE = 8
 
 
 def blueprint_of(prior: Prior, mechanics: Mechanics) -> Blueprint:
@@ -205,6 +212,7 @@ class CandidatePath:
         seeds: SeedSource,
         runner: CodeRunner,
         mechanics: Mechanics,
+        vacancy_tests: VacancyTestReader | None = None,
     ) -> None:
         self._uow = uow
         self._attempts = attempts
@@ -217,9 +225,14 @@ class CandidatePath:
         self._seeds = seeds
         self._runner = runner
         self._mechanics = mechanics
+        # Планы тестов по вакансии; стенд валидации их не заводит.
+        self._vacancy_tests = vacancy_tests
         self._freshness = ProfileFreshness(skill_model, mechanics)
         # Априорное специализации — от тем и конфига: на запрос считается один раз.
         self._priors: dict[str, Prior] = {}
+        # Экземпляр задания — чистая функция семейства и seed: показ, текущее задание и проверка
+        # ответа берут одно и то же, генерировать его трижды незачем.
+        self._instances: dict[tuple[str, int], bank.Instance] = {}
 
     def path(self, user_id: uuid.UUID) -> PathView:
         """Шаг пути и итоги теста. Пишет, только если срок проверочного блока прошёл: блок
@@ -492,11 +505,10 @@ class CandidatePath:
                 f"тема {presentation.topic_code} не в справочнике специализации "
                 f"{attempt.specialization_code}"
             )
-        instance = bank.get_family(presentation.family_code).instance(
-            presentation.seed, self._runner
-        )
+        instance = self._instance(presentation.family_code, presentation.seed)
         block = attempt.purpose == AttemptPurpose.topic_block
         verification = attempt.purpose == AttemptPurpose.verification
+        vacancy = attempt.purpose == AttemptPurpose.vacancy_test
         return Item(
             presentation.id,
             presentation.position + 1,
@@ -506,6 +518,7 @@ class CandidatePath:
             max_items=self._max_items(attempt),
             topic_block=block,
             verification=verification,
+            vacancy_test=vacancy,
             deadline=attempt.deadline,
             focus_consent=attempt.focus_consent,
         )
@@ -542,7 +555,9 @@ class CandidatePath:
                 self._finish_side(attempt, prior, now)
                 return Answered(self._view(self._attempts.state(user_id), now, user_id), None)
             family = bank.get_family(presentation.family_code)
-            correct = family.check(family.instance(presentation.seed, self._runner), response)
+            correct = family.check(
+                self._instance(presentation.family_code, presentation.seed), response
+            )
             presentation.response = response
             presentation.correct = correct
             presentation.answered_at = now
@@ -597,6 +612,8 @@ class CandidatePath:
         prior = self._prior(attempt.specialization_code)
         if attempt.purpose == AttemptPurpose.verification:
             return self._present_verification(attempt, prior, now)
+        if attempt.purpose == AttemptPurpose.vacancy_test:
+            return self._present_vacancy(attempt, prior, now)
         if attempt.purpose == AttemptPurpose.topic_block:
             observations = self._test_observations(attempt)
             selection = self._skill_model.estimate(prior, observations)
@@ -626,6 +643,48 @@ class CandidatePath:
             )
         before = self._skill_model.estimate(prior, observations).topic(option.topic)
         return self._show(attempt, option, before, now)
+
+    def _present_vacancy(self, attempt: Attempt, prior: Prior, now: datetime) -> Presentation:
+        """Задание теста по вакансии: тема — с наибольшим недобором квоты плана, задание в ней —
+        тем же шагом, что в блоке по теме, по оценке из всех ответов кандидата по специализации
+        и ответов этого теста. Тема, у которой в выдаче не осталось семейств, пропускается."""
+        plan = self._vacancy_plan(attempt)
+        observations = self._vacancy_observations(attempt)
+        selection = self._skill_model.estimate(prior, observations)
+        options, window = self._options(attempt, prior)
+        counts = attempt.counts()
+        while (topic := next_topic(plan, counts)) is not None:
+            fresh = [o for o in options if o.topic == topic]
+            if fresh:
+                blueprint = Blueprint(
+                    topics=(topic,),
+                    weights=(1.0,),
+                    min_items=plan.items,
+                    max_items=plan.items,
+                    min_per_topic=0,
+                    max_topic_share=1.0,
+                    stop_sd=0.0,
+                )
+                rng = random.Random(self._seeds.seed())
+                choice = self._selector.choose(blueprint, counts, selection, fresh, window, rng)
+                if choice is not None:
+                    option = next(o for o in fresh if o.code == choice.code)
+                    return self._show(attempt, option, selection.topic(option.topic), now)
+            # Квоту темы выбрать нечем — её задания не показываются.
+            counts = {**counts, topic: plan.quotas()[topic]}
+        raise NoTestInProgress()
+
+    def _vacancy_plan(self, attempt: Attempt) -> VacancyTestPlan:
+        assert attempt.vacancy_test_id is not None and self._vacancy_tests is not None
+        return self._vacancy_tests.get(attempt.vacancy_test_id).plan
+
+    def _vacancy_observations(self, attempt: Attempt) -> list[Observation]:
+        """Оценка для теста по вакансии: ответы кандидата по специализации и ответы этого теста.
+        Ответы теста по вакансии в профиль не входят, поэтому порт их не отдаёт."""
+        return [
+            *self._test_observations(attempt),
+            *(p.answered().observation() for p in attempt.presentations if p.answered_at),
+        ]
 
     def _present_verification(self, attempt: Attempt, prior: Prior, now: datetime) -> Presentation:
         """Задание проверочного блока: темы основной попытки, невиданные семейства первыми,
@@ -675,7 +734,7 @@ class CandidatePath:
         self, attempt: Attempt, option: Option, before: Normal, now: datetime
     ) -> Presentation:
         seed = self._seeds.seed()
-        instance = bank.get_family(option.code).instance(seed, self._runner)
+        instance = self._instance(option.code, seed)
         return self._attempts.add_presentation(
             attempt,
             family_code=option.code,
@@ -736,6 +795,7 @@ class CandidatePath:
         for i, level in zip(mine, rest, strict=True):
             answered[i].topic_theta_rest, answered[i].topic_theta_rest_sd = level.mean, level.sd
         flagged = self._flag_times(attempt)
+        attempt.person_fit = self._person_fit(answered, estimate)
         match decision:
             case Assign(grade):
                 attempt.outcome, attempt.outcome_grade_code = AttemptOutcome.assigned, grade
@@ -748,7 +808,9 @@ class CandidatePath:
                 attempt.retest_after = now + timedelta(days=self._mechanics.no_category_retest_days)
         # Присвоение и повышение — единственные исходы, которые меняют категорию: остальные
         # проверять нечего.
-        if attempt.outcome == AttemptOutcome.assigned and self._suspicious(chain):
+        if attempt.outcome == AttemptOutcome.assigned and self._suspicious(
+            chain, attempt.person_fit
+        ):
             attempt.outcome = AttemptOutcome.verification
             for link in chain:
                 link.withheld = True
@@ -804,17 +866,39 @@ class CandidatePath:
             )
         return answered
 
-    def _suspicious(self, chain: Sequence[Attempt]) -> bool:
+    def _person_fit(
+        self, answered: Sequence[Presentation], estimate: SkillEstimate
+    ) -> float | None:
+        """l_z определения (§8): ответы без выпавших, итоговые оценки тем, текущие параметры
+        семейств; у семейства, выведенного из выдачи, — параметры на момент показа."""
+        current = self._calibration.current([bank.get_family(p.family_code) for p in answered])
+        items = []
+        for p in answered:
+            params = current.get(p.family_code)
+            a, b = (
+                (params.discrimination, params.difficulty)
+                if params is not None
+                else (p.discrimination, p.difficulty)
+            )
+            assert p.correct is not None
+            items.append((a, b, estimate.topic(p.topic_code).mean, p.correct))
+        return person_fit(items)
+
+    def _suspicious(self, chain: Sequence[Attempt], fit: float | None) -> bool:
         """Подозрительный результат (§8): сигналы — по всему определению, оно одно измерение."""
         presentations = [p for a in chain for p in a.presentations]
         consented = any(a.focus_consent for a in chain)
         signals = AttemptSignals(
             time_flags=sum(1 for p in presentations if p.time_flag),
             focus_events=(sum(p.focus_events or 0 for p in presentations) if consented else None),
+            person_fit=fit,
         )
         rule = SuspicionRule(
             time_flags=self._mechanics.rt_flags_for_verification,
             focus_events=self._mechanics.focus_events_for_verification,
+            person_fit=(
+                self._mechanics.person_fit_lz if self._mechanics.person_fit_enabled else None
+            ),
         )
         return bool(suspicion(signals, rule))
 
@@ -822,6 +906,8 @@ class CandidatePath:
         """Остановка попытки вне пути: блока по теме или проверочного блока."""
         if attempt.purpose == AttemptPurpose.verification:
             self._finish_verification(attempt, prior, now)
+        elif attempt.purpose == AttemptPurpose.vacancy_test:
+            self._finish_vacancy(attempt, prior, now)
         else:
             self._finish_block(attempt, prior, now)
 
@@ -902,6 +988,8 @@ class CandidatePath:
                 return self._mechanics.topic_block_items
             case AttemptPurpose.verification:
                 return self._mechanics.verification_items
+            case AttemptPurpose.vacancy_test:
+                return self._vacancy_plan(attempt).items
             case _:
                 return (
                     attempt.express_limit
@@ -1013,6 +1101,21 @@ class CandidatePath:
         self._attempts.save_rest_levels(answered)
         self._refresh_profile(attempt, prior, now)
 
+    def _finish_vacancy(self, attempt: Attempt, prior: Prior, now: datetime) -> None:
+        """Остановка теста по вакансии: оценка на момент остановки и итоговые оценки темы без
+        каждого ответа — для переоценки семейств (§7). Профиль, категория и грейд не меняются:
+        итог — сигнал одной компании (`app.usecase.vacancy_test`)."""
+        observations = self._vacancy_observations(attempt)
+        attempt.finished_at = now
+        attempt.overall = self._skill_model.estimate(prior, observations).overall()
+        answered = [p for p in attempt.presentations if p.answered_at is not None]
+        mine = range(len(observations) - len(answered), len(observations))
+        rest = rest_levels(self._skill_model, prior, observations, mine)
+        for p, level in zip(answered, rest, strict=True):
+            p.topic_theta_rest, p.topic_theta_rest_sd = level.mean, level.sd
+        self._attempts.finish_attempt(attempt)
+        self._attempts.save_rest_levels(answered)
+
     def _refresh_profile(self, attempt: Attempt, prior: Prior, now: datetime) -> None:
         """Профиль навыков по всем ответам и достижениям ФСП (§11) — после теста и блока."""
         levels = refresh_skill_profile(
@@ -1110,6 +1213,17 @@ class CandidatePath:
                 else None
             ),
             express=express,
+            vacancy_test=self._vacancy_progress(user_id),
+        )
+
+    def _vacancy_progress(self, user_id: uuid.UUID) -> VacancyTestProgress | None:
+        attempt = self._attempts.attempt_in_progress(user_id)
+        if attempt is None or attempt.purpose != AttemptPurpose.vacancy_test:
+            return None
+        assert attempt.vacancy_test_id is not None and self._vacancy_tests is not None
+        test = self._vacancy_tests.get(attempt.vacancy_test_id)
+        return VacancyTestProgress(
+            test.invitation_id, test.need_title, attempt.answered_count, test.plan.items
         )
 
     def _block_progress(self, user_id: uuid.UUID) -> TopicBlockProgress | None:
@@ -1153,6 +1267,17 @@ class CandidatePath:
             available_at = None
         return GradeUp(target, available_at)
 
+    def _instance(self, family_code: str, seed: int) -> bank.Instance:
+        key = (family_code, seed)
+        instance = self._instances.get(key)
+        if instance is None:
+            # Нужны только экземпляры текущего задания: старые выбрасываются.
+            if len(self._instances) >= INSTANCE_CACHE:
+                self._instances.clear()
+            instance = bank.get_family(family_code).instance(seed, self._runner)
+            self._instances[key] = instance
+        return instance
+
     def _attempt_in_progress(self, user_id: uuid.UUID) -> Attempt:
         attempt = self._attempts.attempt_in_progress(user_id)
         if attempt is None:
@@ -1160,15 +1285,23 @@ class CandidatePath:
         return attempt
 
     def _remaining(self, attempt: Attempt, prior: Prior) -> bool:
-        """Есть ли в выдаче семейства тем попытки, ещё не показанные в ней."""
+        """Есть ли в выдаче семейства тем попытки, ещё не показанные в ней. У теста по вакансии —
+        только тем, чья квота ещё не выбрана."""
         shown = attempt.shown()
         fresh = [f for f in self._families(attempt, prior) if f.code not in shown]
+        if attempt.purpose == AttemptPurpose.vacancy_test:
+            quotas, counts = self._vacancy_plan(attempt).quotas(), attempt.counts()
+            fresh = [f for f in fresh if counts.get(f.topic, 0) < quotas[f.topic]]
         return bool(self._calibration.current(fresh))
 
     def _families(self, attempt: Attempt, prior: Prior) -> list[bank.Family]:
         """Семейства, из которых попытка берёт задания: у блока — только своей темы."""
         if attempt.topic_code is not None:
             return bank.families_for_topics([attempt.topic_code])
+        if attempt.purpose == AttemptPurpose.vacancy_test:
+            return bank.families_for_topics(
+                t.topic.code for t in self._vacancy_plan(attempt).topics
+            )
         return _bank(prior)
 
     def _chain_observations(self, chain: Sequence[Attempt]) -> list[Observation]:

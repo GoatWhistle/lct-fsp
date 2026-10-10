@@ -1,5 +1,6 @@
 import { Link } from "react-router"
 import { gradeIcon, specializationIcon } from "@/entities/catalog"
+import { CompanyTrustMark } from "@/entities/company"
 import { InboxStatusBadge } from "@/entities/invitation"
 import type { Application, Vacancy } from "@/shared/api"
 import {
@@ -43,6 +44,7 @@ export function VacancyCard({ vacancy, application, to, index }: VacancyCardProp
           {names.specialization(vacancy.specialization)}
         </Chip>
         <Chip icon={gradeIcon(vacancy.grade.code)}>{names.grade(vacancy.grade)}</Chip>
+        <CompanyTrustMark verified={vacancy.company_domain_verified} />
       </div>
       <ul className={styles.attributes}>
         <li>

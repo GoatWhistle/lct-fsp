@@ -1,6 +1,7 @@
 import { useFeedback } from "@/entities/profile"
 import { useFormatters, useTranslation } from "@/shared/i18n"
 import { Card, IconLabel, LoadError, Skeleton, Stat } from "@/shared/ui"
+import { DevelopmentPlan } from "./development-plan"
 import styles from "./feedback-panel.module.css"
 import { HintRow } from "./hint-row"
 
@@ -70,6 +71,7 @@ export function FeedbackPanel({ motionIndex, className }: FeedbackPanelProps) {
               ))}
             </ul>
           )}
+          <DevelopmentPlan />
         </>
       )}
     </Card>

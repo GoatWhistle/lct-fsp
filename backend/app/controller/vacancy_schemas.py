@@ -42,6 +42,9 @@ class VacancyOut(SalaryBasisOut):
     archived_at: datetime | None = Field(
         description="Когда снята с публикации: в общем списке её нет, откликнуться нельзя"
     )
+    company_domain_verified: bool = Field(
+        description="Метка доверия: компания подтвердила домен своего сайта"
+    )
 
 
 class ApplicationOut(SalaryBasisOut):

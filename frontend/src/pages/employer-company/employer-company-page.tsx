@@ -1,6 +1,6 @@
 import { useNavigate } from "react-router"
 import { useCompany } from "@/entities/company"
-import { CompanyEditor } from "@/features/company-profile"
+import { CompanyEditor, DomainCard } from "@/features/company-profile"
 import type { Company } from "@/shared/api"
 import { useDocumentTitle, useTranslation } from "@/shared/i18n"
 import { Banner, LoadError, PageBody, PageHeader, Skeleton, toast } from "@/shared/ui"
@@ -29,7 +29,12 @@ export function EmployerCompanyPage() {
         />
       )
     if (company.data === undefined) return <Skeleton shape="block" />
-    return <CompanyEditor company={company.data} onSaved={onSaved} />
+    return (
+      <>
+        <CompanyEditor company={company.data} onSaved={onSaved} />
+        {company.data === null ? null : <DomainCard company={company.data} />}
+      </>
+    )
   }
 
   return (

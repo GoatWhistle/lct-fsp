@@ -50,3 +50,12 @@ class FeedbackOut(BaseModel):
     )
     placement: PlacementOut | None
     hints: list[HintOut]
+
+
+class PlanStepOut(BaseModel):
+    topic: str = Field(description="Код темы из подсказок обратной связи")
+    step: str = Field(description="Шаг: что сделать по теме")
+
+
+class DevelopmentPlanOut(BaseModel):
+    steps: list[PlanStepOut] = Field(description="3–5 пунктов")

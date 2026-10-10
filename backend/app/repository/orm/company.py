@@ -24,5 +24,23 @@ class Company(Base):
     contact_email: Mapped[str] = mapped_column(String(320))
     contact_phone: Mapped[str | None] = mapped_column(String(32))
     updated_at: Mapped[datetime]
+    # Метка доверия: домен, подтверждённый письмом на адрес этого домена, и когда.
+    verified_domain: Mapped[str | None] = mapped_column(String(253))
+    domain_verified_at: Mapped[datetime | None]
 
     industry: Mapped[Industry] = relationship()
+
+
+class CompanyDomainVerification(Base):
+    """Ссылка подтверждения домена компании: хранится хэш токена, сам токен — только в письме."""
+
+    __tablename__ = "company_domain_verifications"
+
+    token_hash: Mapped[str] = mapped_column(String(64), primary_key=True)
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("companies.user_id", ondelete="CASCADE"), index=True
+    )
+    email: Mapped[str] = mapped_column(String(320))
+    domain: Mapped[str] = mapped_column(String(253))
+    created_at: Mapped[datetime]
+    expires_at: Mapped[datetime]

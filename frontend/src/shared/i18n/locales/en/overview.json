@@ -78,7 +78,8 @@
       "default": "Refine your level in {{topic}}: the margin of error is widest here"
     },
     "gain": "+{{gain}} match",
-    "gainPlaces": "+{{gain}} match, about {{places}} places higher"
+    "gainPlaces": "+{{gain}} match, about {{places}} places higher",
+    "plan": "Development plan"
   },
   "invitations": {
     "title": "Invitations",

@@ -1490,6 +1490,63 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/candidate/feedback/plan": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * План развития
+         * @description 3–5 пунктов с шагами по темам подсказок, текст пишет локальная модель; темы только из подсказок, цифры системы — без работодателей и потребностей. `null` — модели нет, она не ответила или ответ не прошёл сверку: кабинет показывает подсказки как есть. Кэш — до изменения профиля навыков.
+         */
+        get: operations["get_plan_api_candidate_feedback_plan_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/employer/chat/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Доступен ли чат */
+        get: operations["status_api_employer_chat_status_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/employer/chat": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Сообщение чат-поиска
+         * @description Агент разбирает текст, строит подборку и применяет фильтры теми же сценариями, что форма; кандидатов не переставляет и не добавляет. Модели нет — 503, работает путь руками.
+         */
+        post: operations["send_api_employer_chat_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/catalog/grades": {
         parameters: {
             query?: never;
@@ -1937,6 +1994,22 @@ export interface components {
              */
             grade_status?: components["schemas"]["GradeStatusKind"][];
         };
+        /** CardOut */
+        CardOut: {
+            /**
+             * Candidate Id
+             * Format: uuid
+             */
+            candidate_id: string;
+            /** Position */
+            position: number;
+            /** Block */
+            block: string;
+            /** Grade */
+            grade: string;
+            /** Match Score */
+            match_score: number | null;
+        };
         /**
          * CardSelfReportedOut
          * @description Самоописание в карточке кандидата для работодателя. Поле, скрытое кандидатом, — `null`
@@ -2047,6 +2120,52 @@ export interface components {
              */
             verified_at: string | null;
         };
+        /** ChatIn */
+        ChatIn: {
+            /** Message */
+            message: string;
+            /**
+             * Selection Id
+             * @description Подборка, начатая раньше в чате или в форме: сообщение без текста вакансии уточняет её фильтрами
+             */
+            selection_id?: string | null;
+        };
+        /** ChatOut */
+        ChatOut: {
+            /**
+             * Selection Id
+             * Format: uuid
+             * @description Подборка открывается в форме по этому id
+             */
+            selection_id: string;
+            /**
+             * Cards
+             * @description Ровно вывод подборки и фильтров, в их порядке
+             */
+            cards: components["schemas"]["CardOut"][];
+            /**
+             * Chips
+             * @description Сужения, которые сделал агент, — снимаются
+             */
+            chips: components["schemas"]["ChipOut"][];
+            /**
+             * Summary
+             * @description Пересказ; `null` — числа не прошли сверку с выводом, показывается таблица
+             */
+            summary: string | null;
+            /** Total */
+            total: number;
+        };
+        /** ChipOut */
+        ChipOut: {
+            /**
+             * Kind
+             * @description `stack`, `fsp`, `confident`, `grade` или `specialization`
+             */
+            kind: string;
+            /** Value */
+            value: string;
+        };
         /** CompanyIn */
         CompanyIn: {
             /** Name */
@@ -2125,6 +2244,14 @@ export interface components {
              * @description Режим жюри включён настройкой окружения `DEMO_MODE`
              */
             enabled: boolean;
+        };
+        /** DevelopmentPlanOut */
+        DevelopmentPlanOut: {
+            /**
+             * Steps
+             * @description 3–5 пунктов
+             */
+            steps: components["schemas"]["PlanStepOut"][];
         };
         /**
          * DisclosedOut
@@ -3131,6 +3258,19 @@ export interface components {
              * @description Доля подборок, где вы были в точном блоке, 0–1
              */
             exact_share: number;
+        };
+        /** PlanStepOut */
+        PlanStepOut: {
+            /**
+             * Topic
+             * @description Код темы из подсказок обратной связи
+             */
+            topic: string;
+            /**
+             * Step
+             * @description Шаг: что сделать по теме
+             */
+            step: string;
         };
         /** PlannedTopicOut */
         PlannedTopicOut: {
@@ -9309,6 +9449,153 @@ export interface operations {
             };
             /** @description `wrong_role` — Раздел доступен другой роли */
             403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    get_plan_api_candidate_feedback_plan_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DevelopmentPlanOut"] | null;
+                };
+            };
+            /** @description `not_authenticated` — Войдите, чтобы продолжить */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description `wrong_role` — Раздел доступен другой роли */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    status_api_employer_chat_status_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: boolean;
+                    };
+                };
+            };
+            /** @description `not_authenticated` — Войдите, чтобы продолжить */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description `wrong_role` — Раздел доступен другой роли */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    send_api_employer_chat_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChatIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChatOut"];
+                };
+            };
+            /** @description `not_authenticated` — Войдите, чтобы продолжить */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description `wrong_role` — Раздел доступен другой роли */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description `path_step_unavailable` — Этот шаг сейчас недоступен — обновите страницу */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description `chat_unavailable` — Чат сейчас недоступен — соберите подборку из текста вакансии и фильтров */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };

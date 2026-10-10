@@ -1,0 +1,22 @@
+.plan {
+  display: grid;
+  gap: var(--space-12);
+}
+
+.title {
+  composes: strongBodyText from "../../../shared/styles/compose.module.css";
+}
+
+.steps {
+  display: grid;
+}
+
+.step {
+  composes: listRowCompact from "../../../shared/styles/rows.module.css";
+  gap: var(--space-4);
+}
+
+.topic {
+  composes: labelText from "../../../shared/styles/compose.module.css";
+  color: var(--text-secondary);
+}

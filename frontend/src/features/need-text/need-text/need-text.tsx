@@ -12,12 +12,8 @@ import styles from "./need-text.module.css"
 
 const MAX_LENGTH = 20000
 
-export interface NeedTextProps {
-  readonly hero?: boolean
-}
-
-export function NeedText({ hero = false }: NeedTextProps) {
-  const { t } = useTranslation(["need", "employer"])
+export function NeedText() {
+  const { t } = useTranslation("need")
   const names = useCatalogNames()
   const format = useFormatters()
   const errorText = useErrorText()
@@ -28,13 +24,8 @@ export function NeedText({ hero = false }: NeedTextProps) {
   const result = parse.data
 
   return (
-    <div className={styles.layout} data-hero={hero} data-filled={result !== undefined}>
-      <Card
-        title={hero ? t("employer:overview.hero.title") : t("text.field")}
-        description={hero ? t("employer:overview.hero.lead") : undefined}
-        tone={hero ? "inverse" : "default"}
-        className={styles.input}
-      >
+    <div className={styles.layout}>
+      <Card title={t("text.field")} className={styles.input}>
         <Form onSubmit={() => text.trim() !== "" && parse.mutate(text)} className={styles.form}>
           <TextArea
             label={t("text.field")}
@@ -43,7 +34,7 @@ export function NeedText({ hero = false }: NeedTextProps) {
             onChange={setText}
             placeholder={t("text.placeholder")}
             maxLength={MAX_LENGTH}
-            minRows={hero ? 8 : 10}
+            minRows={10}
             className={styles.area}
             hint={t("text.counter", {
               length: format.integer(text.length),

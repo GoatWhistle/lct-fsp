@@ -33,10 +33,10 @@
       "action": "Fill in the profile"
     },
     "needs": {
-      "title": "Needs",
+      "title": "Active shortlists",
       "all": "All needs",
-      "noSelection": "No shortlist built yet",
-      "built": "Shortlist of {{date}}",
+      "noSelection": "No shortlist",
+      "built": "of {{date}}",
       "open": "Open shortlist",
       "rebuild": "Rebuild",
       "build": "Build shortlist",
@@ -45,24 +45,21 @@
       "emptyTitle": "Describe who you are looking for",
       "emptyText": "A need sets the category, the stack and topic importance. The shortlist is built from it and explains every place.",
       "create": "Create a need",
-      "counts": "{{exact}} in category, {{nearby}} nearby",
       "showMore": "Show {{count}} more",
       "showLess": "Show less",
-      "trace": {
-        "label": "Need progress",
-        "described": "Described",
-        "selection": "Selection",
-        "invite": "Invitations",
-        "inviteHint": "Pick candidates from the selection"
-      }
+      "choosing": "Choosing candidates",
+      "candidates_one": "candidate",
+      "candidates_other": "candidates"
     },
     "activity": {
       "title": "Activity",
       "all": "All",
       "invitation": "Invitation to candidate {{tag}}",
       "application": "Application for “{{vacancy}}”",
-      "emptyTitle": "Quiet for now",
-      "emptyText": "Sent invitations and applications to your vacancies will show up here."
+      "selection": "Shortlist “{{title}}”",
+      "found_one": "{{count}} candidate",
+      "found_other": "{{count}} candidates",
+      "empty": "Shortlists, invitations and applications will show up here"
     },
     "attention": {
       "title": "Needs attention",
@@ -74,11 +71,15 @@
       "tasks_other": "{{count}} tasks await grading",
       "budget": "Invitation budget used up until {{date}}",
       "emptyTitle": "Nothing urgent",
-      "emptyText": "Applications are handled, conversations are read, task answers are graded."
+      "selections_one": "{{count}} need without a shortlist",
+      "selections_other": "{{count}} needs without a shortlist"
     },
-    "hero": {
-      "title": "Describe who you are looking for",
-      "lead": "Paste a job post or write a few lines. We turn it into a draft with specialization, grade, stack and salary range, then build a selection from it."
+    "stats": {
+      "label": "Key figures",
+      "needs": "Needs",
+      "candidates": "Candidates in shortlists",
+      "decide": "Awaiting your reply",
+      "waiting": "Awaiting candidate reply"
     }
   },
   "invitations": {

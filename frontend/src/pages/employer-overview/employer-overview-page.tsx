@@ -4,8 +4,8 @@ import {
   AttentionPanel,
   CompanyTask,
   NeedsPanel,
+  OverviewStats,
 } from "@/features/employer-overview"
-import { NeedText } from "@/features/need-text"
 import { useDocumentTitle, useTranslation } from "@/shared/i18n"
 import { ButtonLink, LoadError, PageBody, PageHeader, Skeleton } from "@/shared/ui"
 import styles from "./employer-overview-page.module.css"
@@ -34,19 +34,19 @@ export function EmployerOverviewPage() {
         title={t("overview.title")}
         description={company.data?.name}
         actions={
-          <ButtonLink to="/employer/needs/new" icon="plus">
+          <ButtonLink to="/employer/needs/text" icon="plus">
             {t("overview.newNeed")}
           </ButtonLink>
         }
       />
       <PageBody>
-        <NeedText hero />
         <CompanyGate />
+        <OverviewStats />
         <div className={styles.grid}>
           <NeedsPanel />
           <div className={styles.side}>
-            <ActivityPanel />
             <AttentionPanel />
+            <ActivityPanel />
           </div>
         </div>
       </PageBody>

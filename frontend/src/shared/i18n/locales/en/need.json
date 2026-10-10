@@ -109,6 +109,7 @@
       "city": "City",
       "salary": "Salary"
     },
-    "needsFields": "Building without saving needs a title, specialization and grade"
+    "needsFields": "Building without saving needs a title, specialization and grade",
+    "manual": "Fill in manually"
   }
 }

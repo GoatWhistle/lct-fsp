@@ -1,29 +1,30 @@
 import { useNavigate } from "react-router"
 import { gradeIcon, specializationIcon } from "@/entities/catalog"
-import { useBuildSelection, useSelections } from "@/entities/selection"
-import type { Need } from "@/shared/api"
+import { useBuildSelection } from "@/entities/selection"
+import type { Need, SelectionSummary } from "@/shared/api"
 import { useCatalogNames, useErrorText, useFormatters, useTranslation } from "@/shared/i18n"
 import { staggerStyle } from "@/shared/motion"
-import { Button, ButtonLink, Chip, IconLabel, Trace, toast } from "@/shared/ui"
+import { Button, ButtonLink, IconLabel, StatusBadge, Tooltip, toast } from "@/shared/ui"
+import { candidateCount } from "../recent-selections"
 import styles from "./need-row.module.css"
 
-const STACK_SHOWN = 5
+const STACK_SHOWN = 4
 
 export interface NeedRowProps {
   readonly need: Need
+  readonly latest: SelectionSummary | undefined
   readonly index: number
 }
 
-export function NeedRow({ need, index }: NeedRowProps) {
+export function NeedRow({ need, latest, index }: NeedRowProps) {
   const { t } = useTranslation("employer")
   const names = useCatalogNames()
   const errorText = useErrorText()
   const format = useFormatters()
   const navigate = useNavigate()
-  const selections = useSelections(need.id)
   const build = useBuildSelection()
-  const latest = selections.data?.[0]
   const rest = need.stack.length - STACK_SHOWN
+  const count = latest === undefined ? null : candidateCount(latest)
   const rebuild = () =>
     build.mutate(need.id, {
       onSuccess: (selection) =>
@@ -36,69 +37,81 @@ export function NeedRow({ need, index }: NeedRowProps) {
         <ButtonLink to={`/employer/needs/${need.id}`} variant="link" className={styles.title}>
           {need.title}
         </ButtonLink>
-        <div className={styles.tags}>
-          <Chip icon={specializationIcon(need.specialization.code)} tone="accent">
+        <div className={styles.meta}>
+          <IconLabel icon={specializationIcon(need.specialization.code)} tone="secondary">
             {names.specialization(need.specialization)}
-          </Chip>
-          <Chip icon={gradeIcon(need.grade.code)} tone="accent">
-            {names.grade(need.grade)}
-          </Chip>
-          {need.stack.slice(0, STACK_SHOWN).map((tech) => (
-            <Chip key={tech.code}>{tech.name}</Chip>
-          ))}
-          {rest > 0 ? <Chip>{t("overview.needs.more", { count: rest })}</Chip> : null}
-        </div>
-      </div>
-      <div className={styles.side}>
-        {latest === undefined ? null : (
-          <IconLabel icon="clock" tone="secondary" size="sm">
-            {t("overview.needs.built", { date: format.dateTime(latest.created_at) })}
           </IconLabel>
+          <IconLabel icon={gradeIcon(need.grade.code)} tone="secondary">
+            {names.grade(need.grade)}
+          </IconLabel>
+        </div>
+        {need.stack.length === 0 ? null : (
+          <div className={styles.stack}>
+            {need.stack.slice(0, STACK_SHOWN).map((tech) => (
+              <span key={tech.code}>{tech.name}</span>
+            ))}
+            {rest > 0 ? <span>{t("overview.needs.more", { count: rest })}</span> : null}
+          </div>
         )}
       </div>
-      <Trace
-        label={t("overview.needs.trace.label")}
-        orientation="horizontal"
-        animate
-        className={styles.trace}
-        steps={[
-          { key: "described", title: t("overview.needs.trace.described"), status: "done" },
-          {
-            key: "selection",
-            title: t("overview.needs.trace.selection"),
-            description:
-              latest === undefined
-                ? t("overview.needs.noSelection")
-                : t("overview.needs.counts", {
-                    exact: format.integer(latest.exact_total),
-                    nearby: format.integer(latest.nearby_total),
-                  }),
-            status: latest === undefined ? "current" : "done",
-          },
-          {
-            key: "invite",
-            title: t("overview.needs.trace.invite"),
-            description: t("overview.needs.trace.inviteHint"),
-            status: latest === undefined ? "upcoming" : "current",
-          },
-        ]}
-      />
-      <div className={styles.actions}>
-        {latest === undefined ? null : (
-          <ButtonLink to={`/employer/selections/${latest.id}`} size="compact" icon="match">
-            {t("overview.needs.open")}
-          </ButtonLink>
+      <div className={styles.status}>
+        {latest === undefined ? (
+          <StatusBadge tone="attention" swapKey="none">
+            {t("overview.needs.noSelection")}
+          </StatusBadge>
+        ) : (
+          <>
+            <StatusBadge tone="progress" swapKey="built">
+              {t("overview.needs.choosing")}
+            </StatusBadge>
+            <span className={styles.date}>
+              {t("overview.needs.built", { date: format.dateTime(latest.created_at) })}
+            </span>
+          </>
         )}
-        <Button
-          variant="secondary"
-          size="compact"
-          icon="refresh"
-          pending={build.isPending}
-          pendingLabel={t("overview.needs.building")}
-          onClick={rebuild}
-        >
-          {latest === undefined ? t("overview.needs.build") : t("overview.needs.rebuild")}
-        </Button>
+      </div>
+      <div className={styles.count}>
+        {count === null ? null : (
+          <>
+            <span className={styles.value}>{format.integer(count)}</span>
+            <span className={styles.unit}>{t("overview.needs.candidates", { count })}</span>
+          </>
+        )}
+      </div>
+      <div className={styles.actions}>
+        {latest === undefined ? (
+          <Button
+            size="compact"
+            icon="match"
+            pending={build.isPending}
+            pendingLabel={t("overview.needs.building")}
+            onClick={rebuild}
+          >
+            {t("overview.needs.build")}
+          </Button>
+        ) : (
+          <>
+            <ButtonLink
+              to={`/employer/selections/${latest.id}`}
+              variant="secondary"
+              size="compact"
+              icon="match"
+            >
+              {t("overview.needs.open")}
+            </ButtonLink>
+            <Tooltip content={t("overview.needs.rebuild")}>
+              <Button
+                variant="ghost"
+                size="icon"
+                icon="refresh"
+                pending={build.isPending}
+                onClick={rebuild}
+              >
+                {t("overview.needs.rebuild")}
+              </Button>
+            </Tooltip>
+          </>
+        )}
       </div>
     </li>
   )

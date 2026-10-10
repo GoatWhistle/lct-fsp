@@ -1,7 +1,16 @@
 .list {
   display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto auto;
+  column-gap: var(--space-16);
+  margin-inline: calc(var(--space-12) * -1);
 }
 
 .toggle {
-  margin-block-start: var(--space-16);
+  justify-self: start;
+}
+
+@media (max-width: 47.99rem) {
+  .list {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }

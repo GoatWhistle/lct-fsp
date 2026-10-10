@@ -30,6 +30,6 @@
   }
 }
 
-.budget {
-  margin-block-end: var(--space-16);
+.calm {
+  animation: var(--motion-slide-in);
 }

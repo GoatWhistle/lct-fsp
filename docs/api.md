@@ -96,6 +96,8 @@ uv run python -c "import json, main; json.dump(main.create_app().openapi(), open
 | Метод | Путь | Что делает |
 |---|---|---|
 | GET, PUT | `/api/employer/company` | профиль компании |
+| POST | `/api/employer/company/domain` | письмо со ссылкой на адрес домена сайта — метка доверия |
+| POST | `/api/company-domain/confirm` | подтвердить домен по токену из письма; вход не нужен |
 | GET, POST | `/api/employer/needs` | потребности компании; новая потребность |
 | GET, PUT, DELETE | `/api/employer/needs/{need_id}` | потребность |
 | POST | `/api/employer/needs/topic-importance` | важность тем по стеку до сохранения |

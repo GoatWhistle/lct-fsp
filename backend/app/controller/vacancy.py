@@ -9,6 +9,7 @@ from fastapi import APIRouter, status
 from app.controller.deps import (
     ROLE_RESPONSES,
     ApplicationsDep,
+    CompaniesDep,
     CurrentUser,
     VacanciesDep,
     role_guard,
@@ -46,15 +47,20 @@ ANSWER_ERRORS = (errors.ApplicationNotFound, errors.ApplicationTransitionNotAllo
     description="Вилка обязательна. Нужен профиль компании — кандидат видит, чья вакансия.",
     responses=error_responses(*VACANCY_ERRORS, errors.CompanyRequired),
 )
-def publish_vacancy(body: VacancyIn, user: CurrentUser, vacancies: VacanciesDep) -> VacancyOut:
-    return _vacancy(vacancies.publish(user.id, _form(body)))
+def publish_vacancy(
+    body: VacancyIn, user: CurrentUser, vacancies: VacanciesDep, companies: CompaniesDep
+) -> VacancyOut:
+    return _vacancy(vacancies.publish(user.id, _form(body)), companies.trusted({user.id}))
 
 
 @employer_router.get(
     "/vacancies", summary="Вакансии компании", description="И снятые с публикации, новые сверху."
 )
-def list_own_vacancies(user: CurrentUser, vacancies: VacanciesDep) -> list[VacancyOut]:
-    return [_vacancy(v) for v in vacancies.own(user.id)]
+def list_own_vacancies(
+    user: CurrentUser, vacancies: VacanciesDep, companies: CompaniesDep
+) -> list[VacancyOut]:
+    trusted = companies.trusted({user.id})
+    return [_vacancy(v, trusted) for v in vacancies.own(user.id)]
 
 
 @employer_router.put(
@@ -66,9 +72,15 @@ def list_own_vacancies(user: CurrentUser, vacancies: VacanciesDep) -> list[Vacan
     ),
 )
 def update_vacancy(
-    vacancy_id: uuid.UUID, body: VacancyIn, user: CurrentUser, vacancies: VacanciesDep
+    vacancy_id: uuid.UUID,
+    body: VacancyIn,
+    user: CurrentUser,
+    vacancies: VacanciesDep,
+    companies: CompaniesDep,
 ) -> VacancyOut:
-    return _vacancy(vacancies.update(user.id, vacancy_id, _form(body)))
+    return _vacancy(
+        vacancies.update(user.id, vacancy_id, _form(body)), companies.trusted({user.id})
+    )
 
 
 @employer_router.post(
@@ -79,9 +91,9 @@ def update_vacancy(
     responses=error_responses(errors.VacancyNotFound),
 )
 def archive_vacancy(
-    vacancy_id: uuid.UUID, user: CurrentUser, vacancies: VacanciesDep
+    vacancy_id: uuid.UUID, user: CurrentUser, vacancies: VacanciesDep, companies: CompaniesDep
 ) -> VacancyOut:
-    return _vacancy(vacancies.archive(user.id, vacancy_id))
+    return _vacancy(vacancies.archive(user.id, vacancy_id), companies.trusted({user.id}))
 
 
 @employer_router.get(
@@ -135,8 +147,12 @@ def decline_application(
     summary="Опубликованные вакансии",
     description="Вакансии всех компаний, новые сверху; `specialization` — код специализации.",
 )
-def list_published(vacancies: VacanciesDep, specialization: str | None = None) -> list[VacancyOut]:
-    return [_vacancy(v) for v in vacancies.published(specialization)]
+def list_published(
+    vacancies: VacanciesDep, companies: CompaniesDep, specialization: str | None = None
+) -> list[VacancyOut]:
+    published = vacancies.published(specialization)
+    trusted = companies.trusted({v.employer_id for v in published})
+    return [_vacancy(v, trusted) for v in published]
 
 
 @candidate_router.post(
@@ -193,7 +209,7 @@ def _form(body: VacancyIn) -> VacancyForm:
     )
 
 
-def _vacancy(vacancy: Vacancy) -> VacancyOut:
+def _vacancy(vacancy: Vacancy, trusted: set[uuid.UUID]) -> VacancyOut:
     terms = vacancy.terms
     return VacancyOut(
         id=vacancy.id,
@@ -208,6 +224,7 @@ def _vacancy(vacancy: Vacancy) -> VacancyOut:
         published_at=vacancy.published_at,
         updated_at=vacancy.updated_at,
         archived_at=vacancy.archived_at,
+        company_domain_verified=vacancy.employer_id in trusted,
     )
 
 

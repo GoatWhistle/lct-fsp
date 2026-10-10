@@ -45,7 +45,7 @@ from app.domain.catalog import (
     Technology,
     Topic,
 )
-from app.domain.company import Company, CompanyForm
+from app.domain.company import Company, CompanyForm, DomainVerification
 from app.domain.conversation import Message, Side
 from app.domain.feedback import CandidateSelection
 from app.domain.fsp import (
@@ -509,6 +509,10 @@ class CalibrationRepository(Protocol):
 class MailTemplates(Protocol):
     def verification(self, to: str, link: str, ttl_hours: int, locale: Locale) -> Mail: ...
 
+    def domain_verification(
+        self, to: str, link: str, ttl_hours: int, company: str, domain: str, locale: Locale
+    ) -> Mail: ...
+
 
 class Mailer(Protocol):
     """Почта — внешняя система. Отправка не роняет сценарий: письмо, которое не ушло,
@@ -846,6 +850,16 @@ class CompanyRepository(Protocol):
 
     def save(self, user_id: uuid.UUID, form: CompanyForm, now: datetime) -> None:
         """Профиль работодателя — новый или поверх прежнего; сфера уже проверена."""
+        ...
+
+    def add_domain_verification(self, verification: DomainVerification) -> None:
+        """Новая ссылка подтверждения домена; прежние ссылки компании перестают действовать."""
+        ...
+
+    def domain_verification(self, token_hash: str) -> DomainVerification | None: ...
+
+    def mark_domain_verified(self, user_id: uuid.UUID, domain: str, now: datetime) -> None:
+        """Домен подтверждён; ссылки подтверждения компании гасятся."""
         ...
 
 

@@ -27,7 +27,7 @@ from app.repository.orm.catalog import (
     fsp_discipline_topics,
     technology_topics,
 )
-from app.repository.orm.company import Company
+from app.repository.orm.company import Company, CompanyDomainVerification
 from app.repository.orm.fsp import FspAchievement, FspSnapshot
 from app.repository.orm.invitation import Invitation, InvitationMessage, VacancyTest
 from app.repository.orm.need import (
@@ -48,6 +48,7 @@ __all__ = [
     "CandidateProfile",
     "CategoryChange",
     "Company",
+    "CompanyDomainVerification",
     "EmailVerificationToken",
     "FamilyCalibration",
     "FamilyStatus",

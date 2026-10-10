@@ -1,0 +1,19 @@
+.body {
+  display: grid;
+  gap: var(--space-16);
+}
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: start;
+  gap: var(--space-12) var(--space-16);
+}
+
+.row > :first-child {
+  flex: 1 1 var(--tile-min);
+}
+
+.row > :last-child {
+  margin-block-start: var(--space-24);
+}

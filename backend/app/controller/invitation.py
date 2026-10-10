@@ -3,11 +3,13 @@
 не отозвал доступ, и открывает переписку сторон."""
 
 import uuid
+from dataclasses import dataclass
 
 from fastapi import APIRouter, status
 
 from app.controller.deps import (
     ROLE_RESPONSES,
+    CompaniesDep,
     ConversationsDep,
     CurrentUser,
     InvitationsDep,
@@ -29,6 +31,7 @@ from app.domain.account import Role
 from app.domain.conversation import Message, Side
 from app.domain.invitation import Invitation, InvitationTerms
 from app.domain.work import SalaryRange
+from app.usecase.company import Companies
 from app.usecase.invitation import Invitations
 from app.usecase.vacancy_test import VacancyTests, VacancyTestView
 
@@ -70,7 +73,11 @@ CONVERSATION_ERRORS = (errors.InvitationNotFound, errors.InvitationNotAccepted)
     ),
 )
 def send_invitation(
-    body: InvitationIn, user: CurrentUser, invitations: InvitationsDep, tests: VacancyTestsDep
+    body: InvitationIn,
+    user: CurrentUser,
+    invitations: InvitationsDep,
+    tests: VacancyTestsDep,
+    companies: CompaniesDep,
 ) -> InvitationOut:
     terms = InvitationTerms(
         description=body.description,
@@ -78,7 +85,7 @@ def send_invitation(
         contact=body.contact,
     )
     sent = invitations.send(user.id, body.candidate_id, terms, test_need_id=body.test_need_id)
-    return _out(invitations, sent, {}, _tests(tests, [sent], employer=True))
+    return _out(invitations, sent, {}, _extras(tests, companies, [sent], employer=True))
 
 
 @employer_router.get(
@@ -91,10 +98,11 @@ def list_sent(
     invitations: InvitationsDep,
     conversations: ConversationsDep,
     tests: VacancyTestsDep,
+    companies: CompaniesDep,
 ) -> SentInvitationsOut:
     sent = invitations.sent(user.id)
     unread = conversations.unread(Side.employer, user.id)
-    attached = _tests(tests, sent.invitations, employer=True)
+    attached = _extras(tests, companies, sent.invitations, employer=True)
     budget = sent.budget
     return SentInvitationsOut(
         budget=InvitationBudgetOut(
@@ -118,10 +126,13 @@ def get_sent(
     invitations: InvitationsDep,
     conversations: ConversationsDep,
     tests: VacancyTestsDep,
+    companies: CompaniesDep,
 ) -> InvitationOut:
     unread = conversations.unread(Side.employer, user.id)
     invitation = invitations.sent_one(user.id, invitation_id)
-    return _out(invitations, invitation, unread, _tests(tests, [invitation], employer=True))
+    return _out(
+        invitations, invitation, unread, _extras(tests, companies, [invitation], employer=True)
+    )
 
 
 @employer_router.get(
@@ -156,10 +167,11 @@ def list_inbox(
     invitations: InvitationsDep,
     conversations: ConversationsDep,
     tests: VacancyTestsDep,
+    companies: CompaniesDep,
 ) -> list[InvitationOut]:
     unread = conversations.unread(Side.candidate, user.id)
     inbox = invitations.inbox(user.id)
-    attached = _tests(tests, inbox, employer=False)
+    attached = _extras(tests, companies, inbox, employer=False)
     return [_out(invitations, i, unread, attached) for i in inbox]
 
 
@@ -175,10 +187,13 @@ def view_invitation(
     invitations: InvitationsDep,
     conversations: ConversationsDep,
     tests: VacancyTestsDep,
+    companies: CompaniesDep,
 ) -> InvitationOut:
     unread = conversations.unread(Side.candidate, user.id)
     invitation = invitations.view(user.id, invitation_id)
-    return _out(invitations, invitation, unread, _tests(tests, [invitation], employer=False))
+    return _out(
+        invitations, invitation, unread, _extras(tests, companies, [invitation], employer=False)
+    )
 
 
 @candidate_router.post(
@@ -193,10 +208,13 @@ def accept_invitation(
     invitations: InvitationsDep,
     conversations: ConversationsDep,
     tests: VacancyTestsDep,
+    companies: CompaniesDep,
 ) -> InvitationOut:
     unread = conversations.unread(Side.candidate, user.id)
     invitation = invitations.answer(user.id, invitation_id, accept=True)
-    return _out(invitations, invitation, unread, _tests(tests, [invitation], employer=False))
+    return _out(
+        invitations, invitation, unread, _extras(tests, companies, [invitation], employer=False)
+    )
 
 
 @candidate_router.post(
@@ -210,10 +228,13 @@ def decline_invitation(
     invitations: InvitationsDep,
     conversations: ConversationsDep,
     tests: VacancyTestsDep,
+    companies: CompaniesDep,
 ) -> InvitationOut:
     unread = conversations.unread(Side.candidate, user.id)
     invitation = invitations.answer(user.id, invitation_id, accept=False)
-    return _out(invitations, invitation, unread, _tests(tests, [invitation], employer=False))
+    return _out(
+        invitations, invitation, unread, _extras(tests, companies, [invitation], employer=False)
+    )
 
 
 @candidate_router.post(
@@ -230,10 +251,13 @@ def revoke_access(
     invitations: InvitationsDep,
     conversations: ConversationsDep,
     tests: VacancyTestsDep,
+    companies: CompaniesDep,
 ) -> InvitationOut:
     unread = conversations.unread(Side.candidate, user.id)
     invitation = invitations.revoke(user.id, invitation_id)
-    return _out(invitations, invitation, unread, _tests(tests, [invitation], employer=False))
+    return _out(
+        invitations, invitation, unread, _extras(tests, companies, [invitation], employer=False)
+    )
 
 
 @candidate_router.get(
@@ -273,20 +297,32 @@ def _message(message: Message) -> MessageOut:
     )
 
 
-def _tests(
-    tests: VacancyTests, invitations: list[Invitation], *, employer: bool
-) -> dict[uuid.UUID, VacancyTestView]:
-    """Тесты по вакансии приглашений; итог — только работодателю."""
-    return tests.views([i.id for i in invitations], with_result=employer)
+@dataclass(frozen=True)
+class _Extras:
+    """Что к приглашению добавляют другие сценарии: тест по вакансии и метка доверия компании."""
+
+    tests: dict[uuid.UUID, VacancyTestView]
+    trusted: set[uuid.UUID]
+
+
+def _extras(
+    tests: VacancyTests, companies: Companies, invitations: list[Invitation], *, employer: bool
+) -> _Extras:
+    """Тесты по вакансии приглашений — итог только работодателю — и компании с подтверждённым
+    доменом."""
+    return _Extras(
+        tests.views([i.id for i in invitations], with_result=employer),
+        companies.trusted({i.employer_id for i in invitations}),
+    )
 
 
 def _out(
     invitations: Invitations,
     invitation: Invitation,
     unread: dict[uuid.UUID, int],
-    tests: dict[uuid.UUID, VacancyTestView],
+    extras: _Extras,
 ) -> InvitationOut:
-    test = tests.get(invitation.id)
+    test = extras.tests.get(invitation.id)
     terms = invitation.terms
     return InvitationOut(
         id=invitation.id,
@@ -303,5 +339,6 @@ def _out(
         expires_at=invitation.expires_at(invitations.ttl),
         revoked_at=invitation.revoked_at,
         unread_messages=unread.get(invitation.id, 0),
+        company_domain_verified=invitation.employer_id in extras.trusted,
         vacancy_test=vacancy_test_out(test) if test else None,
     )

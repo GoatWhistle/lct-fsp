@@ -572,6 +572,43 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/employer/company/domain": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Подтвердить домен сайта компании
+         * @description Письмо со ссылкой на адрес вида имя@домен-сайта. Метка добровольная: без неё все сценарии работают. Новая ссылка гасит прежние.
+         */
+        post: operations["request_domain_check_api_employer_company_domain_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/company-domain/confirm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Подтверждение домена по токену из письма */
+        post: operations["confirm_domain_api_company_domain_confirm_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/employer/needs": {
         parameters: {
             query?: never;
@@ -2055,6 +2092,16 @@ export interface components {
              * Format: date-time
              */
             updated_at: string;
+            /**
+             * Verified Domain
+             * @description Домен, подтверждённый письмом на адрес этого домена; `null` — не подтверждали
+             */
+            verified_domain: string | null;
+            /**
+             * Domain Verified
+             * @description Метка доверия: подтверждённый домен совпадает с доменом сайта компании
+             */
+            domain_verified: boolean;
         };
         /** DemoCandidateIn */
         DemoCandidateIn: {
@@ -2112,6 +2159,29 @@ export interface components {
              * @description Годы по технологиям из записей опыта. Со слов кандидата: тестом и ФСП не подтверждено, на скор, место в выдаче, уровень и категорию не влияет
              */
             technology_years: components["schemas"]["TechnologyYearsOut"][];
+        };
+        /** DomainCheckIn */
+        DomainCheckIn: {
+            /**
+             * Email
+             * @description Адрес на домене сайта компании, например hr@acme.ru
+             */
+            email: string;
+            /**
+             * Locale
+             * @description Язык письма
+             * @default ru
+             * @enum {string}
+             */
+            locale: "ru" | "en";
+        };
+        /** DomainConfirmIn */
+        DomainConfirmIn: {
+            /**
+             * Token
+             * @description Токен из письма
+             */
+            token: string;
         };
         /**
          * DraftField
@@ -2622,6 +2692,11 @@ export interface components {
              * @description Непрочитанные сообщения другой стороны
              */
             unread_messages: number;
+            /**
+             * Company Domain Verified
+             * @description Метка доверия: компания подтвердила домен своего сайта
+             */
+            company_domain_verified: boolean;
             /** @description Приложенный тест по вакансии; итог — только в ответах работодателю */
             vacancy_test: components["schemas"]["VacancyTestOut"] | null;
             /** @description Все суммы платформы — до вычета НДФЛ (`gross`) */
@@ -4177,6 +4252,11 @@ export interface components {
              * @description Когда снята с публикации: в общем списке её нет, откликнуться нельзя
              */
             archived_at: string | null;
+            /**
+             * Company Domain Verified
+             * @description Метка доверия: компания подтвердила домен своего сайта
+             */
+            company_domain_verified: boolean;
             /** @description Все суммы платформы — до вычета НДФЛ (`gross`) */
             readonly salary_basis: components["schemas"]["SalaryBasis"];
         };
@@ -5849,6 +5929,116 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    request_domain_check_api_employer_company_domain_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DomainCheckIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description `not_authenticated` — Войдите, чтобы продолжить */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description `wrong_role` — Раздел доступен другой роли */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /**
+             * @description `company_profile_required` — Сначала заполните профиль компании — кандидат увидит его в приглашении
+             *
+             *     `company_website_required` — Укажите сайт компании: подтверждается адрес на его домене
+             */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description `domain_email_mismatch` — Адрес должен быть на домене сайта компании */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    confirm_domain_api_company_domain_confirm_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DomainConfirmIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CompanyOut"];
+                };
+            };
+            /**
+             * @description `token_invalid` — Ссылка недействительна. Если адрес уже подтверждён — просто войдите
+             *
+             *     `token_expired` — Срок ссылки истёк — запросите новое письмо
+             */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

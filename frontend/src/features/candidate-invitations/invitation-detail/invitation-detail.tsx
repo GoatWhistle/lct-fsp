@@ -1,4 +1,5 @@
 import type { ReactNode } from "react"
+import { CompanyTrustMark } from "@/entities/company"
 import { InboxStatusBadge, isOpenStatus } from "@/entities/invitation"
 import type { Invitation } from "@/shared/api"
 import { BackendText, useFormatters, useMoneyRange, useTranslation } from "@/shared/i18n"
@@ -101,6 +102,7 @@ export function InvitationDetail({ invitation, conversation }: InvitationDetailP
     >
       <div className={styles.status}>
         <InboxStatusBadge status={invitation.status} revoked={invitation.revoked_at !== null} />
+        <CompanyTrustMark verified={invitation.company_domain_verified} />
       </div>
       <StateNote invitation={invitation} />
       <Terms items={items} />

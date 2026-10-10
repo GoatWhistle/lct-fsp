@@ -22,19 +22,20 @@ import logging
 from collections.abc import Mapping, Sequence
 from concurrent.futures import ThreadPoolExecutor
 from concurrent.futures import TimeoutError as FutureTimeout
-from dataclasses import dataclass
 from datetime import date
-from typing import Any, Protocol
+from typing import Any
 
 from app.domain.catalog import Catalog
 from app.domain.need_draft import NeedDraft, OutOfCatalog
 from app.domain.resume_draft import ResumeDraft, ResumeField
 from app.domain.work import WorkFormat
-from app.usecase.interface import TextUnderstanding
+from app.usecase.interface import Completion, ModelRequest, Schema, TextUnderstanding
 
 log = logging.getLogger(__name__)
 
-Schema = Mapping[str, Any]
+# Порты модели живут в `app.usecase.interface`; здесь они же — для адаптеров и стенда.
+__all__ = ["Completion", "ModelError", "ModelRequest", "Schema"]
+
 
 SYSTEM = """\
 Ты разбираешь текст вакансии в ИТ, который работодатель написал как есть, и заполняешь черновик \
@@ -103,22 +104,6 @@ RESUME_SYSTEM = """\
 
 class ModelError(Exception):
     """Модель не ответила или ответ не читается — разбор уходит в правила."""
-
-
-@dataclass(frozen=True)
-class ModelRequest:
-    """Вопрос модели: системное сообщение с правилами, текст работодателя и схема ответа."""
-
-    system: str
-    user: str
-    schema: Schema
-
-
-class Completion(Protocol):
-    """Как спросить модель: запрос → JSON-текст ответа по `request.schema`. Сбой и таймаут —
-    `ModelError`."""
-
-    def __call__(self, request: ModelRequest) -> str: ...
 
 
 def _nullable(schema: Schema) -> Schema:

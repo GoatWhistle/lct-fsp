@@ -7,9 +7,10 @@
 import random
 import uuid
 from collections.abc import Collection, Iterable, Mapping, Sequence
+from dataclasses import dataclass
 from datetime import date, datetime
 from types import TracebackType
-from typing import Protocol, Self
+from typing import Any, Protocol, Self
 
 from app.domain import bank
 from app.domain.account import Account, Credentials, EmailVerification, Role
@@ -1111,6 +1112,26 @@ class CatalogRepository(Protocol):
     def apply(self, plan: CatalogPlan) -> None:
         """Применяет синхронизацию; снять код, на который ссылаются данные, хранилище откажет."""
         ...
+
+
+Schema = Mapping[str, Any]
+
+
+@dataclass(frozen=True)
+class ModelRequest:
+    """Вопрос модели: системное сообщение с правилами, текст пользователя и схема ответа."""
+
+    system: str
+    user: str
+    schema: Schema
+
+
+class Completion(Protocol):
+    """Как спросить модель: запрос → JSON-текст ответа по `request.schema`. Сбой и таймаут —
+    `ModelError` адаптера. Сейчас — llama.cpp (`app.adapter.text_llama`) и модель по имени из
+    окружения."""
+
+    def __call__(self, request: ModelRequest) -> str: ...
 
 
 class TextUnderstanding(Protocol):

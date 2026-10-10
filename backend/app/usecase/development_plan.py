@@ -8,7 +8,6 @@ from collections.abc import Sequence
 from concurrent.futures import ThreadPoolExecutor
 from concurrent.futures import TimeoutError as FutureTimeout
 
-from app.adapter.text_model import Completion, ModelRequest
 from app.domain.development_plan import (
     SYSTEM,
     DevelopmentPlan,
@@ -20,6 +19,7 @@ from app.domain.development_plan import (
 )
 from app.domain.feedback import Hint
 from app.usecase.feedback import CandidateFeedback
+from app.usecase.interface import Completion, ModelRequest
 
 log = logging.getLogger(__name__)
 

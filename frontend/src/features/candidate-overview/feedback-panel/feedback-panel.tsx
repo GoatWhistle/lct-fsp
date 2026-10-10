@@ -1,14 +1,10 @@
 import { useFeedback } from "@/entities/profile"
+import type { FeedbackHint } from "@/shared/api"
 import { useFormatters, useTranslation } from "@/shared/i18n"
-import { Card, IconLabel, LoadError, Skeleton, Stat } from "@/shared/ui"
+import { IconLabel, LoadError, Skeleton, Stat } from "@/shared/ui"
 import { DevelopmentPlan } from "./development-plan"
 import styles from "./feedback-panel.module.css"
 import { HintRow } from "./hint-row"
-
-export interface FeedbackPanelProps {
-  readonly motionIndex?: number
-  readonly className?: string | undefined
-}
 
 function Placement() {
   const { t } = useTranslation("overview")
@@ -43,37 +39,35 @@ function Placement() {
   )
 }
 
-export function FeedbackPanel({ motionIndex, className }: FeedbackPanelProps) {
+export function useHints(): readonly FeedbackHint[] {
+  const feedback = useFeedback()
+  return (feedback.data?.hints ?? []).filter((hint) => hint.action.kind !== "link_fsp")
+}
+
+export function FeedbackContent() {
   const { t } = useTranslation("overview")
   const feedback = useFeedback()
+  const hints = useHints()
+  if (feedback.isError)
+    return (
+      <LoadError
+        error={feedback.error}
+        onRetry={() => void feedback.refetch()}
+        pending={feedback.isFetching}
+      />
+    )
+  if (feedback.data === undefined) return <Skeleton lines={4} />
   return (
-    <Card
-      title={t("feedback.title")}
-      description={t("feedback.lead")}
-      motionIndex={motionIndex}
-      className={className}
-    >
-      {feedback.isError ? (
-        <LoadError
-          error={feedback.error}
-          onRetry={() => void feedback.refetch()}
-          pending={feedback.isFetching}
-        />
-      ) : feedback.data === undefined ? (
-        <Skeleton lines={4} />
-      ) : (
-        <>
-          <Placement />
-          {feedback.data.hints.length === 0 ? null : (
-            <ul className={styles.hints} aria-label={t("feedback.hints")}>
-              {feedback.data.hints.map((hint, index) => (
-                <HintRow key={hint.topic?.code ?? hint.action.kind} hint={hint} index={index} />
-              ))}
-            </ul>
-          )}
-          <DevelopmentPlan />
-        </>
+    <>
+      <Placement />
+      {hints.length === 0 ? null : (
+        <ul className={styles.hints} aria-label={t("feedback.hints")}>
+          {hints.map((hint, index) => (
+            <HintRow key={hint.topic?.code ?? hint.action.kind} hint={hint} index={index} />
+          ))}
+        </ul>
       )}
-    </Card>
+      <DevelopmentPlan />
+    </>
   )
 }

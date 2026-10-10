@@ -1,0 +1,34 @@
+.trigger {
+  position: relative;
+  display: inline-flex;
+}
+
+.button {
+  color: var(--text-accent);
+}
+
+.count {
+  composes: countBadge from "../../../shared/styles/feedback.module.css";
+  position: absolute;
+  inset-block-start: calc(var(--space-8) * -1);
+  inset-inline-end: calc(var(--space-8) * -1);
+  background-color: var(--action-danger);
+  font-weight: var(--weight-bold);
+  pointer-events: none;
+  animation: var(--motion-pop-in);
+}
+
+.popover {
+  inline-size: min(28rem, calc(100vw - var(--space-32)));
+  max-block-size: none;
+  padding: 0;
+}
+
+.scroll {
+  max-block-size: min(70dvh, 36rem);
+}
+
+.panel {
+  border-color: transparent;
+  background-color: transparent;
+}

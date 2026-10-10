@@ -1,18 +1,16 @@
 import { useCompany } from "@/entities/company"
-import { useSession } from "@/entities/session"
 import {
   ActivityPanel,
   AttentionPanel,
   CompanyTask,
-  MetricsRow,
   NeedsPanel,
 } from "@/features/employer-overview"
 import { NeedText } from "@/features/need-text"
 import { useDocumentTitle, useTranslation } from "@/shared/i18n"
-import { ButtonLink, LoadError, PageBody, PageHeader, Section, Skeleton } from "@/shared/ui"
+import { ButtonLink, LoadError, PageBody, PageHeader, Skeleton } from "@/shared/ui"
 import styles from "./employer-overview-page.module.css"
 
-function Headline() {
+function CompanyGate() {
   const company = useCompany()
   if (company.isError)
     return (
@@ -23,13 +21,12 @@ function Headline() {
       />
     )
   if (company.data === undefined) return <Skeleton shape="block" />
-  return company.data === null ? <CompanyTask /> : <MetricsRow />
+  return company.data === null ? <CompanyTask /> : null
 }
 
 export function EmployerOverviewPage() {
   const { t } = useTranslation("employer")
   const company = useCompany()
-  const session = useSession()
   useDocumentTitle(t("overview.title"))
   return (
     <>
@@ -43,12 +40,8 @@ export function EmployerOverviewPage() {
         }
       />
       <PageBody>
-        {session.data?.demo ? (
-          <Section title={t("overview.jury.title")} lead={t("overview.jury.lead")}>
-            <NeedText />
-          </Section>
-        ) : null}
-        <Headline />
+        <NeedText hero />
+        <CompanyGate />
         <div className={styles.grid}>
           <NeedsPanel />
           <div className={styles.side}>

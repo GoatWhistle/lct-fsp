@@ -41,7 +41,9 @@
   "inProgress": {
     "title": "The {{grade}} test is in progress",
     "text": "Answer the remaining tasks to get your category.",
-    "action": "Continue the test"
+    "action": "Continue the test",
+    "progressLabel": "Test progress",
+    "progress": "{{answered}} answered, {{max}} at most"
   },
   "offer": {
     "title": "Not enough confidence for {{grade}}",

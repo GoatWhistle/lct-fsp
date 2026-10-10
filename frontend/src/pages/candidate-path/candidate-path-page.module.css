@@ -19,3 +19,7 @@
     position: static;
   }
 }
+
+.step {
+  max-inline-size: var(--prose-measure);
+}

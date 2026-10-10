@@ -128,6 +128,9 @@ from settings import Mechanics
 
 log = logging.getLogger(__name__)
 
+# Экземпляров заданий в памяти сценария — хватает на показ, текущее задание и ответ.
+INSTANCE_CACHE = 8
+
 
 def blueprint_of(prior: Prior, mechanics: Mechanics) -> Blueprint:
     """Бланк теста из априорного и конфига."""
@@ -226,6 +229,9 @@ class CandidatePath:
         self._freshness = ProfileFreshness(skill_model, mechanics)
         # Априорное специализации — от тем и конфига: на запрос считается один раз.
         self._priors: dict[str, Prior] = {}
+        # Экземпляр задания — чистая функция семейства и seed: показ, текущее задание и проверка
+        # ответа берут одно и то же, генерировать его трижды незачем.
+        self._instances: dict[tuple[str, int], bank.Instance] = {}
 
     def path(self, user_id: uuid.UUID) -> PathView:
         """Шаг пути и итоги теста. Пишет, только если срок проверочного блока прошёл: блок
@@ -498,9 +504,7 @@ class CandidatePath:
                 f"тема {presentation.topic_code} не в справочнике специализации "
                 f"{attempt.specialization_code}"
             )
-        instance = bank.get_family(presentation.family_code).instance(
-            presentation.seed, self._runner
-        )
+        instance = self._instance(presentation.family_code, presentation.seed)
         block = attempt.purpose == AttemptPurpose.topic_block
         verification = attempt.purpose == AttemptPurpose.verification
         vacancy = attempt.purpose == AttemptPurpose.vacancy_test
@@ -550,7 +554,9 @@ class CandidatePath:
                 self._finish_side(attempt, prior, now)
                 return Answered(self._view(self._attempts.state(user_id), now, user_id), None)
             family = bank.get_family(presentation.family_code)
-            correct = family.check(family.instance(presentation.seed, self._runner), response)
+            correct = family.check(
+                self._instance(presentation.family_code, presentation.seed), response
+            )
             presentation.response = response
             presentation.correct = correct
             presentation.answered_at = now
@@ -727,7 +733,7 @@ class CandidatePath:
         self, attempt: Attempt, option: Option, before: Normal, now: datetime
     ) -> Presentation:
         seed = self._seeds.seed()
-        instance = bank.get_family(option.code).instance(seed, self._runner)
+        instance = self._instance(option.code, seed)
         return self._attempts.add_presentation(
             attempt,
             family_code=option.code,
@@ -1234,6 +1240,17 @@ class CandidatePath:
         if available_at is not None and available_at <= now:
             available_at = None
         return GradeUp(target, available_at)
+
+    def _instance(self, family_code: str, seed: int) -> bank.Instance:
+        key = (family_code, seed)
+        instance = self._instances.get(key)
+        if instance is None:
+            # Нужны только экземпляры текущего задания: старые выбрасываются.
+            if len(self._instances) >= INSTANCE_CACHE:
+                self._instances.clear()
+            instance = bank.get_family(family_code).instance(seed, self._runner)
+            self._instances[key] = instance
+        return instance
 
     def _attempt_in_progress(self, user_id: uuid.UUID) -> Attempt:
         attempt = self._attempts.attempt_in_progress(user_id)

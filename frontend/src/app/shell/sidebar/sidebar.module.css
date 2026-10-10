@@ -107,6 +107,7 @@
 .accountMenu {
   justify-content: flex-start;
   min-inline-size: 0;
+  overflow: hidden;
 }
 
 .sidebar[data-collapsed="true"] .brand,

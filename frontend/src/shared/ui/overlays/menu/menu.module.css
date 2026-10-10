@@ -3,6 +3,11 @@
   flex-direction: column;
 }
 
+.triggerLabel {
+  composes: truncate from "../../../styles/compose.module.css";
+  min-inline-size: 0;
+}
+
 .item {
   composes: controlText listItem from "../../../styles/compose.module.css";
   display: flex;

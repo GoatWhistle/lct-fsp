@@ -50,7 +50,7 @@ Agent SDK — упоминать можно: стоп-лист ловит тол
   `commit-msg` — формат, 20 слов, `#N`, стоп-лист; `pre-commit` — стоп-лист в добавленных
   строках; `pre-push` — отказ на прямой push в `main`.
 - **Сдача:** `.claude/scripts/scrub-history.sh` собирает bare-копию без `.claude/`, `CLAUDE.md`,
-  `AGENTS.md`, `PROMPT-*`, `TASK-*`, `backend/app/adapter/demo/` и без `#N` в истории. Командное в README — внутри
+  `AGENTS.md`, `PROMPT-*`, `TASK-*`, `backend/app/adapter/demo/`, `docs/competitors.md` и без `#N` в истории. Командное в README — внутри
   `<!-- scrub:start -->` … `<!-- scrub:end -->`.
 
 ## Решения, которые не переоткрываются

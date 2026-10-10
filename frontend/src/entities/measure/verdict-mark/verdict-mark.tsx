@@ -1,6 +1,7 @@
 import type { Verdict } from "@/shared/api"
 import { useTranslation } from "@/shared/i18n"
 import { IconLabel, type IconName } from "@/shared/ui"
+import { ProbabilityLabel } from "../probability-label/probability-label"
 
 const VERDICT_ICON: Readonly<Record<Verdict, IconName>> = {
   confidently_above: "accepted",
@@ -18,20 +19,23 @@ const VERDICT_TONE = {
 
 export interface VerdictMarkProps {
   readonly verdict: Verdict
+  readonly probability: number
   readonly lowData?: boolean
 }
 
-export function VerdictMark({ verdict, lowData = false }: VerdictMarkProps) {
+export function VerdictMark({ verdict, probability, lowData = false }: VerdictMarkProps) {
   const { t } = useTranslation("measure")
-  if (lowData)
-    return (
-      <IconLabel icon="uncertainty" tone="secondary">
-        {t("verdict.lowData")}
-      </IconLabel>
-    )
   return (
-    <IconLabel icon={VERDICT_ICON[verdict]} tone={VERDICT_TONE[verdict]}>
-      {t(`verdict.${verdict}`)}
+    <IconLabel
+      icon={lowData ? "uncertainty" : VERDICT_ICON[verdict]}
+      tone={lowData ? "secondary" : VERDICT_TONE[verdict]}
+    >
+      <ProbabilityLabel
+        value={probability}
+        verdict={verdict}
+        lowData={lowData}
+        label={t("match.requirement")}
+      />
     </IconLabel>
   )
 }

@@ -49,6 +49,12 @@
   animation-delay: calc(var(--dur-draw) + var(--phase) * var(--dur-signal));
 }
 
+.signalGlow {
+  stroke: var(--text-accent);
+  stroke-width: calc(var(--trace-stroke) * 2.5);
+  stroke-opacity: 0.4;
+}
+
 [data-tempo="fast"] > .signal,
 [data-tempo="fast"] > .signalGlow {
   animation-duration: var(--dur-signal-fast);
@@ -62,12 +68,6 @@
 [data-reverse="true"] > .signal,
 [data-reverse="true"] > .signalGlow {
   animation-direction: reverse;
-}
-
-.signalGlow {
-  stroke: var(--text-accent);
-  stroke-width: calc(var(--trace-stroke) * 2.5);
-  stroke-opacity: 0.4;
 }
 
 .city {

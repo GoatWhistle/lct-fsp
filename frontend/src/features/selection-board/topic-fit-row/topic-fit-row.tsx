@@ -34,7 +34,11 @@ export function TopicFitRow({ topic, index }: TopicFitRowProps) {
         animate
       />
       <div className={styles.foot}>
-        <VerdictMark verdict={topic.verdict} lowData={topic.low_data} />
+        <VerdictMark
+          verdict={topic.verdict}
+          probability={topic.probability}
+          lowData={topic.low_data}
+        />
         <span className={styles.contribution}>
           {t("explain.contribution")} <strong>{format.percent(topic.contribution, 1)}</strong>
         </span>

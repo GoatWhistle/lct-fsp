@@ -1,7 +1,7 @@
 import type { CSSProperties } from "react"
 import type { GradeProbability } from "@/shared/api"
 import { useCatalogNames } from "@/shared/i18n"
-import { useLevelWords } from "../use-level-words"
+import { ProbabilityLabel } from "../probability-label/probability-label"
 import styles from "./grade-probabilities.module.css"
 
 export interface GradeProbabilitiesProps {
@@ -18,7 +18,6 @@ export function GradeProbabilities({
   animate = false,
 }: GradeProbabilitiesProps) {
   const names = useCatalogNames()
-  const words = useLevelWords()
   return (
     <dl className={styles.list} aria-label={label} data-animate={animate}>
       {items.map((item, index) => (
@@ -32,7 +31,9 @@ export function GradeProbabilities({
           <dd className={styles.bar} aria-hidden="true">
             <span className={styles.fill} />
           </dd>
-          <dd className={styles.value}>{words.probability(item.probability)}</dd>
+          <dd className={styles.value}>
+            <ProbabilityLabel value={item.probability} label={names.grade(item.grade)} />
+          </dd>
         </div>
       ))}
     </dl>

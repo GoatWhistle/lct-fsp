@@ -21,6 +21,11 @@ export {
   uncertaintySize,
 } from "./grade-scale"
 export { MatchScore, type MatchScoreProps, type MatchScoreSize } from "./match-score/match-score"
+export {
+  ProbabilityLabel,
+  type ProbabilityLabelProps,
+  probabilityBand,
+} from "./probability-label/probability-label"
 export { SkillList, type SkillListProps } from "./skill-list/skill-list"
 export { TrustBadge, type TrustBadgeProps, type TrustSource } from "./trust-badge/trust-badge"
 export { type LevelWords, useLevelWords } from "./use-level-words"

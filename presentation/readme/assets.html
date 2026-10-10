@@ -56,31 +56,7 @@ body {
   align-content: center;
   gap: 22px;
   width: 880px;
-  height: 300px;
-  overflow: hidden;
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-lg);
-  background: var(--surface-raised);
-}
-
-.banner-trace {
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: 150px;
-  height: 1px;
-  background: var(--border-subtle);
-}
-
-.banner-trace::after {
-  content: "";
-  position: absolute;
-  right: 96px;
-  top: -5px;
-  width: 11px;
-  height: 11px;
-  border-radius: var(--radius-pill);
-  background: var(--action-primary);
+  height: 200px;
 }
 
 .lockup {
@@ -88,8 +64,6 @@ body {
   display: flex;
   align-items: center;
   gap: 20px;
-  padding: 0 24px;
-  background: var(--surface-raised);
 }
 
 .mark {
@@ -142,14 +116,6 @@ body {
   background: var(--brand-mark-blue);
 }
 
-.team {
-  position: relative;
-  margin: 0;
-  font-family: var(--font-mono);
-  font-size: 15px;
-  color: var(--text-tertiary);
-}
-
 .promise {
   position: relative;
   max-width: 720px;
@@ -168,7 +134,6 @@ body {
 }
 
 .cta {
-  font-family: var(--font-mono);
   display: inline-flex;
   align-items: center;
   gap: 10px;
@@ -264,13 +229,11 @@ body {
 <body>
 
 <div class="banner" data-asset="banner">
-  <span class="banner-trace"></span>
   <div class="lockup">
     <span class="mark" data-mark></span>
     <span class="wordmark">cal<span class="wm-i">ı<i></i></span>br</span>
   </div>
   <p class="promise">Подбор ИТ-специалистов, <em>который нельзя накрутить</em></p>
-  <p class="team">команда GoatWhistle, спецтрек ФСП</p>
 </div>
 
 <span class="mark" data-asset="mark" data-mark style="width: 34px; height: 33px"></span>

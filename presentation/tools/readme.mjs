@@ -12,6 +12,8 @@ const README = path.join(REPO, "README.md")
 const THEMES = ["light", "dark"]
 const ROWS = ["buttons", "status", "stack", "nav"]
 const MERMAID_INIT = /^%%\{init:.*\}%%\s*$/
+const LINE = 660
+const GAP = 6
 
 const data = JSON.parse(fs.readFileSync(DATA, "utf8"))
 const shell = fs.readFileSync(path.join(ROOT, "src", "shell.html"), "utf8")
@@ -137,8 +139,33 @@ const picture = (name, alt) => {
   const { width, height } = sizes[name]
   return `<picture><source media="(prefers-color-scheme: dark)" srcset="docs/readme/${name}.dark.png"><img src="docs/readme/${name}.light.png" alt="${escape(alt)}" width="${width}" height="${height}"></picture>`
 }
+const tag = (b) => (b.href ? `  <a href="${escape(b.href)}">${picture(b.asset, b.alt)}</a>` : `  ${picture(b.asset, b.alt)}`)
+const span = (line) => line.reduce((sum, b) => sum + sizes[b.asset].width, 0) + GAP * Math.max(0, line.length - 1)
+const fill = (list, limit) => {
+  const lines = [[]]
+  for (const b of list) {
+    if (lines.at(-1).length && span([...lines.at(-1), b]) > limit) lines.push([])
+    lines.at(-1).push(b)
+  }
+  return lines
+}
+const balance = (list) => {
+  const count = fill(list, LINE).length
+  let low = Math.max(...list.map((b) => sizes[b.asset].width))
+  let high = LINE
+  while (high - low > 1) {
+    const mid = Math.floor((low + high) / 2)
+    if (fill(list, mid).length <= count) high = mid
+    else low = mid
+  }
+  return fill(list, high)
+}
 const row = (list) =>
-  list.map((b) => (b.href ? `  <a href="${escape(b.href)}">${picture(b.asset, b.alt)}</a>` : `  ${picture(b.asset, b.alt)}`)).join("\n")
+  list.length
+    ? balance(list)
+        .map((line) => line.map(tag).join("\n"))
+        .join("\n  <br>\n")
+    : ""
 
 let readme = fs.readFileSync(README, "utf8")
 for (const kind of ROWS) {

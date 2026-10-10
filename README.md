@@ -1,7 +1,7 @@
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="docs/readme/banner.dark.png">
-    <img src="docs/readme/banner.light.png" alt="calibr: подбор ИТ-специалистов, который нельзя накрутить" width="880" height="300">
+    <img src="docs/readme/banner.light.png" alt="calibr: подбор ИТ-специалистов, который нельзя накрутить" width="880" height="200">
   </picture>
 </p>
 
@@ -13,10 +13,11 @@
 
 <p align="center">
   <!-- readme:buttons -->
-  <a href="http://lct-fsp.goatwhistle.ru"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/readme/cta-live.dark.png"><img src="docs/readme/cta-live.light.png" alt="Открыть стенд" width="187" height="44"></picture></a>
-  <a href="#запуск"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/readme/cta-run.dark.png"><img src="docs/readme/cta-run.light.png" alt="Запустить локально" width="235" height="44"></picture></a>
-  <a href="docs/for-jury.md"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/readme/cta-jury.dark.png"><img src="docs/readme/cta-jury.light.png" alt="Маршрут для жюри" width="216" height="44"></picture></a>
-  <a href="docs/README.md"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/readme/cta-docs.dark.png"><img src="docs/readme/cta-docs.light.png" alt="Документация" width="177" height="44"></picture></a>
+  <a href="http://lct-fsp.goatwhistle.ru"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/readme/cta-live.dark.png"><img src="docs/readme/cta-live.light.png" alt="Открыть стенд" width="178" height="44"></picture></a>
+  <a href="#запуск"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/readme/cta-run.dark.png"><img src="docs/readme/cta-run.light.png" alt="Запустить локально" width="220" height="44"></picture></a>
+  <br>
+  <a href="docs/for-jury.md"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/readme/cta-jury.dark.png"><img src="docs/readme/cta-jury.light.png" alt="Маршрут для жюри" width="217" height="44"></picture></a>
+  <a href="docs/README.md"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/readme/cta-docs.dark.png"><img src="docs/readme/cta-docs.light.png" alt="Документация" width="176" height="44"></picture></a>
   <!-- /readme:buttons -->
 </p>
 
@@ -24,6 +25,7 @@
   <!-- readme:status -->
   <a href="#результаты"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/readme/badge-status-1.dark.png"><img src="docs/readme/badge-status-1.light.png" alt="завышение грейда: 0,018 против 0,137" width="290" height="28"></picture></a>
   <a href="#устройство"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/readme/badge-status-2.dark.png"><img src="docs/readme/badge-status-2.light.png" alt="персональные данные: не уходят во внешние API" width="346" height="28"></picture></a>
+  <br>
   <a href="docs/fsp-integration.md"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/readme/badge-status-3.dark.png"><img src="docs/readme/badge-status-3.light.png" alt="ФСП ID: OIDC, Keycloak" width="185" height="28"></picture></a>
   <a href="LICENSE"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/readme/badge-status-4.dark.png"><img src="docs/readme/badge-status-4.light.png" alt="лицензия: MIT" width="124" height="28"></picture></a>
   <!-- /readme:status -->
@@ -32,6 +34,7 @@
   <picture><source media="(prefers-color-scheme: dark)" srcset="docs/readme/badge-stack-1.dark.png"><img src="docs/readme/badge-stack-1.light.png" alt="модель навыка: IRT 2PL" width="184" height="28"></picture>
   <picture><source media="(prefers-color-scheme: dark)" srcset="docs/readme/badge-stack-2.dark.png"><img src="docs/readme/badge-stack-2.light.png" alt="API: FastAPI" width="110" height="28"></picture>
   <picture><source media="(prefers-color-scheme: dark)" srcset="docs/readme/badge-stack-3.dark.png"><img src="docs/readme/badge-stack-3.light.png" alt="хранилище: PostgreSQL 16" width="208" height="28"></picture>
+  <br>
   <picture><source media="(prefers-color-scheme: dark)" srcset="docs/readme/badge-stack-4.dark.png"><img src="docs/readme/badge-stack-4.light.png" alt="фронтенд: React 19 и TypeScript" width="243" height="28"></picture>
   <picture><source media="(prefers-color-scheme: dark)" srcset="docs/readme/badge-stack-5.dark.png"><img src="docs/readme/badge-stack-5.light.png" alt="запуск: Docker Compose" width="190" height="28"></picture>
   <!-- /readme:stack -->
@@ -42,6 +45,7 @@
   <a href="#зачем-это"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/readme/badge-nav-1.dark.png"><img src="docs/readme/badge-nav-1.light.png" alt="Зачем это" width="90" height="26"></picture></a>
   <a href="#как-это-работает"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/readme/badge-nav-2.dark.png"><img src="docs/readme/badge-nav-2.light.png" alt="Как это работает" width="134" height="26"></picture></a>
   <a href="#попробовать-за-пять-минут"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/readme/badge-nav-3.dark.png"><img src="docs/readme/badge-nav-3.light.png" alt="Попробовать" width="109" height="26"></picture></a>
+  <br>
   <a href="#результаты"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/readme/badge-nav-4.dark.png"><img src="docs/readme/badge-nav-4.light.png" alt="Результаты" width="98" height="26"></picture></a>
   <a href="#запуск"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/readme/badge-nav-5.dark.png"><img src="docs/readme/badge-nav-5.light.png" alt="Запуск" width="70" height="26"></picture></a>
   <a href="#устройство"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/readme/badge-nav-6.dark.png"><img src="docs/readme/badge-nav-6.light.png" alt="Устройство" width="99" height="26"></picture></a>

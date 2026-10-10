@@ -1,7 +1,7 @@
 #solution .sol {
   position: absolute;
   left: var(--gutter);
-  top: 330px;
+  top: 400px;
   width: 1680px;
   height: 500px;
 }
@@ -22,6 +22,10 @@
   color: var(--deck-accent);
 }
 
+#solution .sol-halo {
+  fill: color-mix(in oklab, var(--deck-accent) 14%, transparent);
+}
+
 #solution .sol-lane {
   position: absolute;
   left: var(--x);
@@ -33,9 +37,6 @@
   font-size: var(--fs-micro);
   color: var(--deck-fg-3);
   --ic: 24px;
-}
-
-#solution .sol-lane {
   translate: 0 -100%;
 }
 
@@ -43,7 +44,7 @@
   position: absolute;
   left: var(--x);
   top: var(--y);
-  width: 280px;
+  width: var(--w, 280px);
   translate: -50% 0;
   text-align: center;
   font-size: var(--fs-caption);

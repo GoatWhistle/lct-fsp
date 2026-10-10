@@ -11,6 +11,7 @@
 #problem .pb-card {
   display: grid;
   grid-template-rows: auto 300px auto;
+  align-content: start;
   gap: 28px;
   padding: 36px;
 }
@@ -86,13 +87,15 @@
 #problem .pb-task {
   position: absolute;
   left: 50%;
-  top: 24px;
+  top: 20px;
   z-index: 1;
   translate: -50% 0;
   display: grid;
   justify-items: center;
+  align-content: center;
   gap: 4px;
-  padding: 14px 28px;
+  height: 96px;
+  padding: 0 28px;
   font-size: var(--fs-micro);
   color: var(--deck-fg-2);
 }
@@ -104,11 +107,10 @@
 
 #problem .pb-rays {
   position: absolute;
-  left: 50%;
-  top: 112px;
-  width: 440px;
-  height: 110px;
-  translate: -50% 0;
+  left: 28px;
+  top: 116px;
+  width: calc(100% - 56px);
+  height: 84px;
   overflow: visible;
 }
 
@@ -117,18 +119,20 @@
   left: 28px;
   right: 28px;
   bottom: 20px;
-  display: flex;
-  justify-content: space-between;
-  padding: 0 4px;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  justify-items: center;
 }
 
 #problem .pb-copy {
   display: grid;
   justify-items: center;
+  align-content: center;
   gap: 6px;
-  padding: 10px 16px;
+  height: 80px;
+  padding: 0 16px;
   border-radius: var(--radius-sm);
-  background: color-mix(in oklab, var(--deck-danger) 10%, transparent);
+  background: color-mix(in oklab, var(--deck-danger) 10%, var(--deck-bg));
   color: var(--deck-danger);
   font-size: var(--fs-micro);
 }

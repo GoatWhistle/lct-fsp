@@ -109,6 +109,7 @@ uv run python -c "import json, main; json.dump(main.create_app().openapi(), open
 | GET | `/api/employer/selections`, `/api/employer/selections/{selection_id}` | подборки; подборка с блоками, скором, P(принятия) и вкладами объяснения |
 | PUT | `/api/employer/selections/{selection_id}/filters` | уточнить фильтрами, не теряя исходную выдачу |
 | GET, PUT, DELETE | `/api/employer/selections/{selection_id}/shortlist[/{candidate_id}]` | шортлист |
+| POST | `/api/employer/chat` | сообщение чат-поиска: подборка и фильтры теми же сценариями, пересказ с проверкой чисел; GET `/status` — доступен ли чат |
 | POST | `/api/employer/candidates/search` | поиск по банку: специализация, грейд, стек, ФСП, уверенность |
 | GET | `/api/employer/candidates/{candidate_id}` | карточка кандидата: обезличенная или полная после раскрытия |
 

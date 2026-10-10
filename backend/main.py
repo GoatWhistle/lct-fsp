@@ -37,6 +37,7 @@ from app.adapter.text_rules import RulesTextUnderstanding, grade_hint_rule, load
 from app.controller.auth import router as auth_router
 from app.controller.cabinets import candidate_router, employer_router
 from app.controller.catalog import router as catalog_router
+from app.controller.chat import router as chat_router
 from app.controller.company import domain_router as company_domain_router
 from app.controller.company import router as company_router
 from app.controller.deps import SessionCookie
@@ -77,6 +78,7 @@ from app.repository.unit_of_work import SqlUnitOfWork
 from app.repository.vacancy import SqlApplications, SqlVacancies
 from app.repository.vacancy_test import SqlVacancyTests
 from app.usecase.account import VerificationLinks
+from app.usecase.chat import SearchChat
 from app.usecase.development_plan import DevelopmentPlans
 from app.usecase.interface import (
     AcceptanceModel,
@@ -319,6 +321,12 @@ def create_app(
     app.state.invitations = platform.invitations
     app.state.conversations = platform.conversations
     app.state.feedback = platform.feedback
+    app.state.search_chat = lambda uow: SearchChat(
+        usecases.need_drafts(uow),
+        usecases.selections(uow),
+        plan_completion(settings),
+        timeout=settings.text_understanding_timeout_seconds,
+    )
     plans_cache: dict[tuple[uuid.UUID, str], DevelopmentPlan | None] = {}
     plan_model = plan_completion(settings)
     app.state.development_plans = lambda uow: DevelopmentPlans(
@@ -356,6 +364,7 @@ def create_app(
     app.include_router(employer_vacancies_router)
     app.include_router(candidate_vacancies_router)
     app.include_router(feedback_router)
+    app.include_router(chat_router)
     app.include_router(catalog_router)
 
     @app.get("/api/health", tags=["service"], summary="Проверка, что бэкенд жив")

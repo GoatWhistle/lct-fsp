@@ -21,6 +21,7 @@ from app.usecase.account import Accounts
 from app.usecase.attempt import CandidatePath
 from app.usecase.calibration import AnswerCalibration
 from app.usecase.catalog import CatalogQueries
+from app.usecase.chat import SearchChat
 from app.usecase.company import Companies
 from app.usecase.conversation import Conversations
 from app.usecase.development_plan import DevelopmentPlans
@@ -248,6 +249,14 @@ def get_development_plans(request: Request, uow: UnitOfWorkDep) -> DevelopmentPl
 
 
 FeedbackDep = Annotated[CandidateFeedback, Depends(get_feedback)]
+
+
+def get_search_chat(request: Request, uow: UnitOfWorkDep) -> SearchChat:
+    chat: SearchChat = request.app.state.search_chat(uow)
+    return chat
+
+
+SearchChatDep = Annotated[SearchChat, Depends(get_search_chat)]
 DevelopmentPlansDep = Annotated[DevelopmentPlans, Depends(get_development_plans)]
 InvitationReaderDep = Annotated[InvitationReader, Depends(get_invitation_reader)]
 ApplicationReaderDep = Annotated[ApplicationReader, Depends(get_application_reader)]

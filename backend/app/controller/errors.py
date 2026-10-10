@@ -99,6 +99,7 @@ STATUS: dict[type[e.DomainError], int] = {
     e.VacancyTestClosed: 409,
     e.VacancyTestTaken: 409,
     e.CompanyWebsiteRequired: 409,
+    e.ChatUnavailable: 503,
     e.DomainEmailMismatch: 422,
 }
 

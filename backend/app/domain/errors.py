@@ -507,6 +507,14 @@ class VacancyTestTaken(DomainError):
     message = "Тест по этой вакансии уже пройден"
 
 
+# Чат-поиск.
+
+
+class ChatUnavailable(DomainError):
+    code = "chat_unavailable"
+    message = "Чат сейчас недоступен — соберите подборку из текста вакансии и фильтров"
+
+
 # Метка доверия компании.
 
 

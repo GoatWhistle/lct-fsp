@@ -55,11 +55,15 @@ export function useSelection(id: string, order: SelectionOrder = "mutual") {
   })
 }
 
-export function useSelections(needId: string | null) {
+export function useSelections(needId: string | null, limit?: number) {
   return useQuery({
-    queryKey: [...SELECTIONS_KEY, "list", needId],
+    queryKey: [...SELECTIONS_KEY, "list", needId, limit],
     queryFn: () =>
-      unwrap(api.GET("/api/employer/selections", { params: { query: { need_id: needId } } })),
+      unwrap(
+        api.GET("/api/employer/selections", {
+          params: { query: limit === undefined ? { need_id: needId } : { need_id: needId, limit } },
+        }),
+      ),
   })
 }
 

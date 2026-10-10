@@ -3,9 +3,10 @@ import { useNeeds } from "@/entities/need"
 import { useTranslation } from "@/shared/i18n"
 import { Button, ButtonLink, Card, EmptyState, LoadError, Skeleton } from "@/shared/ui"
 import { NeedRow } from "../need-row/need-row"
+import { latestByNeed, useRecentSelections } from "../recent-selections"
 import styles from "./needs-panel.module.css"
 
-const SHOWN = 3
+const SHOWN = 5
 
 export interface NeedsPanelProps {
   readonly className?: string | undefined
@@ -14,16 +15,18 @@ export interface NeedsPanelProps {
 function NeedsBody() {
   const { t } = useTranslation("employer")
   const needs = useNeeds()
+  const selections = useRecentSelections()
   const [expanded, setExpanded] = useState(false)
-  if (needs.isError)
+  const failed = needs.isError ? needs : selections.isError ? selections : null
+  if (failed !== null)
     return (
       <LoadError
-        error={needs.error}
-        onRetry={() => void needs.refetch()}
-        pending={needs.isFetching}
+        error={failed.error}
+        onRetry={() => void failed.refetch()}
+        pending={failed.isFetching}
       />
     )
-  if (needs.data === undefined) return <Skeleton lines={6} />
+  if (needs.data === undefined || selections.data === undefined) return <Skeleton lines={5} />
   if (needs.data.length === 0)
     return (
       <EmptyState
@@ -31,19 +34,20 @@ function NeedsBody() {
         title={t("overview.needs.emptyTitle")}
         description={t("overview.needs.emptyText")}
         action={
-          <ButtonLink to="/employer/needs/new" icon="plus">
+          <ButtonLink to="/employer/needs/text" icon="plus">
             {t("overview.needs.create")}
           </ButtonLink>
         }
       />
     )
+  const latest = latestByNeed(selections.data)
   const hidden = needs.data.length - SHOWN
   const shown = expanded ? needs.data : needs.data.slice(0, SHOWN)
   return (
     <>
       <ul className={styles.list}>
         {shown.map((need, index) => (
-          <NeedRow key={need.id} need={need} index={index % SHOWN} />
+          <NeedRow key={need.id} need={need} latest={latest.get(need.id)} index={index % SHOWN} />
         ))}
       </ul>
       {hidden > 0 ? (

@@ -1,0 +1,42 @@
+.stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-12);
+}
+
+.item {
+  display: grid;
+  min-inline-size: 0;
+  animation: var(--motion-rise-in);
+  animation-delay: calc(var(--i) * var(--stagger));
+}
+
+.tile {
+  composes: cardFrame linkRow from "../../../shared/styles/compose.module.css";
+  grid-template-columns: minmax(0, 1fr);
+  align-items: start;
+  padding: var(--space-inner);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .tile:hover {
+    border-color: var(--border-strong);
+    background-color: var(--surface-tint);
+  }
+}
+
+@media (max-width: 63.99rem) {
+  .stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 29.99rem) {
+  .stats {
+    gap: var(--space-8);
+  }
+
+  .tile {
+    padding: var(--space-12);
+  }
+}

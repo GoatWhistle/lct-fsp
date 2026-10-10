@@ -1,0 +1,179 @@
+{
+ "vacancies": [
+  {
+   "id": "qa-middle",
+   "text": "Ищем Middle QA-инженера. Стек: Python, pytest, PostgreSQL. Удалённо."
+  },
+  {
+   "id": "be-middle",
+   "text": "Нужен Middle бэкенд-разработчик: Python, FastAPI, PostgreSQL, Redis. Удалённо, от 250000 до 320000 рублей."
+  }
+ ],
+ "candidates": [
+  {
+   "id": "qa-1",
+   "specialization": "qa",
+   "grade": "middle",
+   "levels": {
+    "qa.theory": 1.2,
+    "qa.api": 1.2,
+    "qa.automation": 1.2,
+    "qa.databases": 1.2,
+    "qa.performance": 1.2
+   }
+  },
+  {
+   "id": "qa-2",
+   "specialization": "qa",
+   "grade": "middle",
+   "levels": {
+    "qa.theory": 0.4,
+    "qa.api": 0.4,
+    "qa.automation": 0.4,
+    "qa.databases": 0.4,
+    "qa.performance": 0.4
+   }
+  },
+  {
+   "id": "qa-3",
+   "specialization": "qa",
+   "grade": "junior",
+   "levels": {
+    "qa.theory": -0.6,
+    "qa.api": -0.6,
+    "qa.automation": -0.6,
+    "qa.databases": -0.6,
+    "qa.performance": -0.6
+   }
+  },
+  {
+   "id": "qa-4",
+   "specialization": "qa",
+   "grade": "senior",
+   "levels": {
+    "qa.theory": 1.8,
+    "qa.api": 1.8,
+    "qa.automation": 1.8,
+    "qa.databases": 1.8,
+    "qa.performance": 1.8
+   }
+  },
+  {
+   "id": "be-1",
+   "specialization": "backend",
+   "grade": "middle",
+   "levels": {
+    "backend.programming": 1.2,
+    "backend.algorithms": 1.2,
+    "backend.databases": 1.2,
+    "backend.api": 1.2,
+    "backend.concurrency": 1.2,
+    "backend.distributed": 1.2,
+    "backend.testing": 1.2,
+    "backend.security": 1.2
+   }
+  },
+  {
+   "id": "be-2",
+   "specialization": "backend",
+   "grade": "junior",
+   "levels": {
+    "backend.programming": -0.6,
+    "backend.algorithms": -0.6,
+    "backend.databases": -0.6,
+    "backend.api": -0.6,
+    "backend.concurrency": -0.6,
+    "backend.distributed": -0.6,
+    "backend.testing": -0.6,
+    "backend.security": -0.6
+   }
+  },
+  {
+   "id": "be-3",
+   "specialization": "backend",
+   "grade": "senior",
+   "levels": {
+    "backend.programming": 1.8,
+    "backend.algorithms": 1.8,
+    "backend.databases": 1.8,
+    "backend.api": 1.8,
+    "backend.concurrency": 1.8,
+    "backend.distributed": 1.8,
+    "backend.testing": 1.8,
+    "backend.security": 1.8
+   }
+  }
+ ],
+ "pairs": [
+  {
+   "vacancy": "qa-middle",
+   "candidate": "qa-1",
+   "relevance": 3
+  },
+  {
+   "vacancy": "qa-middle",
+   "candidate": "qa-2",
+   "relevance": 2
+  },
+  {
+   "vacancy": "qa-middle",
+   "candidate": "qa-3",
+   "relevance": 1
+  },
+  {
+   "vacancy": "qa-middle",
+   "candidate": "qa-4",
+   "relevance": 2
+  },
+  {
+   "vacancy": "qa-middle",
+   "candidate": "be-1",
+   "relevance": 0
+  },
+  {
+   "vacancy": "qa-middle",
+   "candidate": "be-2",
+   "relevance": 0
+  },
+  {
+   "vacancy": "qa-middle",
+   "candidate": "be-3",
+   "relevance": 0
+  },
+  {
+   "vacancy": "be-middle",
+   "candidate": "be-1",
+   "relevance": 3
+  },
+  {
+   "vacancy": "be-middle",
+   "candidate": "be-2",
+   "relevance": 1
+  },
+  {
+   "vacancy": "be-middle",
+   "candidate": "be-3",
+   "relevance": 2
+  },
+  {
+   "vacancy": "be-middle",
+   "candidate": "qa-1",
+   "relevance": 0
+  },
+  {
+   "vacancy": "be-middle",
+   "candidate": "qa-2",
+   "relevance": 0
+  },
+  {
+   "vacancy": "be-middle",
+   "candidate": "qa-3",
+   "relevance": 0
+  },
+  {
+   "vacancy": "be-middle",
+   "candidate": "qa-4",
+   "relevance": 0
+  }
+ ]
+}

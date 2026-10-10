@@ -1,7 +1,7 @@
 import type { ReactNode } from "react"
-import { GradeRuler, levelFrom, TrustBadge } from "@/entities/measure"
+import { GradeRuler, levelFrom, ProbabilityLabel, TrustBadge } from "@/entities/measure"
 import { anonymousId, type SearchHit } from "@/shared/api"
-import { useCatalogNames, useFormatters, useTranslation } from "@/shared/i18n"
+import { useCatalogNames, useTranslation } from "@/shared/i18n"
 import { staggerStyle } from "@/shared/motion"
 import { ButtonLink, IconLabel } from "@/shared/ui"
 import styles from "./search-row.module.css"
@@ -16,7 +16,6 @@ export interface SearchRowProps {
 export function SearchRow({ hit, index, animate, invite }: SearchRowProps) {
   const { t } = useTranslation(["search", "measure"])
   const names = useCatalogNames()
-  const format = useFormatters()
   const status = hit.grade_status
   const confirmed = status.kind === "confirmed"
   const statusText = confirmed
@@ -56,10 +55,11 @@ export function SearchRow({ hit, index, animate, invite }: SearchRowProps) {
           />
         )}
       </span>
-      <span className={styles.facts}>
+      <span className={styles.facts} data-probability-surface>
         {hit.grade_probability === null ? null : (
           <span className={styles.probability}>
-            <strong>{format.percent(hit.grade_probability)}</strong> {t("results.probability")}
+            {t("results.probability")}{" "}
+            <ProbabilityLabel value={hit.grade_probability} label={t("results.probability")} />
           </span>
         )}
         {hit.fsp_confirmed ? <TrustBadge source="fsp" /> : null}

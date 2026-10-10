@@ -69,7 +69,7 @@
     "close": "Close explanation",
     "unconfirmed": "Not confirmed by the test: no fit score.",
     "acceptance": "Acceptance probability",
-    "acceptanceLead": "The candidate will accept the invitation with probability {{value}}. Factor contributions:",
+    "acceptanceLead": "The candidate will accept the invitation with this likelihood:",
     "factorValue": "{{value}}",
     "acceptanceBase": "Baseline {{base}}, total {{logit}}: the contributions add up exactly.",
     "factors": {
@@ -114,10 +114,12 @@
     "required": "Fill in the text, salary range and contact",
     "salaryOrder": "The upper bound is below the lower bound",
     "hint": {
-      "probability": "Acceptance probability for {{range}}: {{value}}",
-      "suggest": "To reach {{target}}, offer {{range}}.",
-      "enough": "Target {{target}} is reached. The lowest range for it: {{range}}.",
-      "unreachable": "Target {{target}} cannot be reached within market ranges, so there is no hint.",
+      "probability": "Acceptance probability for {{range}}:",
+      "current": "Current acceptance likelihood",
+      "target": "Target likelihood",
+      "suggest": "To reach the target likelihood, offer {{range}}.",
+      "enough": "The target is reached. The lowest range for it: {{range}}.",
+      "unreachable": "The target likelihood cannot be reached within market ranges, so there is no hint.",
       "rounding": "The hinted range is rounded to ₽{{step}}",
       "apply": "Use this range"
     }

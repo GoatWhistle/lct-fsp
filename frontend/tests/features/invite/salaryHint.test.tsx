@@ -69,7 +69,10 @@ describe("SalaryHint", () => {
   it("shows the probability and applies the suggested range", () => {
     state.data = hint({})
     const { onApply } = view()
-    expect(document.body.textContent).toContain("42")
+    expect(document.body.textContent).toContain("20–50%")
+    expect(document.body.textContent).toContain("rather unlikely")
+    expect(document.body.textContent).toContain("50–80%")
+    expect(document.body.textContent).toContain("rather likely")
     expect(document.body.textContent).toContain("180")
     fireEvent.click(screen.getByRole("button", { name: selection.invite.hint.apply }))
     expect(onApply).toHaveBeenCalledWith(180000, 230000)

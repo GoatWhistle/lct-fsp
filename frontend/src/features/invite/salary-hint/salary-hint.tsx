@@ -1,3 +1,4 @@
+import { ProbabilityLabel } from "@/entities/measure"
 import { useSalaryHint } from "@/entities/selection"
 import { useFormatters, useMoneyRange, useTranslation } from "@/shared/i18n"
 import { Banner, Button } from "@/shared/ui"
@@ -30,20 +31,20 @@ export function SalaryHint({ selectionId, candidateId, from, to, onApply }: Sala
     <Banner
       tone={reached ? "info" : "attention"}
       icon="match"
-      title={t("invite.hint.probability", {
-        value: format.percent(probability),
-        range: range(data.evaluated_from, data.evaluated_to),
-      })}
+      title={t("invite.hint.probability", { range: range(data.evaluated_from, data.evaluated_to) })}
       action={apply}
       className={styles.hint}
     >
       <p>
+        <ProbabilityLabel value={probability} label={t("invite.hint.current")} />
+      </p>
+      <p>
         {hintFrom === null
-          ? t("invite.hint.unreachable", { target: format.percent(target) })
+          ? t("invite.hint.unreachable")
           : t(reached ? "invite.hint.enough" : "invite.hint.suggest", {
-              target: format.percent(target),
               range: range(hintFrom, hintTo),
-            })}
+            })}{" "}
+        <ProbabilityLabel value={target} label={t("invite.hint.target")} />
       </p>
       <p className={styles.note}>
         {t("invite.hint.rounding", { step: format.money(data.rounding) })}

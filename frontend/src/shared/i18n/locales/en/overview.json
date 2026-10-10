@@ -60,7 +60,8 @@
       "determination": "Category placement, {{grade}} test",
       "grade_up": "Step up attempt, {{grade}} test",
       "topic_block": "Topic block",
-      "verification": "Verification block"
+      "verification": "Verification block",
+      "vacancy_test": "Vacancy test"
     }
   },
   "feedback": {

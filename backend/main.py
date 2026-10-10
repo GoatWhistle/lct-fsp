@@ -8,6 +8,7 @@
 и старт контейнера, и командная строка (`python -c 'import main; main.sync_catalog()'`).
 """
 
+import uuid
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager, closing
 from datetime import timedelta
@@ -36,6 +37,8 @@ from app.adapter.text_rules import RulesTextUnderstanding, grade_hint_rule, load
 from app.controller.auth import router as auth_router
 from app.controller.cabinets import candidate_router, employer_router
 from app.controller.catalog import router as catalog_router
+from app.controller.chat import router as chat_router
+from app.controller.company import domain_router as company_domain_router
 from app.controller.company import router as company_router
 from app.controller.deps import SessionCookie
 from app.controller.errors import install_error_handlers
@@ -55,6 +58,9 @@ from app.controller.regular_task import candidate_router as candidate_tasks_rout
 from app.controller.regular_task import employer_router as employer_tasks_router
 from app.controller.vacancy import candidate_router as candidate_vacancies_router
 from app.controller.vacancy import employer_router as employer_vacancies_router
+from app.controller.vacancy_test import candidate_router as vacancy_test_inbox_router
+from app.controller.vacancy_test import employer_router as vacancy_test_router
+from app.domain.development_plan import DevelopmentPlan
 from app.repository.account import SqlAccounts, SqlEmailVerifications
 from app.repository.attempt import SqlAttemptRepository
 from app.repository.calibration import SqlCalibrationRepository
@@ -70,7 +76,10 @@ from app.repository.regular_task import SqlRegularTasks
 from app.repository.selection import SqlCandidatePool, SqlSelections
 from app.repository.unit_of_work import SqlUnitOfWork
 from app.repository.vacancy import SqlApplications, SqlVacancies
+from app.repository.vacancy_test import SqlVacancyTests
 from app.usecase.account import VerificationLinks
+from app.usecase.chat import SearchChat
+from app.usecase.development_plan import DevelopmentPlans
 from app.usecase.interface import (
     AcceptanceModel,
     CandidateRepository,
@@ -127,6 +136,18 @@ def text_understanding(settings: Settings) -> TextUnderstanding:
         case name:
             complete = named_completion(name, timeout)
     return model_understanding(complete, synonyms, timeout=timeout)
+
+
+def plan_completion(settings: Settings) -> Completion | None:
+    """Модель плана развития — та же, что у разбора текста; `rules` — модели нет, плана нет."""
+    timeout = settings.text_understanding_timeout_seconds
+    match settings.text_understanding:
+        case "rules":
+            return None
+        case "llama":
+            return LlamaCompletion(settings.llama_url, settings.llama_model, timeout)
+        case name:
+            return named_completion(name, timeout)
 
 
 def create_app(
@@ -216,6 +237,7 @@ def create_app(
             catalog=lambda uow: SqlCatalog(uow.session),
             pool=lambda uow: SqlCandidatePool(uow.session),
             selections=lambda uow: SqlSelections(uow.session),
+            vacancy_tests=lambda uow: SqlVacancyTests(uow.session),
         ),
         mechanics=mechanics,
         selector=selector,
@@ -250,6 +272,7 @@ def create_app(
             calibration=lambda uow: SqlCalibrationRepository(uow.session),
             vacancies=lambda uow: SqlVacancies(uow.session),
             applications=application_repository,
+            vacancy_tests=lambda uow: SqlVacancyTests(uow.session),
         ),
         mechanics=mechanics,
         passwords=passwords or Argon2Passwords(),
@@ -277,6 +300,8 @@ def create_app(
         ),
         text_understanding=understanding,
         grade_hints=grade_hint_rule(load_synonyms(settings.synonyms_file)),
+        seeds=seeds,
+        code_runner=InProcessCodeRunner(),
     )
     app.state.accounts = platform.accounts
     app.state.jury = jury_mode(
@@ -296,8 +321,23 @@ def create_app(
     app.state.invitations = platform.invitations
     app.state.conversations = platform.conversations
     app.state.feedback = platform.feedback
+    app.state.search_chat = lambda uow: SearchChat(
+        usecases.need_drafts(uow),
+        usecases.selections(uow),
+        plan_completion(settings),
+        timeout=settings.text_understanding_timeout_seconds,
+    )
+    plans_cache: dict[tuple[uuid.UUID, str], DevelopmentPlan | None] = {}
+    plan_model = plan_completion(settings)
+    app.state.development_plans = lambda uow: DevelopmentPlans(
+        platform.feedback(uow),
+        plan_model,
+        timeout=settings.text_understanding_timeout_seconds,
+        cache=plans_cache,
+    )
     app.state.resume_drafts = platform.resume_drafts
     app.state.vacancies = platform.vacancies
+    app.state.vacancy_tests = platform.vacancy_tests
     app.state.applications = platform.applications
 
     install_error_handlers(app)
@@ -310,6 +350,7 @@ def create_app(
     app.include_router(profile_router)
     app.include_router(employer_router)
     app.include_router(company_router)
+    app.include_router(company_domain_router)
     app.include_router(needs_router)
     app.include_router(selections_router)
     app.include_router(candidate_search_router)
@@ -318,9 +359,12 @@ def create_app(
     app.include_router(candidate_tasks_router)
     app.include_router(invitations_router)
     app.include_router(inbox_router)
+    app.include_router(vacancy_test_router)
+    app.include_router(vacancy_test_inbox_router)
     app.include_router(employer_vacancies_router)
     app.include_router(candidate_vacancies_router)
     app.include_router(feedback_router)
+    app.include_router(chat_router)
     app.include_router(catalog_router)
 
     @app.get("/api/health", tags=["service"], summary="Проверка, что бэкенд жив")

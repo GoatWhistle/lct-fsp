@@ -122,6 +122,8 @@ class Mechanics(BaseModel):
     topic_block_items: int
     topic_block_interval_days: int
     express_max_items: int = Field(gt=0)
+    vacancy_test_items: int = Field(gt=0)
+    vacancy_test_min_items_per_topic: int = Field(ge=0)
 
     # Калибровка
     elo_k_initial: float
@@ -147,6 +149,7 @@ class Mechanics(BaseModel):
     rt_fast_z: float
     rt_flags_for_verification: int
     person_fit_lz: float
+    person_fit_enabled: bool = False
     focus_events_for_verification: int
     verification_items: int
     verification_time_limit_minutes: int

@@ -316,7 +316,7 @@ records:
   checked_by: pending
 - id: d6-i04
   file: pdf/d6-i04.pdf
-  sha256: 04b7cd652601804284c6bfb414c23c039e8bba1f5f1433ec0369c75878179117
+  sha256: de14e281738a9d8b37ac46ba5425da1361e26a371224a20ee1f56a7374134111
   layout: two_columns
   pages: 1
   specialization: frontend
@@ -344,7 +344,7 @@ records:
   checked_by: pending
 - id: d6-i05
   file: pdf/d6-i05.pdf
-  sha256: ffcfca693fe3056ff3316b584be30ac9d4e66d850dad24e97093825aadd6e914
+  sha256: ba38bc74ae92bb7eed7f991f4f103455bd55a3a94a3f51b7df98464512eba99d
   layout: latex
   pages: 1
   specialization: backend

@@ -94,6 +94,13 @@ STATUS: dict[type[e.DomainError], int] = {
     e.AlreadyApplied: 409,
     e.ApplicationNotFound: 404,
     e.ApplicationTransitionNotAllowed: 409,
+    e.VacancyTestNotFound: 404,
+    e.VacancyTestSpecializationMismatch: 409,
+    e.VacancyTestClosed: 409,
+    e.VacancyTestTaken: 409,
+    e.CompanyWebsiteRequired: 409,
+    e.ChatUnavailable: 503,
+    e.DomainEmailMismatch: 422,
 }
 
 

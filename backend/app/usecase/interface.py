@@ -7,9 +7,10 @@
 import random
 import uuid
 from collections.abc import Collection, Iterable, Mapping, Sequence
+from dataclasses import dataclass
 from datetime import date, datetime
 from types import TracebackType
-from typing import Protocol, Self
+from typing import Any, Protocol, Self
 
 from app.domain import bank
 from app.domain.account import Account, Credentials, EmailVerification, Role
@@ -45,7 +46,7 @@ from app.domain.catalog import (
     Technology,
     Topic,
 )
-from app.domain.company import Company, CompanyForm
+from app.domain.company import Company, CompanyForm, DomainVerification
 from app.domain.conversation import Message, Side
 from app.domain.feedback import CandidateSelection
 from app.domain.fsp import (
@@ -83,6 +84,7 @@ from app.domain.selection import (
 )
 from app.domain.skill import Normal, Observation, Prior, SkillEstimate, SkillProfileLevels
 from app.domain.vacancy import Vacancy, VacancyTerms
+from app.domain.vacancy_test import VacancyTest, VacancyTestPlan
 
 
 class SkillModel(Protocol):
@@ -248,11 +250,17 @@ class AttemptRepository(AttemptReader, Protocol):
         verifies: Attempt | None = None,
         deadline: datetime | None = None,
         express_limit: int | None = None,
+        vacancy_test_id: uuid.UUID | None = None,
     ) -> Attempt:
         """Новая попытка; `continues` — попытка, чью оценку продолжает дотест каскада,
         `topic_code` — тема блока по теме, `focus_consent` — согласие на счётчики событий,
         `verifies` и `deadline` — у проверочного блока: что он проверяет и его срок,
-        `express_limit` — лимит заданий экспресс-теста режима жюри."""
+        `express_limit` — лимит заданий экспресс-теста режима жюри, `vacancy_test_id` — план
+        теста по вакансии."""
+        ...
+
+    def vacancy_attempts(self, test_ids: Collection[uuid.UUID]) -> dict[uuid.UUID, Attempt]:
+        """Попытки тестов по вакансии с предъявлениями — по id плана; не начатого теста нет."""
         ...
 
     def attempt(self, attempt_id: uuid.UUID) -> Attempt:
@@ -501,6 +509,10 @@ class CalibrationRepository(Protocol):
 
 class MailTemplates(Protocol):
     def verification(self, to: str, link: str, ttl_hours: int, locale: Locale) -> Mail: ...
+
+    def domain_verification(
+        self, to: str, link: str, ttl_hours: int, company: str, domain: str, locale: Locale
+    ) -> Mail: ...
 
 
 class Mailer(Protocol):
@@ -841,6 +853,16 @@ class CompanyRepository(Protocol):
         """Профиль работодателя — новый или поверх прежнего; сфера уже проверена."""
         ...
 
+    def add_domain_verification(self, verification: DomainVerification) -> None:
+        """Новая ссылка подтверждения домена; прежние ссылки компании перестают действовать."""
+        ...
+
+    def domain_verification(self, token_hash: str) -> DomainVerification | None: ...
+
+    def mark_domain_verified(self, user_id: uuid.UUID, domain: str, now: datetime) -> None:
+        """Домен подтверждён; ссылки подтверждения компании гасятся."""
+        ...
+
 
 class FspIdProvider(Protocol):
     """ФСП ID — внешняя система входа, OpenID Connect: authorization code + PKCE. Сейчас —
@@ -946,6 +968,26 @@ class InvitationRepository(InvitationReader, Protocol):
 
     def sent_since(self, employer_id: uuid.UUID, since: datetime) -> int:
         """Сколько приглашений компания отправила с момента `since`, в любом статусе."""
+        ...
+
+
+class VacancyTestReader(Protocol):
+    """Планы тестов по вакансии — для выбора задания. Сейчас — Postgres
+    (`app.repository.vacancy_test`)."""
+
+    def get(self, test_id: uuid.UUID) -> VacancyTest: ...
+
+
+class VacancyTestRepository(VacancyTestReader, Protocol):
+    """Планы тестов по вакансии, приложенные к приглашениям. Пишет только внутри единицы работы
+    и сам не фиксирует. Сейчас — Postgres (`app.repository.vacancy_test`)."""
+
+    def add(
+        self, invitation_id: uuid.UUID, need_title: str, plan: VacancyTestPlan, now: datetime
+    ) -> VacancyTest: ...
+
+    def by_invitations(self, invitation_ids: Collection[uuid.UUID]) -> dict[uuid.UUID, VacancyTest]:
+        """Планы по id приглашения; приглашения без теста в ответе нет."""
         ...
 
 
@@ -1070,6 +1112,26 @@ class CatalogRepository(Protocol):
     def apply(self, plan: CatalogPlan) -> None:
         """Применяет синхронизацию; снять код, на который ссылаются данные, хранилище откажет."""
         ...
+
+
+Schema = Mapping[str, Any]
+
+
+@dataclass(frozen=True)
+class ModelRequest:
+    """Вопрос модели: системное сообщение с правилами, текст пользователя и схема ответа."""
+
+    system: str
+    user: str
+    schema: Schema
+
+
+class Completion(Protocol):
+    """Как спросить модель: запрос → JSON-текст ответа по `request.schema`. Сбой и таймаут —
+    `ModelError` адаптера. Сейчас — llama.cpp (`app.adapter.text_llama`) и модель по имени из
+    окружения."""
+
+    def __call__(self, request: ModelRequest) -> str: ...
 
 
 class TextUnderstanding(Protocol):

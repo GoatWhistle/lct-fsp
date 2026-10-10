@@ -58,6 +58,11 @@ class MemoryCandidatePool:
     def add(self, candidate: PoolCandidate) -> None:
         self._store.collection("pool")[candidate.candidate_id] = candidate
 
+    def member(self, candidate_id: uuid.UUID) -> PoolCandidate | None:
+        """Запись кандидата в пуле — стенд дополняет её, например ожиданиями (M6)."""
+        member: PoolCandidate | None = self._store.collection("pool").get(candidate_id)
+        return member
+
     def is_demo(self, user_id: uuid.UUID) -> bool:
         return False
 

@@ -133,6 +133,7 @@ def test_item_carries_no_answer(candidate: TestClient, seeds: Seeds) -> None:
         "max_items",
         "topic_block",
         "verification",
+        "vacancy_test",
         "deadline",
         "focus_consent",
         "topic",

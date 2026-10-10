@@ -56,7 +56,8 @@
       "determination": "Category placement, {{grade}} test",
       "grade_up": "Step up attempt, {{grade}} test",
       "topic_block": "Topic block",
-      "verification": "Verification block"
+      "verification": "Verification block",
+      "vacancy_test": "Vacancy test"
     }
   },
   "feedback": {
@@ -77,7 +78,8 @@
       "default": "Refine your level in {{topic}}: the margin of error is widest here"
     },
     "gain": "+{{gain}} match",
-    "gainPlaces": "+{{gain}} match, about {{places}} places higher"
+    "gainPlaces": "+{{gain}} match, about {{places}} places higher",
+    "plan": "Development plan"
   },
   "invitations": {
     "title": "Invitations",

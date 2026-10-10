@@ -13,6 +13,7 @@ from sqlalchemy.orm import Session, selectinload
 
 from app.domain import candidate
 from app.domain.attempt import (
+    SIDE_PURPOSES,
     AnsweredPresentation,
     Attempt,
     AttemptPurpose,
@@ -103,6 +104,8 @@ def _attempt_of(row: models.TestAttempt, *, presentations: bool = True) -> Attem
         correct_count=row.correct_count,
         planned_items=row.planned_items,
         express_limit=row.express_limit,
+        vacancy_test_id=row.vacancy_test_id,
+        person_fit=row.person_fit,
     )
 
 
@@ -126,6 +129,8 @@ class SqlAttemptReader:
                 models.TestAttempt.user_id == user_id,
                 models.TestAttempt.specialization_code == specialization_code,
                 models.TestAttempt.withheld.is_(False),
+                # Тест по вакансии — сигнал одному работодателю: в профиль и оценку не входит.
+                models.TestAttempt.purpose != AttemptPurpose.vacancy_test,
                 models.Presentation.answered_at.is_not(None),
                 models.Presentation.dropped.is_(False),
             )
@@ -174,9 +179,7 @@ class SqlAttemptRepository(SqlAttemptReader):
             select(models.TestAttempt)
             .where(
                 models.TestAttempt.user_id == user_id,
-                models.TestAttempt.purpose.not_in(
-                    (AttemptPurpose.topic_block, AttemptPurpose.verification)
-                ),
+                models.TestAttempt.purpose.not_in(SIDE_PURPOSES),
             )
             .order_by(models.TestAttempt.number.desc())
             .limit(1)
@@ -234,6 +237,7 @@ class SqlAttemptRepository(SqlAttemptReader):
         verifies: Attempt | None = None,
         deadline: datetime | None = None,
         express_limit: int | None = None,
+        vacancy_test_id: uuid.UUID | None = None,
     ) -> Attempt:
         row = models.TestAttempt(
             user_id=user_id,
@@ -249,6 +253,7 @@ class SqlAttemptRepository(SqlAttemptReader):
             verifies_attempt_id=verifies.id if verifies else None,
             deadline=deadline,
             express_limit=express_limit,
+            vacancy_test_id=vacancy_test_id,
         )
         self.session.add(row)
         self.session.flush()
@@ -261,6 +266,16 @@ class SqlAttemptRepository(SqlAttemptReader):
             .order_by(models.TestAttempt.number)
         )
         return [_attempt_of(row, presentations=False) for row in rows]
+
+    def vacancy_attempts(self, test_ids: Collection[uuid.UUID]) -> dict[uuid.UUID, Attempt]:
+        if not test_ids:
+            return {}
+        rows = self.session.scalars(
+            select(models.TestAttempt)
+            .where(models.TestAttempt.vacancy_test_id.in_(test_ids))
+            .options(selectinload(models.TestAttempt.presentations))
+        )
+        return {row.vacancy_test_id: _attempt_of(row) for row in rows if row.vacancy_test_id}
 
     def attempt(self, attempt_id: uuid.UUID) -> Attempt:
         return _attempt_of(self.session.get_one(models.TestAttempt, attempt_id))
@@ -318,6 +333,7 @@ class SqlAttemptRepository(SqlAttemptReader):
         row.expected_correct = attempt.expected_correct
         row.correct_count = attempt.correct_count
         row.planned_items = attempt.planned_items
+        row.person_fit = attempt.person_fit
         self.session.flush()
 
     def lift_express_limit(self, attempt: Attempt) -> None:

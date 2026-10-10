@@ -18,12 +18,14 @@ import uuid
 from collections.abc import Callable, Iterator, Sequence
 from contextlib import contextmanager
 from dataclasses import dataclass, field
+from typing import TYPE_CHECKING
 
 from app.adapter import calibration
 from app.adapter.code_runner import InProcessCodeRunner
 from app.domain.skill import Normal, sigmoid
 from app.usecase.selection import Selections
-from settings import Mechanics
+from settings import Mechanics, Settings
+from validation.invitation_market import Sent
 from validation.main import catalog
 from validation.market import (
     Candidate,
@@ -36,6 +38,9 @@ from validation.metrics import median, regression, rmse
 from validation.population import Generator, GeneratorParams, SyntheticNeed, as_candidate
 from validation.truth import CandidateTruth, Corruption, Persona
 from validation.twins import Twin
+
+if TYPE_CHECKING:
+    from validation.market_weeks import MarketInput
 
 # Точки сходимости калибровки M12 — ответов на семейство в среднем.
 CHECKPOINTS = (50, 100, 200, 500)
@@ -169,6 +174,9 @@ class SpecRun:
     adaptivity: Adaptivity | None = None
     # Потребность пар модели принятия → кандидаты её подборки со скором.
     offers: dict[uuid.UUID, tuple[Scored, ...]] = field(default_factory=dict)
+    # Рынок приглашений M6: стратегия → приглашения; кандидаты пула подборки — для Джини.
+    market: dict[str, tuple["Sent", ...]] = field(default_factory=dict)
+    pool: tuple[uuid.UUID, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -186,6 +194,8 @@ class Job:
     full: bool = True
     # Потребности пар модели принятия (M7): подборка по каждой — кандидаты со скором.
     offer_needs: tuple[SyntheticNeed, ...] = ()
+    # Рынок приглашений M6: что ему нужно сверх стенда; None — без рынка.
+    market: "MarketInput | None" = None
 
 
 def warm_source(
@@ -348,8 +358,9 @@ def run_spec(job: Job) -> SpecRun:
     }
 
     by_user = {u: t for t, u in users.items()}
-    for t in truths:
-        m.enlist(users[t.id], stack=job.stack[t.id], claimed=t.claimed)
+    pool = tuple(
+        t.id for t in truths if m.enlist(users[t.id], stack=job.stack[t.id], claimed=t.claimed)
+    )
     selections = m.stand.selections()
     placed = {need.id: _placed(selections, need, len(truths), by_user.get) for need in job.needs}
     rankings = {n: tuple(p.candidate for p in rows) for n, rows in placed.items()}
@@ -360,6 +371,17 @@ def run_spec(job: Job) -> SpecRun:
     adaptivity = compare(m, scale.compare, source)
     # Пары модели принятия — после замеров банка: их подборки не сдвигают сиды замеров выше.
     offered = offers(m, job, truths, users)
+    # Рынок M6 — на копиях стенда со своим сидом и до двойников: на рынке только кандидаты набора.
+    # Импорт здесь: рынок и пары модели принятия сами берут `Scored` из этого модуля.
+    from validation.acceptance import load_model
+    from validation.market_weeks import run_market
+
+    model = load_model(Settings().acceptance_model_file) if job.market is not None else None
+    market = (
+        run_market(m, users, job.market, model)
+        if job.market is not None and model is not None
+        else {}
+    )
     # Двойники — последними: подборка берёт соль из того же источника seed, что и тест и пары
     # принятия, и лишние подборки до них сдвинули бы их.
     own_twins = [tw for tw in job.twins if tw.source in users]
@@ -389,6 +411,8 @@ def run_spec(job: Job) -> SpecRun:
         naive_cutoffs=naive_cutoffs(m, blank),
         adaptivity=adaptivity,
         offers=offered,
+        market=market,
+        pool=pool,
     )
 
 

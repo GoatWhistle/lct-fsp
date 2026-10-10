@@ -1,7 +1,7 @@
 import type { CSSProperties } from "react"
 import type { StackFit, TopicFit } from "@/shared/api"
 import { useCatalogNames, useFormatters, useTranslation } from "@/shared/i18n"
-import { useLevelWords } from "../use-level-words"
+import { ProbabilityLabel, probabilityBand } from "../probability-label/probability-label"
 import styles from "./match-score.module.css"
 
 export type MatchScoreSize = "lg" | "md" | "sm"
@@ -31,16 +31,19 @@ export function MatchScore({
 }: MatchScoreProps) {
   const { t } = useTranslation("measure")
   const names = useCatalogNames()
-  const words = useLevelWords()
   const format = useFormatters()
   const value = format.percent(score)
+  const topicWords = (topic: TopicFit) =>
+    `${t(`probability.range.${probabilityBand(topic.probability)}`)}, ${
+      topic.low_data ? t("verdict.lowData") : t(`verdict.${topic.verdict}`)
+    }`
   const topicWeight = 1 - stackCap
   const summary = [
     t("match.aria", { value }),
     ...topics.map((topic) =>
       t("match.segment", {
         topic: names.topic(topic.topic),
-        value: words.probability(topic.probability),
+        value: topicWords(topic),
       }),
     ),
   ].join(". ")
@@ -59,7 +62,7 @@ export function MatchScore({
             style={slotStyle(topic.weight * topicWeight, topic.probability, index)}
             title={t("match.segment", {
               topic: names.topic(topic.topic),
-              value: words.probability(topic.probability),
+              value: topicWords(topic),
             })}
           >
             <span className={styles.fill} data-importance={topic.importance} />
@@ -77,7 +80,8 @@ export function MatchScore({
       </div>
       {acceptance === undefined || acceptance === null ? null : (
         <span className={styles.label}>
-          {t("match.acceptance", { value: words.probability(acceptance) })}
+          {t("match.acceptance")}{" "}
+          <ProbabilityLabel value={acceptance} label={t("match.acceptance")} />
         </span>
       )}
     </div>

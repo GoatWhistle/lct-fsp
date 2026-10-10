@@ -17,3 +17,19 @@ export function useSaveCompany() {
     onSuccess: (company) => client.setQueryData(COMPANY_KEY, company),
   })
 }
+
+export function useRequestDomainCheck() {
+  return useMutation({
+    mutationFn: (input: { readonly email: string; readonly locale: "ru" | "en" }) =>
+      unwrap(api.POST("/api/employer/company/domain", { body: input })),
+  })
+}
+
+export function useConfirmDomain() {
+  const client = useQueryClient()
+  return useMutation({
+    mutationFn: (token: string) =>
+      unwrap(api.POST("/api/company-domain/confirm", { body: { token } })),
+    onSuccess: (company) => client.setQueryData(COMPANY_KEY, company),
+  })
+}

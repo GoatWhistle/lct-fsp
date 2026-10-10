@@ -10,10 +10,16 @@
 """
 
 import uuid
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 
-from app.domain.errors import CandidateNotFound, CompanyProfileRequired, InvitationNotFound
+from app.domain.errors import (
+    CandidateNotFound,
+    CompanyProfileRequired,
+    InvitationNotFound,
+    VacancyTestSpecializationMismatch,
+)
 from app.domain.invitation import (
     Invitation,
     InvitationBudget,
@@ -24,6 +30,8 @@ from app.domain.invitation import (
     revoked,
     viewed,
 )
+from app.domain.selection import Need
+from app.domain.vacancy_test import VacancyTestPlan
 from app.usecase.candidate import revoke_company_access
 from app.usecase.interface import (
     ApplicationRepository,
@@ -31,7 +39,9 @@ from app.usecase.interface import (
     Clock,
     CompanyRepository,
     InvitationRepository,
+    NeedReader,
     UnitOfWork,
+    VacancyTestRepository,
 )
 
 
@@ -53,6 +63,9 @@ class Invitations:
         *,
         weekly_budget: int,
         ttl_days: int,
+        needs: NeedReader | None = None,
+        vacancy_tests: VacancyTestRepository | None = None,
+        test_plan: Callable[[Need], VacancyTestPlan] | None = None,
     ) -> None:
         self._uow = uow
         self._invitations = invitations
@@ -62,23 +75,45 @@ class Invitations:
         self._clock = clock
         self._weekly_budget = weekly_budget
         self.ttl = timedelta(days=ttl_days)
+        self._needs = needs
+        self._vacancy_tests = vacancy_tests
+        self._test_plan = test_plan
 
     def send(
-        self, employer_id: uuid.UUID, candidate_id: uuid.UUID, terms: InvitationTerms
+        self,
+        employer_id: uuid.UUID,
+        candidate_id: uuid.UUID,
+        terms: InvitationTerms,
+        *,
+        test_need_id: uuid.UUID | None = None,
     ) -> Invitation:
         """Новое приглашение: кандидат с категорией, профиль компании заполнен, прошлое
-        приглашение этому кандидату закрыто, бюджет недели не исчерпан."""
+        приглашение этому кандидату закрыто, бюджет недели не исчерпан. `test_need_id` —
+        потребность, по которой к приглашению прикладывается тест по вакансии (§6): своя, той
+        же специализации, что категория кандидата."""
         with self._uow:
             now = self._clock.now()
             company = self._companies.get(employer_id)
             if company is None:
                 raise CompanyProfileRequired()
-            if self._candidates.get(candidate_id).category is None:
+            category = self._candidates.get(candidate_id).category
+            if category is None:
                 raise CandidateNotFound()
+            plan = None
+            if test_need_id is not None:
+                assert self._needs is not None and self._test_plan is not None
+                need = self._needs.get(employer_id, test_need_id)
+                if need.specialization.code != category.specialization.code:
+                    raise VacancyTestSpecializationMismatch()
+                plan = (need.title, self._test_plan(need))
             self._invitations.lock_company(employer_id)
             latest = self._invitations.latest(employer_id, candidate_id)
             check_can_send(self._budget(employer_id, now), latest, now, self.ttl)
-            return self._invitations.add(employer_id, candidate_id, company.name, terms, now)
+            invitation = self._invitations.add(employer_id, candidate_id, company.name, terms, now)
+            if plan is not None:
+                assert self._vacancy_tests is not None
+                self._vacancy_tests.add(invitation.id, plan[0], plan[1], now)
+            return invitation
 
     def sent(self, employer_id: uuid.UUID) -> SentInvitations:
         """Отправленные компанией и остаток бюджета на текущую неделю."""

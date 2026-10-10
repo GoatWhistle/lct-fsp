@@ -98,12 +98,26 @@ class Drift:
 @dataclass(frozen=True)
 class Helper:
     """LLM-помощник (M16 а): истинный грейд, грейд результата до проверочного блока, помечен ли
-    результат, категория после блока."""
+    результат, категория после блока; сигналы определения — для M22."""
 
     truth: str | None
     before: str | None
     flagged: bool
     after: str | None
+    time_flags: int = 0
+    person_fit: float | None = None
+
+
+@dataclass(frozen=True)
+class Signals:
+    """Определение потока S3 основного условия (M22): кто проходил, истинный грейд, грейд
+    результата до проверочного блока, флагов времени и l_z определения."""
+
+    persona: Persona
+    truth: str | None
+    result: str | None
+    time_flags: int
+    person_fit: float | None
 
 
 @dataclass(frozen=True)
@@ -143,6 +157,8 @@ class ProtectionRun:
     llm: tuple[LlmAttempt, ...] = ()
     llm_missing: int = 0
     llm_model: str | None = None
+    # M22: определения потока S3 основного условия — честные и читеры.
+    signals: tuple[Signals, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -197,16 +213,17 @@ def run_protection(job: ProtectionJob) -> ProtectionRun:
     truths = [honest() for _ in range(scale.cheaters)]
     attacks: list[Attack] = []
     blocks = HonestBlocks(0, 0, 0)
+    signals: tuple[Signals, ...] = ()
     for leak, rho in conditions:
         leaked = leaks[leak]
         attacks.append(Attack("S1", leak, rho, fixed_common(m, truths, leak, rho, items=True)))
         attacks.append(Attack("S2", leak, rho, fixed_common(m, truths, leak, rho, leaked=leaked)))
         fork = m.fork(_seed(params, code, f"s3:{leak}:{rho}"))
         fork.response_model = replace(fork.response_model, leak_rho=rho)
-        twins, found = adaptive(fork, truths, leaked, honest)
+        twins, found, seen = adaptive(fork, truths, leaked, honest)
         attacks.append(Attack("S3", leak, rho, twins))
         if (leak, rho) == (MAIN_LEAK, MAIN_RHO):
-            blocks = found
+            blocks, signals = found, seen
 
     leak_fork = m.fork(_seed(params, code, "leak-stream"))
     leak_fork.response_model = replace(leak_fork.response_model, leak_rho=MAIN_RHO)
@@ -234,6 +251,7 @@ def run_protection(job: ProtectionJob) -> ProtectionRun:
         tuple(llm),
         missing,
         job.llm_model if llm else None,
+        signals,
     )
 
 
@@ -334,17 +352,21 @@ def adaptive(
     truths: Sequence[CandidateTruth],
     leaked: frozenset[str],
     honest: Callable[[], CandidateTruth],
-) -> tuple[tuple[Twins, ...], HonestBlocks]:
+) -> tuple[tuple[Twins, ...], HonestBlocks, tuple[Signals, ...]]:
     """S3 — поток определений: на каждого читера — честный двойник, повтор двойника и два
     честных попутчика, читеров в потоке 20 %. Детектор дрейфа ведётся по всему потоку; результат
     читера, как и честного, — категория после проверочного блока. Честные определения потока —
     заодно M17."""
     twins = []
     attempts = blocks = mismatches = 0
+    seen: list[Signals] = []
 
     def determine(truth: CandidateTruth) -> Determined:
         nonlocal attempts, blocks, mismatches
         d = m.determine(as_candidate(truth))
+        seen.append(
+            Signals(truth.persona, truth.grade, d.pending or d.grade, d.time_flags, d.person_fit)
+        )
         honest_run = truth.persona == Persona.honest
         attempts += honest_run
         if d.pending is None:
@@ -361,7 +383,7 @@ def adaptive(
         determine(honest())
         again = determine(truth)
         twins.append(Twins(cheater, first, again))
-    return tuple(twins), HonestBlocks(attempts, blocks, mismatches)
+    return tuple(twins), HonestBlocks(attempts, blocks, mismatches), tuple(seen)
 
 
 # --- M15: детектор утечки ----------------------------------------------------------------------
@@ -450,7 +472,9 @@ def helper_runs(m: Market, truths: Sequence[CandidateTruth], *, block_help: bool
         if d.pending is not None:
             in_block = truth if block_help else replace(truth, persona=Persona.honest)
             after = m.verify(d.user, in_block).grade
-        found.append(Helper(truth.grade, before, d.pending is not None, after))
+        found.append(
+            Helper(truth.grade, before, d.pending is not None, after, d.time_flags, d.person_fit)
+        )
     return found
 
 

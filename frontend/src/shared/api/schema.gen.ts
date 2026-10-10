@@ -572,6 +572,43 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/employer/company/domain": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Подтвердить домен сайта компании
+         * @description Письмо со ссылкой на адрес вида имя@домен-сайта. Метка добровольная: без неё все сценарии работают. Новая ссылка гасит прежние.
+         */
+        post: operations["request_domain_check_api_employer_company_domain_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/company-domain/confirm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Подтверждение домена по токену из письма */
+        post: operations["confirm_domain_api_company_domain_confirm_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/employer/needs": {
         parameters: {
             query?: never;
@@ -1175,6 +1212,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/employer/needs/{need_id}/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Тест по вакансии: темы, задания и примеры
+         * @description В тест идут ключевые и важные темы потребности, без них — все темы специализации; задания делятся по весам важности. Пример на тему — новый экземпляр при каждом запросе, сложность — около требуемого уровня. Эталон не отдаётся.
+         */
+        get: operations["preview_test_api_employer_needs__need_id__test_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/candidate/invitations/{invitation_id}/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Начать тест по вакансии из приглашения
+         * @description Пока приглашение не отклонено и не истекло, один раз. Задания — через `/api/candidate/path/item`. Категорию, грейд и профиль навыков тест не меняет.
+         */
+        post: operations["start_test_api_candidate_invitations__invitation_id__test_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/employer/vacancies": {
         parameters: {
             query?: never;
@@ -1407,6 +1484,63 @@ export interface paths {
         get: operations["get_feedback_api_candidate_feedback_get"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/candidate/feedback/plan": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * План развития
+         * @description 3–5 пунктов с шагами по темам подсказок, текст пишет локальная модель; темы только из подсказок, цифры системы — без работодателей и потребностей. `null` — модели нет, она не ответила или ответ не прошёл сверку: кабинет показывает подсказки как есть. Кэш — до изменения профиля навыков.
+         */
+        get: operations["get_plan_api_candidate_feedback_plan_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/employer/chat/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Доступен ли чат */
+        get: operations["status_api_employer_chat_status_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/employer/chat": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Сообщение чат-поиска
+         * @description Агент разбирает текст, строит подборку и применяет фильтры теми же сценариями, что форма; кандидатов не переставляет и не добавляет. Модели нет — 503, работает путь руками.
+         */
+        post: operations["send_api_employer_chat_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1697,7 +1831,7 @@ export interface components {
          * @description Зачем попытка (mechanics.md, §4).
          * @enum {string}
          */
-        AttemptPurpose: "determination" | "grade_up" | "topic_block" | "verification";
+        AttemptPurpose: "determination" | "grade_up" | "topic_block" | "verification" | "vacancy_test";
         /**
          * AuthorAnswerOut
          * @description Ответ на задание для его автора — обезличенно: без ФИО, контактов и профиля.
@@ -1860,6 +1994,22 @@ export interface components {
              */
             grade_status?: components["schemas"]["GradeStatusKind"][];
         };
+        /** CardOut */
+        CardOut: {
+            /**
+             * Candidate Id
+             * Format: uuid
+             */
+            candidate_id: string;
+            /** Position */
+            position: number;
+            /** Block */
+            block: string;
+            /** Grade */
+            grade: string;
+            /** Match Score */
+            match_score: number | null;
+        };
         /**
          * CardSelfReportedOut
          * @description Самоописание в карточке кандидата для работодателя. Поле, скрытое кандидатом, — `null`
@@ -1970,6 +2120,52 @@ export interface components {
              */
             verified_at: string | null;
         };
+        /** ChatIn */
+        ChatIn: {
+            /** Message */
+            message: string;
+            /**
+             * Selection Id
+             * @description Подборка, начатая раньше в чате или в форме: сообщение без текста вакансии уточняет её фильтрами
+             */
+            selection_id?: string | null;
+        };
+        /** ChatOut */
+        ChatOut: {
+            /**
+             * Selection Id
+             * Format: uuid
+             * @description Подборка открывается в форме по этому id
+             */
+            selection_id: string;
+            /**
+             * Cards
+             * @description Ровно вывод подборки и фильтров, в их порядке
+             */
+            cards: components["schemas"]["CardOut"][];
+            /**
+             * Chips
+             * @description Сужения, которые сделал агент, — снимаются
+             */
+            chips: components["schemas"]["ChipOut"][];
+            /**
+             * Summary
+             * @description Пересказ; `null` — числа не прошли сверку с выводом, показывается таблица
+             */
+            summary: string | null;
+            /** Total */
+            total: number;
+        };
+        /** ChipOut */
+        ChipOut: {
+            /**
+             * Kind
+             * @description `stack`, `fsp`, `confident`, `grade` или `specialization`
+             */
+            kind: string;
+            /** Value */
+            value: string;
+        };
         /** CompanyIn */
         CompanyIn: {
             /** Name */
@@ -2015,6 +2211,16 @@ export interface components {
              * Format: date-time
              */
             updated_at: string;
+            /**
+             * Verified Domain
+             * @description Домен, подтверждённый письмом на адрес этого домена; `null` — не подтверждали
+             */
+            verified_domain: string | null;
+            /**
+             * Domain Verified
+             * @description Метка доверия: подтверждённый домен совпадает с доменом сайта компании
+             */
+            domain_verified: boolean;
         };
         /** DemoCandidateIn */
         DemoCandidateIn: {
@@ -2038,6 +2244,14 @@ export interface components {
              * @description Режим жюри включён настройкой окружения `DEMO_MODE`
              */
             enabled: boolean;
+        };
+        /** DevelopmentPlanOut */
+        DevelopmentPlanOut: {
+            /**
+             * Steps
+             * @description 3–5 пунктов
+             */
+            steps: components["schemas"]["PlanStepOut"][];
         };
         /**
          * DisclosedOut
@@ -2073,6 +2287,29 @@ export interface components {
              */
             technology_years: components["schemas"]["TechnologyYearsOut"][];
         };
+        /** DomainCheckIn */
+        DomainCheckIn: {
+            /**
+             * Email
+             * @description Адрес на домене сайта компании, например hr@acme.ru
+             */
+            email: string;
+            /**
+             * Locale
+             * @description Язык письма
+             * @default ru
+             * @enum {string}
+             */
+            locale: "ru" | "en";
+        };
+        /** DomainConfirmIn */
+        DomainConfirmIn: {
+            /**
+             * Token
+             * @description Токен из письма
+             */
+            token: string;
+        };
         /**
          * DraftField
          * @description Поля черновика с уверенностью. «Кого ищете» не из справочника — уверенности у него нет.
@@ -2098,6 +2335,19 @@ export interface components {
              * @description Когда действие станет доступно — у ошибок правила ожидания
              */
             available_at?: string | null;
+        };
+        /** ExampleOut */
+        ExampleOut: {
+            topic: components["schemas"]["CatalogRef"];
+            /** Family Code */
+            family_code: string;
+            /** Prompt */
+            prompt: string;
+            /** Code */
+            code: string | null;
+            answer_format: components["schemas"]["AnswerFormat"];
+            /** Options */
+            options: components["schemas"]["OptionOut"][];
         };
         /**
          * ExperienceEntryIn
@@ -2505,6 +2755,11 @@ export interface components {
              * @description Как кандидату связаться с компанией, если примет приглашение
              */
             contact: string;
+            /**
+             * Test Need Id
+             * @description Приложить тест по вакансии: потребность компании той же специализации, что категория кандидата
+             */
+            test_need_id?: string | null;
         };
         /** InvitationOut */
         InvitationOut: {
@@ -2564,6 +2819,13 @@ export interface components {
              * @description Непрочитанные сообщения другой стороны
              */
             unread_messages: number;
+            /**
+             * Company Domain Verified
+             * @description Метка доверия: компания подтвердила домен своего сайта
+             */
+            company_domain_verified: boolean;
+            /** @description Приложенный тест по вакансии; итог — только в ответах работодателю */
+            vacancy_test: components["schemas"]["VacancyTestOut"] | null;
             /** @description Все суммы платформы — до вычета НДФЛ (`gross`) */
             readonly salary_basis: components["schemas"]["SalaryBasis"];
         };
@@ -2599,6 +2861,11 @@ export interface components {
              * @description Задание проверочного блока
              */
             verification: boolean;
+            /**
+             * Vacancy Test
+             * @description Задание теста по вакансии из приглашения
+             */
+            vacancy_test: boolean;
             /**
              * Deadline
              * @description Срок проверочного блока по часам сервера
@@ -2971,6 +3238,8 @@ export interface components {
             verification: components["schemas"]["VerificationOut"] | null;
             /** @description Экспресс-тест режима жюри: идёт, ждёт продолжения или дал итог пути — итог помечается «экспресс-оценка» */
             express: components["schemas"]["ExpressOut"] | null;
+            /** @description Незавершённый тест по вакансии из приглашения: задания — те же `item` */
+            vacancy_test: components["schemas"]["VacancyTestProgressOut"] | null;
         };
         /** PlacementOut */
         PlacementOut: {
@@ -2989,6 +3258,34 @@ export interface components {
              * @description Доля подборок, где вы были в точном блоке, 0–1
              */
             exact_share: number;
+        };
+        /** PlanStepOut */
+        PlanStepOut: {
+            /**
+             * Topic
+             * @description Код темы из подсказок обратной связи
+             */
+            topic: string;
+            /**
+             * Step
+             * @description Шаг: что сделать по теме
+             */
+            step: string;
+        };
+        /** PlannedTopicOut */
+        PlannedTopicOut: {
+            topic: components["schemas"]["CatalogRef"];
+            importance: components["schemas"]["TopicImportance"];
+            /**
+             * Weight
+             * @description Вес темы в тесте — вес важности, нормированный на темы теста
+             */
+            weight: number;
+            /**
+             * Items
+             * @description Сколько заданий по теме
+             */
+            items: number;
         };
         /** ProfileIn */
         ProfileIn: {
@@ -3969,6 +4266,29 @@ export interface components {
             /** Name */
             name: string;
         };
+        /** TopicOutcomeOut */
+        TopicOutcomeOut: {
+            topic: components["schemas"]["CatalogRef"];
+            /** Answered */
+            answered: number;
+            /** Correct */
+            correct: number;
+            /**
+             * Level
+             * @description Уровень θ по теме
+             */
+            level: number;
+            /**
+             * Level Sd
+             * @description Погрешность уровня
+             */
+            level_sd: number;
+            /**
+             * Probability
+             * @description P(уровень ≥ требуемого)
+             */
+            probability: number;
+        };
         /** UserOut */
         UserOut: {
             /**
@@ -4072,9 +4392,89 @@ export interface components {
              * @description Когда снята с публикации: в общем списке её нет, откликнуться нельзя
              */
             archived_at: string | null;
+            /**
+             * Company Domain Verified
+             * @description Метка доверия: компания подтвердила домен своего сайта
+             */
+            company_domain_verified: boolean;
             /** @description Все суммы платформы — до вычета НДФЛ (`gross`) */
             readonly salary_basis: components["schemas"]["SalaryBasis"];
         };
+        /** VacancyTestOut */
+        VacancyTestOut: {
+            /** Need Title */
+            need_title: string;
+            plan: components["schemas"]["VacancyTestPlanOut"];
+            /** @description `not_started` — не начат; `in_progress` — идёт; `finished` — пройден */
+            status: components["schemas"]["VacancyTestStatus"];
+            /** Answered */
+            answered: number;
+            /** @description Итог — только пригласившей компании; категорию и профиль он не меняет */
+            result: components["schemas"]["VacancyTestResultOut"] | null;
+        };
+        /** VacancyTestPlanOut */
+        VacancyTestPlanOut: {
+            specialization: components["schemas"]["CatalogRef"];
+            /** @description Грейд потребности: его порог — требуемый уровень */
+            grade: components["schemas"]["CatalogRef"];
+            /**
+             * Items
+             * @description Заданий в тесте — ровно столько
+             */
+            items: number;
+            /**
+             * Topics
+             * @description Ключевые и важные темы потребности, без них — все темы специализации
+             */
+            topics: components["schemas"]["PlannedTopicOut"][];
+        };
+        /** VacancyTestPreviewOut */
+        VacancyTestPreviewOut: {
+            plan: components["schemas"]["VacancyTestPlanOut"];
+            /**
+             * Examples
+             * @description Пример задания на тему: семейство со сложностью ближе всех к требуемому уровню, экземпляр — со свежим seed, без эталона
+             */
+            examples: components["schemas"]["ExampleOut"][];
+        };
+        /** VacancyTestProgressOut */
+        VacancyTestProgressOut: {
+            /**
+             * Invitation Id
+             * Format: uuid
+             * @description Приглашение, к которому приложен тест
+             */
+            invitation_id: string;
+            /** Need Title */
+            need_title: string;
+            /** Answered */
+            answered: number;
+            /**
+             * Items
+             * @description Заданий в тесте по вакансии — ровно столько
+             */
+            items: number;
+        };
+        /** VacancyTestResultOut */
+        VacancyTestResultOut: {
+            /**
+             * Finished At
+             * Format: date-time
+             */
+            finished_at: string;
+            /**
+             * Match
+             * @description Взвешенная доля выполненных требований по темам теста
+             */
+            match: number;
+            /** Topics */
+            topics: components["schemas"]["TopicOutcomeOut"][];
+        };
+        /**
+         * VacancyTestStatus
+         * @enum {string}
+         */
+        VacancyTestStatus: "not_started" | "in_progress" | "finished";
         /** ValidationError */
         ValidationError: {
             /** Location */
@@ -5669,6 +6069,116 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    request_domain_check_api_employer_company_domain_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DomainCheckIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description `not_authenticated` — Войдите, чтобы продолжить */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description `wrong_role` — Раздел доступен другой роли */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /**
+             * @description `company_profile_required` — Сначала заполните профиль компании — кандидат увидит его в приглашении
+             *
+             *     `company_website_required` — Укажите сайт компании: подтверждается адрес на его домене
+             */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description `domain_email_mismatch` — Адрес должен быть на домене сайта компании */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    confirm_domain_api_company_domain_confirm_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DomainConfirmIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CompanyOut"];
+                };
+            };
+            /**
+             * @description `token_invalid` — Ссылка недействительна. Если адрес уже подтверждён — просто войдите
+             *
+             *     `token_expired` — Срок ссылки истёк — запросите новое письмо
+             */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
@@ -8060,6 +8570,143 @@ export interface operations {
             };
         };
     };
+    preview_test_api_employer_needs__need_id__test_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                need_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VacancyTestPreviewOut"];
+                };
+            };
+            /** @description `not_authenticated` — Войдите, чтобы продолжить */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description `wrong_role` — Раздел доступен другой роли */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description `need_not_found` — Потребность не найдена — возможно, её удалили */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    start_test_api_candidate_invitations__invitation_id__test_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                invitation_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description `not_authenticated` — Войдите, чтобы продолжить */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description `wrong_role` — Раздел доступен другой роли */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /**
+             * @description `invitation_not_found` — Приглашение не найдено
+             *
+             *     `vacancy_test_not_found` — К приглашению не приложен тест по вакансии
+             */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /**
+             * @description `vacancy_test_taken` — Тест по этой вакансии уже пройден
+             *
+             *     `vacancy_test_closed` — Приглашение отклонено или истекло — тест по вакансии больше недоступен
+             *
+             *     `attempt_in_progress` — Сначала закончите начатый тест или блок по теме
+             *
+             *     `category_required` — Задания открываются после теста — сначала получите категорию
+             *
+             *     `vacancy_test_specialization_mismatch` — Тест по вакансии можно приложить, только если специализация кандидата совпадает
+             */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_own_vacancies_api_employer_vacancies_get: {
         parameters: {
             query?: never;
@@ -8802,6 +9449,153 @@ export interface operations {
             };
             /** @description `wrong_role` — Раздел доступен другой роли */
             403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    get_plan_api_candidate_feedback_plan_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DevelopmentPlanOut"] | null;
+                };
+            };
+            /** @description `not_authenticated` — Войдите, чтобы продолжить */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description `wrong_role` — Раздел доступен другой роли */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    status_api_employer_chat_status_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: boolean;
+                    };
+                };
+            };
+            /** @description `not_authenticated` — Войдите, чтобы продолжить */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description `wrong_role` — Раздел доступен другой роли */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    send_api_employer_chat_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChatIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChatOut"];
+                };
+            };
+            /** @description `not_authenticated` — Войдите, чтобы продолжить */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description `wrong_role` — Раздел доступен другой роли */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description `path_step_unavailable` — Этот шаг сейчас недоступен — обновите страницу */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description `chat_unavailable` — Чат сейчас недоступен — соберите подборку из текста вакансии и фильтров */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };

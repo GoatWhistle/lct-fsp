@@ -57,5 +57,22 @@
     "email": "Email",
     "phone": "Phone",
     "note": "A candidate's contacts open to you only after they accept an invitation or apply themselves."
+  },
+  "domain": {
+    "title": "Trust mark",
+    "lead": "Confirm that an address on the company website domain is yours. Candidates will see the “domain confirmed” mark in invitations and vacancies. Everything works without it.",
+    "mark": "Domain confirmed",
+    "verified": "Domain {{domain}} is confirmed",
+    "email": "Address on the website domain",
+    "emailHint": "For example, hr@your-domain.com. The link will be sent there",
+    "send": "Send the email",
+    "sending": "Sending",
+    "sent": "The email went to {{email}}. Open the link in it",
+    "noWebsite": "Add the company website and save the profile: the address on its domain is confirmed",
+    "confirmChecking": "Confirming the domain",
+    "confirmDone": "Domain confirmed",
+    "confirmFailed": "Could not confirm the domain",
+    "noToken": "The link has no confirmation token",
+    "toCompany": "To the company profile"
   }
 }

@@ -15,7 +15,8 @@
 .hint {
   composes: ruledRow from "../../../shared/styles/compose.module.css";
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
   gap: var(--space-8) var(--space-12);
   padding-block: var(--space-16);
 }
@@ -25,6 +26,7 @@
 }
 
 .hintIcon {
+  align-self: start;
   margin-block-start: var(--space-4);
   color: var(--text-accent);
 }
@@ -50,6 +52,5 @@
 }
 
 .hintAction {
-  grid-column: 2;
-  justify-self: start;
+  justify-self: end;
 }

@@ -4,7 +4,16 @@ import { useStartAttempt, useStepDown } from "@/entities/candidate-path"
 import { gradeIcon } from "@/entities/catalog"
 import type { CandidatePath } from "@/shared/api"
 import { useCatalogNames, useErrorText, useFormatters, useTranslation } from "@/shared/i18n"
-import { Banner, Button, Checkbox, ConfirmDialog, IconLabel, Menu, toast } from "@/shared/ui"
+import {
+  Banner,
+  Button,
+  Checkbox,
+  ConfirmDialog,
+  Disclosure,
+  IconLabel,
+  Menu,
+  toast,
+} from "@/shared/ui"
 import { availableAt, TEST_ROUTE } from "../available-at"
 import styles from "./grade-change.module.css"
 
@@ -38,12 +47,10 @@ export function GradeUp({ path }: GradeChangeProps) {
     <div className={styles.up}>
       {hinted ? <Banner tone="info" icon="match" title={t("gradeUp.hint", { grade })} /> : null}
       <p className={styles.note}>{t("gradeUp.text", { grade })}</p>
-      <Checkbox
-        checked={consent}
-        onChange={setConsent}
-        label={t("test:protection.consent")}
-        hint={t("test:protection.consentHint")}
-      />
+      <Checkbox checked={consent} onChange={setConsent} label={t("test:protection.consent")} />
+      <Disclosure summary={<span className={styles.more}>{t("gradeUp.consentMore")}</span>}>
+        <p className={styles.note}>{t("test:protection.consentHint")}</p>
+      </Disclosure>
       <div className={styles.actions}>
         <Button
           icon={gradeIcon(up.grade)}

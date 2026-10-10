@@ -1,10 +1,11 @@
+import { useState } from "react"
 import { useNeeds } from "@/entities/need"
 import { useTranslation } from "@/shared/i18n"
-import { ButtonLink, Card, EmptyState, LoadError, Skeleton } from "@/shared/ui"
+import { Button, ButtonLink, Card, EmptyState, LoadError, Skeleton } from "@/shared/ui"
 import { NeedRow } from "../need-row/need-row"
 import styles from "./needs-panel.module.css"
 
-const SHOWN = 5
+const SHOWN = 3
 
 export interface NeedsPanelProps {
   readonly className?: string | undefined
@@ -13,6 +14,7 @@ export interface NeedsPanelProps {
 function NeedsBody() {
   const { t } = useTranslation("employer")
   const needs = useNeeds()
+  const [expanded, setExpanded] = useState(false)
   if (needs.isError)
     return (
       <LoadError
@@ -35,12 +37,29 @@ function NeedsBody() {
         }
       />
     )
+  const hidden = needs.data.length - SHOWN
+  const shown = expanded ? needs.data : needs.data.slice(0, SHOWN)
   return (
-    <ul className={styles.list}>
-      {needs.data.slice(0, SHOWN).map((need, index) => (
-        <NeedRow key={need.id} need={need} index={index} />
-      ))}
-    </ul>
+    <>
+      <ul className={styles.list}>
+        {shown.map((need, index) => (
+          <NeedRow key={need.id} need={need} index={index % SHOWN} />
+        ))}
+      </ul>
+      {hidden > 0 ? (
+        <Button
+          variant="ghost"
+          size="compact"
+          icon={expanded ? "chevron-up" : "chevron-down"}
+          className={styles.toggle}
+          onClick={() => setExpanded(!expanded)}
+        >
+          {expanded
+            ? t("overview.needs.showLess")
+            : t("overview.needs.showMore", { count: hidden })}
+        </Button>
+      ) : null}
+    </>
   )
 }
 

@@ -29,3 +29,7 @@
     background-color: var(--surface-tint);
   }
 }
+
+.budget {
+  margin-block-end: var(--space-16);
+}

@@ -6,3 +6,13 @@
   font-size: var(--font-size-body-sm);
   font-weight: var(--weight-semibold);
 }
+
+.countBadge {
+  composes: captionText from "./compose.module.css";
+  min-inline-size: var(--icon-md);
+  padding-inline: var(--space-4);
+  border-radius: var(--radius-badge);
+  color: var(--text-on-action);
+  font-family: var(--font-mono);
+  text-align: center;
+}

@@ -73,7 +73,9 @@
     "vacancy_test_not_found": "No vacancy test is attached to the invitation.",
     "vacancy_test_specialization_mismatch": "A vacancy test can be attached only when the candidate's specialization matches.",
     "vacancy_test_closed": "The invitation was declined or expired, the test is no longer available.",
-    "vacancy_test_taken": "The test for this vacancy is already completed."
+    "vacancy_test_taken": "The test for this vacancy is already completed.",
+    "company_website_required": "Add the company website: the address on its domain is confirmed.",
+    "domain_email_mismatch": "The address must be on the company website domain."
   },
   "fsp": {
     "fsp_id_unavailable": "FSP ID is unavailable right now. Try later or sign in with email.",

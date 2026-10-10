@@ -505,3 +505,16 @@ class VacancyTestClosed(DomainError):
 class VacancyTestTaken(DomainError):
     code = "vacancy_test_taken"
     message = "Тест по этой вакансии уже пройден"
+
+
+# Метка доверия компании.
+
+
+class CompanyWebsiteRequired(DomainError):
+    code = "company_website_required"
+    message = "Укажите сайт компании: подтверждается адрес на его домене"
+
+
+class DomainEmailMismatch(DomainError):
+    code = "domain_email_mismatch"
+    message = "Адрес должен быть на домене сайта компании"

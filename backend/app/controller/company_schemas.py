@@ -6,6 +6,7 @@ from typing import Annotated
 from pydantic import BaseModel, EmailStr, Field, HttpUrl, StringConstraints, field_validator
 
 from app.controller.schemas import CatalogRef
+from app.domain.locale import DEFAULT_LOCALE, Locale
 
 
 def _text(min_length: int, max_length: int) -> StringConstraints:
@@ -56,3 +57,22 @@ class CompanyOut(BaseModel):
     contact_email: str
     contact_phone: str | None
     updated_at: datetime
+    verified_domain: str | None = Field(
+        description="Домен, подтверждённый письмом на адрес этого домена; `null` — не подтверждали"
+    )
+    domain_verified: bool = Field(
+        description="Метка доверия: подтверждённый домен совпадает с доменом сайта компании"
+    )
+
+
+class DomainCheckIn(BaseModel):
+    email: str = Field(
+        min_length=3,
+        max_length=320,
+        description="Адрес на домене сайта компании, например hr@acme.ru",
+    )
+    locale: Locale = Field(default=DEFAULT_LOCALE, description="Язык письма")
+
+
+class DomainConfirmIn(BaseModel):
+    token: str = Field(min_length=1, max_length=200, description="Токен из письма")

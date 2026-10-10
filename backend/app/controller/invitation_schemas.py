@@ -49,6 +49,9 @@ class InvitationOut(SalaryBasisOut):
         description="Когда кандидат отозвал доступ: карточка снова обезличена, переписка идёт"
     )
     unread_messages: int = Field(description="Непрочитанные сообщения другой стороны")
+    company_domain_verified: bool = Field(
+        description="Метка доверия: компания подтвердила домен своего сайта"
+    )
     vacancy_test: VacancyTestOut | None = Field(
         description="Приложенный тест по вакансии; итог — только в ответах работодателю"
     )

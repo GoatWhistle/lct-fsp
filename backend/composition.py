@@ -337,7 +337,15 @@ def build_platform_usecases[U: UnitOfWork](
         )
 
     def companies(uow: U) -> Companies:
-        return Companies(uow, repositories.companies(uow), repositories.catalog(uow), clock)
+        return Companies(
+            uow,
+            repositories.companies(uow),
+            repositories.catalog(uow),
+            clock,
+            mailer,
+            mail_templates,
+            links,
+        )
 
     def needs(uow: U) -> Needs:
         return Needs(

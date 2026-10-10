@@ -85,7 +85,7 @@ export function Menu({
         onKeyDown={onTriggerKey}
         onPointerDown={() => setViaKeyboard(false)}
       >
-        {iconOnly ? null : (label ?? null)}
+        {iconOnly ? null : <span className={styles.triggerLabel}>{label ?? null}</span>}
       </Button>
       <Popover
         open={open}

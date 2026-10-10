@@ -21,6 +21,8 @@ trace_re='task-guide-prompt|[Сс]кил(ы|а|ов|ам|ами|ах|у|ом|е|
 agent_re='claude[- ]?code|claude\.md|codex|copilot|cursor[- ]?(ai|agent)|co-authored-by'
 # Адаптеры внешних API для демо на защите в сдачу не идут: в репо — только локальная модель.
 demo_dir='backend/app/adapter/demo/'
+# Разбор конкурентов — для команды, жюри его не видит.
+competitors_doc='docs/competitors.md'
 
 [[ ! -e $out ]] || { echo "уже существует: $out" >&2; exit 1; }
 
@@ -94,7 +96,7 @@ RULES
 
 echo "== переписываю историю"
 uvx git-filter-repo --force --quiet --invert-paths --replace-text "$replace" \
-  --path .claude/ --path CLAUDE.md --path AGENTS.md --path .agents/ --path "$demo_dir" \
+  --path .claude/ --path CLAUDE.md --path AGENTS.md --path .agents/ --path "$demo_dir" --path "$competitors_doc" \
   --path-glob '*PROMPT-*.md' --path-glob '*TASK-*.md' \
   --message-callback "$callback"
 

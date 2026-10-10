@@ -32,19 +32,9 @@
       "tasks": "Regular tasks",
       "action": "Fill in the profile"
     },
-    "metrics": {
-      "label": "Key figures",
-      "applications": "New applications",
-      "messages": "New messages",
-      "toInvitations": "Go to invitations",
-      "toApplications": "Go to applications",
-      "toMessages": "Go to conversations"
-    },
     "needs": {
       "title": "Needs",
       "all": "All needs",
-      "exact": "in category",
-      "nearby": "close",
       "noSelection": "No shortlist built yet",
       "built": "Shortlist of {{date}}",
       "open": "Open shortlist",
@@ -54,7 +44,17 @@
       "more": "{{count}} more",
       "emptyTitle": "Describe who you are looking for",
       "emptyText": "A need sets the category, the stack and topic importance. The shortlist is built from it and explains every place.",
-      "create": "Create a need"
+      "create": "Create a need",
+      "counts": "{{exact}} in category, {{nearby}} nearby",
+      "showMore": "Show {{count}} more",
+      "showLess": "Show less",
+      "trace": {
+        "label": "Need progress",
+        "described": "Described",
+        "selection": "Selection",
+        "invite": "Invitations",
+        "inviteHint": "Pick candidates from the selection"
+      }
     },
     "activity": {
       "title": "Activity",
@@ -76,9 +76,9 @@
       "emptyTitle": "Nothing urgent",
       "emptyText": "Applications are handled, conversations are read, task answers are graded."
     },
-    "jury": {
-      "title": "Your own vacancy",
-      "lead": "Paste a vacancy text: the system will parse it into need fields and show what it understood confidently and what not."
+    "hero": {
+      "title": "Describe who you are looking for",
+      "lead": "Paste a job post or write a few lines. We turn it into a draft with specialization, grade, stack and salary range, then build a selection from it."
     }
   },
   "invitations": {

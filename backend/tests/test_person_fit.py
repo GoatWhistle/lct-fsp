@@ -52,7 +52,7 @@ def test_low_person_fit_is_a_suspicion_reason() -> None:
 
 
 # Порог −4: помечается любая попытка с l_z не выше 4 — проверяется проводка правила, а не порог.
-ALWAYS = MECHANICS.model_copy(update={"person_fit_lz": -4.0})
+ALWAYS = MECHANICS.model_copy(update={"person_fit_lz": -4.0, "person_fit_enabled": True})
 
 
 def test_raising_attempt_with_low_person_fit_goes_to_verification() -> None:
@@ -94,3 +94,15 @@ def test_person_fit_never_reaches_the_api() -> None:
     assert "person_fit" not in schema
     assert "l_z" not in schema
     assert "misfit" not in schema
+
+
+def test_unvalidated_person_fit_does_not_withhold_category() -> None:
+    mechanics = ALWAYS.model_copy(update={"person_fit_enabled": False})
+    bench = Bench(mechanics=mechanics)
+    user = bench.enrol()
+    bench.paths.start_attempt(user, grade="junior")
+    view = bench.answer(user, lambda f: True)
+    attempt = bench.path_attempt(user)
+    assert attempt.person_fit is not None and attempt.person_fit <= 4
+    assert attempt.outcome == AttemptOutcome.assigned
+    assert view.category is not None

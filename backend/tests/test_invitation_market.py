@@ -104,3 +104,31 @@ def test_gini_and_metrics() -> None:
     assert 0 < m.accepted_share < 1
     assert m.true_match == 0.5
     assert 0 < m.gini < 1
+
+
+def test_answer_load_includes_the_invitation_being_answered() -> None:
+    loads: list[int] = []
+
+    def record(opening: Opening, candidate: uuid.UUID, score: float, load: int) -> float:
+        loads.append(load)
+        return 0.5
+
+    simulate(
+        "A",
+        [Opening(NEEDS[0][0], EMPLOYERS[0], 1)],
+        ranked,
+        record,
+        weeks=1,
+        ttl_days=7,
+        response_mean_days=0.1,
+        rng=random.Random(7),
+    )
+    assert loads == [1]
+
+
+def test_more_needs_than_budget_cannot_overspend() -> None:
+    openings = budgets(NEEDS, Counter(e for _, e in NEEDS), 1)
+    assigned = Counter()
+    for opening in openings:
+        assigned[opening.employer] += opening.budget
+    assert all(value <= 1 for value in assigned.values())

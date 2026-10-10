@@ -47,7 +47,9 @@ test("candidate sees the mark in the invitation", async ({ page, context }) => {
   await signIn(page, CANDIDATE)
   await page.goto("/candidate/invitations")
   await page.locator("main a[href*='/candidate/invitations/']").first().click()
-  await expect(page.getByRole("article").getByText("Domain confirmed", { exact: true })).toBeVisible()
+  await expect(
+    page.getByRole("article").getByText("Domain confirmed", { exact: true }),
+  ).toBeVisible()
   await settle(page)
   await page.screenshot({ path: "e2e/screenshots/issue-38-invitation.png", fullPage: true })
 })

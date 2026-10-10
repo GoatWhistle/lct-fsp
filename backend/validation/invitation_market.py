@@ -90,12 +90,10 @@ def budgets(
     weekly: int,
 ) -> list[Opening]:
     """Бюджет недели компании делится поровну между всеми её потребностями набора; здесь —
-    потребности одной специализации `needs` (потребность, компания). Округление вниз, но не
-    меньше одного приглашения: бюджет компании не превышается, пока у неё не больше `weekly`
-    потребностей."""
-    return [
-        Opening(need, employer, max(1, weekly // total_needs[employer])) for need, employer in needs
-    ]
+    потребности одной специализации `needs` (потребность, компания). Округление вниз: если
+    потребностей больше бюджета,
+    квота каждой равна нулю, бюджет компании не превышается."""
+    return [Opening(need, employer, weekly // total_needs[employer]) for need, employer in needs]
 
 
 def simulate(
@@ -178,7 +176,7 @@ def _answer_until(
         load = sum(
             1
             for other in sent
-            if other.candidate == s.candidate and other.open_at(s.answer_at, ttl)
+            if other.candidate == s.candidate and (other is s or other.open_at(s.answer_at, ttl))
         )
         p = decide(by_need[s.need], s.candidate, s.match_score, load)
         if rng.random() < p:

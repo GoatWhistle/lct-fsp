@@ -1,11 +1,11 @@
 import { Navigate } from "react-router"
 import { usePath } from "@/entities/candidate-path"
-import { useFspStatus } from "@/entities/profile"
 import {
   CategoryPanel,
   FeedbackButton,
   HistoryPanel,
   InvitationsPanel,
+  NextSteps,
   ProfilePanel,
   SkillPanel,
 } from "@/features/candidate-overview"
@@ -52,7 +52,6 @@ function TopicBlockBanner({ path }: { readonly path: CandidatePath }) {
 export function CandidateOverviewPage() {
   const { t } = useTranslation("overview")
   const path = usePath()
-  const fsp = useFspStatus()
   useDocumentTitle(t("title"))
   const data = path.data
   if (data !== undefined && data.category === null) return <Navigate to="/candidate/path" replace />
@@ -73,14 +72,15 @@ export function CandidateOverviewPage() {
           <div className={styles.grid}>
             <TopicBlockBanner path={data} />
             <CategoryPanel path={data} motionIndex={0} className={styles.wide} />
-            <div className={styles.column}>
-              {level === null ? null : (
-                <SkillPanel profile={level} fspLinked={fsp.data?.linked ?? null} motionIndex={1} />
-              )}
-            </div>
-            <div className={styles.column}>
+            <div className={styles.top}>
+              <NextSteps motionIndex={1} />
               <VerificationCard path={data} />
-              <InvitationsPanel motionIndex={3} />
+              <InvitationsPanel motionIndex={2} />
+            </div>
+            {level === null ? null : (
+              <SkillPanel profile={level} motionIndex={3} className={styles.skills} />
+            )}
+            <div className={styles.bottom}>
               {data.history.length === 0 ? null : (
                 <HistoryPanel history={data.history} motionIndex={4} />
               )}

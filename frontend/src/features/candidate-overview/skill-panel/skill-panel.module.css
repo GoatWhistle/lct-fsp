@@ -1,40 +1,27 @@
-.fsp {
-  composes: tintBlock from "../../../shared/styles/blocks.module.css";
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-4) var(--space-12);
-}
-
 .list {
   display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(8rem, 1fr) auto auto;
+  column-gap: var(--space-20);
 }
 
 .row {
   composes: ruledRow from "../../../shared/styles/compose.module.css";
   display: grid;
-  grid-template-columns: minmax(9rem, 13rem) minmax(0, 1fr);
-  grid-template-areas:
-    "head ruler"
-    ". more";
+  grid-template-columns: subgrid;
+  grid-column: 1 / -1;
   align-items: center;
-  gap: var(--space-4) var(--space-24);
-  padding-block: var(--space-16);
+  row-gap: var(--space-8);
+  padding-block: var(--space-12);
 }
 
 .row:last-child {
   padding-block-end: 0;
 }
 
-.row > figure {
-  grid-area: ruler;
-}
-
 .rowHead {
   display: grid;
-  grid-area: head;
   justify-items: start;
-  gap: var(--space-8);
+  gap: var(--space-4);
 }
 
 .name {
@@ -43,49 +30,40 @@
   line-height: var(--line-height-body);
 }
 
-.sources {
+.meta {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: var(--space-8);
+  gap: var(--space-4) var(--space-8);
+}
+
+.sources {
+  display: flex;
+  gap: var(--space-4);
 }
 
 .widest {
   composes: labelText from "../../../shared/styles/compose.module.css";
 }
 
-.more {
-  grid-area: more;
-  justify-self: start;
-}
-
 @media (max-width: 47.99rem) {
-  .row {
-    grid-template-columns: minmax(0, 1fr);
-    grid-template-areas:
-      "head"
-      "ruler"
-      "more";
+  .list {
+    grid-template-columns: minmax(0, 1fr) auto;
   }
-}
 
-.refine {
-  composes: labelText from "../../../shared/styles/compose.module.css";
-  color: var(--text-secondary);
-}
+  .row > figure {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
 
-.block {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-12);
-  padding-block-start: var(--space-8);
-}
+  .sources:empty {
+    display: none;
+  }
 
-.blockText {
-  composes: prose from "../../../shared/styles/layout.module.css";
-  flex: 1 1 var(--column-min);
+  .sources {
+    grid-column: 1;
+    grid-row: 3;
+  }
 }
 
 .band {

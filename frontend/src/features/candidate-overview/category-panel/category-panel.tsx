@@ -18,29 +18,25 @@ export function CategoryPanel({ path, motionIndex, className }: CategoryPanelPro
   const level = path.profile?.overall ?? path.result?.overall ?? null
   if (path.category === null) return null
   return (
-    <Card
-      title={t("category.title")}
-      actions={<StepDownMenu path={path} />}
-      motionIndex={motionIndex}
-      className={className}
-    >
-      <div className={styles.hero}>
-        <div className={styles.summary}>
-          <div className={styles.head}>
-            <CategoryBadges category={path.category} size="large" />
-            <div className={styles.status}>
-              <StatusBadge tone="positive" icon="verification">
-                {t("category.confirmed")}
-              </StatusBadge>
-              <IconLabel icon="calendar" tone="secondary" className={styles.since}>
-                {t("category.since", { date: format.date(path.category.assigned_at) })}
-              </IconLabel>
-            </div>
+    <Card motionIndex={motionIndex} className={className} aria-label={t("category.title")}>
+      <div className={styles.bar}>
+        <div className={styles.identity}>
+          <CategoryBadges category={path.category} size="large" />
+          <div className={styles.status}>
+            <StatusBadge tone="positive" icon="verification">
+              {t("category.confirmed")}
+            </StatusBadge>
+            <IconLabel icon="calendar" tone="secondary" className={styles.since}>
+              {t("category.since", { date: format.date(path.category.assigned_at) })}
+            </IconLabel>
+            {path.category.verified_at ? <TrustBadge source="verification" /> : null}
           </div>
-          {level === null ? null : <GradeRuler level={level} />}
-          {path.category.verified_at ? <TrustBadge source="verification" /> : null}
         </div>
-        <GradeUp path={path} />
+        <div className={styles.level}>{level === null ? null : <GradeRuler level={level} />}</div>
+        <div className={styles.actions}>
+          <GradeUp path={path} />
+          <StepDownMenu path={path} />
+        </div>
       </div>
     </Card>
   )

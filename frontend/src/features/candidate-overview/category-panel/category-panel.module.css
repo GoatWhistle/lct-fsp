@@ -1,5 +1,14 @@
-.head {
+.bar {
   display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-areas: "identity level actions";
+  align-items: center;
+  gap: var(--space-16) var(--space-32);
+}
+
+.identity {
+  display: grid;
+  grid-area: identity;
   gap: var(--space-12);
 }
 
@@ -15,22 +24,28 @@
   font-variant-numeric: var(--font-numeric);
 }
 
-.hero {
-  display: grid;
-  grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
-  gap: var(--space-32);
-  align-items: start;
-}
-
-.summary {
-  display: grid;
-  gap: var(--space-16);
+.level {
+  grid-area: level;
   min-inline-size: 0;
 }
 
+.actions {
+  display: flex;
+  grid-area: actions;
+  align-items: start;
+  gap: var(--space-4);
+}
+
 @media (max-width: 63.99rem) {
-  .hero {
-    grid-template-columns: minmax(0, 1fr);
-    gap: var(--space-16);
+  .bar {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      "identity identity"
+      "level level"
+      "actions actions";
+  }
+
+  .actions {
+    justify-content: space-between;
   }
 }

@@ -84,3 +84,7 @@
 .purpose {
   composes: secondaryText from "../../../shared/styles/compose.module.css";
 }
+
+.toggle {
+  justify-self: start;
+}

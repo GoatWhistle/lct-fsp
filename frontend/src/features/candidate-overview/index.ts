@@ -4,5 +4,6 @@ export { CategoryPanel, type CategoryPanelProps } from "./category-panel/categor
 export { FeedbackButton } from "./feedback-panel/feedback-button"
 export { HistoryPanel, type HistoryPanelProps } from "./history-panel/history-panel"
 export { InvitationsPanel, type InvitationsPanelProps } from "./invitations-panel/invitations-panel"
+export { NextSteps, type NextStepsProps } from "./next-steps/next-steps"
 export { ProfilePanel, type ProfilePanelProps } from "./profile-panel/profile-panel"
 export { SkillPanel, type SkillPanelProps } from "./skill-panel/skill-panel"

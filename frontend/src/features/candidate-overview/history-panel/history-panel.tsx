@@ -1,8 +1,9 @@
+import { useState } from "react"
 import { GradeRuler } from "@/entities/measure"
 import type { HistoryEntry } from "@/shared/api"
 import { useCatalogNames, useFormatters, useTranslation } from "@/shared/i18n"
 import { staggerStyle } from "@/shared/motion"
-import { Card, Icon, IconLabel, type IconName } from "@/shared/ui"
+import { Button, Card, Icon, IconLabel, type IconName } from "@/shared/ui"
 import styles from "./history-panel.module.css"
 
 export interface HistoryPanelProps {
@@ -10,6 +11,8 @@ export interface HistoryPanelProps {
   readonly motionIndex?: number
   readonly className?: string | undefined
 }
+
+const SHOWN = 3
 
 type Outcome =
   | "stepDown"
@@ -88,14 +91,28 @@ function Entry({ entry, index }: { readonly entry: HistoryEntry; readonly index:
 
 export function HistoryPanel({ history, motionIndex, className }: HistoryPanelProps) {
   const { t } = useTranslation("overview")
+  const [expanded, setExpanded] = useState(false)
   const entries = [...history].reverse()
+  const hidden = entries.length - SHOWN
+  const shown = expanded ? entries : entries.slice(0, SHOWN)
   return (
     <Card title={t("history.title")} motionIndex={motionIndex} className={className}>
       <ol className={styles.timeline} aria-label={t("history.title")}>
-        {entries.map((entry, index) => (
-          <Entry key={`${entry.at}-${entry.event}`} entry={entry} index={index} />
+        {shown.map((entry, index) => (
+          <Entry key={`${entry.at}-${entry.event}`} entry={entry} index={index % SHOWN} />
         ))}
       </ol>
+      {hidden > 0 ? (
+        <Button
+          variant="ghost"
+          size="compact"
+          icon={expanded ? "chevron-up" : "chevron-down"}
+          className={styles.toggle}
+          onClick={() => setExpanded(!expanded)}
+        >
+          {expanded ? t("history.showLess") : t("history.showMore", { count: hidden })}
+        </Button>
+      ) : null}
     </Card>
   )
 }

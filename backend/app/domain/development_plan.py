@@ -105,7 +105,7 @@ def read_plan(raw: str, hints: Sequence[Hint]) -> DevelopmentPlan | None:
 def fingerprint(hints: Sequence[Hint], levels: dict[str, tuple[float, float]]) -> str:
     """Ключ кэша: уровни профиля навыков и подсказки. Профиль изменился — ключ другой."""
     data = {
-        "levels": {k: [round(a, 3), round(b, 3)] for k, (a, b) in sorted(levels.items())},
+        "levels": {k: [a, b] for k, (a, b) in sorted(levels.items())},
         "hints": [(h.topic.code, h.action.kind.value) for h in usable(hints) if h.topic],
     }
     return hashlib.sha256(json.dumps(data, sort_keys=True).encode()).hexdigest()

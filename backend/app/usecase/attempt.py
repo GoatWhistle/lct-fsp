@@ -896,7 +896,9 @@ class CandidatePath:
         rule = SuspicionRule(
             time_flags=self._mechanics.rt_flags_for_verification,
             focus_events=self._mechanics.focus_events_for_verification,
-            person_fit=self._mechanics.person_fit_lz,
+            person_fit=(
+                self._mechanics.person_fit_lz if self._mechanics.person_fit_enabled else None
+            ),
         )
         return bool(suspicion(signals, rule))
 

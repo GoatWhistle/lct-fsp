@@ -8,6 +8,7 @@
 и старт контейнера, и командная строка (`python -c 'import main; main.sync_catalog()'`).
 """
 
+import uuid
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager, closing
 from datetime import timedelta
@@ -58,6 +59,7 @@ from app.controller.vacancy import candidate_router as candidate_vacancies_route
 from app.controller.vacancy import employer_router as employer_vacancies_router
 from app.controller.vacancy_test import candidate_router as vacancy_test_inbox_router
 from app.controller.vacancy_test import employer_router as vacancy_test_router
+from app.domain.development_plan import DevelopmentPlan
 from app.repository.account import SqlAccounts, SqlEmailVerifications
 from app.repository.attempt import SqlAttemptRepository
 from app.repository.calibration import SqlCalibrationRepository
@@ -75,6 +77,7 @@ from app.repository.unit_of_work import SqlUnitOfWork
 from app.repository.vacancy import SqlApplications, SqlVacancies
 from app.repository.vacancy_test import SqlVacancyTests
 from app.usecase.account import VerificationLinks
+from app.usecase.development_plan import DevelopmentPlans
 from app.usecase.interface import (
     AcceptanceModel,
     CandidateRepository,
@@ -131,6 +134,18 @@ def text_understanding(settings: Settings) -> TextUnderstanding:
         case name:
             complete = named_completion(name, timeout)
     return model_understanding(complete, synonyms, timeout=timeout)
+
+
+def plan_completion(settings: Settings) -> Completion | None:
+    """Модель плана развития — та же, что у разбора текста; `rules` — модели нет, плана нет."""
+    timeout = settings.text_understanding_timeout_seconds
+    match settings.text_understanding:
+        case "rules":
+            return None
+        case "llama":
+            return LlamaCompletion(settings.llama_url, settings.llama_model, timeout)
+        case name:
+            return named_completion(name, timeout)
 
 
 def create_app(
@@ -304,6 +319,14 @@ def create_app(
     app.state.invitations = platform.invitations
     app.state.conversations = platform.conversations
     app.state.feedback = platform.feedback
+    plans_cache: dict[tuple[uuid.UUID, str], DevelopmentPlan | None] = {}
+    plan_model = plan_completion(settings)
+    app.state.development_plans = lambda uow: DevelopmentPlans(
+        platform.feedback(uow),
+        plan_model,
+        timeout=settings.text_understanding_timeout_seconds,
+        cache=plans_cache,
+    )
     app.state.resume_drafts = platform.resume_drafts
     app.state.vacancies = platform.vacancies
     app.state.vacancy_tests = platform.vacancy_tests

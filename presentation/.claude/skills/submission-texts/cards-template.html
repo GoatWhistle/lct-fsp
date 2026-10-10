@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<title>{{PRODUCT}} cards</title>
+<link rel="stylesheet" href="../../src/core/css/tokens.css">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: var(--surface-sunken); font-family: var(--font-sans); color: var(--text-primary); }
+.card { position: relative; width: 1080px; height: 1350px; margin: 40px auto; padding: 88px; overflow: hidden; display: grid; grid-template-rows: auto 1fr auto; background: var(--surface-base); color: var(--text-primary); }
+.brand { font-family: var(--font-mono); font-size: 28px; font-weight: 600; color: var(--action-primary); }
+.body { display: grid; align-content: center; gap: 56px; }
+h2 { font-size: 76px; line-height: 1.04; letter-spacing: -0.03em; font-weight: 700; text-wrap: balance; }
+h2 em { font-style: normal; color: var(--action-primary); }
+p { font-size: 36px; line-height: 1.35; color: var(--text-secondary); text-wrap: pretty; }
+.figure { font-family: var(--font-mono); font-size: 180px; font-weight: 700; letter-spacing: -0.05em; line-height: 1; color: var(--action-primary); }
+.compare { display: grid; gap: 28px; }
+.row { display: grid; grid-template-columns: 260px 1fr 140px; align-items: center; gap: 24px; font-size: 32px; }
+.track { height: 40px; border-radius: var(--radius-sm); background: var(--surface-raised); overflow: hidden; }
+.fill { display: block; height: 100%; background: var(--border-strong); }
+.row.ours .fill { background: var(--action-primary); }
+.row b { font-family: var(--font-mono); text-align: right; }
+.foot { display: flex; justify-content: space-between; gap: 24px; font-family: var(--font-mono); font-size: 24px; color: var(--text-muted); }
+</style>
+</head>
+<body>
+
+<section class="card" data-name="1-claim" data-theme="dark">
+  <div class="brand">{{PRODUCT}}</div>
+  <div class="body">
+    <h2>{{The failure in one line}}, <em>{{and why it slips through}}</em></h2>
+    <p>{{One sentence of context a stranger needs}}</p>
+  </div>
+  <div class="foot"><span>{{DOMAIN}}</span><span>1 / 5</span></div>
+</section>
+
+<section class="card" data-name="2-number">
+  <div class="brand">{{PRODUCT}}</div>
+  <div class="body">
+    <div class="figure">{{N}}</div>
+    <h2>{{What the number means}}, <em>{{measured on what}}</em></h2>
+  </div>
+  <div class="foot"><span>{{Source: report, sample size, date}}</span><span>2 / 5</span></div>
+</section>
+
+<section class="card" data-name="3-compare">
+  <div class="brand">{{PRODUCT}}</div>
+  <div class="body">
+    <h2>{{Baseline versus ours}}, <em>{{and the cost beside it}}</em></h2>
+    <div class="compare">
+      <div class="row"><span>{{Baseline}}</span><span class="track"><i class="fill" style="width: 50%"></i></span><b>{{N}}</b></div>
+      <div class="row ours"><span>{{PRODUCT}}</span><span class="track"><i class="fill" style="width: 50%"></i></span><b>{{N}}</b></div>
+    </div>
+    <p>{{The limit or cost, stated as plainly as the win}}</p>
+  </div>
+  <div class="foot"><span>{{Source: report, sample size, date}}</span><span>3 / 5</span></div>
+</section>
+
+</body>
+</html>

@@ -1,0 +1,48 @@
+#cover .cover-trace {
+  position: absolute;
+  left: 0;
+  top: 700px;
+  width: 1920px;
+  height: 120px;
+  overflow: visible;
+}
+
+#cover .cover-lockup {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 340px;
+  --mark-size: 230px;
+  --word-size: 210px;
+  --word-d: 0.6s;
+  --node-d: 1.15s;
+}
+
+#cover .cover-promise {
+  position: absolute;
+  left: var(--gutter);
+  right: var(--gutter);
+  top: 640px;
+  text-align: center;
+  font-size: var(--fs-lead);
+  line-height: var(--lh-snug);
+  color: var(--deck-fg-2);
+}
+
+#cover .cover-team {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 800px;
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  font-size: var(--fs-body);
+  color: var(--deck-fg-2);
+}
+
+#cover .cover-team b {
+  font-family: var(--font-mono);
+  font-weight: var(--weight-strong);
+  color: var(--deck-fg);
+}

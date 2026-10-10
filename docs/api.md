@@ -166,6 +166,7 @@ uv run python -c "import json, main; json.dump(main.create_app().openapi(), open
 ## Статусы приглашений и откликов
 
 ```mermaid
+%%{init: {"theme":"base","themeVariables":{"primaryColor":"#ffffff","primaryTextColor":"#1b1c21","primaryBorderColor":"#402fff","secondaryColor":"#f5f5f8","tertiaryColor":"#f5f5f8","lineColor":"#66676d","textColor":"#1b1c21","noteBkgColor":"#f5f5f8","noteTextColor":"#55565c","actorBkg":"#ffffff","actorBorder":"#402fff","fontFamily":"Onest Variable"}}}%%
 stateDiagram-v2
     state "отправлено" as sent
     state "просмотрено" as viewed

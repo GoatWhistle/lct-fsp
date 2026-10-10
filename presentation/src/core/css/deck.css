@@ -1,0 +1,219 @@
+:root {
+  --stage-w: 1920px;
+  --stage-h: 1080px;
+  --gutter: 120px;
+  --title-top: 140px;
+  --facts-top: 900px;
+  color-scheme: light dark;
+  print-color-adjust: exact;
+  -webkit-print-color-adjust: exact;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  background: var(--surface-inverse);
+}
+
+.viewport {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+}
+
+.stage {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: var(--stage-w);
+  height: var(--stage-h);
+  transform: translate(-50%, -50%);
+  transform-origin: center;
+  overflow: hidden;
+  background: var(--surface-base);
+  isolation: isolate;
+}
+
+.slide {
+  --font-sans: var(--font-ui);
+  --radius-sm: var(--radius-button);
+  --radius-md: var(--radius-inner);
+  --radius-lg: var(--radius-card);
+  --radius-pill: var(--radius-badge);
+  --deck-bg: var(--surface-canvas);
+  --deck-raised: var(--surface-card);
+  --deck-sunken: var(--surface-skeleton);
+  --deck-fg: var(--text-primary);
+  --deck-fg-2: var(--text-secondary);
+  --deck-fg-3: var(--text-tertiary);
+  --deck-line: var(--border-hairline);
+  --deck-line-strong: var(--border-strong);
+  --deck-accent: var(--text-accent);
+  --deck-on-accent: var(--text-on-action);
+  --deck-tint: var(--surface-tint);
+  --deck-band: var(--data-band);
+  --deck-track: var(--data-track);
+  --deck-threshold: var(--data-threshold);
+  --deck-fsp: var(--data-fsp);
+  --deck-success: var(--text-accent);
+  --deck-warning: var(--text-accent);
+  --deck-danger: var(--text-danger);
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  background: var(--deck-bg);
+  color: var(--deck-fg);
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    opacity var(--dur-slow) var(--ease-out),
+    visibility 0s linear var(--dur-slow);
+}
+
+.slide[data-surface="inverse"] {
+  --deck-bg: var(--surface-inverse);
+  --deck-raised: var(--surface-card);
+}
+
+.slide[data-surface="brand"] {
+  --brand-mark-blue: var(--text-on-brand);
+  --deck-fg-3: var(--text-secondary);
+  --deck-bg: var(--surface-brand);
+  --deck-raised: color-mix(in oklab, var(--surface-brand), var(--text-on-brand) 12%);
+  --deck-line: var(--border-hairline);
+  --deck-line-strong: color-mix(in oklab, var(--text-on-brand) 34%, transparent);
+  --deck-track: color-mix(in oklab, var(--text-on-brand) 16%, transparent);
+  --deck-band: color-mix(in oklab, var(--text-on-brand) 30%, transparent);
+  --deck-threshold: color-mix(in oklab, var(--text-on-brand) 45%, transparent);
+  --deck-tint: color-mix(in oklab, var(--surface-brand), var(--text-on-brand) 12%);
+}
+
+.slide.is-current {
+  z-index: 1;
+  opacity: 1;
+  visibility: visible;
+  transition:
+    opacity var(--dur-slow) var(--ease-out),
+    visibility 0s;
+}
+
+.slide-chrome {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  pointer-events: none;
+}
+
+.chrome-brand {
+  position: absolute;
+  left: var(--gutter);
+  top: 56px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-family: var(--font-sans);
+  font-size: var(--fs-micro);
+  font-weight: var(--weight-strong);
+  color: var(--deck-fg-2);
+}
+
+.chrome-brand .mark {
+  width: 30px;
+}
+
+.chrome-word {
+  font-family: var(--font-mono);
+  font-size: 24px;
+  font-weight: var(--weight-strong);
+  letter-spacing: -0.04em;
+  color: var(--deck-fg);
+}
+
+.chrome-i {
+  position: relative;
+  display: inline-block;
+}
+
+.chrome-i i {
+  position: absolute;
+  left: 50%;
+  top: 0.12em;
+  width: 0.24em;
+  height: 0.24em;
+  margin-left: -0.12em;
+  border-radius: var(--radius-round);
+  background: var(--brand-mark-blue);
+}
+
+.chrome-num {
+  position: absolute;
+  right: 64px;
+  bottom: 44px;
+  font-family: var(--font-mono);
+  font-size: var(--fs-micro);
+  font-variant-numeric: tabular-nums;
+  color: var(--deck-fg-3);
+}
+
+.blackout {
+  position: absolute;
+  inset: 0;
+  z-index: 30;
+  background: black;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--dur-slow) var(--ease-out);
+}
+
+.blackout.open {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+@page {
+  size: 1920px 1080px;
+  margin: 0;
+}
+
+.is-print,
+.is-print body {
+  height: auto;
+  overflow: visible;
+  background: none;
+}
+
+.is-print .viewport {
+  position: static;
+  overflow: visible;
+}
+
+.is-print .stage {
+  position: static;
+  width: auto;
+  height: auto;
+  transform: none;
+  overflow: visible;
+  background: none;
+}
+
+.is-print .slide {
+  position: relative;
+  width: var(--stage-w);
+  height: var(--stage-h);
+  opacity: 1;
+  visibility: visible;
+  transition: none;
+  break-after: page;
+}
+
+.is-print .blackout {
+  display: none;
+}

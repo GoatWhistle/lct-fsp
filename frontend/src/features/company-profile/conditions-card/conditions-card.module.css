@@ -1,0 +1,8 @@
+.fields {
+  display: grid;
+  gap: var(--space-20);
+}
+
+.mark {
+  composes: markGlyph from "../../../shared/styles/blocks.module.css";
+}

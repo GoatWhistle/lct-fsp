@@ -1,5 +1,6 @@
 import { useId, useState } from "react"
 import { useGrades, useSpecializations } from "@/entities/catalog"
+import { COMPANY_DIALOG_LINK } from "@/entities/company"
 import { useSaveTask } from "@/entities/task"
 import type { RegularTask, TaskKind } from "@/shared/api"
 import { errorCodeOf, useCatalogNames, useErrorText, useTranslation } from "@/shared/i18n"
@@ -153,7 +154,7 @@ export function TaskDrawer({ open, task, onClose }: TaskDrawerProps) {
             title={errorText(save.error)}
             action={
               needsCompany ? (
-                <ButtonLink to="/employer/company" size="compact" icon="company">
+                <ButtonLink to={COMPANY_DIALOG_LINK} size="compact" icon="company">
                   {t("toCompany")}
                 </ButtonLink>
               ) : undefined

@@ -3,3 +3,135 @@
   border-radius: var(--radius-button);
   background-color: var(--surface-tint);
 }
+
+.iconTile {
+  display: grid;
+  place-items: center;
+  border: var(--hairline) solid var(--border-hairline);
+  border-radius: var(--radius-button);
+}
+
+.logoMark {
+  composes: monoText from "./compose.module.css";
+  display: grid;
+  place-items: center;
+  flex: none;
+  aspect-ratio: 1;
+  overflow: hidden;
+  border-radius: var(--radius-inner);
+  background-color: var(--surface-brand);
+  color: var(--text-on-brand);
+}
+
+.logoImage {
+  inline-size: 100%;
+  block-size: 100%;
+  object-fit: cover;
+  background-color: var(--surface-card);
+}
+
+.fieldGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, var(--tile-min)), 1fr));
+  align-items: start;
+  gap: var(--space-20) var(--space-16);
+}
+
+.fieldGrid > * {
+  max-inline-size: none;
+}
+
+.markTile {
+  composes: iconTile;
+  inline-size: var(--control-height);
+  block-size: var(--control-height);
+  background-color: var(--surface-card);
+  color: var(--text-accent);
+}
+
+.markGlyph {
+  block-size: var(--icon-lg);
+}
+
+.previewCard {
+  composes: cardFrame from "./compose.module.css";
+  display: grid;
+  gap: var(--space-20);
+  padding: var(--space-24);
+  background-color: var(--surface-raised);
+  box-shadow: var(--shadow-float);
+}
+
+.sheetBody {
+  display: grid;
+  gap: var(--space-24);
+  padding-block-start: var(--space-8);
+}
+
+.sheetEditor {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, var(--panel-detail));
+  grid-template-areas:
+    "fields preview"
+    "footer footer";
+  align-items: start;
+  gap: var(--space-32) var(--space-40);
+}
+
+.sheetFields {
+  grid-area: fields;
+  display: grid;
+  gap: var(--space-32);
+  min-inline-size: 0;
+}
+
+.sheetPreview {
+  grid-area: preview;
+  position: sticky;
+  inset-block-start: 0;
+}
+
+.sheetFooter {
+  grid-area: footer;
+  position: sticky;
+  inset-block: auto 0;
+  display: grid;
+  gap: var(--space-12);
+  padding-block: var(--space-16) var(--space-4);
+  border-block-start: var(--hairline) solid var(--border-hairline);
+  background-color: var(--surface-card);
+}
+
+.sheetBar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-12) var(--space-24);
+}
+
+.sheetStatus {
+  composes: labelText from "./compose.module.css";
+  min-inline-size: 0;
+}
+
+.sheetActions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-12);
+}
+
+@media (max-width: 63.99rem) {
+  .sheetEditor {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      "fields"
+      "preview"
+      "footer";
+  }
+
+  .sheetPreview {
+    position: static;
+  }
+}

@@ -3,6 +3,21 @@
   gap: var(--space-20);
 }
 
-.pair {
-  composes: fieldPair from "../../../shared/styles/compose.module.css";
+.identity {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  gap: var(--space-24);
+}
+
+.names {
+  composes: fieldGrid from "../../../shared/styles/blocks.module.css";
+}
+
+.names > :first-child {
+  grid-column: 1 / -1;
+}
+
+.wide {
+  max-inline-size: none;
 }

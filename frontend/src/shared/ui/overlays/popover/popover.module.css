@@ -6,6 +6,7 @@
   z-index: var(--layer-popover);
   min-inline-size: var(--popover-min-width);
   max-block-size: var(--popover-max-height);
+  scrollbar-width: none;
   padding: var(--space-4);
   color: var(--text-primary);
   transform-origin: top left;
@@ -33,4 +34,8 @@
     opacity: 0;
     transform: translateY(var(--origin-shift)) scale(var(--enter-scale));
   }
+}
+
+.popover::-webkit-scrollbar {
+  display: none;
 }

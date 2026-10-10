@@ -3,12 +3,14 @@ import { usePath } from "@/entities/candidate-path"
 import { useFspStatus } from "@/entities/profile"
 import {
   CategoryPanel,
+  FeedbackButton,
   HistoryPanel,
   InvitationsPanel,
   ProfilePanel,
   SkillPanel,
 } from "@/features/candidate-overview"
 import { VerificationCard } from "@/features/test-verification"
+import type { CandidatePath } from "@/shared/api"
 import { useCatalogNames, useDocumentTitle, useTranslation } from "@/shared/i18n"
 import { Banner, ButtonLink, LoadError, PageBody, PageHeader, Skeleton } from "@/shared/ui"
 import styles from "./candidate-overview-page.module.css"
@@ -23,18 +25,41 @@ function OverviewSkeleton() {
   )
 }
 
+function TopicBlockBanner({ path }: { readonly path: CandidatePath }) {
+  const { t } = useTranslation("overview")
+  const names = useCatalogNames()
+  const block = path.topic_block
+  if (block === null) return null
+  return (
+    <Banner
+      tone="info"
+      icon="test"
+      title={t("block.open", {
+        topic: names.topic(block.topic),
+        answered: block.answered,
+        items: block.items,
+      })}
+      action={
+        <ButtonLink to="/candidate/test" size="compact" icon="arrow-right" iconPosition="end">
+          {t("block.continue")}
+        </ButtonLink>
+      }
+      className={styles.wide}
+    />
+  )
+}
+
 export function CandidateOverviewPage() {
   const { t } = useTranslation("overview")
   const path = usePath()
   const fsp = useFspStatus()
-  const names = useCatalogNames()
   useDocumentTitle(t("title"))
   const data = path.data
   if (data !== undefined && data.category === null) return <Navigate to="/candidate/path" replace />
   const level = data?.profile ?? null
   return (
     <>
-      <PageHeader title={t("title")} />
+      <PageHeader title={t("title")} actions={<FeedbackButton />} />
       <PageBody>
         {path.isError ? (
           <LoadError
@@ -46,28 +71,7 @@ export function CandidateOverviewPage() {
           <OverviewSkeleton />
         ) : (
           <div className={styles.grid}>
-            {data.topic_block === null ? null : (
-              <Banner
-                tone="info"
-                icon="test"
-                title={t("block.open", {
-                  topic: names.topic(data.topic_block.topic),
-                  answered: data.topic_block.answered,
-                  items: data.topic_block.items,
-                })}
-                action={
-                  <ButtonLink
-                    to="/candidate/test"
-                    size="compact"
-                    icon="arrow-right"
-                    iconPosition="end"
-                  >
-                    {t("block.continue")}
-                  </ButtonLink>
-                }
-                className={styles.wide}
-              />
-            )}
+            <TopicBlockBanner path={data} />
             <CategoryPanel path={data} motionIndex={0} className={styles.wide} />
             <div className={styles.column}>
               {level === null ? null : (

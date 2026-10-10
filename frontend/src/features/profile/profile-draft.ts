@@ -6,6 +6,7 @@ import type {
   ResumeField,
   WorkFormat,
 } from "@/shared/api"
+import { isPhoneComplete } from "@/shared/ui"
 import { type ExperienceDraft, entryDraftOf, entryInputOf } from "./experience"
 
 export interface ProfileDraft {
@@ -127,6 +128,8 @@ export function validate(draft: ProfileDraft): readonly DraftField[] {
   const missing: DraftField[] = []
   if (draft.full_name.trim() === "") missing.push("full_name")
   if (draft.contact_email.trim() === "") missing.push("contact_email")
+  if (draft.contact_phone.trim() !== "" && !isPhoneComplete(draft.contact_phone))
+    missing.push("contact_phone")
   if (draft.experience_years === null) missing.push("experience_years")
   if (draft.work_formats.length === 0) missing.push("work_formats")
   if (needsCity(draft) && draft.city.trim() === "") missing.push("city")

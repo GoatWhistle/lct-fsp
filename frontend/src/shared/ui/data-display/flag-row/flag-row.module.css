@@ -1,0 +1,41 @@
+.list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, var(--tile-min)), 1fr));
+  gap: var(--space-12);
+}
+
+.list[data-layout="rows"] {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.flag {
+  composes: cardRow from "../../../styles/compose.module.css";
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-12);
+  transition: var(--transition-control);
+}
+
+.flag[data-active="true"] {
+  border-color: var(--action-primary);
+  background-color: var(--surface-selected);
+}
+
+.mark {
+  composes: markTile from "../../../styles/blocks.module.css";
+}
+
+.text {
+  display: grid;
+  gap: var(--space-4);
+  min-inline-size: 0;
+}
+
+.title {
+  composes: strongBodyText from "../../../styles/compose.module.css";
+}
+
+.note {
+  composes: secondaryText from "../../../styles/compose.module.css";
+}

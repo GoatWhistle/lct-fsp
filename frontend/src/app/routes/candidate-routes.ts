@@ -1,4 +1,5 @@
-import type { RouteObject } from "react-router"
+import { type RouteObject, redirect } from "react-router"
+import { PROFILE_PARAM } from "@/entities/profile"
 import { page } from "./page"
 
 export const CANDIDATE_FOCUS_ROUTES: RouteObject[] = [
@@ -29,10 +30,11 @@ export const CANDIDATE_ROUTES: RouteObject[] = [
   },
   {
     path: "profile",
-    lazy: page(
-      () => import("@/pages/candidate-profile/candidate-profile-page"),
-      "CandidateProfilePage",
-    ),
+    loader: ({ request }) => {
+      const params = new URL(request.url).searchParams
+      params.set(PROFILE_PARAM, "edit")
+      return redirect(`/candidate?${params.toString()}`)
+    },
   },
   {
     path: "invitations/:id?",

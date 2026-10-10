@@ -35,11 +35,9 @@ p {
   text-wrap: pretty;
 }
 
-@supports not selector(::-webkit-scrollbar) {
-  * {
-    scrollbar-width: thin;
-    scrollbar-color: var(--scrollbar-thumb) transparent;
-  }
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb) transparent;
 }
 
 ::-webkit-scrollbar {
@@ -71,6 +69,10 @@ p {
 
 [data-surface="inverse"] ::-webkit-scrollbar-thumb {
   background-color: var(--scrollbar-thumb-inverse);
+}
+
+[data-surface="inverse"] * {
+  scrollbar-color: var(--scrollbar-thumb-inverse) transparent;
 }
 
 :focus-visible {
@@ -112,4 +114,10 @@ p {
   overflow: hidden;
   clip-path: inset(50%);
   white-space: nowrap;
+}
+
+[data-required="true"]::after {
+  content: "*";
+  margin-inline-start: var(--space-4);
+  color: var(--text-danger);
 }

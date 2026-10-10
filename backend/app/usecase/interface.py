@@ -46,7 +46,7 @@ from app.domain.catalog import (
     Technology,
     Topic,
 )
-from app.domain.company import Company, CompanyForm, DomainVerification
+from app.domain.company import Company, CompanyForm, CompanyLogo, DomainVerification
 from app.domain.conversation import Message, Side
 from app.domain.feedback import CandidateSelection
 from app.domain.fsp import (
@@ -861,6 +861,16 @@ class CompanyRepository(Protocol):
 
     def mark_domain_verified(self, user_id: uuid.UUID, domain: str, now: datetime) -> None:
         """Домен подтверждён; ссылки подтверждения компании гасятся."""
+        ...
+
+    def logo(self, user_id: uuid.UUID) -> CompanyLogo | None: ...
+
+    def save_logo(self, user_id: uuid.UUID, logo: CompanyLogo | None) -> None:
+        """Логотип поверх прежнего; `None` — убрать. Профиль уже есть."""
+        ...
+
+    def mark_fsp_partner(self, user_id: uuid.UUID, partner: bool) -> None:
+        """Партнёрство с ФСП — со стороны федерации, не из профиля работодателя."""
         ...
 
 

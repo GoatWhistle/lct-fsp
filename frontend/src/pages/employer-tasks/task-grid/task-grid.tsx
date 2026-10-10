@@ -1,4 +1,5 @@
 import type { ReactNode } from "react"
+import { COMPANY_DIALOG_LINK } from "@/entities/company"
 import { TaskCard } from "@/features/task-editor"
 import type { RegularTask } from "@/shared/api"
 import { useTranslation } from "@/shared/i18n"
@@ -20,7 +21,7 @@ export function TaskGrid({ tasks, filter, awaiting, noCompany, create, onEdit }:
   const { t } = useTranslation("taskEditor")
   if (tasks.length === 0) {
     const action = noCompany ? (
-      <ButtonLink to="/employer/company" icon="company">
+      <ButtonLink to={COMPANY_DIALOG_LINK} icon="company">
         {t("toCompany")}
       </ButtonLink>
     ) : filter === "active" ? (

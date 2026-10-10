@@ -143,6 +143,11 @@
   grid-area: description;
 }
 
+.tiles[data-layout="inline"] .check {
+  inset-block: 0;
+  margin-block: auto;
+}
+
 .tiles[data-instant="true"] .check {
   transition: none;
 }

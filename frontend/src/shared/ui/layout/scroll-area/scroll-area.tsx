@@ -5,9 +5,12 @@ import styles from "./scroll-area.module.css"
 
 export type ScrollSurface = "card" | "tint" | "canvas"
 
+export type ScrollBar = "auto" | "hidden"
+
 export interface ScrollAreaProps {
   readonly label?: string | undefined
   readonly surface?: ScrollSurface | undefined
+  readonly bar?: ScrollBar
   readonly className?: string | undefined
   readonly children: ReactNode
 }
@@ -26,7 +29,13 @@ export function readEdges(viewport: HTMLElement): { atStart: boolean; atEnd: boo
   return { atStart, atEnd }
 }
 
-export function ScrollArea({ label, surface = "card", className, children }: ScrollAreaProps) {
+export function ScrollArea({
+  label,
+  surface = "card",
+  bar = "auto",
+  className,
+  children,
+}: ScrollAreaProps) {
   const rootRef = useRef<HTMLDivElement | null>(null)
   const viewportRef = useRef<HTMLDivElement | null>(null)
   const hideTimer = useRef<number | null>(null)
@@ -68,7 +77,11 @@ export function ScrollArea({ label, surface = "card", className, children }: Scr
   }
 
   return (
-    <div ref={rootRef} className={clsx(styles.root, SURFACE_CLASS[surface], className)}>
+    <div
+      ref={rootRef}
+      className={clsx(styles.root, SURFACE_CLASS[surface], className)}
+      data-bar={bar}
+    >
       <section
         ref={viewportRef}
         className={styles.viewport}

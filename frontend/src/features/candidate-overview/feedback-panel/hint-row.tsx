@@ -1,3 +1,4 @@
+import { PROFILE_FSP_LINK } from "@/entities/profile"
 import type { FeedbackHint } from "@/shared/api"
 import { useCatalogNames, useFormatters, useTranslation } from "@/shared/i18n"
 import { staggerStyle } from "@/shared/motion"
@@ -15,7 +16,7 @@ function HintAction({ hint }: { readonly hint: FeedbackHint }) {
   const { t } = useTranslation("overview")
   if (hint.action.kind === "link_fsp")
     return (
-      <ButtonLink to="/candidate/profile#fsp" variant="secondary" size="compact" icon="link">
+      <ButtonLink to={PROFILE_FSP_LINK} variant="secondary" size="compact" icon="fsp">
         {t("feedback.linkFsp")}
       </ButtonLink>
     )

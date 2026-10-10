@@ -51,7 +51,11 @@ function useErrorMessages(missing: readonly DraftField[], shown: boolean): Draft
   return errors
 }
 
-export function useProfileEditor(profile: Profile | null, email: string): ProfileEditorState {
+export function useProfileEditor(
+  profile: Profile | null,
+  email: string,
+  onSaved?: () => void,
+): ProfileEditorState {
   const { t } = useTranslation("profile")
   const errorText = useErrorText()
   const saveProfile = useSaveProfile()
@@ -78,7 +82,8 @@ export function useProfileEditor(profile: Profile | null, email: string): Profil
         setMarks(NO_MARKS)
         setParsed(null)
         setAttempted(false)
-        toast.success(t("save.done"))
+        if (onSaved === undefined) toast.success(t("save.done"))
+        else onSaved()
       },
       onError: (error) => toast.error(errorText(error)),
     })

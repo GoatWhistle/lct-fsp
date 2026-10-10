@@ -14,6 +14,7 @@ export interface NumberFieldProps {
   readonly unit?: string | undefined
   readonly hint?: string | undefined
   readonly error?: string | undefined
+  readonly required?: boolean | undefined
   readonly disabled?: boolean | undefined
   readonly className?: string | undefined
 }
@@ -42,6 +43,7 @@ export function NumberField({
   unit,
   hint,
   error,
+  required,
   disabled = false,
   className,
 }: NumberFieldProps) {
@@ -72,7 +74,7 @@ export function NumberField({
   }
 
   return (
-    <Field label={label} hint={hint} error={error} className={className}>
+    <Field label={label} hint={hint} error={error} required={required} className={className}>
       {(control) => (
         <div className={styles.group} data-disabled={disabled}>
           <button

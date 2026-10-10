@@ -1,18 +1,16 @@
 import { useTranslation } from "@/shared/i18n"
-import { IconLabel, TextField } from "@/shared/ui"
-import { EditorSection, FieldRow } from "../editor-section/editor-section"
+import { PhoneField, TextField } from "@/shared/ui"
+import { EditorSection } from "../editor-section/editor-section"
 import type { DraftSectionProps } from "../profile-draft"
 import { useFieldHint } from "../use-field-hint"
+import styles from "./contacts-section.module.css"
 
 export function ContactsSection({ draft, onChange, errors, marks }: DraftSectionProps) {
   const { t } = useTranslation("profile")
   const hint = useFieldHint(marks)
   return (
     <EditorSection id="contacts" title={t("sections.contacts")}>
-      <IconLabel icon="lock" tone="secondary">
-        {t("fields.contactsNote")}
-      </IconLabel>
-      <FieldRow>
+      <div className={styles.grid}>
         <TextField
           label={t("fields.email")}
           type="email"
@@ -24,14 +22,13 @@ export function ContactsSection({ draft, onChange, errors, marks }: DraftSection
           error={errors.contact_email}
           required
         />
-        <TextField
+        <PhoneField
           label={t("fields.phone")}
-          type="tel"
-          icon="phone"
-          autoComplete="tel"
           value={draft.contact_phone}
           onChange={(contact_phone) => onChange({ contact_phone })}
           hint={hint("contact_phone")}
+          error={errors.contact_phone}
+          placeholder={t("fields.phonePlaceholder")}
         />
         <TextField
           label={t("fields.telegram")}
@@ -41,7 +38,7 @@ export function ContactsSection({ draft, onChange, errors, marks }: DraftSection
           placeholder={t("fields.telegramPlaceholder")}
           hint={hint("telegram")}
         />
-      </FieldRow>
+      </div>
     </EditorSection>
   )
 }

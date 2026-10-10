@@ -9,6 +9,7 @@ import hashlib
 import uuid
 from dataclasses import dataclass
 from datetime import datetime, timedelta
+from enum import StrEnum
 from urllib.parse import urlsplit
 
 from app.domain.catalog import CatalogRef
@@ -20,6 +21,31 @@ from app.domain.errors import (
 )
 
 
+class CompanySize(StrEnum):
+    """Сколько человек в компании — диапазоном, точное число кандидату не нужно."""
+
+    up_to_50 = "up_to_50"
+    up_to_200 = "up_to_200"
+    up_to_1000 = "up_to_1000"
+    over_1000 = "over_1000"
+
+
+# Что компания даёт сверх зарплаты — коды, подписи на фронте из словаря.
+BENEFITS = (
+    "health",
+    "education",
+    "conferences",
+    "equipment",
+    "sport",
+    "meals",
+    "relocation",
+)
+
+MAX_LINKS = 6
+LOGO_MAX_BYTES = 512 * 1024
+LOGO_TYPES = ("image/png", "image/jpeg", "image/webp")
+
+
 @dataclass(frozen=True)
 class CompanyForm:
     name: str
@@ -29,6 +55,19 @@ class CompanyForm:
     website: str | None
     contact_email: str
     contact_phone: str | None
+    size: CompanySize | None = None
+    # Аккредитованная ИТ-компания по реестру Минцифры — со слов компании.
+    it_accredited: bool = False
+    benefits: tuple[str, ...] = ()
+    # Ссылки на соцсети и блоги: площадку узнаёт фронт по адресу.
+    links: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True)
+class CompanyLogo:
+    content: bytes
+    media_type: str
+    updated_at: datetime
 
 
 @dataclass(frozen=True)
@@ -43,6 +82,12 @@ class Company:
     # Подтверждённый письмом домен и когда; метка — только пока он совпадает с доменом сайта.
     verified_domain: str | None = None
     domain_verified_at: datetime | None = None
+    size: CompanySize | None = None
+    it_accredited: bool = False
+    benefits: tuple[str, ...] = ()
+    links: tuple[str, ...] = ()
+    fsp_partner: bool = False
+    logo_updated_at: datetime | None = None
 
     @property
     def domain_verified(self) -> bool:

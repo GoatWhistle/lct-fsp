@@ -1,4 +1,6 @@
 import type { RouteObject } from "react-router"
+import { redirect } from "react-router"
+import { COMPANY_DIALOG_LINK } from "@/entities/company"
 import { page } from "./page"
 
 export const EMPLOYER_DESK_ROUTES: RouteObject[] = [
@@ -29,9 +31,6 @@ export const EMPLOYER_DESK_ROUTES: RouteObject[] = [
   },
   {
     path: "company",
-    lazy: page(
-      () => import("@/pages/employer-company/employer-company-page"),
-      "EmployerCompanyPage",
-    ),
+    loader: () => redirect(`/employer${COMPANY_DIALOG_LINK}`),
   },
 ]

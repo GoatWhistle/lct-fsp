@@ -14,6 +14,7 @@ export interface TextAreaProps {
   readonly disabled?: boolean | undefined
   readonly className?: string | undefined
   readonly hideLabel?: boolean | undefined
+  readonly required?: boolean | undefined
   readonly onKeyDown?: ((event: KeyboardEvent<HTMLTextAreaElement>) => void) | undefined
 }
 
@@ -31,6 +32,7 @@ export function TextArea({
   disabled,
   className,
   hideLabel = false,
+  required,
   onKeyDown,
 }: TextAreaProps) {
   const areaRef = useRef<HTMLTextAreaElement | null>(null)
@@ -43,7 +45,14 @@ export function TextArea({
   }, [value])
 
   return (
-    <Field label={label} hint={hint} error={error} hideLabel={hideLabel} className={className}>
+    <Field
+      label={label}
+      hint={hint}
+      error={error}
+      hideLabel={hideLabel}
+      required={required}
+      className={className}
+    >
       {(control) => (
         <textarea
           {...control}

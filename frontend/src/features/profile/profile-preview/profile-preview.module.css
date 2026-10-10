@@ -1,21 +1,44 @@
-.card {
+.body {
   display: grid;
   gap: var(--space-16);
-  padding: var(--space-16);
-  border: var(--hairline) dashed var(--border-strong);
-  border-radius: var(--radius-button);
+}
+
+.card {
+  composes: previewCard from "../../../shared/styles/blocks.module.css";
 }
 
 .head {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
   align-items: center;
-  justify-content: space-between;
-  gap: var(--space-8);
+  gap: var(--space-16);
 }
 
-.anon {
-  composes: labelText from "../../../shared/styles/compose.module.css";
+.mark {
+  composes: logoMark from "../../../shared/styles/blocks.module.css";
+  inline-size: calc(var(--space-12) * 5);
+  color: var(--text-accent);
+}
+
+.identity {
+  display: grid;
+  gap: var(--space-4);
+  min-inline-size: 0;
+}
+
+.name {
+  composes: subheadingText from "../../../shared/styles/compose.module.css";
+}
+
+.meta {
+  composes: secondaryText from "../../../shared/styles/compose.module.css";
+}
+
+.partner {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-8);
+  font-size: var(--font-size-body-sm);
   font-weight: var(--weight-medium);
 }
 
@@ -25,34 +48,34 @@
   gap: var(--space-4);
 }
 
-.list {
+.facts {
   display: grid;
-}
-
-.row {
-  display: grid;
-  grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
-  align-items: baseline;
-  gap: var(--space-12);
-  padding-block: var(--space-8);
+  gap: var(--space-8);
+  padding-block-start: var(--space-16);
   border-block-start: var(--hairline) solid var(--border-hairline);
 }
 
-.label {
-  composes: fieldLabel from "../../../shared/styles/compose.module.css";
-  white-space: normal;
-}
-
-.value {
+.fact {
+  composes: bodySmText from "../../../shared/styles/compose.module.css";
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
   min-inline-size: 0;
-  font-size: var(--font-size-body-sm);
 }
 
-.later {
+.fact[data-concealed="true"] {
+  color: var(--text-tertiary);
+}
+
+.factIcon {
+  flex: none;
+  color: var(--text-accent);
+}
+
+.fact[data-concealed="true"] .factIcon {
+  color: inherit;
+}
+
+.note {
   composes: secondaryText from "../../../shared/styles/compose.module.css";
-}
-
-.bare {
-  display: grid;
-  gap: var(--space-16);
 }

@@ -1,20 +1,17 @@
-.status {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-12) var(--space-24);
+.mark {
+  composes: markGlyph from "../../../shared/styles/blocks.module.css";
 }
 
 .linked {
-  display: flex;
+  display: inline-flex;
   flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-8) var(--space-16);
+  align-items: baseline;
+  gap: var(--space-4) var(--space-12);
 }
 
 .id {
-  composes: labelText from "../../../shared/styles/compose.module.css";
+  composes: captionText from "../../../shared/styles/compose.module.css";
+  color: var(--text-tertiary);
   font-variant-numeric: var(--font-numeric);
 }
 
@@ -70,4 +67,15 @@
 
 .topic {
   font-weight: var(--weight-medium);
+}
+
+@media (max-width: 47.99rem) {
+  .status {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .status > :last-child {
+    grid-column: 1 / -1;
+    justify-self: start;
+  }
 }

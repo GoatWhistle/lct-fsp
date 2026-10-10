@@ -16,28 +16,21 @@ export interface SidebarProps {
 
 export function Sidebar({ user, unread, collapsed, onToggle }: SidebarProps) {
   const { t } = useTranslation()
-  const role = user.role === "candidate" ? t("shell.roleCandidate") : t("shell.roleEmployer")
   return (
-    <aside className={styles.sidebar} data-surface="inverse" data-collapsed={collapsed}>
+    <aside className={styles.sidebar} data-collapsed={collapsed}>
       <div className={styles.brand}>
         <LockupLink to={CABINET_PATH[user.role]} compact={collapsed} />
-        {!collapsed && <span className={styles.role}>{role}</span>}
       </div>
       <ScrollArea label={t("shell.navigation")} className={styles.scroll}>
         <SidebarNav role={user.role} unread={unread} collapsed={collapsed} />
       </ScrollArea>
       <div className={styles.footer}>
-        {!collapsed && (
-          <span className={styles.email} title={user.email}>
-            {user.email}
-          </span>
-        )}
-        <div className={styles.account}>
-          <AccountMenu user={user} iconOnly={collapsed} />
-        </div>
-        <div className={styles.tools}>
+        <div className={styles.prefs}>
           <LocaleSwitch placement="top-start" />
           <ThemeSwitch placement="top-start" />
+        </div>
+        <div className={styles.account}>
+          <AccountMenu user={user} iconOnly={collapsed} className={styles.accountMenu} />
           <Button
             variant="ghost"
             size="icon"

@@ -1,9 +1,16 @@
 import type { HideableField } from "@/shared/api"
 import { useTranslation } from "@/shared/i18n"
-import { IconLabel, Switch } from "@/shared/ui"
+import { FlagList, FlagRow, Icon, type IconName, Switch } from "@/shared/ui"
 import { EditorSection } from "../editor-section/editor-section"
 import { type DraftSectionProps, HIDEABLE } from "../profile-draft"
-import styles from "./visibility-section.module.css"
+
+const MARKS: Readonly<Record<HideableField, IconName>> = {
+  stack: "topic",
+  experience_years: "clock",
+  city: "city",
+  relocation: "benefit-relocation",
+  industries: "company",
+}
 
 export function VisibilitySection({ draft, onChange }: DraftSectionProps) {
   const { t } = useTranslation("profile")
@@ -14,40 +21,29 @@ export function VisibilitySection({ draft, onChange }: DraftSectionProps) {
         : HIDEABLE.filter((item) => item === field || draft.hidden.includes(item)),
     })
   return (
-    <EditorSection
-      id="visibility"
-      title={t("sections.visibility")}
-      description={t("visibility.lead")}
-    >
-      <ul className={styles.list}>
+    <EditorSection id="visibility" title={t("sections.visibility")}>
+      <FlagList>
         {HIDEABLE.map((field) => {
           const visible = !draft.hidden.includes(field)
           return (
-            <li key={field} className={styles.row}>
-              <Switch
-                label={t(`hideable.${field}`)}
-                checked={visible}
-                onChange={(on) => toggle(field, on)}
-              />
-              <IconLabel
-                icon={visible ? "eye" : "lock"}
-                tone={visible ? "accent" : "secondary"}
-                className={styles.state}
-              >
-                {visible ? t("visibility.shown") : t("visibility.hidden")}
-              </IconLabel>
-            </li>
+            <FlagRow
+              key={field}
+              mark={<Icon name={visible ? MARKS[field] : "lock"} size="md" />}
+              title={t(`hideable.${field}`)}
+              note={visible ? t("visibility.shown") : t("visibility.hidden")}
+              active={visible}
+              trailing={
+                <Switch
+                  label={t(`hideable.${field}`)}
+                  hideLabel
+                  checked={visible}
+                  onChange={(on) => toggle(field, on)}
+                />
+              }
+            />
           )
         })}
-      </ul>
-      <div className={styles.rules}>
-        <IconLabel icon="eye" tone="secondary">
-          {t("visibility.always")}
-        </IconLabel>
-        <IconLabel icon="lock" tone="secondary">
-          {t("visibility.never")}
-        </IconLabel>
-      </div>
+      </FlagList>
     </EditorSection>
   )
 }

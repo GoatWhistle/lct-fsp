@@ -71,6 +71,8 @@ STATUS: dict[type[e.DomainError], int] = {
     e.SelectionNotFound: 404,
     e.NotInSelection: 404,
     e.CompanyRequired: 409,
+    e.LogoTooLarge: 413,
+    e.LogoUnsupported: 415,
     e.TaskNotFound: 404,
     e.TaskTopicsCount: 422,
     e.TaskTopicNotInSpecialization: 422,

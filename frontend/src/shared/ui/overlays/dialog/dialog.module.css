@@ -52,6 +52,11 @@
   inline-size: min(100%, var(--dialog-width-wide));
 }
 
+.sheet {
+  inline-size: min(100%, var(--dialog-width-sheet));
+  padding-block-end: var(--space-12);
+}
+
 .dialog[data-state="open"] .panel {
   animation: var(--motion-scale-in);
 }

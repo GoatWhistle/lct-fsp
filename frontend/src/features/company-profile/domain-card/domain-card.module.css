@@ -1,19 +1,19 @@
-.body {
+.form {
+  composes: tintBlock from "../../../shared/styles/blocks.module.css";
+  grid-column: 1 / -1;
   display: grid;
-  gap: var(--space-16);
+  gap: var(--space-12);
+  animation: var(--motion-rise-in);
 }
 
 .row {
   display: flex;
   flex-wrap: wrap;
-  align-items: start;
+  align-items: end;
   gap: var(--space-12) var(--space-16);
 }
 
-.row > :first-child {
+.email {
   flex: 1 1 var(--tile-min);
-}
-
-.row > :last-child {
-  margin-block-start: var(--space-24);
+  max-inline-size: none;
 }

@@ -1,6 +1,6 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useBlocker } from "react-router"
-import { useSaveCompany } from "@/entities/company"
+import { KEEP_LOGO, type LogoChange, useSaveCompany } from "@/entities/company"
 import type { Company } from "@/shared/api"
 import { useErrorText, useFormatters, useTranslation } from "@/shared/i18n"
 import { Swap } from "@/shared/motion"
@@ -11,16 +11,22 @@ import {
   type CompanyForm,
   companyErrors,
   formOf,
+  initialsOf,
   inputOf,
   sameForm,
 } from "../company-form"
 import { CompanyPreview } from "../company-preview/company-preview"
+import { ConditionsCard } from "../conditions-card/conditions-card"
 import { ContactsCard } from "../contacts-card/contacts-card"
+import { DomainFlag } from "../domain-card/domain-card"
+import { LinksCard } from "../links-card/links-card"
+import { LogoField, useLogoSource } from "../logo-field/logo-field"
 import styles from "./company-editor.module.css"
 
 export interface CompanyEditorProps {
   readonly company: Company | null
   readonly onSaved: (company: Company, created: boolean) => void
+  readonly onDirtyChange?: ((dirty: boolean) => void) | undefined
 }
 
 function useStatus(company: Company | null, dirty: boolean) {
@@ -35,40 +41,73 @@ function useStatus(company: Company | null, dirty: boolean) {
   }
 }
 
-export function CompanyEditor({ company, onSaved }: CompanyEditorProps) {
+export function CompanyEditor({ company, onSaved, onDirtyChange }: CompanyEditorProps) {
   const { t } = useTranslation(["company", "common"])
   const errorText = useErrorText()
   const save = useSaveCompany()
   const [base, setBase] = useState<CompanyForm>(() => formOf(company))
   const [form, setForm] = useState<CompanyForm>(base)
   const [tried, setTried] = useState(false)
-  const dirty = !sameForm(form, base)
+  const [logo, setLogo] = useState<LogoChange>(KEEP_LOGO)
+  const current = company?.logo_url ?? null
+  const logoSource = useLogoSource(current, logo)
+  const dirty = !sameForm(form, base) || logo.kind !== "keep"
   const blocker = useBlocker(dirty && !save.isPending)
   const status = useStatus(company, dirty)
   const failed = companyErrors(form)
   const error = (field: CompanyField) => (tried && failed[field] ? t(`errors.${field}`) : undefined)
+  useEffect(() => onDirtyChange?.(dirty), [dirty, onDirtyChange])
   const change = (patch: Partial<CompanyForm>) => setForm((current) => ({ ...current, ...patch }))
 
   const submit = () => {
     setTried(true)
     const input = inputOf(form)
     if (input === null) return
-    save.mutate(input, {
-      onSuccess: (saved) => {
-        const next = formOf(saved)
-        setBase(next)
-        setForm(next)
-        setTried(false)
-        onSaved(saved, company === null)
+    save.mutate(
+      { input, logo },
+      {
+        onSuccess: (saved) => {
+          const next = formOf(saved)
+          setBase(next)
+          setForm(next)
+          setLogo(KEEP_LOGO)
+          setTried(false)
+          onSaved(saved, company === null)
+        },
       },
-    })
+    )
   }
   const cards = { form, error, onChange: change }
 
   return (
     <Form onSubmit={submit} className={styles.editor}>
-      <AboutCard {...cards} className={styles.about} />
-      <ContactsCard {...cards} className={styles.contacts} />
+      <div className={styles.fields}>
+        <AboutCard
+          {...cards}
+          logo={
+            <LogoField
+              current={current}
+              source={logoSource}
+              initials={initialsOf(form.name.trim())}
+              onChange={setLogo}
+            />
+          }
+        />
+        <ConditionsCard
+          {...cards}
+          partner={company?.fsp_partner ?? false}
+          domain={company === null ? null : <DomainFlag company={company} />}
+        />
+        <LinksCard {...cards} />
+        <ContactsCard {...cards} />
+      </div>
+      <CompanyPreview
+        form={form}
+        logo={logoSource}
+        partner={company?.fsp_partner ?? false}
+        verified={company?.domain_verified ?? false}
+        className={styles.preview}
+      />
       <div className={styles.footer}>
         {save.isError ? <Banner tone="critical" title={errorText(save.error)} /> : null}
         <div className={styles.bar}>
@@ -84,7 +123,10 @@ export function CompanyEditor({ company, onSaved }: CompanyEditorProps) {
                 icon="retry"
                 disabled={save.isPending}
                 className={styles.reset}
-                onClick={() => setForm(base)}
+                onClick={() => {
+                  setForm(base)
+                  setLogo(KEEP_LOGO)
+                }}
               >
                 {t("actions.reset")}
               </Button>
@@ -101,7 +143,6 @@ export function CompanyEditor({ company, onSaved }: CompanyEditorProps) {
           </div>
         </div>
       </div>
-      <CompanyPreview form={form} className={styles.preview} />
       <ConfirmDialog
         open={blocker.state === "blocked"}
         title={t("common:leave.title")}

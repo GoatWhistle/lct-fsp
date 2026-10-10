@@ -45,3 +45,15 @@
   composes: actions from "../../../shared/styles/layout.module.css";
   margin-block-start: var(--space-8);
 }
+
+.ghost {
+  display: block;
+  inline-size: var(--slot-width);
+  block-size: var(--space-8);
+  border-radius: var(--radius-round);
+  background-color: var(--surface-tint);
+}
+
+.slot {
+  inline-size: 100%;
+}

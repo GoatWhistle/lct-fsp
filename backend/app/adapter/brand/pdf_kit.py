@@ -34,6 +34,7 @@ class Ink:
     required: Color
     fsp: Color
     canvas: Color
+    brand: Color
 
 
 def ink() -> Ink:
@@ -51,6 +52,7 @@ def ink() -> Ink:
         required=color("data-required"),
         fsp=color("data-fsp"),
         canvas=color("surface-canvas"),
+        brand=color("surface-brand"),
     )
 
 
@@ -157,15 +159,56 @@ def pill(
     return width
 
 
-def pills(doc: BrandDocument, values: Sequence[str], *, fill: Color, tone: Color) -> None:
-    x, y = doc.l_margin, doc.get_y()
+def pills(
+    doc: BrandDocument,
+    values: Sequence[str],
+    *,
+    fill: Color,
+    tone: Color,
+    left: float | None = None,
+    right: float | None = None,
+) -> None:
+    start = doc.l_margin if left is None else left
+    end = doc.w - doc.r_margin if right is None else right
+    x, y = start, doc.get_y()
     for value in values:
         width = pill_width(doc, value)
-        if x + width > doc.w - doc.r_margin:
-            x, y = doc.l_margin, y + 7
+        if x + width > end and x > start:
+            x, y = start, y + 7
         pill(doc, value, x, y, fill=fill, tone=tone)
         x += width + 2
     doc.set_xy(doc.l_margin, y + 8)
+
+
+def fsp_pill(doc: BrandDocument, value: str, x: float, y: float, *, size: float = 7.5) -> float:
+    doc.set_font(UI, "", size)
+    width = doc.get_string_width(value) + 9.4
+    doc.set_fill_color(*doc.ink.tint)
+    doc.rect(x, y, width, 5.4, style="F", round_corners=True, corner_radius=2.7)
+    doc.image(str(MARK), x=x + 2, y=y + 1, h=3.4)
+    doc.set_xy(x + 6, y)
+    doc.set_text_color(*doc.ink.text)
+    doc.cell(width - 7.6, 5.4, value, align="C")
+    return width
+
+
+def card(doc: BrandDocument, x: float, y: float, width: float, height: float, fill: Color) -> None:
+    doc.set_fill_color(*fill)
+    doc.rect(x, y, width, height, style="F", round_corners=True, corner_radius=2.5)
+
+
+def tile(
+    doc: BrandDocument, x: float, y: float, width: float, height: float, label: str, value: str
+) -> None:
+    card(doc, x, y, width, height, doc.ink.canvas)
+    doc.set_xy(x + 4, y + 3.2)
+    doc.set_font(MONO, "", 7)
+    doc.set_text_color(*doc.ink.tertiary)
+    doc.cell(width - 8, 4, label)
+    doc.set_xy(x + 4, y + 8.2)
+    doc.set_font(UI, "B", 10.5)
+    doc.set_text_color(*doc.ink.text)
+    doc.multi_cell(width - 8, 5, value, align="L")
 
 
 def terms(doc: BrandDocument, rows: Sequence[tuple[str, str]], label_width: float = 42) -> None:
@@ -174,12 +217,12 @@ def terms(doc: BrandDocument, rows: Sequence[tuple[str, str]], label_width: floa
         doc.set_xy(doc.l_margin, y)
         doc.set_font(UI, "", 9)
         doc.set_text_color(*doc.ink.tertiary)
-        doc.multi_cell(label_width, 5, label)
+        doc.multi_cell(label_width, 5, label, align="L")
         label_end = doc.get_y()
         doc.set_xy(doc.l_margin + label_width, y)
         doc.set_font(UI, "", 10)
         doc.set_text_color(*doc.ink.text)
-        doc.multi_cell(0, 5, value, new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+        doc.multi_cell(0, 5, value, align="L", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
         doc.set_y(max(label_end, doc.get_y()) + 1.2)
 
 

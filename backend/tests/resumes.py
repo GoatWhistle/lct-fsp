@@ -122,7 +122,7 @@ PETROV = Person(
             "ООО «Платёжка»",
             "Django, PostgreSQL, Celery на RabbitMQ, Docker.",
             ("2018-06", "2021-12"),
-            frozenset({"python", "django", "postgresql", "rabbitmq", "docker"}),
+            frozenset({"python", "django", "postgresql", "celery", "rabbitmq", "docker"}),
         ),
     ),
     skills_line="Python, FastAPI, Django, PostgreSQL, Redis, Kafka, RabbitMQ, Docker, Kubernetes",

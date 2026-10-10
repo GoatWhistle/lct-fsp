@@ -77,12 +77,11 @@ export function ExperienceSection({ draft, onChange, marks }: DraftSectionProps)
     })
     setEditing(null)
   }
-  const note = hint("experience", t("experience.note"))
+  const note = hint("experience")
   return (
     <EditorSection
       id="experience"
       title={t("sections.experience")}
-      description={t("experience.lead")}
       actions={
         entries.length < ENTRIES_MAX ? (
           <Button
@@ -117,9 +116,11 @@ export function ExperienceSection({ draft, onChange, marks }: DraftSectionProps)
           ))}
         </ul>
       )}
-      <IconLabel icon={marks.has("experience") ? "alert" : "info"} tone="secondary" size="sm">
-        {note}
-      </IconLabel>
+      {note === undefined ? null : (
+        <IconLabel icon="alert" tone="secondary" size="sm">
+          {note}
+        </IconLabel>
+      )}
       <EntryDrawer entry={editing} isNew={isNew} onSave={save} onClose={() => setEditing(null)} />
     </EditorSection>
   )

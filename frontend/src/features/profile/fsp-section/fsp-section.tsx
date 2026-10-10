@@ -5,11 +5,11 @@ import { useErrorText, useFormatters, useTranslation } from "@/shared/i18n"
 import {
   Button,
   ConfirmDialog,
-  IconLabel,
+  FlagRow,
+  FspMark,
   LoadError,
   Menu,
   Skeleton,
-  StatusBadge,
   toast,
 } from "@/shared/ui"
 import { EditorSection } from "../editor-section/editor-section"
@@ -72,28 +72,29 @@ interface StatusLineProps {
 function StatusLine({ status, linkAction }: StatusLineProps) {
   const { t } = useTranslation("profile")
   const format = useFormatters()
-  if (!status.linked)
-    return (
-      <div className={styles.status}>
-        <p className={styles.note}>{t("fsp.notLinked")}</p>
-        {linkAction}
-      </div>
-    )
+  const note = !status.linked
+    ? t("fsp.notLinkedNote")
+    : status.fetched_at === null
+      ? t("fsp.noSnapshot")
+      : t("fsp.snapshot", { date: format.dateTime(status.fetched_at) })
   return (
-    <div className={styles.status}>
-      <div className={styles.linked}>
-        <StatusBadge tone="positive" icon="fsp">
-          {t("fsp.linked")}
-        </StatusBadge>
-        {status.fsp_id === null ? null : <span className={styles.id}>{status.fsp_id}</span>}
-        <IconLabel icon="calendar" tone="secondary">
-          {status.fetched_at === null
-            ? t("fsp.noSnapshot")
-            : t("fsp.snapshot", { date: format.dateTime(status.fetched_at) })}
-        </IconLabel>
-      </div>
-      <LinkedActions status={status} />
-    </div>
+    <FlagRow
+      mark={<FspMark className={styles.mark} />}
+      title={
+        status.linked ? (
+          <span className={styles.linked}>
+            {t("fsp.linked")}
+            {status.fsp_id === null ? null : <span className={styles.id}>{status.fsp_id}</span>}
+          </span>
+        ) : (
+          t("fsp.notLinkedTitle")
+        )
+      }
+      note={note}
+      active={status.linked}
+      trailing={status.linked ? <LinkedActions status={status} /> : linkAction}
+      className={styles.status}
+    />
   )
 }
 
@@ -105,7 +106,7 @@ export function FspSection({ linkAction }: FspSectionProps) {
   const { t } = useTranslation("profile")
   const fsp = useFspStatus()
   return (
-    <EditorSection id="fsp" title={t("sections.fsp")} description={t("fsp.lead")}>
+    <EditorSection id="fsp" title={t("sections.fsp")}>
       {fsp.isError ? (
         <LoadError error={fsp.error} onRetry={() => void fsp.refetch()} pending={fsp.isFetching} />
       ) : fsp.data === undefined ? (

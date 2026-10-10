@@ -1,5 +1,6 @@
 import { useId, useState } from "react"
 import { useGrades, useSpecializations } from "@/entities/catalog"
+import { COMPANY_DIALOG_LINK } from "@/entities/company"
 import { useSaveVacancy } from "@/entities/vacancy"
 import type { Vacancy, WorkFormat } from "@/shared/api"
 import { errorCodeOf, useCatalogNames, useErrorText, useTranslation } from "@/shared/i18n"
@@ -137,7 +138,7 @@ export function VacancyDrawer({ open, vacancy, onClose }: VacancyDrawerProps) {
             title={errorText(save.error)}
             action={
               needsCompany ? (
-                <ButtonLink to="/employer/company" size="compact" icon="company">
+                <ButtonLink to={COMPANY_DIALOG_LINK} size="compact" icon="company">
                   {t("toCompany")}
                 </ButtonLink>
               ) : undefined

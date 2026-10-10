@@ -12,7 +12,7 @@ export interface DialogProps {
   readonly title: string
   readonly description?: string | undefined
   readonly actions?: ReactNode
-  readonly size?: "regular" | "wide" | "drawer" | undefined
+  readonly size?: "regular" | "wide" | "sheet" | "drawer" | undefined
   readonly children?: ReactNode
 }
 
@@ -64,6 +64,7 @@ export function Dialog({
           className={clsx(
             styles.panel,
             size === "wide" && styles.wide,
+            size === "sheet" && styles.sheet,
             size === "drawer" && styles.drawer,
           )}
           tabIndex={-1}

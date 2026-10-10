@@ -1,46 +1,15 @@
 .bar {
-  position: sticky;
-  inset-block-end: var(--space-16);
-  z-index: var(--layer-sticky);
-  animation: var(--motion-toast-in);
+  composes: sheetBar from "../../../shared/styles/blocks.module.css";
 }
 
-.bar[data-state="closed"] {
-  animation: var(--motion-fade-out);
-}
-
-.panel {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
-  gap: var(--space-12) var(--space-16);
-  padding: var(--space-12) var(--space-12) var(--space-12) var(--space-20);
-  border: var(--hairline) solid var(--border-strong);
-  border-radius: var(--radius-button);
-  background-color: var(--surface-inverse);
-  color: var(--text-primary);
-  box-shadow: var(--shadow-float);
-}
-
-.note {
-  font-weight: var(--weight-medium);
+.status {
+  composes: sheetStatus from "../../../shared/styles/blocks.module.css";
 }
 
 .actions {
-  display: flex;
-  gap: var(--space-8);
+  composes: sheetActions from "../../../shared/styles/blocks.module.css";
 }
 
-@media (max-width: 47.99rem) {
-  .bar {
-    inset-block-end: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom) + var(--space-12));
-  }
-
-  .panel {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .actions {
-    justify-content: flex-end;
-  }
+.reset {
+  animation: var(--motion-fade-in);
 }

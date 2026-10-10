@@ -1,4 +1,4 @@
-import { useProfile } from "@/entities/profile"
+import { PROFILE_DIALOG_LINK, useProfile } from "@/entities/profile"
 import type { Profile } from "@/shared/api"
 import { useFormatters, useTranslation } from "@/shared/i18n"
 import { ButtonLink, Card, Meter, Skeleton } from "@/shared/ui"
@@ -41,7 +41,7 @@ export function ProfilePanel({ motionIndex, className }: ProfilePanelProps) {
       )}
       <p className={styles.text}>{t("profile.text")}</p>
       <div className={styles.actions}>
-        <ButtonLink to="/candidate/profile" variant="secondary" icon="eye">
+        <ButtonLink to={PROFILE_DIALOG_LINK} variant="secondary" icon="eye">
           {t("profile.preview")}
         </ButtonLink>
       </div>

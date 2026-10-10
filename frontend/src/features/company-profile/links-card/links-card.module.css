@@ -1,0 +1,33 @@
+.list {
+  display: grid;
+  gap: var(--space-12);
+}
+
+.row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: start;
+  gap: var(--space-12);
+  animation: var(--motion-rise-in);
+}
+
+.badge {
+  composes: iconTile from "../../../shared/styles/blocks.module.css";
+  inline-size: var(--control-height);
+  block-size: var(--control-height);
+  color: var(--text-tertiary);
+  transition: var(--transition-control);
+}
+
+.badge[data-known="true"] {
+  border-color: var(--action-primary);
+  color: var(--text-accent);
+}
+
+.input {
+  max-inline-size: none;
+}
+
+.add {
+  justify-self: start;
+}

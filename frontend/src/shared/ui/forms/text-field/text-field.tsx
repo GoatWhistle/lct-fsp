@@ -52,7 +52,14 @@ export function TextField({
   className,
 }: TextFieldProps) {
   return (
-    <Field label={label} hint={hint} error={error} hideLabel={hideLabel} className={className}>
+    <Field
+      label={label}
+      hint={hint}
+      error={error}
+      hideLabel={hideLabel}
+      required={required}
+      className={className}
+    >
       {(control) => (
         <span
           className={styles.wrap}

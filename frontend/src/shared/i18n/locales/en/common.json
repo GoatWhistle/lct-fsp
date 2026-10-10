@@ -58,8 +58,6 @@
     "expand": "Expand sidebar",
     "account": "Account",
     "navigation": "Sections",
-    "roleCandidate": "Candidate",
-    "roleEmployer": "Employer",
     "company": "Company profile",
     "unread_one": "{{count}} new message",
     "unread_other": "{{count}} new messages",

@@ -22,6 +22,7 @@ export interface SelectProps<T extends string> {
   readonly error?: string | undefined
   readonly disabled?: boolean | undefined
   readonly hideLabel?: boolean | undefined
+  readonly required?: boolean | undefined
   readonly className?: string | undefined
 }
 
@@ -37,6 +38,7 @@ export function Select<T extends string>({
   error,
   disabled = false,
   hideLabel = false,
+  required,
   className,
 }: SelectProps<T>) {
   const { t } = useTranslation()
@@ -90,7 +92,14 @@ export function Select<T extends string>({
   }, [activeDescendant])
 
   return (
-    <Field label={label} hint={hint} error={error} hideLabel={hideLabel} className={className}>
+    <Field
+      label={label}
+      hint={hint}
+      error={error}
+      hideLabel={hideLabel}
+      required={required}
+      className={className}
+    >
       {(control, meta) => (
         <>
           <button
@@ -123,7 +132,7 @@ export function Select<T extends string>({
             instant={viaKeyboard}
             className={styles.popover}
           >
-            <ScrollArea className={styles.scroller}>
+            <ScrollArea className={styles.scroller} bar="hidden">
               <div
                 role="listbox"
                 id={listId}

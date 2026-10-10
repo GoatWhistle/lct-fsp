@@ -76,15 +76,6 @@ export const DevopsGlyph = glyph(
   </>,
 )
 
-export const FspGlyph = glyph(
-  <>
-    <path d="M10.9 5.6 6.1 15.4M13.1 5.6l4.8 9.8M7.8 17.5h8.4" />
-    <Node x={12} y={4} />
-    <Node x={5.5} y={17.5} />
-    <Node x={18.5} y={17.5} />
-  </>,
-)
-
 export const VerificationGlyph = glyph(
   <>
     <path d="M12 3 5 6v5.5c0 4.3 2.9 7.6 7 9.5 4.1-1.9 7-5.2 7-9.5V6l-7-3Z" />

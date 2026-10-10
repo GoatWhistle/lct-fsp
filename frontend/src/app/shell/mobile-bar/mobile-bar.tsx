@@ -11,7 +11,7 @@ export interface MobileBarProps {
 
 export function MobileBar({ user }: MobileBarProps) {
   return (
-    <header className={styles.bar} data-surface="inverse">
+    <header className={styles.bar}>
       <LockupLink to={CABINET_PATH[user.role]} size="sm" />
       <div className={styles.tools}>
         <LocaleSwitch />

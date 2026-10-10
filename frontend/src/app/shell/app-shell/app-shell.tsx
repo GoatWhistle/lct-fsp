@@ -1,6 +1,9 @@
 import { useEffect, useRef } from "react"
 import { Outlet, useLocation } from "react-router"
 import { useUnreadMessages } from "@/entities/conversation"
+import { FspSignIn } from "@/features/auth"
+import { CompanyDialog } from "@/features/company-profile"
+import { ProfileDialog } from "@/features/profile"
 import type { User } from "@/shared/api"
 import { useMediaQuery, useStoredFlag } from "@/shared/hooks"
 import { useTranslation } from "@/shared/i18n"
@@ -34,6 +37,7 @@ export interface AppShellProps {
 
 export function AppShell({ user }: AppShellProps) {
   const { t } = useTranslation()
+  const profile = useTranslation("profile").t
   const medium = useMediaQuery(MEDIUM)
   const [stored, setStored] = useStoredFlag(SIDEBAR_KEY, false)
   const collapsed = stored || medium
@@ -60,6 +64,11 @@ export function AppShell({ user }: AppShellProps) {
         </main>
       </div>
       <BottomNav role={user.role} unread={unread} />
+      {user.role === "employer" ? (
+        <CompanyDialog />
+      ) : (
+        <ProfileDialog fspLinkAction={<FspSignIn intent="link" label={profile("fsp.link")} />} />
+      )}
     </div>
   )
 }

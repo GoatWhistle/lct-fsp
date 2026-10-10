@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react"
 import { useSearchParams } from "react-router"
-import { useConfirmDomain } from "@/entities/company"
+import { COMPANY_DIALOG_LINK, useConfirmDomain } from "@/entities/company"
 import { useDocumentTitle, useErrorText, useTranslation } from "@/shared/i18n"
 import { Banner, ButtonLink, IconLabel, Spinner } from "@/shared/ui"
 import { AuthLayout } from "../public-chrome/auth-layout/auth-layout"
@@ -36,7 +36,7 @@ export function VerifyDomainPage() {
           <IconLabel icon="accepted" tone="accent">
             {t("domain.verified", { domain: confirm.data.verified_domain ?? "" })}
           </IconLabel>
-          <ButtonLink to="/employer/company" fullWidth>
+          <ButtonLink to={`/employer${COMPANY_DIALOG_LINK}`} fullWidth>
             {t("domain.toCompany")}
           </ButtonLink>
         </>

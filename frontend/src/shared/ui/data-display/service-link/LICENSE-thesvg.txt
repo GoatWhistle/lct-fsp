@@ -1,0 +1,58 @@
+Service brand glyphs in service-glyphs.ts
+
+Source: theSVG - https://github.com/glincker/thesvg
+Retrieved: 2026-08-29, from public/icons/<slug>/mono.svg
+(LinkedIn has no mono variant and was taken from public/icons/linkedin/default.svg).
+
+Only the 66 marks the company links can display were taken into the
+repository, not the upstream set of 6500+ icons. Each mark was reduced to its
+single path and recoloured to currentColor so it follows the interface theme;
+the path geometry itself is unchanged.
+
+The theSVG project is distributed under the MIT license, reproduced below.
+
+Trademark notice, quoted from the upstream project: all brand names, logos and
+trademarks are the property of their respective owners. theSVG provides these
+icons for development and design purposes only under nominative fair use.
+Timeline uses each mark to identify the service a user link points to, or, for
+Telegram specifically, to identify the notification channel of that name in
+the account and notification screens; both are that same nominative use: no
+endorsement by, or affiliation with, the trademark holders is claimed or
+implied.
+
+Marks taken: GitHub, GitLab, Bitbucket, Gitea, SourceHut, Telegram, Discord,
+LinkedIn, X, Mastodon, Bluesky, YouTube, Twitch, Instagram, Facebook, Threads,
+Reddit, Medium, VK, Stack Overflow, LeetCode, Codeforces, Figma, Behance,
+Dribbble, Notion, npm, Vimeo, SoundCloud, Spotify, Boosty, Patreon, TikTok,
+HackerOne, Kaggle, Hugging Face, Devpost, Docker Hub, PyPI, crates.io,
+Go Packages, CodePen, DEV, Hashnode, Habr, Stepik, Coursera, ArtStation,
+itch.io, Steam, Google Scholar, ORCID, ResearchGate, Substack, Goodreads,
+Last.fm, Pinterest, WhatsApp, Signal, Matrix, Keybase, Codewars, HackerRank,
+Kickstarter, Hacker News, Product Hunt.
+
+Not taken: the upstream AWS Architecture icons, which carry a separate and more
+restrictive CC BY-ND 2.0 license. No icon in this file comes from that set.
+
+-----------------------------------------------------------
+
+MIT License
+
+Copyright (c) 2025 thesvg.org
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.

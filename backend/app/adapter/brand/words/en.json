@@ -45,7 +45,8 @@
       "topic": "Topic",
       "level": "Level",
       "note": "The scale shows the level and its margin of error: the narrower the band, the more confident the estimate. “Confidently Middle” means the level is within the Middle band with a probability of at least {confidence} %; “between Middle and Senior” means there is not yet enough confidence for a single band.",
-      "below": "below"
+      "below": "below",
+      "pending": "The skill profile appears after the adaptive test."
     },
     "sources": {
       "fsp": "FSP",
@@ -101,6 +102,15 @@
       "present": "present",
       "technologyYears": "Years by technology",
       "note": "Entries and years by technology are self-reported: they are not confirmed by the test or FSP and do not affect the level estimate. Years are counted from entry periods without double-counting overlaps, rounded down to half a year."
+    },
+    "summary": {
+      "pending": "after the test",
+      "precision": "Estimate precision",
+      "high": "high",
+      "medium": "medium",
+      "low": "low so far",
+      "fsp": "FSP achievements",
+      "none": "none"
     }
   },
   "mail": {

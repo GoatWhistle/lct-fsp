@@ -1,40 +1,72 @@
+import type { ReactNode } from "react"
 import { useTranslation } from "@/shared/i18n"
-import { usePresence } from "@/shared/motion"
-import { Button, IconLabel } from "@/shared/ui"
+import { Swap } from "@/shared/motion"
+import { Button, IconLabel, type IconName } from "@/shared/ui"
 import styles from "./save-bar.module.css"
 
 export interface SaveBarProps {
-  readonly open: boolean
+  readonly dirty: boolean
+  readonly created: boolean
   readonly saving: boolean
   readonly missing: number
   readonly onSave: () => void
   readonly onReset: () => void
+  readonly extra?: ReactNode
+  readonly className?: string | undefined
 }
 
-export function SaveBar({ open, saving, missing, onSave, onReset }: SaveBarProps) {
+interface Status {
+  readonly key: string
+  readonly icon: IconName
+  readonly tone: "danger" | "accent" | "secondary"
+  readonly text: string
+}
+
+function useStatus({ dirty, created, missing }: SaveBarProps): Status {
   const { t } = useTranslation("profile")
-  const presence = usePresence(open)
-  if (!presence.mounted) return null
+  if (missing > 0)
+    return {
+      key: "missing",
+      icon: "alert",
+      tone: "danger",
+      text: t("save.missing", { count: missing }),
+    }
+  if (dirty) return { key: "dirty", icon: "edit", tone: "accent", text: t("save.dirty") }
+  if (!created) return { key: "new", icon: "pending", tone: "secondary", text: t("save.new") }
+  return { key: "saved", icon: "check", tone: "secondary", text: t("save.saved") }
+}
+
+export function SaveBar(props: SaveBarProps) {
+  const { t } = useTranslation("profile")
+  const status = useStatus(props)
   return (
-    <div
-      className={styles.bar}
-      data-state={presence.state}
-      data-motion="fade"
-      onAnimationEnd={presence.onAnimationEnd}
-    >
-      <div className={styles.panel} data-surface="inverse">
-        <IconLabel
-          icon={missing > 0 ? "alert" : "edit"}
-          tone={missing > 0 ? "danger" : "default"}
-          className={styles.note}
-        >
-          {missing > 0 ? t("save.missing", { count: missing }) : t("save.dirty")}
-        </IconLabel>
+    <div className={props.className}>
+      <div className={styles.bar}>
+        <Swap swapKey={status.key} as="div" className={styles.status}>
+          <IconLabel icon={status.icon} tone={status.tone}>
+            {status.text}
+          </IconLabel>
+        </Swap>
         <div className={styles.actions}>
-          <Button variant="ghost" icon="close" onClick={onReset} disabled={saving}>
-            {t("save.reset")}
-          </Button>
-          <Button icon="check" pending={saving} pendingLabel={t("save.saving")} onClick={onSave}>
+          {props.extra}
+          {props.dirty ? (
+            <Button
+              variant="ghost"
+              icon="retry"
+              disabled={props.saving}
+              className={styles.reset}
+              onClick={props.onReset}
+            >
+              {t("save.reset")}
+            </Button>
+          ) : null}
+          <Button
+            icon="check"
+            disabled={props.created && !props.dirty}
+            pending={props.saving}
+            pendingLabel={t("save.saving")}
+            onClick={props.onSave}
+          >
             {t("save.action")}
           </Button>
         </div>

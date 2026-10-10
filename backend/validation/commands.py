@@ -44,7 +44,7 @@ from app.adapter.text_rules import load_synonyms
 from app.domain.determination import grades_by_threshold
 from composition import model_understanding, named_completion
 from settings import CATALOG_FILE, MECHANICS_FILE, SYNONYMS_FILE, Mechanics, Settings
-from validation import d6, resume_parsing
+from validation import d6, resume_parsing, sandbox
 from validation.acceptance import (
     TRAIN_PAIRS,
     TRAIN_SEED,
@@ -359,6 +359,12 @@ def report_resume_parsing(
     pending, total = resume_parsing.pending_review()
     if pending:
         print(f"\nРазметка D6 ждёт проверки человеком: {pending} из {total} записей.")
+
+
+def run_sandbox(mechanics: Mechanics, path: Path) -> None:
+    """Проверка подбора на наборе пар жюри: формат и пример — `docs/sandbox.md`."""
+    given = sandbox.load_set(path)
+    print(sandbox.render(sandbox.run_set(given, mechanics)))
 
 
 def recording_path(dataset: Path, model: str) -> Path:
@@ -676,6 +682,7 @@ def main() -> None:
             "d6",
             "person-fit",
             "resume-parsing",
+            "sandbox",
         ),
     )
     parser.add_argument(
@@ -739,7 +746,7 @@ def main() -> None:
     parser.add_argument(
         "--dataset",
         type=Path,
-        default=D5_FILE,
+        default=None,
         help="размеченные тексты для parsing, по умолчанию D5",
     )
     parser.add_argument(
@@ -775,7 +782,7 @@ def main() -> None:
         case "parsing":
             report_parsing(
                 mechanics,
-                args.dataset,
+                args.dataset or D5_FILE,
                 args.model,
                 timeout=args.timeout,
                 record_workers=args.record,
@@ -796,6 +803,10 @@ def main() -> None:
             run_d6(args.build, args.confirm)
         case "person-fit":
             tune_person_fit(mechanics)
+        case "sandbox":
+            if args.dataset is None:
+                raise SystemExit("sandbox: укажите набор — --dataset путь.json")
+            run_sandbox(mechanics, args.dataset)
         case "resume-parsing":
             report_resume_parsing(
                 mechanics, args.model, timeout=args.timeout, record_workers=args.record

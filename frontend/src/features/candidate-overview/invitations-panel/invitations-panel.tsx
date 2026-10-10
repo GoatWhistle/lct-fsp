@@ -2,7 +2,7 @@ import { Link } from "react-router"
 import { InboxStatusBadge, useInbox } from "@/entities/invitation"
 import { BackendText, useMoneyRange, useTranslation } from "@/shared/i18n"
 import { staggerStyle } from "@/shared/motion"
-import { ButtonLink, Card, EmptyState, IconLabel, LoadError, Skeleton } from "@/shared/ui"
+import { ButtonLink, Card, IconLabel, LoadError, Skeleton } from "@/shared/ui"
 import styles from "./invitations-panel.module.css"
 
 const LATEST = 3
@@ -28,11 +28,12 @@ function Latest() {
   if (inbox.data === undefined) return <Skeleton lines={3} />
   if (inbox.data.length === 0)
     return (
-      <EmptyState
-        icon="invitation"
-        title={t("invitations.emptyTitle")}
-        description={t("invitations.emptyText")}
-      />
+      <div className={styles.empty}>
+        <IconLabel icon="invitation" tone="secondary">
+          {t("invitations.emptyTitle")}
+        </IconLabel>
+        <p className={styles.basis}>{t("invitations.emptyText")}</p>
+      </div>
     )
   return (
     <>

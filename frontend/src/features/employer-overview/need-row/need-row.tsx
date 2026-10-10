@@ -1,10 +1,10 @@
 import { useNavigate } from "react-router"
 import { gradeIcon, specializationIcon } from "@/entities/catalog"
 import { useBuildSelection, useSelections } from "@/entities/selection"
-import type { Need, SelectionSummary } from "@/shared/api"
+import type { Need } from "@/shared/api"
 import { useCatalogNames, useErrorText, useFormatters, useTranslation } from "@/shared/i18n"
 import { staggerStyle } from "@/shared/motion"
-import { Button, ButtonLink, Chip, IconLabel, Skeleton, toast } from "@/shared/ui"
+import { Button, ButtonLink, Chip, IconLabel, Trace, toast } from "@/shared/ui"
 import styles from "./need-row.module.css"
 
 const STACK_SHOWN = 5
@@ -12,30 +12,6 @@ const STACK_SHOWN = 5
 export interface NeedRowProps {
   readonly need: Need
   readonly index: number
-}
-
-interface LatestSelectionProps {
-  readonly latest: SelectionSummary | undefined
-  readonly pending: boolean
-}
-
-function LatestSelection({ latest, pending }: LatestSelectionProps) {
-  const { t } = useTranslation("employer")
-  const format = useFormatters()
-  if (pending) return <Skeleton lines={2} className={styles.figures} />
-  if (latest === undefined) return <p className={styles.none}>{t("overview.needs.noSelection")}</p>
-  return (
-    <dl className={styles.figures}>
-      <div className={styles.figure}>
-        <dt className={styles.figureLabel}>{t("overview.needs.exact")}</dt>
-        <dd className={styles.figureValue}>{format.integer(latest.exact_total)}</dd>
-      </div>
-      <div className={styles.figure}>
-        <dt className={styles.figureLabel}>{t("overview.needs.nearby")}</dt>
-        <dd className={styles.figureValue}>{format.integer(latest.nearby_total)}</dd>
-      </div>
-    </dl>
-  )
 }
 
 export function NeedRow({ need, index }: NeedRowProps) {
@@ -74,13 +50,39 @@ export function NeedRow({ need, index }: NeedRowProps) {
         </div>
       </div>
       <div className={styles.side}>
-        <LatestSelection latest={latest} pending={selections.isPending} />
         {latest === undefined ? null : (
           <IconLabel icon="clock" tone="secondary" size="sm">
             {t("overview.needs.built", { date: format.dateTime(latest.created_at) })}
           </IconLabel>
         )}
       </div>
+      <Trace
+        label={t("overview.needs.trace.label")}
+        orientation="horizontal"
+        animate
+        className={styles.trace}
+        steps={[
+          { key: "described", title: t("overview.needs.trace.described"), status: "done" },
+          {
+            key: "selection",
+            title: t("overview.needs.trace.selection"),
+            description:
+              latest === undefined
+                ? t("overview.needs.noSelection")
+                : t("overview.needs.counts", {
+                    exact: format.integer(latest.exact_total),
+                    nearby: format.integer(latest.nearby_total),
+                  }),
+            status: latest === undefined ? "current" : "done",
+          },
+          {
+            key: "invite",
+            title: t("overview.needs.trace.invite"),
+            description: t("overview.needs.trace.inviteHint"),
+            status: latest === undefined ? "upcoming" : "current",
+          },
+        ]}
+      />
       <div className={styles.actions}>
         {latest === undefined ? null : (
           <ButtonLink to={`/employer/selections/${latest.id}`} size="compact" icon="match">

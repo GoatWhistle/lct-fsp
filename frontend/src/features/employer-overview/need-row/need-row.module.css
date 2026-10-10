@@ -3,7 +3,8 @@
   grid-template-columns: minmax(0, 1fr) auto;
   grid-template-areas:
     "main side"
-    "actions side";
+    "trace trace"
+    "actions actions";
   gap: var(--space-12) var(--space-32);
   padding-block: var(--space-20);
   border-block-start: var(--hairline) solid var(--border-hairline);
@@ -43,31 +44,8 @@
   gap: var(--space-12);
 }
 
-.figures {
-  display: flex;
-  gap: var(--space-24);
-  min-inline-size: var(--grade-value-width);
-}
-
-.figure {
-  display: grid;
-  justify-items: end;
-}
-
-.figureLabel {
-  composes: fieldLabel from "../../../shared/styles/compose.module.css";
-}
-
-.figureValue {
-  composes: monoText from "../../../shared/styles/compose.module.css";
-  font-size: var(--font-size-heading);
-  line-height: var(--line-height-heading);
-  font-variant-numeric: tabular-nums;
-}
-
-.none {
-  composes: secondaryText from "../../../shared/styles/compose.module.css";
-  text-align: end;
+.trace {
+  grid-area: trace;
 }
 
 .actions {
@@ -83,15 +61,11 @@
     grid-template-areas:
       "main"
       "side"
+      "trace"
       "actions";
   }
 
-  .side,
-  .figure {
+  .side {
     justify-items: start;
-  }
-
-  .none {
-    text-align: start;
   }
 }

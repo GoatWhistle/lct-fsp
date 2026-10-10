@@ -3,29 +3,22 @@ import { usePath } from "@/entities/candidate-path"
 import { useFspStatus } from "@/entities/profile"
 import {
   CategoryPanel,
-  FeedbackPanel,
   HistoryPanel,
   InvitationsPanel,
   ProfilePanel,
   SkillPanel,
 } from "@/features/candidate-overview"
 import { VerificationCard } from "@/features/test-verification"
-import { useDocumentTitle, useTranslation } from "@/shared/i18n"
-import { LoadError, PageBody, PageHeader, Skeleton } from "@/shared/ui"
+import { useCatalogNames, useDocumentTitle, useTranslation } from "@/shared/i18n"
+import { Banner, ButtonLink, LoadError, PageBody, PageHeader, Skeleton } from "@/shared/ui"
 import styles from "./candidate-overview-page.module.css"
 
 function OverviewSkeleton() {
   return (
     <div className={styles.grid} aria-hidden="true">
-      <div className={styles.side}>
-        <Skeleton shape="block" className={styles.placeholder} />
-      </div>
-      <div className={styles.main}>
-        <Skeleton shape="block" className={styles.placeholder} />
-      </div>
-      <div className={styles.aside}>
-        <Skeleton shape="block" className={styles.placeholder} />
-      </div>
+      <Skeleton shape="block" className={styles.wide} />
+      <Skeleton shape="block" className={styles.placeholder} />
+      <Skeleton shape="block" className={styles.placeholder} />
     </div>
   )
 }
@@ -34,10 +27,10 @@ export function CandidateOverviewPage() {
   const { t } = useTranslation("overview")
   const path = usePath()
   const fsp = useFspStatus()
+  const names = useCatalogNames()
   useDocumentTitle(t("title"))
   const data = path.data
-  if (data !== undefined && (data.category === null || data.topic_block !== null))
-    return <Navigate to="/candidate/path" replace />
+  if (data !== undefined && data.category === null) return <Navigate to="/candidate/path" replace />
   const level = data?.profile ?? null
   return (
     <>
@@ -53,27 +46,41 @@ export function CandidateOverviewPage() {
           <OverviewSkeleton />
         ) : (
           <div className={styles.grid}>
-            <div className={styles.side}>
-              <CategoryPanel path={data} motionIndex={0} />
-              <VerificationCard path={data} />
-              {data.history.length === 0 ? null : (
-                <HistoryPanel history={data.history} motionIndex={4} className={styles.history} />
-              )}
-            </div>
-            <div className={styles.main}>
+            {data.topic_block === null ? null : (
+              <Banner
+                tone="info"
+                icon="test"
+                title={t("block.open", {
+                  topic: names.topic(data.topic_block.topic),
+                  answered: data.topic_block.answered,
+                  items: data.topic_block.items,
+                })}
+                action={
+                  <ButtonLink
+                    to="/candidate/test"
+                    size="compact"
+                    icon="arrow-right"
+                    iconPosition="end"
+                  >
+                    {t("block.continue")}
+                  </ButtonLink>
+                }
+                className={styles.wide}
+              />
+            )}
+            <CategoryPanel path={data} motionIndex={0} className={styles.wide} />
+            <div className={styles.column}>
               {level === null ? null : (
-                <SkillPanel
-                  profile={level}
-                  fspLinked={fsp.data?.linked ?? null}
-                  motionIndex={1}
-                  className={styles.skills}
-                />
+                <SkillPanel profile={level} fspLinked={fsp.data?.linked ?? null} motionIndex={1} />
               )}
             </div>
-            <div className={styles.aside}>
-              <FeedbackPanel motionIndex={2} className={styles.feedback} />
-              <InvitationsPanel motionIndex={3} className={styles.invitations} />
-              <ProfilePanel motionIndex={5} className={styles.profile} />
+            <div className={styles.column}>
+              <VerificationCard path={data} />
+              <InvitationsPanel motionIndex={3} />
+              {data.history.length === 0 ? null : (
+                <HistoryPanel history={data.history} motionIndex={4} />
+              )}
+              <ProfilePanel motionIndex={5} />
             </div>
           </div>
         )}

@@ -75,20 +75,14 @@
 }
 
 .count {
-  composes: captionText from "../../../shared/styles/compose.module.css";
-  min-inline-size: var(--icon-md);
-  padding-inline: var(--space-4);
-  border-radius: var(--radius-badge);
+  composes: countBadge from "../../../shared/styles/feedback.module.css";
   background-color: var(--action-primary);
-  color: var(--text-on-action);
-  font-family: var(--font-mono);
-  text-align: center;
 }
 
 .footer {
   display: grid;
-  gap: var(--space-8);
-  padding-block-start: var(--space-12);
+  gap: var(--space-12);
+  padding-block-start: var(--space-16);
   border-block-start: var(--hairline) solid var(--border-hairline);
 }
 
@@ -98,16 +92,33 @@
   color: var(--text-tertiary);
 }
 
-.tools {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-4);
+.account > button {
+  inline-size: 100%;
+  justify-content: flex-start;
+  border: var(--hairline) solid var(--border-hairline);
+  background-color: var(--surface-tint);
 }
 
-.sidebar[data-collapsed="true"] .brand,
-.sidebar[data-collapsed="true"] .tools {
+.tools {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-8);
+}
+
+.tools > button {
+  inline-size: 100%;
+  border: var(--hairline) solid var(--border-hairline);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .account > button:hover,
+  .tools > button:hover {
+    border-color: var(--border-strong);
+  }
+}
+
+.sidebar[data-collapsed="true"] .brand {
   justify-items: center;
-  justify-content: center;
 }
 
 .sidebar[data-collapsed="true"] .link {
@@ -122,6 +133,9 @@
 }
 
 .sidebar[data-collapsed="true"] .tools {
-  flex-direction: column;
-  align-items: center;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.sidebar[data-collapsed="true"] .account > button {
+  justify-content: center;
 }

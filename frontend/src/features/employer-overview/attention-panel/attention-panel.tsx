@@ -1,6 +1,6 @@
 import { Link } from "react-router"
 import { useApplications } from "@/entities/application"
-import { isOpenStatus, useSentInvitations } from "@/entities/invitation"
+import { InvitationBudget, isOpenStatus, useSentInvitations } from "@/entities/invitation"
 import { useAwaitingReview, useOwnTasks } from "@/entities/task"
 import { useFormatters, useTranslation } from "@/shared/i18n"
 import { staggerStyle } from "@/shared/motion"
@@ -71,8 +71,12 @@ export interface AttentionPanelProps {
 export function AttentionPanel({ className }: AttentionPanelProps) {
   const { t } = useTranslation("employer")
   const alerts = useAlerts()
+  const sent = useSentInvitations()
   return (
     <Card title={t("overview.attention.title")} className={className} motionIndex={3}>
+      {sent.data === undefined ? null : (
+        <InvitationBudget budget={sent.data.budget} className={styles.budget} />
+      )}
       {alerts === undefined ? (
         <Skeleton lines={3} />
       ) : alerts.length === 0 ? (

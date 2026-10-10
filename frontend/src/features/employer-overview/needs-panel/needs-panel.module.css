@@ -1,3 +1,7 @@
 .list {
   display: grid;
 }
+
+.toggle {
+  margin-block-start: var(--space-16);
+}

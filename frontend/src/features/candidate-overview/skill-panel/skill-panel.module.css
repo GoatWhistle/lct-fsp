@@ -13,7 +13,12 @@
 .row {
   composes: ruledRow from "../../../shared/styles/compose.module.css";
   display: grid;
-  gap: var(--space-8);
+  grid-template-columns: minmax(9rem, 13rem) minmax(0, 1fr);
+  grid-template-areas:
+    "head ruler"
+    ". more";
+  align-items: center;
+  gap: var(--space-4) var(--space-24);
   padding-block: var(--space-16);
 }
 
@@ -21,12 +26,15 @@
   padding-block-end: 0;
 }
 
+.row > figure {
+  grid-area: ruler;
+}
+
 .rowHead {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: var(--space-8) var(--space-16);
+  display: grid;
+  grid-area: head;
+  justify-items: start;
+  gap: var(--space-8);
 }
 
 .name {
@@ -47,8 +55,18 @@
 }
 
 .more {
+  grid-area: more;
   justify-self: start;
-  margin-block-start: calc(var(--space-8) * -1);
+}
+
+@media (max-width: 47.99rem) {
+  .row {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      "head"
+      "ruler"
+      "more";
+  }
 }
 
 .refine {
@@ -68,4 +86,18 @@
 .blockText {
   composes: prose from "../../../shared/styles/layout.module.css";
   flex: 1 1 var(--column-min);
+}
+
+.band {
+  composes: secondaryText from "../../../shared/styles/compose.module.css";
+  font-family: var(--font-mono);
+}
+
+.diff {
+  composes: labelText from "../../../shared/styles/compose.module.css";
+  color: var(--text-secondary);
+}
+
+.common {
+  composes: secondaryText from "../../../shared/styles/compose.module.css";
 }

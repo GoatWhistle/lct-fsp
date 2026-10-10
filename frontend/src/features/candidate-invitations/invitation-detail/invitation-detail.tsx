@@ -4,6 +4,7 @@ import type { Invitation } from "@/shared/api"
 import { BackendText, useFormatters, useMoneyRange, useTranslation } from "@/shared/i18n"
 import { Banner, Card, IconLabel, NoValue, type TermItem, Terms } from "@/shared/ui"
 import { InvitationActions } from "../invitation-actions/invitation-actions"
+import { VacancyTestPanel } from "../vacancy-test-panel/vacancy-test-panel"
 import styles from "./invitation-detail.module.css"
 
 const URGENT_MS = 48 * 60 * 60 * 1000
@@ -108,6 +109,9 @@ export function InvitationDetail({ invitation, conversation }: InvitationDetailP
           {invitation.description}
         </BackendText>
       </section>
+      {invitation.vacancy_test === null ? null : (
+        <VacancyTestPanel invitation={invitation} test={invitation.vacancy_test} />
+      )}
       <InvitationActions invitation={invitation} part="decision" />
       {talking ? (
         <section className={styles.section} aria-label={t("detail.conversation")}>

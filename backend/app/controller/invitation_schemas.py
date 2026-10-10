@@ -7,6 +7,7 @@ from typing import Annotated
 from pydantic import BaseModel, Field, StringConstraints
 
 from app.controller.salary import SALARY_UNIT, Salary, SalaryBasisOut
+from app.controller.vacancy_test_schemas import VacancyTestOut
 from app.domain.conversation import Side
 from app.domain.invitation import InvitationStatus
 
@@ -21,6 +22,11 @@ class InvitationIn(BaseModel):
     contact: Annotated[
         str, StringConstraints(strip_whitespace=True, min_length=1, max_length=300)
     ] = Field(description="Как кандидату связаться с компанией, если примет приглашение")
+    test_need_id: uuid.UUID | None = Field(
+        default=None,
+        description="Приложить тест по вакансии: потребность компании той же специализации, что "
+        "категория кандидата",
+    )
 
 
 class InvitationOut(SalaryBasisOut):
@@ -43,6 +49,9 @@ class InvitationOut(SalaryBasisOut):
         description="Когда кандидат отозвал доступ: карточка снова обезличена, переписка идёт"
     )
     unread_messages: int = Field(description="Непрочитанные сообщения другой стороны")
+    vacancy_test: VacancyTestOut | None = Field(
+        description="Приложенный тест по вакансии; итог — только в ответах работодателю"
+    )
 
 
 class InvitationBudgetOut(BaseModel):

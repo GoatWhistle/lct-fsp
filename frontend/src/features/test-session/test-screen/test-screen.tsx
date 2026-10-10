@@ -77,21 +77,24 @@ function Workspace({
   )
 }
 
-export function TestScreen({ path, exitTo, onFinished }: TestScreenProps) {
+function useScreenTitle(path: CandidatePath): string {
   const { t } = useTranslation("test")
   const names = useCatalogNames()
+  if (path.verification?.progress) return t("protection.title")
+  if (path.vacancy_test !== null) return t("titleVacancy", { title: path.vacancy_test.need_title })
+  if (path.topic_block !== null) return `${t("titleBlock")}: ${names.topic(path.topic_block.topic)}`
+  return t(path.attempt?.express ? "titleExpress" : "title", {
+    grade: names.grade(path.attempt?.grade ?? ""),
+  })
+}
+
+export function TestScreen({ path, exitTo, onFinished }: TestScreenProps) {
   const item = useTestItem()
-  const block = path.topic_block !== null || !!path.verification?.progress
-  const title = path.verification?.progress
-    ? t("protection.title")
-    : path.topic_block !== null
-      ? `${t("titleBlock")}: ${names.topic(path.topic_block.topic)}`
-      : t(path.attempt?.express ? "titleExpress" : "title", {
-          grade: names.grade(path.attempt?.grade ?? ""),
-        })
-  const number =
-    item.data?.number ?? (path.attempt?.answered ?? path.topic_block?.answered ?? 0) + 1
-  const max = item.data?.max_items ?? path.attempt?.max_items ?? path.topic_block?.items ?? 1
+  const side = path.vacancy_test ?? path.topic_block
+  const block = side !== null || !!path.verification?.progress
+  const title = useScreenTitle(path)
+  const number = item.data?.number ?? (path.attempt?.answered ?? side?.answered ?? 0) + 1
+  const max = item.data?.max_items ?? path.attempt?.max_items ?? side?.items ?? 1
 
   return (
     <div className={styles.screen}>

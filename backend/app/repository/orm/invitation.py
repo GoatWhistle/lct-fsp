@@ -8,13 +8,16 @@
 
 import uuid
 from datetime import datetime
+from typing import Any
 
 from sqlalchemy import BigInteger, CheckConstraint, Enum, ForeignKey, Identity, Index, String
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.domain.conversation import Side
 from app.domain.invitation import InvitationStatus
 from app.repository.database import Base
+from app.repository.orm.catalog import Grade, Specialization
 
 
 class Invitation(Base):
@@ -74,3 +77,25 @@ class InvitationMessage(Base):
     sent_at: Mapped[datetime]
     # Прочитано другой стороной: открытие переписки отмечает её сообщения.
     read_at: Mapped[datetime | None]
+
+
+class VacancyTest(Base):
+    """Тест по вакансии, приложенный к приглашению: план на момент отправки. Темы — список
+    словарей {код, название, важность, вес, заданий}, его собирает и читает репозиторий."""
+
+    __tablename__ = "vacancy_tests"
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    invitation_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("invitations.id", ondelete="CASCADE"), unique=True
+    )
+    need_title: Mapped[str] = mapped_column(String(200))
+    specialization_code: Mapped[str] = mapped_column(ForeignKey("specializations.code"))
+    grade_code: Mapped[str] = mapped_column(ForeignKey("grades.code"))
+    # Требуемый уровень θ — порог грейда потребности на момент отправки.
+    requirement: Mapped[float]
+    topics: Mapped[list[dict[str, Any]]] = mapped_column(JSONB)
+    created_at: Mapped[datetime]
+
+    specialization: Mapped[Specialization] = relationship()
+    grade: Mapped[Grade] = relationship()

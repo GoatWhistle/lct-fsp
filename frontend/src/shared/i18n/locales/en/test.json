@@ -45,5 +45,6 @@
     "lowerText": "Or start a new test for {{grade}} from scratch.",
     "lowerAction": "{{grade}} test"
   },
-  "titleExpress": "{{grade}} express test"
+  "titleExpress": "{{grade}} express test",
+  "titleVacancy": "Vacancy test: {{title}}"
 }

@@ -45,5 +45,6 @@
     "lowerText": "Или начните тест на {{grade}} с чистого листа.",
     "lowerAction": "Тест на {{grade}}"
   },
-  "titleExpress": "Экспресс-тест на грейд {{grade}}"
+  "titleExpress": "Экспресс-тест на грейд {{grade}}",
+  "titleVacancy": "Тест по вакансии: {{title}}"
 }

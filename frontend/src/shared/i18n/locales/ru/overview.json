@@ -56,7 +56,8 @@
       "determination": "Определение категории, тест на грейд {{grade}}",
       "grade_up": "Попытка вверх, тест на грейд {{grade}}",
       "topic_block": "Блок по теме",
-      "verification": "Проверочный блок"
+      "verification": "Проверочный блок",
+      "vacancy_test": "Тест по вакансии"
     }
   },
   "feedback": {

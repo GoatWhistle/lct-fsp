@@ -83,6 +83,7 @@ from app.domain.selection import (
 )
 from app.domain.skill import Normal, Observation, Prior, SkillEstimate, SkillProfileLevels
 from app.domain.vacancy import Vacancy, VacancyTerms
+from app.domain.vacancy_test import VacancyTest, VacancyTestPlan
 
 
 class SkillModel(Protocol):
@@ -248,11 +249,17 @@ class AttemptRepository(AttemptReader, Protocol):
         verifies: Attempt | None = None,
         deadline: datetime | None = None,
         express_limit: int | None = None,
+        vacancy_test_id: uuid.UUID | None = None,
     ) -> Attempt:
         """Новая попытка; `continues` — попытка, чью оценку продолжает дотест каскада,
         `topic_code` — тема блока по теме, `focus_consent` — согласие на счётчики событий,
         `verifies` и `deadline` — у проверочного блока: что он проверяет и его срок,
-        `express_limit` — лимит заданий экспресс-теста режима жюри."""
+        `express_limit` — лимит заданий экспресс-теста режима жюри, `vacancy_test_id` — план
+        теста по вакансии."""
+        ...
+
+    def vacancy_attempts(self, test_ids: Collection[uuid.UUID]) -> dict[uuid.UUID, Attempt]:
+        """Попытки тестов по вакансии с предъявлениями — по id плана; не начатого теста нет."""
         ...
 
     def attempt(self, attempt_id: uuid.UUID) -> Attempt:
@@ -946,6 +953,26 @@ class InvitationRepository(InvitationReader, Protocol):
 
     def sent_since(self, employer_id: uuid.UUID, since: datetime) -> int:
         """Сколько приглашений компания отправила с момента `since`, в любом статусе."""
+        ...
+
+
+class VacancyTestReader(Protocol):
+    """Планы тестов по вакансии — для выбора задания. Сейчас — Postgres
+    (`app.repository.vacancy_test`)."""
+
+    def get(self, test_id: uuid.UUID) -> VacancyTest: ...
+
+
+class VacancyTestRepository(VacancyTestReader, Protocol):
+    """Планы тестов по вакансии, приложенные к приглашениям. Пишет только внутри единицы работы
+    и сам не фиксирует. Сейчас — Postgres (`app.repository.vacancy_test`)."""
+
+    def add(
+        self, invitation_id: uuid.UUID, need_title: str, plan: VacancyTestPlan, now: datetime
+    ) -> VacancyTest: ...
+
+    def by_invitations(self, invitation_ids: Collection[uuid.UUID]) -> dict[uuid.UUID, VacancyTest]:
+        """Планы по id приглашения; приглашения без теста в ответе нет."""
         ...
 
 

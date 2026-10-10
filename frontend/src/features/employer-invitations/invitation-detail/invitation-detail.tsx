@@ -3,6 +3,7 @@ import { candidateTag, InvitationStatusBadge, isOpenStatus } from "@/entities/in
 import type { Invitation } from "@/shared/api"
 import { BackendText, useFormatters, useMoneyRange, useTranslation } from "@/shared/i18n"
 import { Banner, ButtonLink, Card, type TermItem, Terms } from "@/shared/ui"
+import { VacancyTestResult } from "../vacancy-test-result/vacancy-test-result"
 import styles from "./invitation-detail.module.css"
 
 export interface InvitationDetailProps {
@@ -116,6 +117,9 @@ export function InvitationDetail({ invitation, conversation }: InvitationDetailP
           {invitation.description}
         </BackendText>
       </section>
+      {invitation.vacancy_test === null ? null : (
+        <VacancyTestResult test={invitation.vacancy_test} />
+      )}
       {invitation.status === "accepted" ? conversation : null}
     </Card>
   )

@@ -36,6 +36,8 @@ exposure_window_attempts: 500
 topic_block_items: 6
 topic_block_interval_days: 30
 express_max_items: 8
+vacancy_test_items: 12
+vacancy_test_min_items_per_topic: 1
 
 # Калибровка
 elo_k_initial: 0.4

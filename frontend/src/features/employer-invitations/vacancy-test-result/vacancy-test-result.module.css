@@ -1,0 +1,40 @@
+.panel {
+  display: grid;
+  gap: var(--space-12);
+  padding-block-start: var(--space-20);
+  border-block-start: var(--hairline) solid var(--border-hairline);
+}
+
+.head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-8);
+}
+
+.heading {
+  composes: labelText from "../../../shared/styles/compose.module.css";
+  font-weight: var(--weight-medium);
+}
+
+.topics {
+  display: grid;
+}
+
+.row {
+  composes: listRowCompact from "../../../shared/styles/rows.module.css";
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-4) var(--space-12);
+}
+
+.name {
+  composes: bodySmText from "../../../shared/styles/compose.module.css";
+  font-weight: var(--weight-medium);
+}
+
+.correct {
+  composes: captionText monoText from "../../../shared/styles/compose.module.css";
+  color: var(--text-secondary);
+}

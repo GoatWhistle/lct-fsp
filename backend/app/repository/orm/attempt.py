@@ -47,6 +47,10 @@ class TestAttempt(Base):
         CheckConstraint(
             "(purpose = 'verification') = (deadline IS NOT NULL)", name="verification_deadline"
         ),
+        # План — ровно у теста по вакансии.
+        CheckConstraint(
+            "(purpose = 'vacancy_test') = (vacancy_test_id IS NOT NULL)", name="vacancy_test_plan"
+        ),
     )
     __test__ = False  # имя начинается с Test — pytest не должен собирать класс как тест
 
@@ -107,6 +111,10 @@ class TestAttempt(Base):
     planned_items: Mapped[int | None]
     # Экспресс-тест режима жюри: лимит заданий; NULL — полный тест.
     express_limit: Mapped[int | None]
+    # Тест по вакансии: чей план он проходит; один тест — одна попытка.
+    vacancy_test_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("vacancy_tests.id", ondelete="CASCADE"), unique=True
+    )
 
     presentations: Mapped[list["Presentation"]] = relationship(
         order_by="Presentation.position", back_populates="attempt"

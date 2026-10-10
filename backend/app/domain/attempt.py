@@ -77,6 +77,16 @@ class AttemptPurpose(enum.StrEnum):
     # Проверочный блок на время (§8): подтверждает подозрительный результат попытки пути или,
     # добровольно, уровень категории.
     verification = "verification"
+    # Тест по вакансии из приглашения: сигнал для одного работодателя, вне пути и профиля.
+    vacancy_test = "vacancy_test"
+
+
+# Попытки вне пути: категорию, грейд, историю и часы смены грейда они не трогают.
+SIDE_PURPOSES = (
+    AttemptPurpose.topic_block,
+    AttemptPurpose.verification,
+    AttemptPurpose.vacancy_test,
+)
 
 
 class AttemptOutcome(enum.StrEnum):
@@ -229,6 +239,8 @@ class Attempt:
     planned_items: int | None = None
     # Экспресс-тест режима жюри (§18): лимит заданий вместо `test_max_items`; None — полный тест.
     express_limit: int | None = None
+    # Тест по вакансии: чей план он проходит — только у `vacancy_test`.
+    vacancy_test_id: uuid.UUID | None = None
 
     @property
     def express(self) -> bool:
@@ -265,9 +277,9 @@ class Attempt:
 
     @property
     def on_path(self) -> bool:
-        """Попытка — шаг пути к категории: определение или попытка вверх, но не блок по теме и
-        не проверочный блок."""
-        return self.purpose not in (AttemptPurpose.topic_block, AttemptPurpose.verification)
+        """Попытка — шаг пути к категории: определение или попытка вверх, но не блок по теме,
+        не проверочный блок и не тест по вакансии."""
+        return self.purpose not in SIDE_PURPOSES
 
     @property
     def source(self) -> SignalSource:
@@ -341,6 +353,16 @@ class TopicBlockProgress:
     """Идущий блок по теме: длина фиксированная — `items` заданий."""
 
     topic: CatalogRef
+    answered: int
+    items: int
+
+
+@dataclass(frozen=True)
+class VacancyTestProgress:
+    """Идущий тест по вакансии: длина фиксированная — `items` заданий."""
+
+    invitation_id: uuid.UUID
+    need_title: str
     answered: int
     items: int
 
@@ -442,6 +464,8 @@ class PathView:
     verification: VerificationView | None = None
     # Экспресс-тест режима жюри: идёт, ждёт продолжения или дал последний итог пути.
     express: ExpressView | None = None
+    # Незавершённый тест по вакансии: пока он идёт, кабинет показывает его задания.
+    vacancy_test: VacancyTestProgress | None = None
 
 
 @dataclass(frozen=True)
@@ -483,6 +507,7 @@ class Item:
     max_items: int
     topic_block: bool = False
     verification: bool = False
+    vacancy_test: bool = False
     # Срок проверочного блока.
     deadline: datetime | None = None
     # Кандидат согласился на счётчики событий: без согласия фронт их не собирает.

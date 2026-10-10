@@ -36,6 +36,7 @@ from app.controller.path_schemas import (
     TestResultOut,
     TopicBlockIn,
     TopicBlockOut,
+    VacancyTestProgressOut,
     VerificationOut,
     VerificationProgressOut,
     VerificationResultOut,
@@ -195,6 +196,7 @@ def get_item(user: CurrentUser, paths: CandidatePathDep) -> ItemOut:
         max_items=item.max_items,
         topic_block=item.topic_block,
         verification=item.verification,
+        vacancy_test=item.vacancy_test,
         deadline=item.deadline,
         focus_consent=item.focus_consent,
         topic=CatalogRef.model_validate(item.topic),
@@ -282,6 +284,16 @@ def _path_out(view: PathView, mechanics: Mechanics) -> PathOut:
                 paused=view.express.paused,
             )
             if view.express
+            else None
+        ),
+        vacancy_test=(
+            VacancyTestProgressOut(
+                invitation_id=view.vacancy_test.invitation_id,
+                need_title=view.vacancy_test.need_title,
+                answered=view.vacancy_test.answered,
+                items=view.vacancy_test.items,
+            )
+            if view.vacancy_test
             else None
         ),
     )

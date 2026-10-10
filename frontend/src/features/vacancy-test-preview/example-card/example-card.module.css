@@ -1,0 +1,50 @@
+.example {
+  composes: cardFrame from "../../../shared/styles/compose.module.css";
+  display: grid;
+  gap: var(--space-12);
+  padding: var(--space-16) var(--space-20);
+  animation: var(--motion-rise-in);
+  animation-delay: calc(var(--i) * var(--stagger));
+}
+
+.topic {
+  composes: labelText from "../../../shared/styles/compose.module.css";
+}
+
+.prompt {
+  composes: bodySmText from "../../../shared/styles/compose.module.css";
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.code {
+  max-block-size: var(--code-max-height);
+  border-radius: var(--radius-inner);
+  background-color: var(--surface-canvas);
+}
+
+.listing {
+  composes: monoText captionText from "../../../shared/styles/compose.module.css";
+  margin: 0;
+  padding: var(--space-12) var(--space-16);
+  inline-size: max-content;
+  min-inline-size: 100%;
+}
+
+.options {
+  display: grid;
+  gap: var(--space-8);
+}
+
+.option {
+  composes: bodySmText from "../../../shared/styles/compose.module.css";
+  display: flex;
+  gap: var(--space-8);
+  align-items: baseline;
+}
+
+.letter {
+  composes: monoText labelText from "../../../shared/styles/compose.module.css";
+  color: var(--text-accent);
+}

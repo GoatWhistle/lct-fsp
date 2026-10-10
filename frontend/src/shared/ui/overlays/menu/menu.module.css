@@ -3,6 +3,13 @@
   flex-direction: column;
 }
 
+.triggerLabel {
+  min-inline-size: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .item {
   composes: controlText listItem from "../../../styles/compose.module.css";
   display: flex;

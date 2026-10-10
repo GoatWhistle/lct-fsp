@@ -1,0 +1,121 @@
+#final .fn-net {
+  position: absolute;
+  inset: 0;
+  width: 1920px;
+  height: 1080px;
+  overflow: visible;
+}
+
+#final .fn-link {
+  fill: none;
+  stroke: var(--deck-line-strong);
+  stroke-width: 1.5;
+  stroke-linecap: round;
+}
+
+#final .fn-link.is-accent {
+  stroke: var(--deck-band);
+}
+
+#final .fn-dot {
+  fill: var(--brand-mark-neutral);
+}
+
+#final .fn-dot.is-blue {
+  fill: var(--brand-mark-blue);
+}
+
+#final .fn-dot.is-red {
+  fill: var(--brand-mark-red);
+}
+
+#final .fn-pulse {
+  fill: var(--brand-mark-blue);
+  offset-anchor: center;
+  offset-rotate: 0deg;
+  opacity: 0;
+}
+
+#final.play .fn-pulse {
+  animation: deck-run var(--t) var(--ease-in-out) var(--d) infinite both;
+}
+
+#final .fn-left {
+  position: absolute;
+  left: var(--gutter);
+  top: 340px;
+  width: 820px;
+  display: grid;
+  justify-items: start;
+  gap: 28px;
+}
+
+#final .fn-lockup {
+  justify-content: flex-start;
+  gap: 40px;
+  margin-bottom: 36px;
+  --mark-size: 190px;
+  --word-size: 168px;
+  --word-d: 0.5s;
+  --node-d: 1.05s;
+}
+
+#final .fn-line {
+  font-family: var(--font-display);
+  font-size: var(--fs-title);
+  font-weight: var(--weight-strong);
+  line-height: var(--lh-tight);
+  letter-spacing: var(--tracking-title);
+  color: var(--deck-fg);
+}
+
+#final .fn-cards {
+  position: absolute;
+  left: 1020px;
+  top: 170px;
+  width: 780px;
+  display: grid;
+  gap: 40px;
+}
+
+#final .fn-card {
+  display: grid;
+  grid-template-columns: 300px 1fr;
+  align-items: center;
+  gap: 40px;
+  padding: 30px;
+  color: var(--deck-fg);
+  text-decoration: none;
+}
+
+#final .fn-card .qr {
+  width: 300px;
+}
+
+#final .fn-text {
+  display: grid;
+  align-content: center;
+  gap: 14px;
+}
+
+#final .fn-text b {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-family: var(--font-display);
+  font-size: var(--fs-lead);
+  font-weight: var(--weight-strong);
+  letter-spacing: -0.03em;
+  --ic: 36px;
+}
+
+#final .fn-text b .ic {
+  color: var(--deck-accent);
+}
+
+#final .fn-text .mono {
+  margin-top: 6px;
+  font-size: var(--fs-micro);
+  line-height: var(--lh-snug);
+  color: var(--deck-accent);
+}

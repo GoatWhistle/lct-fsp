@@ -1,0 +1,290 @@
+<!doctype html>
+<html lang="ru" data-theme="light">
+<head>
+<meta charset="utf-8">
+<title>README assets</title>
+<link rel="stylesheet" href="../src/core/css/tokens.css">
+<style>
+:root {
+  --font-sans: var(--font-ui);
+  --border-subtle: var(--border-hairline);
+  --surface-sunken: var(--surface-canvas);
+  --surface-base: var(--surface-canvas);
+  --text-muted: var(--text-tertiary);
+  --action-primary-text: var(--text-on-action);
+  --status-warning: var(--text-danger);
+  --radius-sm: var(--radius-button);
+  --radius-md: var(--radius-inner);
+  --radius-lg: var(--radius-card);
+  --radius-pill: var(--radius-badge);
+}
+
+html,
+body {
+  margin: 0;
+  background: transparent;
+}
+
+body {
+  display: grid;
+  justify-items: start;
+  gap: 32px;
+  padding: 48px;
+  font-family: var(--font-sans);
+  color: var(--text-primary);
+  -webkit-font-smoothing: antialiased;
+}
+
+[data-asset] {
+  box-sizing: border-box;
+}
+
+#generated {
+  display: grid;
+  justify-items: start;
+  gap: 24px;
+}
+
+#icons {
+  display: none;
+}
+
+.banner {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  align-content: center;
+  gap: 22px;
+  width: 880px;
+  height: 300px;
+  overflow: hidden;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  background: var(--surface-raised);
+}
+
+.banner-trace {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 150px;
+  height: 1px;
+  background: var(--border-subtle);
+}
+
+.banner-trace::after {
+  content: "";
+  position: absolute;
+  right: 96px;
+  top: -5px;
+  width: 11px;
+  height: 11px;
+  border-radius: var(--radius-pill);
+  background: var(--action-primary);
+}
+
+.lockup {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 0 24px;
+  background: var(--surface-raised);
+}
+
+.mark {
+  display: block;
+  width: 76px;
+  height: 73px;
+}
+
+.mark svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.mark-neutral {
+  fill: var(--brand-mark-neutral);
+}
+
+.mark-red {
+  fill: var(--brand-mark-red);
+}
+
+.mark-blue {
+  fill: var(--brand-mark-blue);
+}
+
+.wordmark {
+  display: flex;
+  align-items: baseline;
+  font-family: var(--font-mono);
+  font-size: 76px;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: -0.04em;
+}
+
+.wm-i {
+  position: relative;
+}
+
+.wm-i i {
+  position: absolute;
+  left: 50%;
+  top: -0.02em;
+  width: 0.24em;
+  height: 0.24em;
+  margin-left: -0.12em;
+  border-radius: var(--radius-round);
+  background: var(--brand-mark-blue);
+}
+
+.team {
+  position: relative;
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 15px;
+  color: var(--text-tertiary);
+}
+
+.promise {
+  position: relative;
+  max-width: 720px;
+  margin: 18px 0 0;
+  text-align: center;
+  font-size: 24px;
+  line-height: 1.3;
+  letter-spacing: -0.01em;
+  color: var(--text-secondary);
+  text-wrap: balance;
+}
+
+.promise em {
+  font-style: normal;
+  color: var(--text-accent, var(--action-primary));
+}
+
+.cta {
+  font-family: var(--font-mono);
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  height: 44px;
+  padding: 0 18px 0 14px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background: var(--surface-raised);
+  font-size: 16px;
+  font-weight: 600;
+  white-space: nowrap;
+  color: var(--text-primary);
+}
+
+.cta.is-primary {
+  border-color: transparent;
+  background: var(--action-primary);
+  color: var(--action-primary-text);
+}
+
+.cta svg {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: stretch;
+  height: 28px;
+  overflow: hidden;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.badge > span {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 10px;
+}
+
+.badge > .label {
+  background: var(--surface-sunken);
+  color: var(--text-secondary);
+}
+
+.badge > .value {
+  background: var(--surface-raised);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+}
+
+.badge.is-accent {
+  border-color: var(--action-primary);
+}
+
+.badge.is-accent > .value {
+  background: var(--action-primary);
+  color: var(--action-primary-text);
+}
+
+.badge.is-nav {
+  height: 26px;
+  border-color: var(--border-subtle);
+  border-radius: var(--radius-pill);
+}
+
+.badge.is-nav > .value {
+  padding: 0 12px;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.badge.is-warning > .value {
+  color: var(--text-warning, var(--status-warning));
+}
+
+.text {
+  display: block;
+  line-height: 1;
+  text-box: trim-both cap alphabetic;
+}
+</style>
+</head>
+<body>
+
+<div class="banner" data-asset="banner">
+  <span class="banner-trace"></span>
+  <div class="lockup">
+    <span class="mark" data-mark></span>
+    <span class="wordmark">cal<span class="wm-i">ı<i></i></span>br</span>
+  </div>
+  <p class="promise">Подбор ИТ-специалистов, <em>который нельзя накрутить</em></p>
+  <p class="team">команда GoatWhistle, спецтрек ФСП</p>
+</div>
+
+<span class="mark" data-asset="mark" data-mark style="width: 34px; height: 33px"></span>
+
+<div id="generated"></div>
+
+<div id="icons">
+  <svg data-icon="external-link" viewBox="0 0 24 24"><path d="M15 3h6v6M10 14 21 3M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg>
+  <svg data-icon="terminal" viewBox="0 0 24 24"><path d="m4 17 6-6-6-6M12 19h8"/></svg>
+  <svg data-icon="book-open" viewBox="0 0 24 24"><path d="M12 7v14M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></svg>
+  <svg data-icon="play" viewBox="0 0 24 24"><path d="M6 3l14 9-14 9z"/></svg>
+  <svg data-icon="route" viewBox="0 0 24 24"><circle cx="6" cy="19" r="3"/><path d="M9 19h8.5a3.5 3.5 0 0 0 0-7h-11a3.5 3.5 0 0 1 0-7H15"/><circle cx="18" cy="5" r="3"/></svg>
+  <svg data-icon="file-text" viewBox="0 0 24 24"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7zM14 2v4a2 2 0 0 0 2 2h4M16 13H8M16 17H8M10 9H8"/></svg>
+</div>
+
+</body>
+</html>

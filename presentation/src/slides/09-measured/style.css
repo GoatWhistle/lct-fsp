@@ -1,0 +1,140 @@
+#measured .ms-bench {
+  position: absolute;
+  left: var(--gutter);
+  top: 360px;
+  width: 560px;
+  height: 500px;
+  display: grid;
+  align-content: start;
+  gap: 28px;
+  padding: 36px;
+}
+
+#measured .ms-kicker {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: var(--font-mono);
+  font-size: var(--fs-micro);
+  color: var(--deck-fg-3);
+  --ic: 24px;
+}
+
+#measured .ms-flow {
+  display: grid;
+  gap: 26px;
+}
+
+#measured .ms-flow li {
+  display: grid;
+  grid-template-columns: 32px 1fr;
+  gap: 16px;
+  align-items: start;
+  font-size: var(--fs-caption);
+  line-height: var(--lh-snug);
+  color: var(--deck-fg);
+  --ic: 30px;
+}
+
+#measured .ms-flow .ic {
+  color: var(--deck-accent);
+}
+
+#measured .ms-flow b {
+  font-weight: var(--weight-strong);
+  color: var(--deck-fg);
+}
+
+#measured .ms-metrics {
+  position: absolute;
+  left: 760px;
+  top: 360px;
+  width: 1040px;
+  display: grid;
+  gap: 34px;
+}
+
+#measured .ms-group {
+  display: grid;
+  gap: 14px;
+}
+
+#measured .ms-name {
+  font-family: var(--font-display);
+  font-size: var(--fs-caption);
+  font-weight: var(--weight-strong);
+  letter-spacing: -0.03em;
+  color: var(--deck-fg);
+}
+
+#measured .ms-name span {
+  margin-left: 12px;
+  font-family: var(--font-ui);
+  font-size: var(--fs-micro);
+  font-weight: var(--weight-regular);
+  letter-spacing: 0;
+  color: var(--deck-fg-3);
+}
+
+#measured .ms-group ul {
+  display: grid;
+  gap: 8px;
+}
+
+#measured .ms-group li {
+  display: grid;
+  grid-template-columns: 220px 1fr 110px;
+  align-items: center;
+  gap: 20px;
+  font-size: var(--fs-micro);
+  color: var(--deck-fg-2);
+}
+
+#measured .ms-group li b {
+  font-size: var(--fs-caption);
+  text-align: right;
+  color: var(--deck-fg-2);
+}
+
+#measured .ms-bar {
+  position: relative;
+  height: 20px;
+}
+
+#measured .ms-bar i {
+  position: absolute;
+  inset: 0;
+  border-radius: var(--radius-pill);
+  background: var(--deck-line-strong);
+  transform-origin: left;
+  transform: scaleX(var(--v));
+}
+
+#measured.play .ms-bar i {
+  animation: ms-grow 1.1s var(--ease-out) calc(var(--d) + 0.3s) both;
+}
+
+#measured .ms-group li.is-ours {
+  color: var(--deck-fg);
+}
+
+#measured .ms-group li.is-ours b {
+  color: var(--deck-accent);
+}
+
+#measured .ms-group li.is-ours .ms-bar i {
+  background: var(--deck-accent);
+}
+
+#measured .ms-limit {
+  position: absolute;
+  left: var(--gutter);
+  right: var(--gutter);
+  top: 900px;
+}
+
+@keyframes ms-grow {
+  from {
+    transform: scaleX(0);
+  }
+}

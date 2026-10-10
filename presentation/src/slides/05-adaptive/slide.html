@@ -1,0 +1,35 @@
+<section class="slide" id="adaptive" data-title="Адаптивный тест" data-steps="1">
+  <h2 class="title a">Тест останавливается, <em>когда уровень измерен</em></h2>
+  <article class="card ad-feed a" style="--d:0.3s">
+    <p class="ad-kicker"><svg class="ic"><use href="#i-list-checks" /></svg>ответы кандидата</p>
+    <ol class="ad-cells"></ol>
+    <p class="ad-stop">Стоп, когда погрешность не больше <span class="num" data-num="stop_sd"></span>, и не позже <span class="num" data-num="max_items"></span> заданий</p>
+  </article>
+  <div class="ad-ruler a" style="--d:0.5s">
+    <ul class="ad-zones"><li>Стажёр</li><li>Junior</li><li>Middle</li><li>Senior</li></ul>
+    <div class="ad-track">
+      <span class="meter-tick" style="--at:0.2"></span>
+      <span class="meter-tick" style="--at:0.4"></span>
+      <span class="meter-tick" style="--at:0.6"></span>
+      <span class="meter-tick" style="--at:0.8"></span>
+      <span class="ad-band"></span>
+      <span class="ad-node"></span>
+    </div>
+    <p class="ad-legend">общий уровень и его погрешность после каждого ответа</p>
+  </div>
+  <div class="ad-probs a" style="--d:0.7s">
+    <p class="ad-kicker">вероятность, что уровень не ниже грейда</p>
+    <ul class="ad-bars">
+      <li data-g="0"><span>Стажёр</span><div class="ad-bar"><i></i></div></li>
+      <li data-g="1"><span>Junior</span><div class="ad-bar"><i></i></div></li>
+      <li data-g="2"><span>Middle</span><div class="ad-bar"><i></i></div><b class="badge ad-tag" data-s="1"><svg class="ic"><use href="#i-badge-check" /></svg>присвоен</b></li>
+      <li data-g="3"><span>Senior</span><div class="ad-bar"><i></i></div><b class="badge ad-tag is-claim">заявлен</b></li>
+    </ul>
+    <span class="ad-threshold"><span class="num" data-num="grade_conf"></span></span>
+  </div>
+  <div class="ad-result" data-s="1">
+    <p class="ad-cat"><svg class="ic"><use href="#i-target" /></svg>Бэкенд, Middle</p>
+    <p class="ad-why">На заявленный Senior уверенности не хватило, и тест сразу предложил Middle без новых заданий</p>
+  </div>
+  <p class="ad-demo f" style="--d:1s">синтетический кандидат</p>
+</section>

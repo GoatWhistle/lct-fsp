@@ -1,0 +1,177 @@
+{
+  "families": {
+    "value": 402,
+    "source": "docs/dependencies.md",
+    "note": "семейств в банке заданий"
+  },
+  "topics": {
+    "value": 31,
+    "source": "docs/architecture.md",
+    "note": "тем в справочнике"
+  },
+  "specs": {
+    "value": 5,
+    "source": "docs/architecture.md",
+    "note": "специализаций"
+  },
+  "grade_conf": {
+    "value": 0.8,
+    "digits": 1,
+    "source": "docs/parameters.md#шкала-и-категория",
+    "note": "grade_confidence"
+  },
+  "stop_sd": {
+    "value": 0.4,
+    "digits": 2,
+    "source": "docs/parameters.md#адаптивный-тест",
+    "note": "test_stop_sd"
+  },
+  "max_items": {
+    "value": 30,
+    "source": "docs/parameters.md#адаптивный-тест",
+    "note": "test_max_items"
+  },
+  "grade_wait": {
+    "value": 90,
+    "source": "docs/parameters.md#шкала-и-категория",
+    "note": "grade_change_interval_days"
+  },
+  "w_fsp": {
+    "value": 1.0,
+    "digits": 1,
+    "source": "docs/parameters.md#профиль-навыков-и-уровни-доверия",
+    "note": "trust_weight_fsp"
+  },
+  "w_test": {
+    "value": 0.7,
+    "digits": 1,
+    "source": "docs/parameters.md#профиль-навыков-и-уровни-доверия",
+    "note": "trust_weight_test"
+  },
+  "w_task": {
+    "value": 0.4,
+    "digits": 1,
+    "source": "docs/parameters.md#профиль-навыков-и-уровни-доверия",
+    "note": "trust_weight_regular_task"
+  },
+  "stack_cap": {
+    "value": 0.1,
+    "digits": 1,
+    "source": "docs/parameters.md#профиль-навыков-и-уровни-доверия",
+    "note": "self_reported_stack_cap, λ"
+  },
+  "invite_budget": {
+    "value": 20,
+    "source": "docs/parameters.md#рынок",
+    "note": "invitation_weekly_budget"
+  },
+  "market_candidates": {
+    "value": 3000,
+    "source": "docs/validation-report.md",
+    "note": "кандидатов в наборе D1"
+  },
+  "market_needs": {
+    "value": 100,
+    "source": "docs/validation-report.md",
+    "note": "потребностей в наборе D1"
+  },
+  "over_ours": {
+    "value": 0.018,
+    "digits": 3,
+    "source": "docs/validation-report.md#m10-совпадение-грейда-с-истиной",
+    "note": "M10 завышение, D1, наш тест"
+  },
+  "over_b0": {
+    "value": 0.137,
+    "digits": 3,
+    "source": "docs/validation-report.md#m10-совпадение-грейда-с-истиной",
+    "note": "M10 завышение, D1, наивный тест B0"
+  },
+  "over_claim": {
+    "value": 0.304,
+    "digits": 3,
+    "source": "docs/validation-report.md#m10-совпадение-грейда-с-истиной",
+    "note": "M10 завышение, D1, заявка кандидата"
+  },
+  "under_ours": {
+    "value": 0.394,
+    "digits": 3,
+    "source": "docs/validation-report.md#m10-совпадение-грейда-с-истиной",
+    "note": "M10 занижение, D1, наш тест"
+  },
+  "kappa_ours": {
+    "value": 0.627,
+    "digits": 3,
+    "source": "docs/validation-report.md#m9-стабильность-грейда",
+    "note": "M9 каппа Коэна, D1"
+  },
+  "kappa_b0": {
+    "value": 0.566,
+    "digits": 3,
+    "source": "docs/validation-report.md#m9-стабильность-грейда",
+    "note": "M9 каппа Коэна, D1, B0"
+  },
+  "auc_ours": {
+    "value": 0.908,
+    "digits": 3,
+    "source": "docs/validation-report.md#m7-модель-принятия",
+    "note": "M7 ROC-AUC CatBoost, D1"
+  },
+  "auc_lr": {
+    "value": 0.853,
+    "digits": 3,
+    "source": "docs/validation-report.md#m7-модель-принятия",
+    "note": "M7 ROC-AUC логрегрессия, D1"
+  },
+  "top10_ours": {
+    "value": 0.9,
+    "digits": 3,
+    "source": "docs/validation-report.md#m1-доля-релевантных-в-топ-10",
+    "note": "M1, D1"
+  },
+  "top10_b0": {
+    "value": 0.958,
+    "digits": 3,
+    "source": "docs/validation-report.md#m1-доля-релевантных-в-топ-10",
+    "note": "M1, D1, B0"
+  },
+  "leak_s1": {
+    "value": 0.44,
+    "digits": 2,
+    "source": "docs/validation-report.md#m14-атака-утечкой",
+    "note": "M14 избыточная доля, слито 30 %, общий тест"
+  },
+  "leak_s3": {
+    "value": 0.165,
+    "digits": 3,
+    "source": "docs/validation-report.md#m14-атака-утечкой",
+    "note": "M14 избыточная доля, слито 30 %, наш тест"
+  },
+  "leak_share": {
+    "value": 30,
+    "unit": " %",
+    "source": "docs/validation-report.md#m14-атака-утечкой",
+    "note": "доля слитого банка"
+  },
+  "leak_goal": {
+    "value": 0.1,
+    "digits": 2,
+    "source": "docs/validation-report.md#m14-атака-утечкой",
+    "note": "порог M14 по избыточной доле"
+  },
+  "fork_from": {
+    "value": 250000,
+    "source": "frontend/src/shared/i18n/locales/ru/need.json",
+    "note": "пример вилки из подсказки формы потребности"
+  },
+  "fork_to": {
+    "value": 320000,
+    "source": "frontend/src/shared/i18n/locales/ru/need.json",
+    "note": "пример вилки из подсказки формы потребности"
+  },
+  "invite_ttl": {
+    "value": 7,
+    "source": "docs/parameters.md#рынок",
+    "note": "invitation_ttl_days"
+  }
+}

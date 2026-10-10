@@ -1,0 +1,29 @@
+{
+  "name": "presentation",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=20.11"
+  },
+  "scripts": {
+    "build": "node tools/build.mjs && node tools/speech.mjs check --warn",
+    "build:final": "node tools/build.mjs --strict && node tools/speech.mjs check --strict",
+    "dev": "node tools/serve.mjs",
+    "pdf": "node tools/build.mjs && node tools/pdf.mjs",
+    "shots": "node tools/build.mjs && node tools/shot.mjs",
+    "cards": "node tools/cards.mjs",
+    "words": "node tools/words.mjs",
+    "chars": "node tools/chars.mjs",
+    "speech:init": "node tools/speech.mjs init",
+    "speech:check": "node tools/speech.mjs check",
+    "speech:sync": "node tools/speech.mjs sync",
+    "readme": "node tools/readme.mjs",
+    "readme:preview": "node tools/readme-preview.mjs",
+    "tokens": "node tools/tokens.mjs",
+    "icons": "node tools/icons.mjs"
+  },
+  "dependencies": {
+    "playwright-core": "^1.63.0",
+    "qrcode": "^1.5.4"
+  }
+}

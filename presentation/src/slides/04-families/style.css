@@ -1,0 +1,173 @@
+#families .fam-card {
+  position: absolute;
+  left: var(--gutter);
+  top: 330px;
+  width: 560px;
+  height: 440px;
+  display: grid;
+  align-content: start;
+  gap: 24px;
+  padding: 36px;
+}
+
+#families .fam-kicker {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: var(--font-mono);
+  font-size: var(--fs-micro);
+  color: var(--deck-fg-3);
+  --ic: 24px;
+}
+
+
+
+#families .fam-code {
+  margin: 0;
+  padding: 24px;
+  border-radius: var(--radius-md);
+  background: var(--deck-bg);
+  font-family: var(--font-mono);
+  font-size: var(--fs-micro);
+  line-height: 1.8;
+  white-space: pre;
+}
+
+#families .fam-p {
+  display: inline-block;
+  padding: 0 6px;
+  border-radius: var(--radius-sm);
+  background: var(--brand-mark-blue);
+  color: var(--text-on-brand);
+  font-weight: var(--weight-regular);
+}
+
+#families .fam-ref {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: var(--fs-caption);
+  color: var(--deck-fg-2);
+}
+
+#families .fam-fan {
+  position: absolute;
+  left: 680px;
+  top: 330px;
+  width: 120px;
+  height: 440px;
+  overflow: visible;
+}
+
+#families .fam-items {
+  position: absolute;
+  left: 800px;
+  top: 330px;
+  width: 460px;
+  display: grid;
+  gap: 40px;
+}
+
+#families .fam-items li {
+  display: grid;
+  grid-template-columns: 90px 1fr auto;
+  align-items: center;
+  gap: 16px;
+  height: 120px;
+  padding: 0 28px;
+}
+
+#families .fam-who {
+  font-size: var(--fs-caption);
+  color: var(--deck-fg-2);
+}
+
+#families code {
+  font-family: var(--font-mono);
+  font-size: var(--fs-micro);
+  color: var(--deck-fg);
+}
+
+#families .fam-ans {
+  font-family: var(--font-mono);
+  font-size: var(--fs-body);
+  color: var(--deck-accent);
+}
+
+#families .fam-leak {
+  position: absolute;
+  right: -22px;
+  top: -22px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border-radius: var(--radius-pill);
+  background: var(--deck-danger);
+  color: var(--text-on-action);
+  font-family: var(--font-mono);
+  font-size: var(--fs-micro);
+  --ic: 24px;
+}
+
+#families .fam-scale {
+  position: absolute;
+  left: 1320px;
+  top: 330px;
+  width: 480px;
+  height: 440px;
+  display: grid;
+  align-content: start;
+  gap: 28px;
+  padding: 36px;
+}
+
+#families .fam-ruler {
+  position: relative;
+  margin-top: 60px;
+}
+
+#families .fam-dot {
+  position: absolute;
+  left: calc(var(--mu) * 100%);
+  top: 8px;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  margin-left: -22px;
+  translate: 0 -100%;
+  border-radius: var(--radius-round);
+  background: var(--deck-accent);
+  color: var(--deck-on-accent);
+  font-family: var(--font-mono);
+  font-size: var(--fs-micro);
+  font-weight: var(--weight-strong);
+}
+
+#families .fam-grades {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  font-family: var(--font-mono);
+  font-size: var(--fs-micro);
+  color: var(--deck-fg-3);
+  text-align: center;
+}
+
+#families .fam-note {
+  font-size: var(--fs-caption);
+  line-height: var(--lh-snug);
+  color: var(--deck-fg-2);
+}
+
+#families .chip .num {
+  font-weight: var(--weight-strong);
+  color: var(--deck-fg);
+}
+
+#families .fam-limit {
+  position: absolute;
+  left: var(--gutter);
+  right: var(--gutter);
+  top: 870px;
+}

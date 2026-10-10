@@ -18,6 +18,7 @@
 ## Вход и привязка
 
 ```mermaid
+%%{init: {"theme":"base","themeVariables":{"primaryColor":"#ffffff","primaryTextColor":"#1b1c21","primaryBorderColor":"#402fff","secondaryColor":"#f5f5f8","tertiaryColor":"#f5f5f8","lineColor":"#66676d","textColor":"#1b1c21","noteBkgColor":"#f5f5f8","noteTextColor":"#55565c","actorBkg":"#ffffff","actorBorder":"#402fff","fontFamily":"Onest Variable"}}}%%
 sequenceDiagram
     autonumber
     actor U as Кандидат

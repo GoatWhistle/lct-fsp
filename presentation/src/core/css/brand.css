@@ -1,0 +1,198 @@
+.mark {
+  display: inline-block;
+  flex: none;
+  width: 28px;
+  aspect-ratio: 237 / 227;
+}
+
+.mark svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.mark-neutral {
+  fill: var(--brand-mark-neutral);
+}
+
+.mark-red {
+  fill: var(--brand-mark-red);
+}
+
+.mark-blue {
+  fill: var(--brand-mark-blue);
+}
+
+.mark path {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+.lockup {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 56px;
+}
+
+.lockup .mark {
+  width: var(--mark-size, 220px);
+}
+
+.wordmark {
+  position: relative;
+  display: flex;
+  align-items: baseline;
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: var(--word-size, 200px);
+  font-weight: var(--weight-strong);
+  line-height: 1;
+  letter-spacing: -0.04em;
+  color: var(--deck-fg);
+  white-space: nowrap;
+}
+
+.wordmark > span {
+  position: relative;
+  display: inline-block;
+}
+
+.wm-node {
+  position: absolute;
+  left: 50%;
+  top: -0.02em;
+  width: 0.24em;
+  height: 0.24em;
+  margin-left: -0.12em;
+  border-radius: var(--radius-round);
+  background: var(--brand-mark-blue);
+}
+
+.wm-band {
+  position: absolute;
+  left: 50%;
+  top: 0.04em;
+  width: 2.6em;
+  height: 0.12em;
+  margin-left: -1.3em;
+  border-radius: var(--radius-round);
+  background: var(--deck-band);
+  opacity: 0;
+}
+
+.play .is-assemble .mark-neutral {
+  animation: mark-part 0.9s var(--ease-out) var(--mark-d, 0.1s) both;
+}
+
+.play .is-assemble .mark-red {
+  animation: mark-part 0.9s var(--ease-out) calc(var(--mark-d, 0.1s) + 0.22s) both;
+}
+
+.play .is-assemble .mark-blue {
+  animation: mark-part 0.9s var(--ease-out) calc(var(--mark-d, 0.1s) + 0.44s) both;
+}
+
+.play .is-assemble.is-idle .mark-blue {
+  animation:
+    mark-part 0.9s var(--ease-out) calc(var(--mark-d, 0.1s) + 0.44s) both,
+    mark-hover 3.2s var(--ease-in-out) calc(var(--mark-d, 0.1s) + 2s) infinite;
+}
+
+.play .wordmark.is-letters > span {
+  animation: deck-rise 0.7s var(--ease-out) calc(var(--word-d, 0.55s) + var(--i, 0) * 0.07s) both;
+}
+
+.play .wordmark.is-calibrate .wm-node {
+  animation: node-calibrate 2s var(--ease-in-out) var(--node-d, 1s) both;
+}
+
+.play .wordmark.is-calibrate .wm-band {
+  animation: band-narrow 2s var(--ease-in-out) var(--node-d, 1s) both;
+}
+
+.play .wordmark.is-settled .wm-node {
+  animation: deck-pop 0.6s var(--ease-out) var(--node-d, 1s) both;
+}
+
+.qr .mark.qr-mark {
+  width: 15%;
+  padding: 1.4%;
+  border-radius: var(--radius-sm);
+  background: var(--qr-bg);
+}
+
+.qr .mark-neutral {
+  fill: var(--qr-fg);
+}
+
+.play .qr-mark {
+  animation: deck-pop 0.6s var(--ease-out) var(--d, 2.4s) both;
+}
+
+@keyframes mark-part {
+  from {
+    opacity: 0;
+    transform: scale(0.6) rotate(-18deg);
+  }
+}
+
+@keyframes mark-hover {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-4px);
+  }
+}
+
+@keyframes node-calibrate {
+  0% {
+    opacity: 0;
+    transform: translate(1.1em, -0.9em);
+  }
+  16% {
+    opacity: 1;
+    transform: translate(1.1em, 0);
+  }
+  34% {
+    transform: translate(-0.72em, 0);
+  }
+  50% {
+    transform: translate(0.44em, 0);
+  }
+  64% {
+    transform: translate(-0.24em, 0);
+  }
+  77% {
+    transform: translate(0.11em, 0);
+  }
+  89% {
+    transform: translate(-0.035em, 0);
+  }
+  100% {
+    opacity: 1;
+    transform: translate(0, 0);
+  }
+}
+
+@keyframes band-narrow {
+  0% {
+    opacity: 0;
+    transform: scaleX(1);
+  }
+  16% {
+    opacity: 1;
+    transform: scaleX(1);
+  }
+  85% {
+    opacity: 1;
+    transform: scaleX(0.1);
+  }
+  100% {
+    opacity: 0;
+    transform: scaleX(0.1);
+  }
+}

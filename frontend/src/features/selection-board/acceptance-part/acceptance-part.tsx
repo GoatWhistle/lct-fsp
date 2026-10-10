@@ -1,3 +1,4 @@
+import { ProbabilityLabel } from "@/entities/measure"
 import type { SelectionEntry } from "@/shared/api"
 import { useFormatters, useTranslation } from "@/shared/i18n"
 import { Meter } from "@/shared/ui"
@@ -17,7 +18,8 @@ export function AcceptancePart({ entry }: AcceptancePartProps) {
     <section className={styles.section} aria-label={t("explain.acceptance")}>
       <p className={styles.subtitle}>{t("explain.acceptance")}</p>
       <p className={styles.lead}>
-        {t("explain.acceptanceLead", { value: format.percent(entry.acceptance_probability) })}
+        {t("explain.acceptanceLead")}{" "}
+        <ProbabilityLabel value={entry.acceptance_probability} label={t("explain.acceptance")} />
       </p>
       <ul className={styles.factors}>
         {factorBars(why).map((bar) => (

@@ -1,0 +1,18 @@
+.label {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-4) var(--space-8);
+  min-inline-size: 0;
+}
+
+.range {
+  composes: captionText monoText from "../../../shared/styles/compose.module.css";
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.words {
+  composes: labelText from "../../../shared/styles/compose.module.css";
+  color: var(--text-primary);
+}

@@ -24,16 +24,31 @@
   "match": {
     "label": "match",
     "aria": "Match {{value}}",
-    "acceptance": "will accept: {{value}}",
+    "acceptance": "will accept:",
     "segment": "{{topic}}: probability of meeting the requirement {{value}}",
-    "stack": "Stack as stated by the candidate: {{value}} matches"
+    "stack": "Stack as stated by the candidate: {{value}} matches",
+    "requirement": "Probability of meeting the requirement"
   },
   "verdict": {
-    "confidently_above": "confidently above",
-    "likely_above": "likely above",
-    "likely_below": "likely below",
-    "below": "below",
+    "confidently_above": "confidently above the requirement",
+    "likely_above": "likely above the requirement",
+    "likely_below": "likely below the requirement",
+    "below": "below the requirement",
     "lowData": "not enough data"
+  },
+  "probability": {
+    "range": {
+      "under20": "0–20%",
+      "20to50": "20–50%",
+      "50to80": "50–80%",
+      "80plus": "80–100%"
+    },
+    "words": {
+      "under20": "unlikely",
+      "20to50": "rather unlikely",
+      "50to80": "rather likely",
+      "80plus": "very likely"
+    }
   },
   "trust": {
     "fsp": "FSP",
@@ -41,10 +56,6 @@
     "test": "test",
     "regular_task": "regular task",
     "self": "self-reported"
-  },
-  "percent": {
-    "above": "over 99%",
-    "below": "under 1%"
   },
   "gradeStatus": {
     "confirmed": "confirmed by test",

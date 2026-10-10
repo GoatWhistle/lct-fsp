@@ -44,7 +44,7 @@ from app.adapter.text_rules import load_synonyms
 from app.domain.determination import grades_by_threshold
 from composition import model_understanding, named_completion
 from settings import CATALOG_FILE, MECHANICS_FILE, SYNONYMS_FILE, Mechanics, Settings
-from validation import d6
+from validation import d6, resume_parsing
 from validation.acceptance import (
     TRAIN_PAIRS,
     TRAIN_SEED,
@@ -73,7 +73,7 @@ from validation.market import (
 )
 from validation.metrics import cohen_kappa, median, pearson
 from validation.parsing import LabeledText, load_labeled, parsing_table, run_parsing
-from validation.population import D1, DATASETS, Generator, GeneratorParams, write
+from validation.population import D1, DATASETS, Generator, GeneratorParams, as_candidate, write
 from validation.protection import D3 as DRIFT_D3
 from validation.protection import (
     DRIFT_GRID,
@@ -98,6 +98,7 @@ from validation.report import (
     write_report,
 )
 from validation.simulate import Job, Scale, Scored, run_offers
+from validation.truth import Persona
 
 # Набор D5 — тексты вакансий с разметкой; формат — validation/data/need_texts.md.
 DATA_DIR = Path(__file__).resolve().parent / "data"
@@ -269,6 +270,95 @@ def tune_inflation(mechanics: Mechanics, candidates: int) -> float:
     chosen = round(round(c / step) * step, 2)
     print(f"\nc = {c:.3f}, выбрано κ = {chosen:.2f}")
     return chosen
+
+
+# Правило плана для `person_fit_lz` (D3): 2000 попыток честных на прогретом банке, сетка
+# 1,0–4,0 шагом 0,1, наименьшее значение с долей l_z ≤ −значение не больше 0,03.
+PERSON_FIT_ATTEMPTS = 2000
+PERSON_FIT_GRID = tuple(round(1.0 + 0.1 * i, 1) for i in range(31))
+PERSON_FIT_FPR = 0.03
+
+
+def _person_fit_run(job: tuple[str, Mechanics, int]) -> list[float | None]:
+    """l_z на остановке каждой попытки честных кандидатов D3 на прогретом банке специализации."""
+    code, mechanics, attempts = job
+    m = warmed(DRIFT_D3, code, mechanics, PLAN_PROTECTION.warm)
+    generator = Generator(DRIFT_D3, mechanics, catalog())
+    rng = generator.rng(f"person-fit:{code}")
+    return [
+        m.attempt(as_candidate(generator.truth(code, Persona.honest, rng))).person_fit
+        for _ in range(attempts)
+    ]
+
+
+def choose_person_fit(values: Sequence[float | None]) -> float | None:
+    """Наименьшее значение сетки, при котором доля попыток с l_z ≤ −значение не больше
+    `PERSON_FIT_FPR`; None — такого на сетке нет."""
+    known = [v for v in values if v is not None]
+    for threshold in PERSON_FIT_GRID:
+        if sum(v <= -threshold for v in known) / len(values) <= PERSON_FIT_FPR:
+            return threshold
+    return None
+
+
+def tune_person_fit(mechanics: Mechanics) -> float | None:
+    """Подбор `person_fit_lz` на D3 по правилу плана валидации (§8)."""
+    specializations = [s.code for s in load_catalog(CATALOG_FILE).specializations]
+    per = PERSON_FIT_ATTEMPTS // len(specializations)
+    values: list[float | None] = []
+    with _pool() as pool:
+        for found in pool.map(_person_fit_run, [(c, mechanics, per) for c in specializations]):
+            values.extend(found)
+    known = [v for v in values if v is not None]
+    print(f"Подбор person_fit_lz: D3, {len(values)} попыток честных, l_z посчитан у {len(known)}")
+    print(f"Среднее l_z {statistics.fmean(known):+.3f}, sd {statistics.pstdev(known):.3f}")
+    print("| Порог | Доля l_z ≤ −порог |")
+    print("|---|---|")
+    for threshold in PERSON_FIT_GRID:
+        share = sum(v <= -threshold for v in known) / len(values)
+        print(f"| {threshold:.1f} | {share:.4f} |")
+    chosen = choose_person_fit(values)
+    print(f"\nВыбрано person_fit_lz = {chosen}")
+    return chosen
+
+
+def report_resume_parsing(
+    mechanics: Mechanics, model: str | None, *, timeout: float, record_workers: int
+) -> None:
+    """M22 (разбор резюме) и M18 на D6: правила и, с `model`, модель из записи с откатом на
+    правила. `record_workers` — сначала дописать недостающие ответы модели."""
+    found = [resume_parsing.measure(mechanics, None, timeout)]
+    if model is not None:
+        recording = Recording(RECORDED_DIR / f"d6.{model}.json")
+        if record_workers:
+            settings = Settings()
+            live = (
+                LlamaCompletion(settings.llama_url, settings.llama_model, RECORD_TIMEOUT)
+                if model == "llama"
+                else named_completion(model, RECORD_TIMEOUT)
+            )
+            added = record_model(
+                recording,
+                resume_parsing.requests(mechanics),
+                live,
+                workers=record_workers,
+                model=getattr(live, "model", None),
+            )
+            print(f"Записано ответов модели: {added}, файл {recording.path.name}\n")
+        if not recording.answers:
+            raise SystemExit(f"нет записи {recording.path}: запустите с --record")
+        measured = resume_parsing.measure(mechanics, recording, timeout)
+        if measured.missing:
+            raise SystemExit(
+                f"в {recording.path.name} нет ответов на {measured.missing} резюме: допишите "
+                "запись с --record"
+            )
+        found.append(measured)
+    print("## M22 и M18 — разбор резюме на D6\n")
+    print(resume_parsing.markdown(found))
+    pending, total = resume_parsing.pending_review()
+    if pending:
+        print(f"\nРазметка D6 ждёт проверки человеком: {pending} из {total} записей.")
 
 
 def recording_path(dataset: Path, model: str) -> Path:
@@ -584,6 +674,8 @@ def main() -> None:
             "llm",
             "b3",
             "d6",
+            "person-fit",
+            "resume-parsing",
         ),
     )
     parser.add_argument(
@@ -702,6 +794,12 @@ def main() -> None:
             b3(mechanics, SETS, args.record, args.model or "agent_sdk")
         case "d6":
             run_d6(args.build, args.confirm)
+        case "person-fit":
+            tune_person_fit(mechanics)
+        case "resume-parsing":
+            report_resume_parsing(
+                mechanics, args.model, timeout=args.timeout, record_workers=args.record
+            )
         case _:
             scale = Scale(
                 **{

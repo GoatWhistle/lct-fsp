@@ -130,6 +130,9 @@ class Run:
     capped: tuple[str, ...] = ()
     # Ответы попытки по порядку.
     answers: tuple[Observation, ...] = ()
+    # Сигналы защиты (§8): флагов времени в попытке и l_z определения на её остановке.
+    time_flags: int = 0
+    person_fit: float | None = None
 
 
 @dataclass(frozen=True)
@@ -142,6 +145,9 @@ class Determination:
     overall: Normal
     # Результат подозрительный и ждёт проверочного блока — его грейд (mechanics.md, §8).
     pending: str | None = None
+    # Сигналы защиты по всему определению (M22): флагов времени и l_z на остановке.
+    time_flags: int = 0
+    person_fit: float | None = None
 
 
 @dataclass(frozen=True)
@@ -297,18 +303,25 @@ class Market:
         каскад дотестов вниз."""
         user = self._enrol()
         grade = candidate.claimed
+        flags = 0
         while True:
             run = self._take(self.stand, user, candidate, grade)
+            flags += run.time_flags
+            fit = run.person_fit
             match run.outcome:
                 case AttemptOutcome.assigned:
-                    return Determination(user, run.outcome_grade, run.overall)
+                    return Determination(
+                        user, run.outcome_grade, run.overall, time_flags=flags, person_fit=fit
+                    )
                 case AttemptOutcome.offered:
                     assert run.outcome_grade is not None
                     grade = run.outcome_grade
                 case AttemptOutcome.verification:
-                    return Determination(user, None, run.overall, run.outcome_grade)
+                    return Determination(
+                        user, None, run.overall, run.outcome_grade, flags, person_fit=fit
+                    )
                 case _:
-                    return Determination(user, None, run.overall)
+                    return Determination(user, None, run.overall, time_flags=flags, person_fit=fit)
 
     def verify(self, user: uuid.UUID, truth: CandidateTruth | None = None) -> Verified:
         """Проверочный блок кандидата `user` через сценарии, как контроллер: старт, задания и
@@ -520,6 +533,8 @@ class Market:
             answers=tuple(
                 p.answered().observation() for p in attempt.presentations if p.correct is not None
             ),
+            time_flags=sum(1 for p in attempt.presentations if p.time_flag),
+            person_fit=attempt.person_fit,
         )
 
     def _after(self, calibrations: AnswerCalibration, answer: Answer | None) -> None:

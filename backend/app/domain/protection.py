@@ -87,6 +87,8 @@ class SuspicionReason(enum.StrEnum):
     fast_answers = "fast_answers"
     # Событий вставки и потери фокуса не меньше `focus_events_for_verification`.
     focus_events = "focus_events"
+    # Ответы плохо согласуются с моделью: l_z не выше −`person_fit_lz`.
+    misfit = "misfit"
 
 
 @dataclass(frozen=True)
@@ -96,14 +98,17 @@ class AttemptSignals:
 
     time_flags: int
     focus_events: int | None
+    # l_z попытки (§8); None — не посчитать: нет ответов или все p_i у края.
+    person_fit: float | None = None
 
 
 @dataclass(frozen=True)
 class SuspicionRule:
-    """Пороги сигналов подозрительного результата."""
+    """Пороги сигналов подозрительного результата; `person_fit` None — l_z в правиле нет."""
 
     time_flags: int
     focus_events: int
+    person_fit: float | None = None
 
 
 def suspicion(signals: AttemptSignals, rule: SuspicionRule) -> tuple[SuspicionReason, ...]:
@@ -114,7 +119,35 @@ def suspicion(signals: AttemptSignals, rule: SuspicionRule) -> tuple[SuspicionRe
         reasons.append(SuspicionReason.fast_answers)
     if signals.focus_events is not None and signals.focus_events >= rule.focus_events:
         reasons.append(SuspicionReason.focus_events)
+    if (
+        signals.person_fit is not None
+        and rule.person_fit is not None
+        and signals.person_fit <= -rule.person_fit
+    ):
+        reasons.append(SuspicionReason.misfit)
     return tuple(reasons)
+
+
+# p_i у края даёт ln 0: ответ на такое задание почти ничего не говорит о согласии.
+_P_EDGE = 1e-9
+
+
+def person_fit(answers: Sequence[tuple[float, float, float, bool]]) -> float | None:
+    """Статистика l_z согласия ответов попытки с моделью (§8; Drasgow, Levine, Williams, 1985).
+
+    `answers` — (a, b, θ̂ темы, верно): разделяющая сила и сложность семейства и итоговая оценка
+    темы попытки. l_z = (l₀ − E) / √V; около нуля — ответы как у честного кандидата, сильно
+    отрицательный — «решил трудные, не решил лёгкие». None — ответов нет или V = 0."""
+    l0 = expected = variance = 0.0
+    for discrimination, difficulty, level, correct in answers:
+        p = min(max(sigmoid(discrimination * (level - difficulty)), _P_EDGE), 1 - _P_EDGE)
+        log_p, log_q = math.log(p), math.log(1 - p)
+        l0 += log_p if correct else log_q
+        expected += p * log_p + (1 - p) * log_q
+        variance += p * (1 - p) * (log_p - log_q) ** 2
+    if variance <= 0:
+        return None
+    return (l0 - expected) / math.sqrt(variance)
 
 
 @dataclass(frozen=True)

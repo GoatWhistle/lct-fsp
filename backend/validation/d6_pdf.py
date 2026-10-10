@@ -380,7 +380,9 @@ def _hide(s: Sheet, inj: Injection) -> None:
         case "tiny_white":
             color, size = (255, 255, 255), 1.0
         case "zero":
-            size = 0.0
+            # fpdf понимает кегль 0 как «оставить текущий» и печатает текст видимым: самый
+            # маленький кегль, который он выводит, — 0,01 пт.
+            size = 0.01
         case "invisible":
             mode["text_mode"] = "INVISIBLE"
         case "transparent":

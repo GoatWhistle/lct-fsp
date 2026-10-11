@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Подбор ИТ-специалистов ФСП",
-    "description": "\nПлатформа подбора ИТ-специалистов с обратной механикой.\n\nОшибки приходят телом `{\"code\", \"message\"}`: `code` — для кода фронта, `message` — для\nпользователя. Вход — cookie `access_token` (httpOnly), её ставит `POST /api/auth/login`.\nРазделы `/api/candidate` и `/api/employer` доступны только своей роли. Время — в UTC,\nISO 8601 с `Z`.\n",
+    "description": "\nПлатформа подбора ИТ-специалистов с обратной механикой.\n\nОшибки приходят телом `{\"code\", \"message\"}`: `code` — для кода фронта, `message` — для\nпользователя. Вход — cookie `calibr_session` (httpOnly, имя — `SESSION_COOKIE_NAME`), её ставит\n`POST /api/auth/login`.\nРазделы `/api/candidate` и `/api/employer` доступны только своей роли. Время — в UTC,\nISO 8601 с `Z`.\n",
     "version": "0.1.0"
   },
   "paths": {
@@ -155,7 +155,7 @@
           "auth"
         ],
         "summary": "Вход",
-        "description": "Ставит httpOnly-cookie `access_token`; срок — настройка `SESSION_TTL_HOURS`.",
+        "description": "Ставит httpOnly-cookie `calibr_session` (имя — настройка `SESSION_COOKIE_NAME`); срок — настройка `SESSION_TTL_HOURS`.",
         "operationId": "login_api_auth_login_post",
         "requestBody": {
           "content": {
@@ -261,13 +261,118 @@
         ]
       }
     },
+    "/api/demo/status": {
+      "get": {
+        "tags": [
+          "demo"
+        ],
+        "summary": "Включён ли режим жюри",
+        "operationId": "demo_status_api_demo_status_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DemoStatusOut"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/demo/employer": {
+      "post": {
+        "tags": [
+          "demo"
+        ],
+        "summary": "Войти демо-работодателем",
+        "description": "Демо-компания с потребностями и подборками; учётка помечена и заводится при первом входе. Ставит cookie входа.",
+        "operationId": "demo_employer_api_demo_employer_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserOut"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`demo_disabled` — Режим жюри выключен",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/demo/candidate": {
+      "post": {
+        "tags": [
+          "demo"
+        ],
+        "summary": "Новый тестовый кандидат",
+        "description": "Свежая подтверждённая учётка с пройденным опросом и начатым экспресс-тестом; каждый вызов — новая, поэтому повторное прохождение не ждёт смены грейда. Ставит cookie входа.",
+        "operationId": "demo_candidate_api_demo_candidate_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DemoCandidateIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserOut"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`demo_disabled` — Режим жюри выключен",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "`unknown_specialization` — Такой специализации нет в справочнике\n\n`specialization_without_test` — Тест по этой специализации ещё готовится — выберите другую\n\n`unknown_grade` — Такого грейда нет в справочнике",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/auth/fsp/authorize": {
       "post": {
         "tags": [
           "auth"
         ],
         "summary": "Начать вход или привязку через ФСП ID",
-        "description": "Ставит httpOnly-cookie `fsp_authorization` с начатым входом на 10 минут и отдаёт адрес страницы ФСП ID. После входа ФСП ID возвращает браузер на `GET /api/auth/fsp/callback`.",
+        "description": "Ставит httpOnly-cookie `calibr_fsp_authorization` с начатым входом на 10 минут и отдаёт адрес страницы ФСП ID. После входа ФСП ID возвращает браузер на `GET /api/auth/fsp/callback`.",
         "operationId": "authorize_api_auth_fsp_authorize_post",
         "requestBody": {
           "content": {
@@ -385,7 +490,7 @@
             }
           },
           {
-            "name": "fsp_authorization",
+            "name": "calibr_fsp_authorization",
             "in": "cookie",
             "required": false,
             "schema": {
@@ -397,7 +502,7 @@
                   "type": "null"
                 }
               ],
-              "title": "Fsp Authorization"
+              "title": "Calibr Fsp Authorization"
             }
           }
         ],
@@ -806,7 +911,7 @@
             }
           },
           "409": {
-            "description": "`path_step_unavailable` — Этот шаг сейчас недоступен — обновите страницу\n\n`grade_not_offered` — Продолжить можно только на предложенном грейде\n\n`grade_not_next` — Попытка вверх — только на следующий грейд после вашего\n\n`grade_change_too_early` — Попытка на этот грейд пока недоступна — грейд меняется не чаще установленного срока\n\n`attempt_in_progress` — Сначала закончите начатый тест или блок по теме",
+            "description": "`path_step_unavailable` — Этот шаг сейчас недоступен — обновите страницу\n\n`grade_not_offered` — Продолжить можно только на предложенном грейде\n\n`grade_not_next` — Попытка вверх — только на следующий грейд после вашего\n\n`grade_change_too_early` — Попытка на этот грейд пока недоступна — грейд меняется не чаще установленного срока\n\n`attempt_in_progress` — Сначала закончите начатый тест или блок по теме\n\n`verification_pending` — Сначала пройдите проверочный блок — результат прошлой попытки ждёт его\n\n`express_unavailable` — Экспресс-тест доступен только тестовому кандидату режима жюри и на первом шаге теста",
             "content": {
               "application/json": {
                 "schema": {
@@ -817,6 +922,63 @@
           },
           "422": {
             "description": "`unknown_grade` — Такого грейда нет в справочнике",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ]
+      }
+    },
+    "/api/candidate/path/express/continue": {
+      "post": {
+        "tags": [
+          "candidate-path"
+        ],
+        "summary": "Продолжить экспресс-тест полным",
+        "description": "Экспресс-тест, дошедший до лимита без уверенности для категории, ждёт продолжения: лимит снимается, ответы остаются в оценке, тест идёт как обычный.",
+        "operationId": "continue_express_api_candidate_path_express_continue_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PathOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`not_authenticated` — Войдите, чтобы продолжить",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`wrong_role` — Раздел доступен другой роли",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "`express_not_paused` — Экспресс-тест не ждёт продолжения",
             "content": {
               "application/json": {
                 "schema": {
@@ -873,7 +1035,7 @@
             }
           },
           "409": {
-            "description": "`path_step_unavailable` — Этот шаг сейчас недоступен — обновите страницу\n\n`no_lower_grade` — Ниже вашего грейда грейдов нет",
+            "description": "`path_step_unavailable` — Этот шаг сейчас недоступен — обновите страницу\n\n`no_lower_grade` — Ниже вашего грейда грейдов нет\n\n`attempt_in_progress` — Сначала закончите начатый тест или блок по теме\n\n`verification_pending` — Сначала пройдите проверочный блок — результат прошлой попытки ждёт его",
             "content": {
               "application/json": {
                 "schema": {
@@ -967,6 +1129,63 @@
         ]
       }
     },
+    "/api/candidate/path/verification": {
+      "post": {
+        "tags": [
+          "candidate-path"
+        ],
+        "summary": "Начать проверочный блок",
+        "description": "Короткий блок на время из невиданных заданий тех же тем. Нужен, когда результат попытки ждёт его: совпал с основным тестом — категория присваивается или повышается с пометкой «уровень подтверждён», расхождение — категория прежняя, причина числами в `verification.last`. Без отложенного результата — добровольно, чтобы подтвердить уровень категории. Срок — `verification_time_limit_minutes` по часам сервера; повтор — не раньше `verification_retest_days` от старта прошлого блока. Задания — через `/item`.",
+        "operationId": "start_verification_api_candidate_path_verification_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PathOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`not_authenticated` — Войдите, чтобы продолжить",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`wrong_role` — Раздел доступен другой роли",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "`verification_unavailable` — Проверочный блок сейчас не нужен\n\n`verification_too_early` — Повторный проверочный блок пока недоступен\n\n`attempt_in_progress` — Сначала закончите начатый тест или блок по теме",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ]
+      }
+    },
     "/api/candidate/path/item": {
       "get": {
         "tags": [
@@ -1007,7 +1226,7 @@
             }
           },
           "409": {
-            "description": "`no_test_in_progress` — Сейчас нет начатого теста",
+            "description": "`no_test_in_progress` — Сейчас нет начатого теста\n\n`express_paused` — Экспресс-тест закончен — продолжите полный тест",
             "content": {
               "application/json": {
                 "schema": {
@@ -1030,7 +1249,7 @@
           "candidate-path"
         ],
         "summary": "Ответ на текущее задание",
-        "description": "Ответ проверяет бэкенд; верен ли он, не сообщается. Тест адаптивный: попытка останавливается, когда уровень определён с нужной точностью или задания кончились, — тогда возвращается её итог.",
+        "description": "Ответ проверяет бэкенд; верен ли он, не сообщается. Тест адаптивный: попытка останавливается, когда уровень определён с нужной точностью или задания кончились, — тогда возвращается её итог. Ответ проверочного блока после срока не засчитывается: блок останавливается. Счётчики событий пишутся, только если на попытку дано согласие.",
         "operationId": "answer_item_api_candidate_path_item_answer_post",
         "requestBody": {
           "content": {
@@ -1545,6 +1764,7 @@
           "employer-company"
         ],
         "summary": "Заполнить или изменить профиль компании",
+        "description": "Партнёрство с ФСП и логотип этим запросом не меняются.",
         "operationId": "save_company_api_employer_company_put",
         "requestBody": {
           "content": {
@@ -1603,6 +1823,336 @@
             "session": []
           }
         ]
+      }
+    },
+    "/api/employer/company/domain": {
+      "post": {
+        "tags": [
+          "employer-company"
+        ],
+        "summary": "Подтвердить домен сайта компании",
+        "description": "Письмо со ссылкой на адрес вида имя@домен-сайта. Метка добровольная: без неё все сценарии работают. Новая ссылка гасит прежние.",
+        "operationId": "request_domain_check_api_employer_company_domain_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DomainCheckIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "401": {
+            "description": "`not_authenticated` — Войдите, чтобы продолжить",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`wrong_role` — Раздел доступен другой роли",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "`company_profile_required` — Сначала заполните профиль компании — кандидат увидит его в приглашении\n\n`company_website_required` — Укажите сайт компании: подтверждается адрес на его домене",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "`domain_email_mismatch` — Адрес должен быть на домене сайта компании",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ]
+      }
+    },
+    "/api/employer/company/logo": {
+      "put": {
+        "tags": [
+          "employer-company"
+        ],
+        "summary": "Загрузить логотип",
+        "description": "Тело — картинка как есть: PNG, JPEG или WebP, до 512 КБ. Сначала профиль.",
+        "operationId": "upload_logo_api_employer_company_logo_put",
+        "requestBody": {
+          "content": {
+            "image/png": {
+              "schema": {
+                "type": "string",
+                "format": "binary"
+              }
+            },
+            "image/jpeg": {
+              "schema": {
+                "type": "string",
+                "format": "binary"
+              }
+            },
+            "image/webp": {
+              "schema": {
+                "type": "string",
+                "format": "binary"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CompanyOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`not_authenticated` — Войдите, чтобы продолжить",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`wrong_role` — Раздел доступен другой роли",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "`logo_too_large` — Логотип больше 512 КБ — уменьшите картинку",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "`logo_unsupported` — Логотип — PNG, JPEG или WebP",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "`company_required` — Сначала заполните профиль компании",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ]
+      },
+      "delete": {
+        "tags": [
+          "employer-company"
+        ],
+        "summary": "Убрать логотип",
+        "operationId": "remove_logo_api_employer_company_logo_delete",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CompanyOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`not_authenticated` — Войдите, чтобы продолжить",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`wrong_role` — Раздел доступен другой роли",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "`company_required` — Сначала заполните профиль компании",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ]
+      }
+    },
+    "/api/company-domain/confirm": {
+      "post": {
+        "tags": [
+          "employer-company"
+        ],
+        "summary": "Подтверждение домена по токену из письма",
+        "operationId": "confirm_domain_api_company_domain_confirm_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DomainConfirmIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CompanyOut"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`token_invalid` — Ссылка недействительна. Если адрес уже подтверждён — просто войдите\n\n`token_expired` — Срок ссылки истёк — запросите новое письмо",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/companies/{employer_id}/logo": {
+      "get": {
+        "tags": [
+          "employer-company"
+        ],
+        "summary": "Логотип компании",
+        "description": "Для любой вошедшей учётки: кандидат видит его в приглашении и вакансии.",
+        "operationId": "get_logo_api_companies__employer_id__logo_get",
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "employer_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Employer Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "image/png": {},
+              "image/jpeg": {},
+              "image/webp": {}
+            }
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/api/employer/needs": {
@@ -2425,6 +2975,17 @@
               "title": "Limit"
             },
             "description": "Сколько кандидатов вернуть"
+          },
+          {
+            "name": "order",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/SelectionOrder",
+              "description": "`mutual` — сохранённый порядок по S × P; `match` — только соответствие: внутри блока по S, места и ранги пересчитаны под показанный порядок",
+              "default": "mutual"
+            },
+            "description": "`mutual` — сохранённый порядок по S × P; `match` — только соответствие: внутри блока по S, места и ранги пересчитаны под показанный порядок"
           }
         ],
         "responses": {
@@ -2474,6 +3035,121 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/employer/selections/{selection_id}/candidates/{candidate_id}/salary-hint": {
+      "get": {
+        "tags": [
+          "employer-selections"
+        ],
+        "summary": "Вероятность принятия при вилке и подсказка по вилке",
+        "description": "Для формы приглашения: P(принятия) при вилке работодателя и самая низкая вилка, при которой P достигает целевой. Вилки в подсказке кратны шагу округления, P считается по округлённой вилке, ожидание кандидата не раскрывается. Нет файла модели — `available: false`, без ошибки.",
+        "operationId": "get_salary_hint_api_employer_selections__selection_id__candidates__candidate_id__salary_hint_get",
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "selection_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Selection Id"
+            }
+          },
+          {
+            "name": "candidate_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Candidate Id"
+            }
+          },
+          {
+            "name": "salary_from",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "maximum": 1000000000,
+              "exclusiveMinimum": 0,
+              "description": "Рубли в месяц до вычета НДФЛ (гросс)",
+              "title": "Salary From"
+            },
+            "description": "Рубли в месяц до вычета НДФЛ (гросс)"
+          },
+          {
+            "name": "salary_to",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "maximum": 1000000000,
+              "exclusiveMinimum": 0,
+              "description": "Рубли в месяц до вычета НДФЛ (гросс)",
+              "title": "Salary To"
+            },
+            "description": "Рубли в месяц до вычета НДФЛ (гросс)"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SalaryHintOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`not_authenticated` — Войдите, чтобы продолжить",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`wrong_role` — Раздел доступен другой роли",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`selection_not_found` — Подборка не найдена\n\n`not_in_selection` — Кандидата нет в выдаче подборки",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "`invalid_salary_range` — Вилка — обе границы больше нуля, «от» не больше «до»",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
                 }
               }
             }
@@ -2531,6 +3207,17 @@
               "title": "Limit"
             },
             "description": "Сколько кандидатов вернуть"
+          },
+          {
+            "name": "order",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/SelectionOrder",
+              "description": "`mutual` — сохранённый порядок по S × P; `match` — только соответствие: внутри блока по S, места и ранги пересчитаны под показанный порядок",
+              "default": "mutual"
+            },
+            "description": "`mutual` — сохранённый порядок по S × P; `match` — только соответствие: внутри блока по S, места и ранги пересчитаны под показанный порядок"
           }
         ],
         "requestBody": {
@@ -4764,6 +5451,167 @@
         }
       }
     },
+    "/api/employer/needs/{need_id}/test": {
+      "get": {
+        "tags": [
+          "employer-needs"
+        ],
+        "summary": "Тест по вакансии: темы, задания и примеры",
+        "description": "В тест идут ключевые и важные темы потребности, без них — все темы специализации; задания делятся по весам важности. Пример на тему — новый экземпляр при каждом запросе, сложность — около требуемого уровня. Эталон не отдаётся.",
+        "operationId": "preview_test_api_employer_needs__need_id__test_get",
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "need_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Need Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VacancyTestPreviewOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`not_authenticated` — Войдите, чтобы продолжить",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`wrong_role` — Раздел доступен другой роли",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`need_not_found` — Потребность не найдена — возможно, её удалили",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/candidate/invitations/{invitation_id}/test": {
+      "post": {
+        "tags": [
+          "candidate-invitations"
+        ],
+        "summary": "Начать тест по вакансии из приглашения",
+        "description": "Пока приглашение не отклонено и не истекло, один раз. Задания — через `/api/candidate/path/item`. Категорию, грейд и профиль навыков тест не меняет.",
+        "operationId": "start_test_api_candidate_invitations__invitation_id__test_post",
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "invitation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Invitation Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "401": {
+            "description": "`not_authenticated` — Войдите, чтобы продолжить",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`wrong_role` — Раздел доступен другой роли",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`invitation_not_found` — Приглашение не найдено\n\n`vacancy_test_not_found` — К приглашению не приложен тест по вакансии",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "`vacancy_test_taken` — Тест по этой вакансии уже пройден\n\n`vacancy_test_closed` — Приглашение отклонено или истекло — тест по вакансии больше недоступен\n\n`attempt_in_progress` — Сначала закончите начатый тест или блок по теме\n\n`category_required` — Задания открываются после теста — сначала получите категорию\n\n`vacancy_test_specialization_mismatch` — Тест по вакансии можно приложить, только если специализация кандидата совпадает",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/employer/vacancies": {
       "get": {
         "tags": [
@@ -5758,6 +6606,198 @@
         ]
       }
     },
+    "/api/candidate/feedback/plan": {
+      "get": {
+        "tags": [
+          "candidate-feedback"
+        ],
+        "summary": "План развития",
+        "description": "3–5 пунктов с шагами по темам подсказок, текст пишет локальная модель; темы только из подсказок, цифры системы — без работодателей и потребностей. `null` — модели нет, она не ответила или ответ не прошёл сверку: кабинет показывает подсказки как есть. Кэш — до изменения профиля навыков.",
+        "operationId": "get_plan_api_candidate_feedback_plan_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/DevelopmentPlanOut"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "title": "Response Get Plan Api Candidate Feedback Plan Get"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`not_authenticated` — Войдите, чтобы продолжить",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`wrong_role` — Раздел доступен другой роли",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ]
+      }
+    },
+    "/api/employer/chat/status": {
+      "get": {
+        "tags": [
+          "employer-chat"
+        ],
+        "summary": "Доступен ли чат",
+        "operationId": "status_api_employer_chat_status_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "boolean"
+                  },
+                  "type": "object",
+                  "title": "Response Status Api Employer Chat Status Get"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`not_authenticated` — Войдите, чтобы продолжить",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`wrong_role` — Раздел доступен другой роли",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ]
+      }
+    },
+    "/api/employer/chat": {
+      "post": {
+        "tags": [
+          "employer-chat"
+        ],
+        "summary": "Сообщение чат-поиска",
+        "description": "Агент разбирает текст, строит подборку и применяет фильтры теми же сценариями, что форма; кандидатов не переставляет и не добавляет. Модели нет — 503, работает путь руками.",
+        "operationId": "send_api_employer_chat_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChatIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChatOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`not_authenticated` — Войдите, чтобы продолжить",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`wrong_role` — Раздел доступен другой роли",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "`chat_unavailable` — Чат сейчас недоступен — соберите подборку из текста вакансии и фильтров",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "`path_step_unavailable` — Этот шаг сейчас недоступен — обновите страницу",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ]
+      }
+    },
     "/api/catalog/grades": {
       "get": {
         "tags": [
@@ -5926,6 +6966,63 @@
   },
   "components": {
     "schemas": {
+      "AcceptanceExplanationOut": {
+        "properties": {
+          "base": {
+            "type": "number",
+            "title": "Base",
+            "description": "Логит P при средних признаках обучения"
+          },
+          "logit": {
+            "type": "number",
+            "title": "Logit",
+            "description": "Логит P(принятия) строки"
+          },
+          "factors": {
+            "items": {
+              "$ref": "#/components/schemas/AcceptanceFactorOut"
+            },
+            "type": "array",
+            "title": "Factors"
+          }
+        },
+        "type": "object",
+        "required": [
+          "base",
+          "logit",
+          "factors"
+        ],
+        "title": "AcceptanceExplanationOut",
+        "description": "Вклады точно аддитивны в логите: `base` плюс сумма вкладов равна `logit`, а P — его\nсигмоида. Ожидания кандидата здесь нет, только вклад вилки в P."
+      },
+      "AcceptanceFactorOut": {
+        "properties": {
+          "factor": {
+            "type": "string",
+            "enum": [
+              "salary",
+              "grade",
+              "format",
+              "city",
+              "load",
+              "match",
+              "industry"
+            ],
+            "title": "Factor"
+          },
+          "contribution": {
+            "type": "number",
+            "title": "Contribution",
+            "description": "Вклад фактора в логит P: положительный повышает P, отрицательный снижает"
+          }
+        },
+        "type": "object",
+        "required": [
+          "factor",
+          "contribution"
+        ],
+        "title": "AcceptanceFactorOut"
+      },
       "ActionKind": {
         "type": "string",
         "enum": [
@@ -5990,6 +7087,22 @@
             "maxLength": 500,
             "minLength": 1,
             "title": "Response"
+          },
+          "paste_events": {
+            "type": "integer",
+            "maximum": 10000.0,
+            "minimum": 0.0,
+            "title": "Paste Events",
+            "description": "Вставок из буфера за время задания — пишется, только если кандидат дал согласие на попытку, иначе отбрасывается",
+            "default": 0
+          },
+          "focus_losses": {
+            "type": "integer",
+            "maximum": 10000.0,
+            "minimum": 0.0,
+            "title": "Focus Losses",
+            "description": "Уходов со вкладки за время задания — на тех же условиях",
+            "default": 0
           }
         },
         "type": "object",
@@ -6125,7 +7238,19 @@
           "grade": {
             "type": "string",
             "title": "Grade",
-            "description": "Код грейда: заявленный, предложенный для дотеста или, при категории, следующий выше"
+            "description": "Код грейда: заявленный, предложенный для дотеста или, при категории, следующий выше; на шаге `verification` — грейд ниже отложенного результата"
+          },
+          "focus_consent": {
+            "type": "boolean",
+            "title": "Focus Consent",
+            "description": "Согласие на счётчики вставок и уходов со вкладки в этой попытке — только как сигнал для проверочного блока. Без согласия тест проходится так же",
+            "default": false
+          },
+          "express": {
+            "type": "boolean",
+            "title": "Express",
+            "description": "Экспресс-тест режима жюри: короткий, с лимитом `express_max_items` заданий, правило уверенности то же. Только тестовому кандидату на шаге `grade`",
+            "default": false
           }
         },
         "type": "object",
@@ -6140,7 +7265,10 @@
           "assigned",
           "offered",
           "no_category",
-          "not_passed"
+          "not_passed",
+          "verification",
+          "confirmed",
+          "mismatch"
         ],
         "title": "AttemptOutcome",
         "description": "Чем закончилась попытка (mechanics.md, §4)."
@@ -6159,13 +7287,19 @@
             "type": "integer",
             "title": "Max Items",
             "description": "Больше заданий попытка не задаст; обычно тест останавливается раньше — когда уровень определён с нужной точностью"
+          },
+          "express": {
+            "type": "boolean",
+            "title": "Express",
+            "description": "Экспресс-тест режима жюри: лимит — `express_max_items`"
           }
         },
         "type": "object",
         "required": [
           "grade",
           "answered",
-          "max_items"
+          "max_items",
+          "express"
         ],
         "title": "AttemptProgressOut"
       },
@@ -6174,7 +7308,9 @@
         "enum": [
           "determination",
           "grade_up",
-          "topic_block"
+          "topic_block",
+          "verification",
+          "vacancy_test"
         ],
         "title": "AttemptPurpose",
         "description": "Зачем попытка (mechanics.md, §4)."
@@ -6511,6 +7647,47 @@
         "title": "CandidateFiltersOut",
         "description": "Применённые фильтры — те же поля, что на входе."
       },
+      "CardOut": {
+        "properties": {
+          "candidate_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Candidate Id"
+          },
+          "position": {
+            "type": "integer",
+            "title": "Position"
+          },
+          "block": {
+            "type": "string",
+            "title": "Block"
+          },
+          "grade": {
+            "type": "string",
+            "title": "Grade"
+          },
+          "match_score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Match Score"
+          }
+        },
+        "type": "object",
+        "required": [
+          "candidate_id",
+          "position",
+          "block",
+          "grade",
+          "match_score"
+        ],
+        "title": "CardOut"
+      },
       "CardSelfReportedOut": {
         "properties": {
           "stack": {
@@ -6714,15 +7891,127 @@
             "type": "string",
             "format": "date-time",
             "title": "Assigned At"
+          },
+          "verified_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Verified At",
+            "description": "Уровень подтверждён проверочным блоком — с этого момента; `null` — нет"
           }
         },
         "type": "object",
         "required": [
           "specialization",
           "grade",
-          "assigned_at"
+          "assigned_at",
+          "verified_at"
         ],
         "title": "CategoryOut"
+      },
+      "ChatIn": {
+        "properties": {
+          "message": {
+            "type": "string",
+            "maxLength": 4000,
+            "minLength": 1,
+            "title": "Message"
+          },
+          "selection_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Selection Id",
+            "description": "Подборка, начатая раньше в чате или в форме: сообщение без текста вакансии уточняет её фильтрами"
+          }
+        },
+        "type": "object",
+        "required": [
+          "message"
+        ],
+        "title": "ChatIn"
+      },
+      "ChatOut": {
+        "properties": {
+          "selection_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Selection Id",
+            "description": "Подборка открывается в форме по этому id"
+          },
+          "cards": {
+            "items": {
+              "$ref": "#/components/schemas/CardOut"
+            },
+            "type": "array",
+            "title": "Cards",
+            "description": "Ровно вывод подборки и фильтров, в их порядке"
+          },
+          "chips": {
+            "items": {
+              "$ref": "#/components/schemas/ChipOut"
+            },
+            "type": "array",
+            "title": "Chips",
+            "description": "Сужения, которые сделал агент, — снимаются"
+          },
+          "summary": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Summary",
+            "description": "Пересказ; `null` — числа не прошли сверку с выводом, показывается таблица"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          }
+        },
+        "type": "object",
+        "required": [
+          "selection_id",
+          "cards",
+          "chips",
+          "summary",
+          "total"
+        ],
+        "title": "ChatOut"
+      },
+      "ChipOut": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "title": "Kind",
+            "description": "`stack`, `fsp`, `confident`, `grade` или `specialization`"
+          },
+          "value": {
+            "type": "string",
+            "title": "Value"
+          }
+        },
+        "type": "object",
+        "required": [
+          "kind",
+          "value"
+        ],
+        "title": "ChipOut"
       },
       "CompanyIn": {
         "properties": {
@@ -6775,6 +8064,42 @@
               }
             ],
             "title": "Contact Phone"
+          },
+          "size": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CompanySize"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Сколько человек — диапазоном"
+          },
+          "it_accredited": {
+            "type": "boolean",
+            "title": "It Accredited",
+            "description": "Аккредитованная ИТ-компания",
+            "default": false
+          },
+          "benefits": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Benefits",
+            "description": "Что даёт сверх зарплаты: health, education, conferences, equipment, sport, meals, relocation"
+          },
+          "links": {
+            "items": {
+              "type": "string",
+              "maxLength": 300,
+              "minLength": 1
+            },
+            "type": "array",
+            "maxItems": 6,
+            "title": "Links",
+            "description": "Соцсети и блоги; площадку фронт узнаёт по адресу"
           }
         },
         "type": "object",
@@ -6829,6 +8154,68 @@
             "type": "string",
             "format": "date-time",
             "title": "Updated At"
+          },
+          "verified_domain": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Verified Domain",
+            "description": "Домен, подтверждённый письмом на адрес этого домена; `null` — не подтверждали"
+          },
+          "domain_verified": {
+            "type": "boolean",
+            "title": "Domain Verified",
+            "description": "Метка доверия: подтверждённый домен совпадает с доменом сайта компании"
+          },
+          "size": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CompanySize"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "it_accredited": {
+            "type": "boolean",
+            "title": "It Accredited"
+          },
+          "benefits": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Benefits"
+          },
+          "links": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Links"
+          },
+          "fsp_partner": {
+            "type": "boolean",
+            "title": "Fsp Partner",
+            "description": "Партнёр ФСП — отмечает федерация, не работодатель"
+          },
+          "logo_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Logo Url",
+            "description": "Логотип; `null` — не загружен"
           }
         },
         "type": "object",
@@ -6839,9 +8226,77 @@
           "website",
           "contact_email",
           "contact_phone",
-          "updated_at"
+          "updated_at",
+          "verified_domain",
+          "domain_verified",
+          "size",
+          "it_accredited",
+          "benefits",
+          "links",
+          "fsp_partner",
+          "logo_url"
         ],
         "title": "CompanyOut"
+      },
+      "CompanySize": {
+        "type": "string",
+        "enum": [
+          "up_to_50",
+          "up_to_200",
+          "up_to_1000",
+          "over_1000"
+        ],
+        "title": "CompanySize",
+        "description": "Сколько человек в компании — диапазоном, точное число кандидату не нужно."
+      },
+      "DemoCandidateIn": {
+        "properties": {
+          "specialization": {
+            "type": "string",
+            "title": "Specialization",
+            "description": "Код специализации опроса",
+            "default": "backend"
+          },
+          "grade": {
+            "type": "string",
+            "title": "Grade",
+            "description": "Заявленный грейд экспресс-теста",
+            "default": "middle"
+          }
+        },
+        "type": "object",
+        "title": "DemoCandidateIn"
+      },
+      "DemoStatusOut": {
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled",
+            "description": "Режим жюри включён настройкой окружения `DEMO_MODE`"
+          }
+        },
+        "type": "object",
+        "required": [
+          "enabled"
+        ],
+        "title": "DemoStatusOut"
+      },
+      "DevelopmentPlanOut": {
+        "properties": {
+          "steps": {
+            "items": {
+              "$ref": "#/components/schemas/PlanStepOut"
+            },
+            "type": "array",
+            "title": "Steps",
+            "description": "3–5 пунктов"
+          }
+        },
+        "type": "object",
+        "required": [
+          "steps"
+        ],
+        "title": "DevelopmentPlanOut"
       },
       "DisclosedOut": {
         "properties": {
@@ -6926,6 +8381,48 @@
         "title": "DisclosedOut",
         "description": "Раскрытая часть анкеты: ФИО, контакты, свободный текст и карточка опыта. Ожидаемой\nзарплаты нет и здесь."
       },
+      "DomainCheckIn": {
+        "properties": {
+          "email": {
+            "type": "string",
+            "maxLength": 320,
+            "minLength": 3,
+            "title": "Email",
+            "description": "Адрес на домене сайта компании, например hr@acme.ru"
+          },
+          "locale": {
+            "type": "string",
+            "enum": [
+              "ru",
+              "en"
+            ],
+            "title": "Locale",
+            "description": "Язык письма",
+            "default": "ru"
+          }
+        },
+        "type": "object",
+        "required": [
+          "email"
+        ],
+        "title": "DomainCheckIn"
+      },
+      "DomainConfirmIn": {
+        "properties": {
+          "token": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Token",
+            "description": "Токен из письма"
+          }
+        },
+        "type": "object",
+        "required": [
+          "token"
+        ],
+        "title": "DomainConfirmIn"
+      },
       "DraftField": {
         "type": "string",
         "enum": [
@@ -6977,6 +8474,52 @@
           "message"
         ],
         "title": "ErrorOut"
+      },
+      "ExampleOut": {
+        "properties": {
+          "topic": {
+            "$ref": "#/components/schemas/CatalogRef"
+          },
+          "family_code": {
+            "type": "string",
+            "title": "Family Code"
+          },
+          "prompt": {
+            "type": "string",
+            "title": "Prompt"
+          },
+          "code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Code"
+          },
+          "answer_format": {
+            "$ref": "#/components/schemas/AnswerFormat"
+          },
+          "options": {
+            "items": {
+              "$ref": "#/components/schemas/OptionOut"
+            },
+            "type": "array",
+            "title": "Options"
+          }
+        },
+        "type": "object",
+        "required": [
+          "topic",
+          "family_code",
+          "prompt",
+          "code",
+          "answer_format",
+          "options"
+        ],
+        "title": "ExampleOut"
       },
       "ExperienceEntryIn": {
         "properties": {
@@ -7086,6 +8629,31 @@
           "summary"
         ],
         "title": "ExperienceEntryOut"
+      },
+      "ExpressOut": {
+        "properties": {
+          "limit": {
+            "type": "integer",
+            "title": "Limit",
+            "description": "Лимит заданий экспресс-теста"
+          },
+          "answered": {
+            "type": "integer",
+            "title": "Answered"
+          },
+          "paused": {
+            "type": "boolean",
+            "title": "Paused",
+            "description": "Лимит выбран, уверенности для категории нет: тест ждёт продолжения полным (`POST /api/candidate/path/express/continue`); уровень с погрешностью — в `result`"
+          }
+        },
+        "type": "object",
+        "required": [
+          "limit",
+          "answered",
+          "paused"
+        ],
+        "title": "ExpressOut"
       },
       "FeedbackOut": {
         "properties": {
@@ -7651,7 +9219,7 @@
                 "type": "null"
               }
             ],
-            "description": "`assigned` — грейд присвоен; `offered` — предложен дотест; `no_category` — категории нет; `not_passed` — попытка вверх не прошла, категория прежняя"
+            "description": "`assigned` — грейд присвоен; `offered` — предложен дотест; `no_category` — категории нет; `not_passed` — попытка вверх не прошла, категория прежняя; `verification` — результат ждёт проверочного блока"
           },
           "outcome_grade": {
             "anyOf": [
@@ -7769,6 +9337,19 @@
             "minLength": 1,
             "title": "Contact",
             "description": "Как кандидату связаться с компанией, если примет приглашение"
+          },
+          "test_need_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Test Need Id",
+            "description": "Приложить тест по вакансии: потребность компании той же специализации, что категория кандидата"
           }
         },
         "type": "object",
@@ -7873,6 +9454,22 @@
             "title": "Unread Messages",
             "description": "Непрочитанные сообщения другой стороны"
           },
+          "company_domain_verified": {
+            "type": "boolean",
+            "title": "Company Domain Verified",
+            "description": "Метка доверия: компания подтвердила домен своего сайта"
+          },
+          "vacancy_test": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/VacancyTestOut"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Приложенный тест по вакансии; итог — только в ответах работодателю"
+          },
           "salary_basis": {
             "$ref": "#/components/schemas/SalaryBasis",
             "description": "Все суммы платформы — до вычета НДФЛ (`gross`)",
@@ -7895,6 +9492,8 @@
           "expires_at",
           "revoked_at",
           "unread_messages",
+          "company_domain_verified",
+          "vacancy_test",
           "salary_basis"
         ],
         "title": "InvitationOut"
@@ -7931,6 +9530,34 @@
             "type": "boolean",
             "title": "Topic Block",
             "description": "Задание блока по теме, а не теста"
+          },
+          "verification": {
+            "type": "boolean",
+            "title": "Verification",
+            "description": "Задание проверочного блока"
+          },
+          "vacancy_test": {
+            "type": "boolean",
+            "title": "Vacancy Test",
+            "description": "Задание теста по вакансии из приглашения"
+          },
+          "deadline": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Deadline",
+            "description": "Срок проверочного блока по часам сервера"
+          },
+          "focus_consent": {
+            "type": "boolean",
+            "title": "Focus Consent",
+            "description": "Кандидат согласился на счётчики событий в этой попытке: без согласия их не собирают и не присылают"
           },
           "topic": {
             "$ref": "#/components/schemas/CatalogRef"
@@ -7970,6 +9597,10 @@
           "number",
           "max_items",
           "topic_block",
+          "verification",
+          "vacancy_test",
+          "deadline",
+          "focus_consent",
           "topic",
           "prompt",
           "code",
@@ -8660,7 +10291,7 @@
         "properties": {
           "stage": {
             "$ref": "#/components/schemas/Stage",
-            "description": "`survey` — опрос; `grade` — выбор грейда; `test` — идёт тест; `offer` — предложен дотест на `offer_grade`; `category` — категория присвоена; `no_category` — без категории до `retest_after`"
+            "description": "`survey` — опрос; `grade` — выбор грейда; `test` — идёт тест; `offer` — предложен дотест на `offer_grade`; `category` — категория присвоена; `no_category` — без категории до `retest_after`; `verification` — результат ждёт проверочного блока"
           },
           "survey": {
             "anyOf": [
@@ -8725,7 +10356,7 @@
                 "type": "null"
               }
             ],
-            "description": "На шагах `offer`, `category`, `no_category`"
+            "description": "На шагах `offer`, `category`, `no_category`; у экспресс-теста, который ждёт продолжения, — на шаге `test`"
           },
           "profile": {
             "anyOf": [
@@ -8778,6 +10409,39 @@
               }
             ],
             "description": "Незавершённый блок по теме: задания и ответы — те же `item`, что у теста"
+          },
+          "verification": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/VerificationOut"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Проверочный блок на шагах `verification` и `category`: результат ждёт его, он идёт или его можно пройти добровольно"
+          },
+          "express": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ExpressOut"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Экспресс-тест режима жюри: идёт, ждёт продолжения или дал итог пути — итог помечается «экспресс-оценка»"
+          },
+          "vacancy_test": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/VacancyTestProgressOut"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Незавершённый тест по вакансии из приглашения: задания — те же `item`"
           }
         },
         "type": "object",
@@ -8793,7 +10457,10 @@
           "grade_up",
           "grade_down",
           "history",
-          "topic_block"
+          "topic_block",
+          "verification",
+          "express",
+          "vacancy_test"
         ],
         "title": "PathOut"
       },
@@ -8822,6 +10489,54 @@
           "exact_share"
         ],
         "title": "PlacementOut"
+      },
+      "PlanStepOut": {
+        "properties": {
+          "topic": {
+            "type": "string",
+            "title": "Topic",
+            "description": "Код темы из подсказок обратной связи"
+          },
+          "step": {
+            "type": "string",
+            "title": "Step",
+            "description": "Шаг: что сделать по теме"
+          }
+        },
+        "type": "object",
+        "required": [
+          "topic",
+          "step"
+        ],
+        "title": "PlanStepOut"
+      },
+      "PlannedTopicOut": {
+        "properties": {
+          "topic": {
+            "$ref": "#/components/schemas/CatalogRef"
+          },
+          "importance": {
+            "$ref": "#/components/schemas/TopicImportance"
+          },
+          "weight": {
+            "type": "number",
+            "title": "Weight",
+            "description": "Вес темы в тесте — вес важности, нормированный на темы теста"
+          },
+          "items": {
+            "type": "integer",
+            "title": "Items",
+            "description": "Сколько заданий по теме"
+          }
+        },
+        "type": "object",
+        "required": [
+          "topic",
+          "importance",
+          "weight",
+          "items"
+        ],
+        "title": "PlannedTopicOut"
       },
       "ProfileIn": {
         "properties": {
@@ -9420,6 +11135,131 @@
         "title": "SalaryBasis",
         "description": "Как считается сумма: `gross` — до вычета НДФЛ."
       },
+      "SalaryHintOut": {
+        "properties": {
+          "available": {
+            "type": "boolean",
+            "title": "Available",
+            "description": "`false` — P нет (нет файла модели, у потребности не было вилки, кандидат в нижнем блоке): ни вероятности, ни подсказки"
+          },
+          "probability": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Probability",
+            "description": "P(принятия) при вилке работодателя, округлённой до шага подсказки"
+          },
+          "evaluated_from": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 1000000000.0,
+                "description": "Рубли в месяц до вычета НДФЛ (гросс)"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Evaluated From",
+            "description": "«От» вилки, по которой посчитана P"
+          },
+          "evaluated_to": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 1000000000.0,
+                "description": "Рубли в месяц до вычета НДФЛ (гросс)"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Evaluated To",
+            "description": "«До» вилки, по которой посчитана P"
+          },
+          "target_probability": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target Probability",
+            "description": "Целевая P(принятия)"
+          },
+          "reachable": {
+            "type": "boolean",
+            "title": "Reachable",
+            "description": "Есть ли вилка, при которой P достигает цели, в пределах сетки подсказки"
+          },
+          "hint_from": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 1000000000.0,
+                "description": "Рубли в месяц до вычета НДФЛ (гросс)"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hint From",
+            "description": "«От» самой низкой вилки сетки с P не ниже цели; кратно шагу округления; `null` — цель недостижима"
+          },
+          "hint_to": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 1000000000.0,
+                "description": "Рубли в месяц до вычета НДФЛ (гросс)"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hint To",
+            "description": "«До» той же вилки; кратно шагу округления"
+          },
+          "rounding": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rounding",
+            "description": "Шаг округления вилки в подсказке, ₽"
+          },
+          "salary_basis": {
+            "$ref": "#/components/schemas/SalaryBasis",
+            "description": "Все суммы платформы — до вычета НДФЛ (`gross`)",
+            "readOnly": true
+          }
+        },
+        "type": "object",
+        "required": [
+          "available",
+          "probability",
+          "evaluated_from",
+          "evaluated_to",
+          "target_probability",
+          "reachable",
+          "hint_from",
+          "hint_to",
+          "rounding",
+          "salary_basis"
+        ],
+        "title": "SalaryHintOut"
+      },
       "Scenario": {
         "type": "string",
         "enum": [
@@ -9630,6 +11470,17 @@
             "type": "boolean",
             "title": "Stale",
             "description": "Давно не подтверждал уровень: сигналов не было дольше срока"
+          },
+          "acceptance_explanation": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AcceptanceExplanationOut"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "SHAP-объяснение P(принятия); `null` — P нет"
           }
         },
         "type": "object",
@@ -9645,10 +11496,19 @@
           "mutual_score",
           "topics",
           "stack",
-          "stale"
+          "stale",
+          "acceptance_explanation"
         ],
         "title": "SelectionEntryOut",
         "description": "Кандидат в подборке — обезличенно: место, статус грейда, соответствие и его объяснение.\nКарточка — `GET /api/employer/candidates/{candidate_id}`."
+      },
+      "SelectionOrder": {
+        "type": "string",
+        "enum": [
+          "mutual",
+          "match"
+        ],
+        "title": "SelectionOrder"
       },
       "SelectionOut": {
         "properties": {
@@ -9895,11 +11755,12 @@
         "type": "string",
         "enum": [
           "fsp",
+          "verification",
           "test",
           "regular_task"
         ],
         "title": "SignalSource",
-        "description": "Уровень доверия, из которого пришло наблюдение (§11). Проверочный блок встанет рядом."
+        "description": "Уровень доверия, из которого пришло наблюдение (§11)."
       },
       "SkillProfileOut": {
         "properties": {
@@ -10011,7 +11872,8 @@
           "test",
           "offer",
           "category",
-          "no_category"
+          "no_category",
+          "verification"
         ],
         "title": "Stage"
       },
@@ -10398,6 +12260,11 @@
             "type": "boolean",
             "title": "Fsp Confirmed",
             "description": "Уровень подтверждён результатом ФСП — к формулировке «подтверждено ФСП»"
+          },
+          "verification_confirmed": {
+            "type": "boolean",
+            "title": "Verification Confirmed",
+            "description": "Уровень категории подтверждён проверочным блоком, и его задания были по теме — к формулировке «подтверждено проверочным блоком»"
           }
         },
         "type": "object",
@@ -10413,7 +12280,8 @@
           "verdict",
           "low_data",
           "regular_task",
-          "fsp_confirmed"
+          "fsp_confirmed",
+          "verification_confirmed"
         ],
         "title": "TopicFitOut"
       },
@@ -10532,6 +12400,46 @@
         ],
         "title": "TopicOut"
       },
+      "TopicOutcomeOut": {
+        "properties": {
+          "topic": {
+            "$ref": "#/components/schemas/CatalogRef"
+          },
+          "answered": {
+            "type": "integer",
+            "title": "Answered"
+          },
+          "correct": {
+            "type": "integer",
+            "title": "Correct"
+          },
+          "level": {
+            "type": "number",
+            "title": "Level",
+            "description": "Уровень θ по теме"
+          },
+          "level_sd": {
+            "type": "number",
+            "title": "Level Sd",
+            "description": "Погрешность уровня"
+          },
+          "probability": {
+            "type": "number",
+            "title": "Probability",
+            "description": "P(уровень ≥ требуемого)"
+          }
+        },
+        "type": "object",
+        "required": [
+          "topic",
+          "answered",
+          "correct",
+          "level",
+          "level_sd",
+          "probability"
+        ],
+        "title": "TopicOutcomeOut"
+      },
       "UserOut": {
         "properties": {
           "id": {
@@ -10549,6 +12457,12 @@
           "email_verified": {
             "type": "boolean",
             "title": "Email Verified"
+          },
+          "demo": {
+            "type": "boolean",
+            "title": "Demo",
+            "description": "Тестовая учётка режима жюри: ей доступен экспресс-тест",
+            "default": false
           }
         },
         "type": "object",
@@ -10685,6 +12599,11 @@
             "title": "Archived At",
             "description": "Когда снята с публикации: в общем списке её нет, откликнуться нельзя"
           },
+          "company_domain_verified": {
+            "type": "boolean",
+            "title": "Company Domain Verified",
+            "description": "Метка доверия: компания подтвердила домен своего сайта"
+          },
           "salary_basis": {
             "$ref": "#/components/schemas/SalaryBasis",
             "description": "Все суммы платформы — до вычета НДФЛ (`gross`)",
@@ -10705,9 +12624,170 @@
           "published_at",
           "updated_at",
           "archived_at",
+          "company_domain_verified",
           "salary_basis"
         ],
         "title": "VacancyOut"
+      },
+      "VacancyTestOut": {
+        "properties": {
+          "need_title": {
+            "type": "string",
+            "title": "Need Title"
+          },
+          "plan": {
+            "$ref": "#/components/schemas/VacancyTestPlanOut"
+          },
+          "status": {
+            "$ref": "#/components/schemas/VacancyTestStatus",
+            "description": "`not_started` — не начат; `in_progress` — идёт; `finished` — пройден"
+          },
+          "answered": {
+            "type": "integer",
+            "title": "Answered"
+          },
+          "result": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/VacancyTestResultOut"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Итог — только пригласившей компании; категорию и профиль он не меняет"
+          }
+        },
+        "type": "object",
+        "required": [
+          "need_title",
+          "plan",
+          "status",
+          "answered",
+          "result"
+        ],
+        "title": "VacancyTestOut"
+      },
+      "VacancyTestPlanOut": {
+        "properties": {
+          "specialization": {
+            "$ref": "#/components/schemas/CatalogRef"
+          },
+          "grade": {
+            "$ref": "#/components/schemas/CatalogRef",
+            "description": "Грейд потребности: его порог — требуемый уровень"
+          },
+          "items": {
+            "type": "integer",
+            "title": "Items",
+            "description": "Заданий в тесте — ровно столько"
+          },
+          "topics": {
+            "items": {
+              "$ref": "#/components/schemas/PlannedTopicOut"
+            },
+            "type": "array",
+            "title": "Topics",
+            "description": "Ключевые и важные темы потребности, без них — все темы специализации"
+          }
+        },
+        "type": "object",
+        "required": [
+          "specialization",
+          "grade",
+          "items",
+          "topics"
+        ],
+        "title": "VacancyTestPlanOut"
+      },
+      "VacancyTestPreviewOut": {
+        "properties": {
+          "plan": {
+            "$ref": "#/components/schemas/VacancyTestPlanOut"
+          },
+          "examples": {
+            "items": {
+              "$ref": "#/components/schemas/ExampleOut"
+            },
+            "type": "array",
+            "title": "Examples",
+            "description": "Пример задания на тему: семейство со сложностью ближе всех к требуемому уровню, экземпляр — со свежим seed, без эталона"
+          }
+        },
+        "type": "object",
+        "required": [
+          "plan",
+          "examples"
+        ],
+        "title": "VacancyTestPreviewOut"
+      },
+      "VacancyTestProgressOut": {
+        "properties": {
+          "invitation_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Invitation Id",
+            "description": "Приглашение, к которому приложен тест"
+          },
+          "need_title": {
+            "type": "string",
+            "title": "Need Title"
+          },
+          "answered": {
+            "type": "integer",
+            "title": "Answered"
+          },
+          "items": {
+            "type": "integer",
+            "title": "Items",
+            "description": "Заданий в тесте по вакансии — ровно столько"
+          }
+        },
+        "type": "object",
+        "required": [
+          "invitation_id",
+          "need_title",
+          "answered",
+          "items"
+        ],
+        "title": "VacancyTestProgressOut"
+      },
+      "VacancyTestResultOut": {
+        "properties": {
+          "finished_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Finished At"
+          },
+          "match": {
+            "type": "number",
+            "title": "Match",
+            "description": "Взвешенная доля выполненных требований по темам теста"
+          },
+          "topics": {
+            "items": {
+              "$ref": "#/components/schemas/TopicOutcomeOut"
+            },
+            "type": "array",
+            "title": "Topics"
+          }
+        },
+        "type": "object",
+        "required": [
+          "finished_at",
+          "match",
+          "topics"
+        ],
+        "title": "VacancyTestResultOut"
+      },
+      "VacancyTestStatus": {
+        "type": "string",
+        "enum": [
+          "not_started",
+          "in_progress",
+          "finished"
+        ],
+        "title": "VacancyTestStatus"
       },
       "ValidationError": {
         "properties": {
@@ -10760,6 +12840,129 @@
         "title": "Verdict",
         "description": "Вероятность выполнить требование словами (`confidence_language_bands`)."
       },
+      "VerificationOut": {
+        "properties": {
+          "grade": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Grade",
+            "description": "Грейд результата, который ждёт блока; `null` — добровольный блок, чтобы подтвердить уровень категории"
+          },
+          "available_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Available At",
+            "description": "С какого момента можно начать блок; `null` — можно сейчас"
+          },
+          "progress": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/VerificationProgressOut"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Идущий блок"
+          },
+          "last": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/VerificationResultOut"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Итог последнего блока"
+          }
+        },
+        "type": "object",
+        "required": [
+          "grade",
+          "available_at",
+          "progress",
+          "last"
+        ],
+        "title": "VerificationOut",
+        "description": "Проверочный блок: короткий блок на время из невиданных заданий тех же тем."
+      },
+      "VerificationProgressOut": {
+        "properties": {
+          "answered": {
+            "type": "integer",
+            "title": "Answered"
+          },
+          "items": {
+            "type": "integer",
+            "title": "Items",
+            "description": "Заданий в блоке"
+          },
+          "deadline": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Deadline",
+            "description": "Срок по часам сервера: неотвеченное к нему считается неверным"
+          }
+        },
+        "type": "object",
+        "required": [
+          "answered",
+          "items",
+          "deadline"
+        ],
+        "title": "VerificationProgressOut"
+      },
+      "VerificationResultOut": {
+        "properties": {
+          "confirmed": {
+            "type": "boolean",
+            "title": "Confirmed"
+          },
+          "expected": {
+            "type": "number",
+            "title": "Expected",
+            "description": "Ожидалось верных по основному тесту"
+          },
+          "correct": {
+            "type": "integer",
+            "title": "Correct",
+            "description": "Получено верных"
+          },
+          "items": {
+            "type": "integer",
+            "title": "Items"
+          },
+          "at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "confirmed",
+          "expected",
+          "correct",
+          "items",
+          "at"
+        ],
+        "title": "VerificationResultOut",
+        "description": "Итог последнего блока — причина расхождения числами."
+      },
       "VerifyEmailIn": {
         "properties": {
           "token": {
@@ -10791,7 +12994,7 @@
         "type": "apiKey",
         "description": "httpOnly-cookie; ставит `POST /api/auth/login`, снимает `POST /api/auth/logout`",
         "in": "cookie",
-        "name": "access_token"
+        "name": "calibr_session"
       }
     }
   }

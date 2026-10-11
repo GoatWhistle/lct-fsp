@@ -37,6 +37,9 @@ class Settings(BaseSettings):
     secret_key: str = Field(default="dev-only-secret-key-change-me-on-deploy", min_length=32)
     frontend_url: str = "http://localhost:3000"
     cookie_secure: bool = False
+    # Имя cookie входа: cookie не изолируются по порту, на localhost чужое приложение с тем же
+    # именем перезаписало бы сессию, поэтому имя своё.
+    session_cookie_name: str = Field(default="calibr_session", pattern=r"^[A-Za-z0-9_-]{1,64}$")
 
     smtp_host: str = "localhost"
     smtp_port: int = 1025

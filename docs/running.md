@@ -42,6 +42,8 @@ docker compose up --build
 | `SECRET_KEY` | `dev-only-…` | подпись токена входа; на общем стенде — своя, `openssl rand -hex 32` |
 | `FRONTEND_URL` | `http://localhost:3000` | адрес фронта в ссылке из письма и возврат из ФСП ID |
 | `COOKIE_SECURE` | `false` | `true` — cookie входа только по HTTPS |
+| `SESSION_COOKIE_NAME` | `calibr_session` | имя cookie входа: cookie не изолируются по порту, и на localhost чужое приложение с тем же именем (например `access_token`) затирало бы сессию |
+| `SESSION_TTL_HOURS` | `168` | срок входа; cookie и токен живут ровно столько, продления при активности нет — по истечении нужен новый вход |
 | `FSP_ID_ISSUER`, `FSP_ID_SERVER_URL` | локальный Keycloak | публичный адрес realm ФСП ID и адрес для бэкенда |
 | `FSP_ID_CLIENT_ID`, `FSP_ID_CLIENT_SECRET` | `lct-platform`, `dev-only-…` | клиент платформы в ФСП ID |
 | `FSP_REGISTRY_PATH` | `backend/config/fsp_registry.json` | заглушка реестра достижений |

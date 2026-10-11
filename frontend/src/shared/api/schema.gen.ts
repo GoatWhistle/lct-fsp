@@ -72,7 +72,7 @@ export interface paths {
         put?: never;
         /**
          * Вход
-         * @description Ставит httpOnly-cookie `access_token`; срок — настройка `SESSION_TTL_HOURS`.
+         * @description Ставит httpOnly-cookie `calibr_session` (имя — настройка `SESSION_COOKIE_NAME`); срок — настройка `SESSION_TTL_HOURS`.
          */
         post: operations["login_api_auth_login_post"];
         delete?: never;

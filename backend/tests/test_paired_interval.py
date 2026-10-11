@@ -11,7 +11,7 @@ def test_interval_covers_constant_difference_and_is_reproducible() -> None:
     mean, low, high = paired_interval(ours, other)
 
     assert round(mean, 6) == 0.2
-    assert low == high == mean or low <= mean <= high
+    assert low == high == mean
     assert paired_interval(ours, other) == (mean, low, high)
 
 

@@ -112,6 +112,7 @@ class Accounts:
         """Вход: учётка и токен входа со сроком от текущего момента. Учётки демо-засева с
         известным паролем открыты только в режиме жюри."""
         if not self._seeded_logins_open and normalize_email(email).endswith(f"@{SEED_DOMAIN}"):
+            self._passwords.verify(None, password)
             raise InvalidCredentials()
         with self._uow:
             credentials = self._accounts.credentials(normalize_email(email))

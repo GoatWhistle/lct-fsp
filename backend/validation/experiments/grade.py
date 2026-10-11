@@ -12,6 +12,7 @@ from dataclasses import dataclass
 from app.adapter.catalog_file import load_catalog
 from settings import CATALOG_FILE, MECHANICS_FILE, Mechanics
 from validation.commands import _pool, honesty, stability
+from validation.experiments import with_overrides
 from validation.market import TUNING_SEED, market, warm
 
 
@@ -58,8 +59,9 @@ def main(argv: Sequence[str] | None = None) -> None:
     p.add_argument("--set", action="append", default=[], metavar="имя=значение")
     args = p.parse_args(argv)
     base = Mechanics.from_yaml(MECHANICS_FILE)
-    update = {k: type(getattr(base, k))(v) for k, v in (s.split("=") for s in args.set)}
-    rows = measure(base.model_copy(update=update), args.seed, args.candidates, args.pairs)
+    mechanics = with_overrides(base, args.set)
+    update = dict(s.split("=", 1) for s in args.set)
+    rows = measure(mechanics, args.seed, args.candidates, args.pairs)
     n = len(rows)
 
     def f(attr: str) -> float:

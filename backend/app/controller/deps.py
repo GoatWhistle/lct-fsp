@@ -270,7 +270,8 @@ class ConfiguredSessionCookie(APIKeyCookie):
     """Схема OpenAPI с именем по умолчанию; читает cookie под именем из настроек стенда."""
 
     async def __call__(self, request: Request) -> str | None:
-        name: str = request.app.state.session_cookie.name
+        configured = getattr(request.app.state, "session_cookie", None)
+        name: str = configured.name if configured else DEFAULT_SESSION_COOKIE
         return request.cookies.get(name)
 
 

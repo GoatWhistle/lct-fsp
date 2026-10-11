@@ -10,6 +10,7 @@ import uuid
 from collections import Counter
 
 from settings import MECHANICS_FILE, Mechanics
+from validation.experiments import with_overrides
 from validation.report import NAIVE, OURS, DatasetRuns, collect, ranked_lists
 from validation.simulate import Scale
 from validation.truth import Persona
@@ -46,8 +47,8 @@ def main() -> None:
     p.add_argument("--set-opt", action="append", default=[], metavar="имя=значение")
     args = p.parse_args()
     base = Mechanics.from_yaml(MECHANICS_FILE)
-    update = {k: type(getattr(base, k))(v) for k, v in (s.split("=") for s in args.set_opt)}
-    mechanics = base.model_copy(update=update)
+    mechanics = with_overrides(base, args.set_opt)
+    update = dict(s.split("=", 1) for s in args.set_opt)
     runs = collect(
         mechanics,
         Scale(candidates=args.candidates, pairs=10, warm=500, compare=10, fit=10),

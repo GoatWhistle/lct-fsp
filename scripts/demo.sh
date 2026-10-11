@@ -19,6 +19,7 @@ export MAILPIT_SMTP_PORT=${DEMO_MAILPIT_SMTP_PORT:-1125}
 export POSTGRES_PORT=${DEMO_POSTGRES_PORT:-5532}
 export FRONTEND_URL="http://localhost:${FRONTEND_PORT}"
 export DEMO_MODE=true
+export SESSION_COOKIE_NAME=${DEMO_SESSION_COOKIE_NAME:-calibr_demo_session}
 
 compose() { docker compose -p "$PROJECT" "$@"; }
 
@@ -26,7 +27,7 @@ check_ports() {
   if [ -n "$(compose ps -q 2>/dev/null)" ]; then return; fi
   for port in "$FRONTEND_PORT" "$BACKEND_PORT" "$KEYCLOAK_PORT" "$MAILPIT_UI_PORT" \
     "$MAILPIT_SMTP_PORT" "$POSTGRES_PORT"; do
-    if lsof -nP -iTCP:"$port" -sTCP:LISTEN >/dev/null 2>&1; then
+    if command -v lsof >/dev/null 2>&1 && lsof -nP -iTCP:"$port" -sTCP:LISTEN >/dev/null 2>&1; then
       echo "Порт $port занят чужим процессом: задайте другой через DEMO_*_PORT" >&2
       exit 1
     fi

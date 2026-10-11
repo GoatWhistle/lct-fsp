@@ -280,7 +280,8 @@ def test_pdf_profile_before_test(candidate: TestClient) -> None:
     assert "Ёлкина Юлия Сергеевна" in text
     assert "yulia.yolkina@example.ru" in text
     assert "@yolkina_qa" in text
-    assert "PostgreSQL, Python" in text
+    # Стек набран отдельными плашками, а не строкой через запятую.
+    assert "PostgreSQL" in text and "Python" in text
     assert "4 года" in text
     assert "Финтех и банки" in text
     assert "Категория пока не присвоена" in text
@@ -301,8 +302,10 @@ def test_pdf_profile_has_category_and_skill_profile(
 
     assert response.status_code == 200
     text = pdf_text(response.content)
-    assert "QA · Middle" in text
-    overall = next(line for line in text.splitlines() if line.startswith("Общий уровень — "))
+    lines = text.splitlines()
+    assert "QA" in lines and "Middle" in lines
+    # Заголовок «Общий уровень» стоит дважды: плашка сводки и раздел теста; сводка — строкой ниже.
+    overall = lines[len(lines) - 1 - lines[::-1].index("Общий уровень") + 1].lower()
     assert band["low"] in overall and band["high"] in overall
     qa = next(s for s in client.get("/api/catalog/specializations").json() if s["code"] == "qa")
     for topic in qa["topics"]:
@@ -320,8 +323,10 @@ def test_pdf_has_no_skill_profile_without_category(candidate: TestClient, seeds:
     text = pdf_text(candidate.get(PDF).content)
 
     assert "Категория пока не присвоена" in text
-    assert "Профиль навыков" not in text
-    assert "Общий уровень" not in text
+    # Раздел теста остаётся с пометкой «появится после теста», самого профиля нет.
+    assert "Профиль навыков появится после адаптивного теста." in text
+    assert "Шкала показывает уровень и погрешность" not in text
+    assert "Общий уровень — " not in text
 
 
 def test_employer_card_hides_contacts_free_text_and_expected_salary(

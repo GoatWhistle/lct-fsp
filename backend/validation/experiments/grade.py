@@ -63,7 +63,7 @@ def main(argv: Sequence[str] | None = None) -> None:
     n = len(rows)
 
     def f(attr: str) -> float:
-        return sum(getattr(r, attr) for r in rows) / n
+        return float(sum(getattr(r, attr) for r in rows) / n)
 
     print(
         f"seed={args.seed} {update or 'config'} | over={f('over'):.3f} "

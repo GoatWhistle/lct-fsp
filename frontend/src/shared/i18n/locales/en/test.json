@@ -11,7 +11,7 @@
   "answerTitle": "Your answer",
   "intro": {
     "adaptive": "The test picks tasks for your level and ends once your level is precise, usually before the limit.",
-    "noFeedback": "We do not show whether an answer is correct: this way the test cannot be gamed.",
+    "noFeedback": "We do not show whether an answer is correct: this makes the test harder to game.",
     "keys": "Keys 1–9 pick an option, Enter answers.",
     "hide": "Got it"
   },

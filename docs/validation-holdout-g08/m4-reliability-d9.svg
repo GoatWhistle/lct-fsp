@@ -1,0 +1,89 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="898" height="360" viewBox="0 0 898 360" font-family="sans-serif" font-size="11">
+<rect width="898" height="360" fill="#ffffff"/>
+<text x="34" y="18" font-size="13" font-weight="bold">M4, надёжностная диаграмма, D9</text>
+<text x="68" y="38" font-weight="bold">(а) P(θ_t ≥ req_t)</text>
+<rect x="68" y="44" width="220" height="220" fill="none" stroke="#9ca3af"/>
+<text x="68.0" y="277.0" text-anchor="middle">0.0</text>
+<text x="64.0" y="264.0" text-anchor="end">0.0</text>
+<text x="178.0" y="277.0" text-anchor="middle">0.5</text>
+<text x="64.0" y="154.0" text-anchor="end">0.5</text>
+<text x="288.0" y="277.0" text-anchor="middle">1.0</text>
+<text x="64.0" y="44.0" text-anchor="end">1.0</text>
+<line x1="68.0" y1="264.0" x2="288.0" y2="44.0" stroke="#9ca3af" stroke-dasharray="4 3"/>
+<text x="178.0" y="291.0" text-anchor="middle">предсказано</text>
+<text x="42.0" y="154.0" text-anchor="middle" transform="rotate(-90 42.0 154.0)">наблюдаемо</text>
+<polyline fill="none" stroke="#b45309" stroke-width="1.5" points="73.1,257.2 100.4,232.4 122.6,211.8 144.4,184.9 166.8,171.3 189.1,150.3 211.5,123.7 233.3,110.0 255.6,87.7 283.4,56.2"/>
+<circle cx="73.1" cy="257.2" r="3.6" fill="#b45309"/>
+<circle cx="100.4" cy="232.4" r="2.5" fill="#b45309"/>
+<circle cx="122.6" cy="211.8" r="2.4" fill="#b45309"/>
+<circle cx="144.4" cy="184.9" r="2.4" fill="#b45309"/>
+<circle cx="166.8" cy="171.3" r="2.3" fill="#b45309"/>
+<circle cx="189.1" cy="150.3" r="2.3" fill="#b45309"/>
+<circle cx="211.5" cy="123.7" r="2.4" fill="#b45309"/>
+<circle cx="233.3" cy="110.0" r="2.4" fill="#b45309"/>
+<circle cx="255.6" cy="87.7" r="2.5" fill="#b45309"/>
+<circle cx="283.4" cy="56.2" r="3.8" fill="#b45309"/>
+<polyline fill="none" stroke="#1d4ed8" stroke-width="1.5" points="73.2,260.2 100.2,234.9 122.5,220.8 144.9,188.8 166.9,170.9 189.0,149.7 210.9,120.1 233.1,107.6 256.0,77.4 283.2,54.1"/>
+<circle cx="73.2" cy="260.2" r="3.5" fill="#1d4ed8"/>
+<circle cx="100.2" cy="234.9" r="2.6" fill="#1d4ed8"/>
+<circle cx="122.5" cy="220.8" r="2.4" fill="#1d4ed8"/>
+<circle cx="144.9" cy="188.8" r="2.4" fill="#1d4ed8"/>
+<circle cx="166.9" cy="170.9" r="2.3" fill="#1d4ed8"/>
+<circle cx="189.0" cy="149.7" r="2.3" fill="#1d4ed8"/>
+<circle cx="210.9" cy="120.1" r="2.4" fill="#1d4ed8"/>
+<circle cx="233.1" cy="107.6" r="2.4" fill="#1d4ed8"/>
+<circle cx="256.0" cy="77.4" r="2.6" fill="#1d4ed8"/>
+<circle cx="283.2" cy="54.1" r="3.7" fill="#1d4ed8"/>
+<text x="356" y="38" font-weight="bold">(б) P(θ̄ ≥ c_g) при присвоении</text>
+<rect x="356" y="44" width="220" height="220" fill="none" stroke="#9ca3af"/>
+<text x="356.0" y="277.0" text-anchor="middle">0.0</text>
+<text x="352.0" y="264.0" text-anchor="end">0.0</text>
+<text x="466.0" y="277.0" text-anchor="middle">0.5</text>
+<text x="352.0" y="154.0" text-anchor="end">0.5</text>
+<text x="576.0" y="277.0" text-anchor="middle">1.0</text>
+<text x="352.0" y="44.0" text-anchor="end">1.0</text>
+<line x1="356.0" y1="264.0" x2="576.0" y2="44.0" stroke="#9ca3af" stroke-dasharray="4 3"/>
+<text x="466.0" y="291.0" text-anchor="middle">предсказано</text>
+<text x="330.0" y="154.0" text-anchor="middle" transform="rotate(-90 330.0 154.0)">наблюдаемо</text>
+<polyline fill="none" stroke="#b45309" stroke-width="1.5" points="544.1,60.4 571.3,48.3"/>
+<circle cx="544.1" cy="60.4" r="3.1" fill="#b45309"/>
+<circle cx="571.3" cy="48.3" r="5.2" fill="#b45309"/>
+<polyline fill="none" stroke="#1d4ed8" stroke-width="1.5" points="544.0,64.4 571.4,46.2"/>
+<circle cx="544.0" cy="64.4" r="3.2" fill="#1d4ed8"/>
+<circle cx="571.4" cy="46.2" r="5.1" fill="#1d4ed8"/>
+<text x="644" y="38" font-weight="bold">(в) Σ v_t P против M*</text>
+<rect x="644" y="44" width="220" height="220" fill="none" stroke="#9ca3af"/>
+<text x="644.0" y="277.0" text-anchor="middle">0.0</text>
+<text x="640.0" y="264.0" text-anchor="end">0.0</text>
+<text x="754.0" y="277.0" text-anchor="middle">0.5</text>
+<text x="640.0" y="154.0" text-anchor="end">0.5</text>
+<text x="864.0" y="277.0" text-anchor="middle">1.0</text>
+<text x="640.0" y="44.0" text-anchor="end">1.0</text>
+<line x1="644.0" y1="264.0" x2="864.0" y2="44.0" stroke="#9ca3af" stroke-dasharray="4 3"/>
+<text x="754.0" y="291.0" text-anchor="middle">предсказано</text>
+<text x="618.0" y="154.0" text-anchor="middle" transform="rotate(-90 618.0 154.0)">наблюдаемо</text>
+<polyline fill="none" stroke="#b45309" stroke-width="1.5" points="649.5,255.6 676.4,229.9 698.7,210.8 720.2,183.3 743.0,170.1 765.1,151.2 787.5,124.5 809.4,110.4 831.6,88.8 859.2,57.0"/>
+<circle cx="649.5" cy="255.6" r="3.6" fill="#b45309"/>
+<circle cx="676.4" cy="229.9" r="2.5" fill="#b45309"/>
+<circle cx="698.7" cy="210.8" r="2.4" fill="#b45309"/>
+<circle cx="720.2" cy="183.3" r="2.4" fill="#b45309"/>
+<circle cx="743.0" cy="170.1" r="2.3" fill="#b45309"/>
+<circle cx="765.1" cy="151.2" r="2.3" fill="#b45309"/>
+<circle cx="787.5" cy="124.5" r="2.4" fill="#b45309"/>
+<circle cx="809.4" cy="110.4" r="2.4" fill="#b45309"/>
+<circle cx="831.6" cy="88.8" r="2.6" fill="#b45309"/>
+<circle cx="859.2" cy="57.0" r="3.7" fill="#b45309"/>
+<polyline fill="none" stroke="#1d4ed8" stroke-width="1.5" points="649.6,259.0 676.4,232.5 698.3,216.4 721.1,182.6 742.8,173.5 765.2,149.1 787.4,123.9 808.9,109.6 832.0,78.8 859.0,55.3"/>
+<circle cx="649.6" cy="259.0" r="3.5" fill="#1d4ed8"/>
+<circle cx="676.4" cy="232.5" r="2.6" fill="#1d4ed8"/>
+<circle cx="698.3" cy="216.4" r="2.5" fill="#1d4ed8"/>
+<circle cx="721.1" cy="182.6" r="2.4" fill="#1d4ed8"/>
+<circle cx="742.8" cy="173.5" r="2.4" fill="#1d4ed8"/>
+<circle cx="765.2" cy="149.1" r="2.3" fill="#1d4ed8"/>
+<circle cx="787.4" cy="123.9" r="2.4" fill="#1d4ed8"/>
+<circle cx="808.9" cy="109.6" r="2.5" fill="#1d4ed8"/>
+<circle cx="832.0" cy="78.8" r="2.6" fill="#1d4ed8"/>
+<circle cx="859.0" cy="55.3" r="3.7" fill="#1d4ed8"/>
+<rect x="34" y="320" width="10" height="10" fill="#b45309"/><text x="50" y="328">κ = 1 — до поправки</text>
+<rect x="34" y="332" width="10" height="10" fill="#1d4ed8"/><text x="50" y="340">κ = 1.15 — после поправки</text>
+</svg>

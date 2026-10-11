@@ -54,6 +54,7 @@ services:
       SECRET_KEY: ${SECRET_KEY:-dev-only-secret-key-change-me-on-deploy}
       FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
       COOKIE_SECURE: ${COOKIE_SECURE:-false}
+      SESSION_COOKIE_NAME: ${SESSION_COOKIE_NAME:-calibr_session}
       SMTP_HOST: mailpit
       SMTP_PORT: 1025
       FSP_ID_ISSUER: ${FSP_ID_ISSUER:-http://localhost:${KEYCLOAK_PORT:-8080}/realms/fsp-id}

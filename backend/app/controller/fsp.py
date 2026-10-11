@@ -40,7 +40,7 @@ from app.domain.fsp import FspAuthorization, FspIntent
 from app.usecase.fsp import FspStatus
 
 # Начатый вход через ФСП ID: живёт, пока пользователь вводит пароль в ФСП ID.
-AUTHORIZATION_COOKIE = "fsp_authorization"
+AUTHORIZATION_COOKIE = "calibr_fsp_authorization"
 AUTHORIZATION_COOKIE_PATH = "/api/auth/fsp"
 AUTHORIZATION_TTL_SECONDS = 600
 

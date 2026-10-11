@@ -33,12 +33,16 @@ test("new test candidate goes through the express test", async ({ page, context 
   }
 })
 
-test("demo employer lands in the cabinet with a vacancy text field", async ({ page, context }) => {
+test("demo employer lands in the cabinet with shortlists and a way to describe a need", async ({
+  page,
+  context,
+}) => {
   await prepare(context, "light")
   await page.goto("/login")
   await page.getByRole("button", { name: "Sign in as employer" }).click()
   await expect(page).toHaveURL(/\/employer$/)
-  await expect(page.getByRole("heading", { name: "Your own vacancy" })).toBeVisible()
+  await expect(page.getByRole("link", { name: "New need" })).toBeVisible()
+  await expect(page.getByRole("heading", { name: "Active shortlists" })).toBeVisible()
   await expect(page.getByText(/Middle/).first()).toBeVisible()
   await page.screenshot({ path: "test-results/jury-employer.png" })
 })

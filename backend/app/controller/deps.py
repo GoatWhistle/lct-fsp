@@ -47,7 +47,7 @@ from app.usecase.vacancy import Applications, Vacancies
 from app.usecase.vacancy_test import VacancyTests
 from settings import Mechanics
 
-ACCESS_COOKIE = "access_token"
+DEFAULT_SESSION_COOKIE = "calibr_session"
 
 
 @dataclass(frozen=True)
@@ -56,6 +56,7 @@ class SessionCookie:
 
     max_age: int
     secure: bool
+    name: str = DEFAULT_SESSION_COOKIE
 
 
 def get_unit_of_work(request: Request) -> Iterator[RequestUnitOfWork]:
@@ -264,8 +265,17 @@ VacanciesDep = Annotated[Vacancies, Depends(get_vacancies)]
 ApplicationsDep = Annotated[Applications, Depends(get_applications)]
 VacancyTestsDep = Annotated[VacancyTests, Depends(get_vacancy_tests)]
 
-_cookie_scheme = APIKeyCookie(
-    name=ACCESS_COOKIE,
+
+class ConfiguredSessionCookie(APIKeyCookie):
+    """Схема OpenAPI с именем по умолчанию; читает cookie под именем из настроек стенда."""
+
+    async def __call__(self, request: Request) -> str | None:
+        name: str = request.app.state.session_cookie.name
+        return request.cookies.get(name)
+
+
+_cookie_scheme = ConfiguredSessionCookie(
+    name=DEFAULT_SESSION_COOKIE,
     scheme_name="session",
     auto_error=False,
     description="httpOnly-cookie; ставит `POST /api/auth/login`, снимает `POST /api/auth/logout`",

@@ -12,8 +12,9 @@
 - работодатели с компаниями и потребностями.
 
 Все учётки — с подтверждённым адресом и паролем `DEMO_PASSWORD`, список — README, «Демо-данные».
-Повторный запуск ничего не дублирует и продолжает прерванный: каждый шаг сперва смотрит, сделан
-ли он.
+Повторный запуск ничего не дублирует, ничего не удаляет и продолжает прерванный: каждый шаг
+сперва смотрит, сделан ли он; трогает только свои учётки на домене `demo.example`. Без
+`DEMO_MODE=true` отказывается; и без него входа по паролю в эти учётки нет.
 
 Сборка — `main.create_app`, та же проводка, что у прода. Заменены только порты, которым в засеве
 нечего делать снаружи: почта — в память (ссылку подтверждения засев читает сам), ФСП ID — в
@@ -42,6 +43,7 @@ from app.domain.candidate import ProfileForm
 from app.domain.company import CompanyForm, CompanySize
 from app.domain.errors import EmailNotVerified, EmailTaken
 from app.domain.fsp import FspIdentity, FspIntent
+from app.domain.jury import SEED_DOMAIN
 from app.usecase import candidate as candidate_usecase
 from app.usecase.account import Accounts
 from app.usecase.attempt import CandidatePath
@@ -56,7 +58,7 @@ from validation.truth import CandidateTruth, Persona, guessing, respond
 
 DEMO_SEED = 20261008
 DEMO_PASSWORD = "demo-2026"
-DOMAIN = "demo.example"
+DOMAIN = SEED_DOMAIN
 # Истинный уровень демо-кандидата — над порогом грейда на столько, но в полосе грейда (полосы —
 # по 1,0): истинный грейд, зарплата и стаж — той же категории. Темы — с малым разбросом, заявка —
 # сам грейд. Тест обычно даёт ровно эту категорию; если нет, засев берёт следующего кандидата
@@ -90,6 +92,10 @@ NAMES = (
     "Юлия Фёдорова",
 )
 SOFT_SKILLS = ("командная работа", "ответственность", "обучаемость", "коммуникабельность")
+
+
+class DemoModeRequired(RuntimeError):
+    """Засев без явного режима жюри."""
 
 
 @dataclass(frozen=True)
@@ -382,6 +388,11 @@ def seed(
     now: datetime | None = None,
 ) -> Seeded:
     settings = settings or Settings()
+    if not settings.demo_mode:
+        raise DemoModeRequired(
+            "Засев заводит учётки с известным паролем: запускайте его с DEMO_MODE=true, "
+            "на стенде показа, а не на рабочей базе."
+        )
     mechanics = Mechanics.from_yaml(settings.mechanics_file)
     seeder = Seeder(settings, mechanics, passwords=passwords, now=now)
     try:
@@ -395,7 +406,10 @@ def main() -> None:
     # Первые попытки идут по пустому окну показов: предупреждения о потолке показов ожидаемы
     # и забили бы вывод.
     logging.basicConfig(level=logging.ERROR)
-    found = seed()
+    try:
+        found = seed()
+    except DemoModeRequired as refused:
+        raise SystemExit(str(refused)) from refused
     print(
         f"Засеяно: кандидатов с категорией {len(found.candidates)}, работодателей "
         f"{len(found.employers)}, потребностей {found.needs}. Пароль всех учёток — {DEMO_PASSWORD}"

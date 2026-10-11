@@ -11,8 +11,8 @@ from app.controller.auth_schemas import (
     VerifyEmailIn,
 )
 from app.controller.deps import (
-    ACCESS_COOKIE,
     AUTH_RESPONSES,
+    DEFAULT_SESSION_COOKIE,
     AccountsDep,
     CurrentUser,
     SessionCookie,
@@ -60,7 +60,10 @@ def resend_verification(body: ResendVerificationIn, accounts: AccountsDep) -> No
 @router.post(
     "/login",
     summary="Вход",
-    description=f"Ставит httpOnly-cookie `{ACCESS_COOKIE}`; срок — настройка `SESSION_TTL_HOURS`.",
+    description=(
+        f"Ставит httpOnly-cookie `{DEFAULT_SESSION_COOKIE}` (имя — настройка "
+        "`SESSION_COOKIE_NAME`); срок — настройка `SESSION_TTL_HOURS`."
+    ),
     responses=error_responses(errors.InvalidCredentials, errors.EmailNotVerified),
 )
 def login(
@@ -74,7 +77,7 @@ def login(
 def set_session_cookie(response: Response, token: str, cookie: SessionCookie) -> None:
     """Cookie входа — одна для входа по email и через ФСП ID."""
     response.set_cookie(
-        ACCESS_COOKIE,
+        cookie.name,
         token,
         max_age=cookie.max_age,
         httponly=True,
@@ -85,7 +88,7 @@ def set_session_cookie(response: Response, token: str, cookie: SessionCookie) ->
 
 @router.post("/logout", status_code=status.HTTP_204_NO_CONTENT, summary="Выход")
 def logout(response: Response, cookie: SessionCookieDep) -> None:
-    response.delete_cookie(ACCESS_COOKIE, httponly=True, secure=cookie.secure, samesite="lax")
+    response.delete_cookie(cookie.name, httponly=True, secure=cookie.secure, samesite="lax")
 
 
 @router.get("/me", summary="Текущий пользователь", responses=AUTH_RESPONSES)

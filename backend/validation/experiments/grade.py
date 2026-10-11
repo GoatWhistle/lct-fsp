@@ -61,7 +61,10 @@ def main(argv: Sequence[str] | None = None) -> None:
     update = {k: type(getattr(base, k))(v) for k, v in (s.split("=") for s in args.set)}
     rows = measure(base.model_copy(update=update), args.seed, args.candidates, args.pairs)
     n = len(rows)
-    f = lambda attr: sum(getattr(r, attr) for r in rows) / n  # noqa: E731
+
+    def f(attr: str) -> float:
+        return sum(getattr(r, attr) for r in rows) / n
+
     print(
         f"seed={args.seed} {update or 'config'} | over={f('over'):.3f} "
         f"under={1 - f('over') - f('exact'):.3f} exact={f('exact'):.3f} "

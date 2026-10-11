@@ -24,13 +24,17 @@ dependencies = [
 
 [dependency-groups]
 dev = [
-    "claude-agent-sdk>=0.2.164",
+    { include-group = "models" },
     "httpx2>=2.13.1",
     "mypy>=2.4.0",
     "pytest>=9.1.1",
     "ruff>=0.16.10",
     "testcontainers[postgres]>=4.15.0",
     "types-pyyaml>=6.0.12.20260906",
+]
+# Модели, которые сборка берёт по имени. В образ — только аргументом сборки UV_EXTRA_GROUPS.
+models = [
+    "claude-agent-sdk>=0.2.164",
 ]
 # Стенд валидации, B2: эмбеддинги локально. Не в группе по умолчанию — в образы не идёт.
 validation = [

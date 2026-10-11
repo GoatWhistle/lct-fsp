@@ -7,7 +7,10 @@ ENV UV_COMPILE_BYTECODE=1 \
     PYTHONUNBUFFERED=1
 WORKDIR /app
 COPY pyproject.toml uv.lock ./
-RUN uv sync --frozen --no-dev --no-install-project
+# Группы зависимостей сверх основных, через пробел; по умолчанию — ни одной.
+ARG UV_EXTRA_GROUPS=""
+RUN uv sync --frozen --no-dev --no-install-project \
+    $(for group in $UV_EXTRA_GROUPS; do echo "--group $group"; done)
 
 # Тесты: `docker compose run --rm --build tests`.
 FROM base AS test

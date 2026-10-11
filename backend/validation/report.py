@@ -13,6 +13,7 @@ import bisect
 import heapq
 import math
 import os
+import random
 import statistics
 import uuid
 from collections import Counter
@@ -808,6 +809,55 @@ def ranking_quality(
     )
 
 
+BOOTSTRAP = 2000
+BOOTSTRAP_SEED = 20261011
+
+
+def per_need(data: DatasetRuns, attr: str, method: str) -> dict[uuid.UUID, float] | None:
+    """`attr` ранжирования по каждой потребности; базовой линии без данных — None."""
+    if method not in (OURS, NAIVE) and method not in data.scores:
+        return None
+    found = {}
+    for _, need, ranked, pool in ranked_lists(data, method):
+        grades = [data.pairs[need, c].grade for c in ranked]
+        if attr == "precision":
+            found[need] = precision_at(grades, TOP)
+        else:
+            found[need] = ndcg_at(grades, [data.pairs[need, c].grade for c in pool], TOP)
+    return found
+
+
+def paired_interval(
+    ours: dict[uuid.UUID, float], other: dict[uuid.UUID, float]
+) -> tuple[float, float, float]:
+    """Разница средних «наша − другая» по потребностям и её 95 % интервал: бутстрап потребностей
+    с возвращением, потребность берётся вместе с обоими ранжированиями."""
+    needs = sorted(ours)
+    diffs = [ours[n] - other[n] for n in needs]
+    rng = random.Random(BOOTSTRAP_SEED)
+    means = sorted(statistics.fmean(rng.choices(diffs, k=len(diffs))) for _ in range(BOOTSTRAP))
+    return statistics.fmean(diffs), means[int(0.025 * BOOTSTRAP)], means[int(0.975 * BOOTSTRAP) - 1]
+
+
+def interval_table(runs: "Runs", attr: str) -> str:
+    """Разница нашей выдачи и других ранжирований с интервалом по потребностям."""
+    header = ["Сравнение"]
+    for name in runs.sets:
+        header.append(f"{name.upper()}: наша − другая, 95 % интервал")
+    rows = []
+    for method in (NAIVE, *BASELINES):
+        row = [method]
+        for data in runs.sets.values():
+            ours, other = per_need(data, attr, OURS), per_need(data, attr, method)
+            if ours is None or other is None:
+                row.append("—")
+                continue
+            mean_, low, high = paired_interval(ours, other)
+            row.append(f"{f(mean_, 3)} [{f(low, 3)}; {f(high, 3)}]")
+        rows.append(row)
+    return table(header, rows)
+
+
 def quality(
     data: DatasetRuns,
     attr: str,
@@ -894,6 +944,11 @@ def _ranking_section(
         "линии. Рост против всего пула — вклад отсечения по категории, разница с нашей выдачей — "
         "вклад нашего скора внутри блока. Все потребности.\n\n"
         + table(within_header, within_rows)
+        + "\n\n**Неопределённость.** Разница «наша выдача − другое ранжирование» по потребностям "
+        f"набора, среднее и 95 % интервал парного бутстрапа ({BOOTSTRAP} повторов потребностей с "
+        "возвращением, сид в коде). Интервал отражает выбор потребностей, не выбор кандидатов и "
+        "не сид генератора: на других сидах разница сдвигается (D1 и D2 рядом).\n\n"
+        + interval_table(runs, attr)
         + naive_note(runs, attr)
     )
     return judged(metric, body, verdicts, text=text)

@@ -272,13 +272,15 @@ def test_family_truth_is_the_same_as_on_the_stand(d1: Dataset) -> None:
 
 def test_existing_stand_numbers_do_not_move() -> None:
     """Кандидаты калибровки, D1-команд и D3 — прежние: расширение истины не трогает их поток
-    случайности. Отпечаток снят до расширения."""
+    случайности. Отпечаток пересчитан 2026-10-11 (прежний устарел) при пороге уверенности 0,8: итог
+    попытки зависит от `grade_confidence`, поток случайности — нет."""
+    fixed = MECHANICS.model_copy(update={"grade_confidence": 0.8})
     expected = {
-        SEED: "b1c787ea386fb664705c307d96b51377c2861855908143cb64e5e3d75ec7c581",
-        TUNING_SEED: "ef9f67d12486e248339b044ef2bcef47dd6b92211b426c84d9883fbe3e80214a",
+        SEED: "0e42072fc5e176790eb88d10c66e70aec0c28f9a219c225172d1925555073da1",
+        TUNING_SEED: "b5fc8d0be3a60aca1cdedaa00f8e720ddf20d495ee199abf36a317c2c08a664f",
     }
     for seed, fingerprint in expected.items():
-        m = market("qa", MECHANICS, seed)
+        m = market("qa", fixed, seed)
         candidates = [m.candidate() for _ in range(5)]
         assert all(c.truth is None for c in candidates)
         runs = [m.attempt(c) for c in candidates[:2]]

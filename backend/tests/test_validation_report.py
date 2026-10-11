@@ -142,6 +142,8 @@ def test_same_run_writes_same_report_byte_for_byte(tmp_path: Path) -> None:
     assert one == digest(tmp_path / "two")
     assert set(one) == {
         "validation-report.md",
+        "validation-report/m14-d1.svg",
+        "validation-report/m14-d2.svg",
         "validation-report/m3-lift.svg",
         "validation-report/m4-reliability-d1.svg",
         "validation-report/m4-reliability-d2.svg",

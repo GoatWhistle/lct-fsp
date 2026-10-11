@@ -54,6 +54,12 @@ from validation.truth import (
 
 D1_SEED = SEED
 D2_SEED = 20261006
+# Отложенные наборы этапа исправлений: сиды выбраны и записаны в план до просмотра результатов на
+# них; для настройки не используются.
+D9_SEED = 20261101
+D10_SEED = 20261102
+D11_SEED = 20261111
+D12_SEED = 20261112
 # Время, на которое собраны потребности набора: от него не зависит ничего, кроме поля версии.
 NOW = datetime(2026, 1, 1, tzinfo=UTC)
 
@@ -316,7 +322,11 @@ D2 = replace(
         rt_noise_sd=0.6,
     ),
 )
-DATASETS = {p.name: p for p in (D1, D2)}
+D9 = replace(D1, name="d9", seed=D9_SEED)
+D10 = replace(D2, name="d10", seed=D10_SEED)
+D11 = replace(D1, name="d11", seed=D11_SEED)
+D12 = replace(D2, name="d12", seed=D12_SEED)
+DATASETS = {p.name: p for p in (D1, D2, D9, D10, D11, D12)}
 
 
 class Gender(enum.StrEnum):

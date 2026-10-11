@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="610" height="372" viewBox="0 0 610 372" font-family="sans-serif" font-size="11">
+<rect width="610" height="372" fill="#ffffff"/>
+<text x="34" y="18" font-size="13" font-weight="bold">M14, D9: атака утечкой, ρ = 0,50</text>
+<text x="68" y="38" font-weight="bold">Прирост θ̄ читера</text>
+<rect x="68" y="44" width="220" height="220" fill="none" stroke="#9ca3af"/>
+<text x="68.0" y="277.0" text-anchor="middle">0.1</text>
+<text x="178.0" y="277.0" text-anchor="middle">0.3</text>
+<text x="288.0" y="277.0" text-anchor="middle">0.5</text>
+<text x="64.0" y="264.0" text-anchor="end">0.00</text>
+<text x="64.0" y="154.0" text-anchor="end">0.55</text>
+<text x="64.0" y="44.0" text-anchor="end">1.11</text>
+<line x1="68.0" y1="214.3" x2="288.0" y2="214.3" stroke="#9ca3af" stroke-dasharray="4 3"/>
+<text x="178.0" y="291.0" text-anchor="middle">доля слитого банка</text>
+<text x="38.0" y="154.0" text-anchor="middle" transform="rotate(-90 38.0 154.0)">прирост θ̄</text>
+<polyline fill="none" stroke="#b45309" stroke-width="1.5" points="68.0,214.3 178.0,142.6 288.0,64.0"/>
+<circle cx="68.0" cy="214.3" r="3" fill="#b45309"/>
+<circle cx="178.0" cy="142.6" r="3" fill="#b45309"/>
+<circle cx="288.0" cy="64.0" r="3" fill="#b45309"/>
+<polyline fill="none" stroke="#1d4ed8" stroke-width="1.5" points="68.0,242.4 178.0,206.8 288.0,175.8"/>
+<circle cx="68.0" cy="242.4" r="3" fill="#1d4ed8"/>
+<circle cx="178.0" cy="206.8" r="3" fill="#1d4ed8"/>
+<circle cx="288.0" cy="175.8" r="3" fill="#1d4ed8"/>
+<polyline fill="none" stroke="#047857" stroke-width="1.5" points="68.0,243.8 178.0,202.0 288.0,167.0"/>
+<circle cx="68.0" cy="243.8" r="3" fill="#047857"/>
+<circle cx="178.0" cy="202.0" r="3" fill="#047857"/>
+<circle cx="288.0" cy="167.0" r="3" fill="#047857"/>
+<text x="356" y="38" font-weight="bold">Избыточная доля повышенных</text>
+<rect x="356" y="44" width="220" height="220" fill="none" stroke="#9ca3af"/>
+<text x="356.0" y="277.0" text-anchor="middle">0.1</text>
+<text x="466.0" y="277.0" text-anchor="middle">0.3</text>
+<text x="576.0" y="277.0" text-anchor="middle">0.5</text>
+<text x="352.0" y="264.0" text-anchor="end">0.00</text>
+<text x="352.0" y="154.0" text-anchor="end">0.35</text>
+<text x="352.0" y="44.0" text-anchor="end">0.69</text>
+<line x1="356.0" y1="232.3" x2="576.0" y2="232.3" stroke="#9ca3af" stroke-dasharray="4 3"/>
+<text x="466.0" y="291.0" text-anchor="middle">доля слитого банка</text>
+<text x="326.0" y="154.0" text-anchor="middle" transform="rotate(-90 326.0 154.0)">доля</text>
+<polyline fill="none" stroke="#b45309" stroke-width="1.5" points="356.0,225.1 466.0,133.0 576.0,64.0"/>
+<circle cx="356.0" cy="225.1" r="3" fill="#b45309"/>
+<circle cx="466.0" cy="133.0" r="3" fill="#b45309"/>
+<circle cx="576.0" cy="64.0" r="3" fill="#b45309"/>
+<polyline fill="none" stroke="#1d4ed8" stroke-width="1.5" points="356.0,241.0 466.0,194.2 576.0,164.8"/>
+<circle cx="356.0" cy="241.0" r="3" fill="#1d4ed8"/>
+<circle cx="466.0" cy="194.2" r="3" fill="#1d4ed8"/>
+<circle cx="576.0" cy="164.8" r="3" fill="#1d4ed8"/>
+<polyline fill="none" stroke="#047857" stroke-width="1.5" points="356.0,249.7 466.0,218.0 576.0,202.9"/>
+<circle cx="356.0" cy="249.7" r="3" fill="#047857"/>
+<circle cx="466.0" cy="218.0" r="3" fill="#047857"/>
+<circle cx="576.0" cy="202.9" r="3" fill="#047857"/>
+<rect x="34" y="320" width="10" height="10" fill="#b45309"/><text x="50" y="328">S1</text>
+<rect x="34" y="332" width="10" height="10" fill="#1d4ed8"/><text x="50" y="340">S2</text>
+<rect x="34" y="344" width="10" height="10" fill="#047857"/><text x="50" y="352">S3</text>
+</svg>

@@ -63,7 +63,7 @@ rt_hard_item_p: 0.5
 rt_fast_z: 2.33
 rt_flags_for_verification: 3
 person_fit_enabled: false
-person_fit_lz: 2.0
+person_fit_lz: 1.0
 focus_events_for_verification: 3
 verification_items: 10
 verification_time_limit_minutes: 20

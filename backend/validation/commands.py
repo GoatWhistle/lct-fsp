@@ -109,8 +109,8 @@ RECORDED_DIR = DATA_DIR / "recorded"
 MODEL_TIMEOUT = Settings.model_fields["text_understanding_timeout_seconds"].default
 RECORD_TIMEOUT = 600.0
 
-# Модель D7 по имени сборки: Claude Sonnet через Agent SDK.
-D7_MODEL = "agent_sdk"
+# Модель новых запусков D7 — локальный llama-server.
+D7_MODEL = "llama"
 
 # Каталог наборов D1 и D2: файлы воспроизводятся по seed и в репо не хранятся.
 MARKET_DIR = DATA_DIR / "market"
@@ -504,8 +504,6 @@ def b3(mechanics: Mechanics, sets: Sequence[str], record_workers: int, model: st
     )
     if not record_workers:
         return
-    # Каждый поток — свой процесс CLI со своим конфигом: общий конфиг пользователя параллельные
-    # вызовы портят (`validation.isolated`).
     model_id = getattr(named_completion(model, RECORD_TIMEOUT), "model", None)
     live = IsolatedCompletion(model, RECORD_TIMEOUT, record_workers, model_id)
     try:
@@ -727,7 +725,7 @@ def main() -> None:
     parser.add_argument(
         "--model",
         help="для parsing: модель разбора по имени, как TEXT_UNDERSTANDING; без него — правила; "
-        "для llm, report и b3 — модель, по умолчанию agent_sdk",
+        "для llm, report и b3 — модель, по умолчанию llama",
     )
     parser.add_argument(
         "--record",
@@ -803,7 +801,7 @@ def main() -> None:
         case "acceptance":
             train_acceptance(mechanics, Settings().acceptance_model_file)
         case "b3":
-            b3(mechanics, SETS, args.record, args.model or "agent_sdk")
+            b3(mechanics, SETS, args.record, args.model or "llama")
         case "d6":
             run_d6(args.build, args.confirm)
         case "person-fit":

@@ -11,7 +11,6 @@
 Пакет стенда отсюда не импортируется — это проверяет тест на импорты.
 """
 
-import importlib
 from collections.abc import Callable
 from dataclasses import dataclass
 from functools import partial
@@ -19,6 +18,7 @@ from functools import partial
 from app.adapter.adaptive import MaxInformationSelector
 from app.adapter.calibration import EloCalibration
 from app.adapter.drift import CusumDriftDetector
+from app.adapter.text_llama import LlamaCompletion
 from app.adapter.text_model import Completion, ModelTextUnderstanding, WithFallback
 from app.adapter.text_rules import RulesTextUnderstanding, Synonyms
 from app.domain.bank.runner import CodeRunner
@@ -80,12 +80,7 @@ from app.usecase.selection import Selections
 from app.usecase.skill_profile import ProfileFreshness
 from app.usecase.vacancy import Applications, Vacancies
 from app.usecase.vacancy_test import VacancyTests, plan_of_need
-from settings import Mechanics
-
-# Пакет моделей разбора текста, которые собираются только по имени: модуль `<пакет>.<имя>` с
-# функцией `completion(timeout: float) -> Completion`. Пакета может не быть — тогда есть только
-# правила и llama.
-NAMED_MODELS = "app.adapter.demo"
+from settings import Mechanics, Settings
 
 
 def item_selector(mechanics: Mechanics) -> MaxInformationSelector:
@@ -111,23 +106,11 @@ def model_understanding(
 
 
 def named_completion(name: str, timeout: float) -> Completion:
-    """Модель из пакета `NAMED_MODELS` по имени из окружения — без прямого импорта. Нет модуля —
-    понятная ошибка сборки, а не падение на первом запросе."""
-    unknown = f"неизвестный разбор текста {name!r}: есть rules и llama"
-    module_name = f"{NAMED_MODELS}.{name}"
-    # Тесты и служебные модули пакета — не модели: их сборка не импортирует.
-    if not name.isidentifier() or name.startswith(("_", "test")):
-        raise ValueError(unknown)
-    try:
-        module = importlib.import_module(module_name)
-    except ModuleNotFoundError as e:
-        if e.name not in {NAMED_MODELS, module_name}:
-            raise
-        raise ValueError(unknown) from e
-    completion: Callable[[float], Completion] | None = getattr(module, "completion", None)
-    if completion is None:
-        raise ValueError(unknown)
-    return completion(timeout)
+    """Единственная модель разбора текста — локальный llama-server."""
+    if name != "llama":
+        raise ValueError(f"неизвестный разбор текста {name!r}: есть rules и llama")
+    settings = Settings()
+    return LlamaCompletion(settings.llama_url, settings.llama_model, timeout)
 
 
 def experience_limits(mechanics: Mechanics) -> ExperienceLimits:

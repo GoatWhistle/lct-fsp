@@ -125,8 +125,7 @@ ISO 8601 с `Z`.
 
 def text_understanding(settings: Settings) -> TextUnderstanding:
     """Разбор текста по имени из настроек: `rules` — правила, `llama` — `llama-server` с откатом
-    на правила по сбою и таймауту `text_understanding_timeout_seconds`; другое имя — модель,
-    которую сборка находит по имени (`composition.named_completion`)."""
+    на правила по сбою и таймауту `text_understanding_timeout_seconds`."""
     synonyms = load_synonyms(settings.synonyms_file)
     timeout = settings.text_understanding_timeout_seconds
     complete: Completion

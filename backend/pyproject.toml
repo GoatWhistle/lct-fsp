@@ -24,7 +24,6 @@ dependencies = [
 
 [dependency-groups]
 dev = [
-    "claude-agent-sdk>=0.2.164",
     "httpx2>=2.13.1",
     "mypy>=2.4.0",
     "pytest>=9.1.1",
@@ -41,8 +40,7 @@ validation = [
 ]
 
 [tool.pytest.ini_options]
-# Тесты моделей, которые собираются только по имени, лежат рядом с ними.
-testpaths = ["tests", "app/adapter/demo"]
+testpaths = ["tests"]
 pythonpath = ["."]
 addopts = "-ra --strict-markers -m unit"
 markers = [

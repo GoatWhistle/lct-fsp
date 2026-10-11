@@ -527,7 +527,7 @@ def test_link_goes_only_to_the_candidate_who_started_it(
     first, second = signed_in(Role.candidate), signed_in(Role.candidate)
     started = first.post(AUTHORIZE, json={"intent": "link"})
     state = parse_qs(urlsplit(started.json()["authorization_url"]).query)["state"][0]
-    second.cookies.set("fsp_authorization", first.cookies["fsp_authorization"])
+    second.cookies.set("calibr_fsp_authorization", first.cookies["calibr_fsp_authorization"])
 
     back = second.get(
         CALLBACK,

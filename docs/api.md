@@ -17,7 +17,7 @@ uv run python -c "import json, main; json.dump(main.create_app().openapi(), open
 | Что | Как |
 |---|---|
 | Регистрация | `POST /api/auth/register` с email, паролем и ролью; письмо со ссылкой подтверждения |
-| Вход | `POST /api/auth/login` — сессия в httpOnly-cookie `access_token`, подписанный JWT; без подтверждённого адреса — 403 |
+| Вход | `POST /api/auth/login` — сессия в httpOnly-cookie `calibr_session` (имя — `SESSION_COOKIE_NAME`), подписанный JWT; без подтверждённого адреса — 403 |
 | ФСП ID | `POST /api/auth/fsp/authorize` → страница ФСП ID → `GET /api/auth/fsp/callback` → 303 во фронт; [интеграция с ФСП](fsp-integration.md) |
 | Роли | `candidate` и `employer`; разделы `/api/candidate/*` и `/api/employer/*` отвечают 401 без входа и 403 чужой роли |
 | Чужие записи | чужое приглашение, подборка или потребность — 404, как несуществующие |

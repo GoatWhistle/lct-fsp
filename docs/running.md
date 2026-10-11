@@ -42,6 +42,8 @@ docker compose up --build
 | `SECRET_KEY` | `dev-only-…` | подпись токена входа; на общем стенде — своя, `openssl rand -hex 32` |
 | `FRONTEND_URL` | `http://localhost:3000` | адрес фронта в ссылке из письма и возврат из ФСП ID |
 | `COOKIE_SECURE` | `false` | `true` — cookie входа только по HTTPS |
+| `SESSION_COOKIE_NAME` | `calibr_session` | имя cookie входа: cookie не изолируются по порту, и на localhost чужое приложение с тем же именем (например `access_token`) затирало бы сессию |
+| `SESSION_TTL_HOURS` | `168` | срок входа; cookie и токен живут ровно столько, продления при активности нет — по истечении нужен новый вход |
 | `FSP_ID_ISSUER`, `FSP_ID_SERVER_URL` | локальный Keycloak | публичный адрес realm ФСП ID и адрес для бэкенда |
 | `FSP_ID_CLIENT_ID`, `FSP_ID_CLIENT_SECRET` | `lct-platform`, `dev-only-…` | клиент платформы в ФСП ID |
 | `FSP_REGISTRY_PATH` | `backend/config/fsp_registry.json` | заглушка реестра достижений |
@@ -51,11 +53,17 @@ docker compose up --build
 
 ## Демо-данные
 
-Чистый стенд засевается одной командой после `docker compose up`:
+Чистый стенд засевается одной командой после `DEMO_MODE=true docker compose up`:
 
 ```bash
 docker compose exec backend python seed_demo.py
 ```
+
+Без `DEMO_MODE=true` засев отказывается работать, а входа по паролю в его учётки
+(`@demo.example`) в обычном режиме нет. Повторный запуск не удаляет и не трогает ничего, кроме
+собственных учёток. Изолированный стенд на отдельных портах и томах, не задевающий основной —
+`scripts/demo.sh up|seed|down` (проект Compose `calibr-demo`, интерфейс на :3100, Mailpit на
+:8125); развёртывание — [deploy.md](deploy.md), сценарий показа — [demo-script.md](demo-script.md).
 
 Засев идёт через те же сценарии, что HTTP: регистрация и подтверждение адреса, опрос, тест,
 анкета, привязка ФСП ID, компания и потребности. Повторный запуск ничего не дублирует и

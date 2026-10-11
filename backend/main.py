@@ -285,6 +285,7 @@ def create_app(
         mail_templates=BrandMailTemplates(),
         clock=clock,
         links=VerificationLinks(settings.frontend_url, settings.email_token_ttl_hours),
+        seeded_logins_open=settings.demo_mode,
         skill_model=skill_model,
         fsp_id=fsp_id
         or OidcFspId(

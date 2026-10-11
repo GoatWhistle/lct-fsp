@@ -328,6 +328,7 @@ def build_platform_usecases[U: UnitOfWork](
     grade_hints: GradeHintRule,
     seeds: SeedSource,
     code_runner: CodeRunner,
+    seeded_logins_open: bool = False,
 ) -> PlatformUsecases[U]:
     def accounts(uow: U) -> Accounts:
         return Accounts(
@@ -340,6 +341,7 @@ def build_platform_usecases[U: UnitOfWork](
             clock,
             links,
             mail_templates,
+            seeded_logins_open=seeded_logins_open,
         )
 
     def companies(uow: U) -> Companies:

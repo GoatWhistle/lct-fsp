@@ -25,7 +25,9 @@
       "serviceAccountsEnabled": false,
       "redirectUris": [
         "http://localhost:3000/api/auth/fsp/callback",
-        "http://localhost:8000/api/auth/fsp/callback"
+        "http://localhost:8000/api/auth/fsp/callback",
+        "http://localhost:3100/api/auth/fsp/callback",
+        "http://localhost:8100/api/auth/fsp/callback"
       ],
       "webOrigins": [],
       "attributes": {

@@ -269,22 +269,6 @@ cd frontend && npm install --silent && npm run dev
 - **Профиль навыков и вероятность принятия** проверены на синтетике и не называются доказанной
   точностью для реальных людей.
 
-## Для команды
-
-Презентация защиты лежит в `presentation/`: один офлайн HTML, речь в `presentation/SPEECH.md`.
-
-```bash
-cd presentation && npm install --silent
-npm run tokens
-npm run dev
-npm run build:final && npm run pdf
-npm run readme
-```
-
-`npm run tokens` переносит токены и шрифты продукта в деку, `npm run dev` открывает деку на
-http://localhost:4173, `S` открывает окно докладчика. `npm run readme` пересобирает баннер, кнопки и
-бейджи этого README из `presentation/readme/` в светлой и тёмной теме.
-
 <p align="center">
   <picture><source media="(prefers-color-scheme: dark)" srcset="docs/readme/mark.dark.png"><img src="docs/readme/mark.light.png" alt="" width="34" height="33"></picture>
   <br>

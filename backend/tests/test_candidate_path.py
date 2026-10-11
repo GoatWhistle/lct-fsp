@@ -553,11 +553,16 @@ def test_finished_attempt_calibrates_shown_families(
                 "WHERE specialization_code = 'qa'"
             )
         ).one()
-    assert {code for code, *_ in rows} == shown_families(db_engine)
+    shown = shown_families(db_engine)
+    # Остановка берёт строки не только показанных семейств, но и якорей специализации: пересчёт
+    # связки может вывести якорь из выдачи (lock в adapter/calibration). Непоказанный якорь
+    # остаётся с нулём ответов и стартовыми параметрами.
+    assert {code for code, *_ in rows} >= shown
+    assert all(get_family(code).anchor for code, *_ in rows if code not in shown)
     for code, discrimination, difficulty, responses in rows:
         family = get_family(code)
         start_difficulty = mechanics.expert_difficulty_by_grade[family.grade]
-        assert responses == 1
+        assert responses == (1 if code in shown else 0)
         assert discrimination == mechanics.expert_discrimination
         assert (difficulty == start_difficulty) is family.anchor, code
     # Ответов на якоря одной попытки мало для связки — она тождественная.

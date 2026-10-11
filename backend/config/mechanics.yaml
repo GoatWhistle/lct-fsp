@@ -3,7 +3,7 @@
 
 # Шкала и категория
 grade_thresholds: {intern: -1.5, junior: -0.5, middle: 0.5, senior: 1.5}
-grade_confidence: 0.8
+grade_confidence: 0.7
 grade_up_hint_confidence: 0.5
 theta_prior_sd: 1.0
 topic_deviation_sd: 0.6

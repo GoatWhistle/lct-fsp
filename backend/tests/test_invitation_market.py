@@ -4,6 +4,7 @@
 import random
 import uuid
 from collections import Counter
+from collections.abc import Mapping, Sequence
 
 from validation.invitation_market import (
     Answer,
@@ -20,7 +21,7 @@ CANDIDATES = [uuid.UUID(int=100 + i) for i in range(40)]
 NEEDS = [(uuid.UUID(int=1000 + i), EMPLOYERS[i % 3]) for i in range(5)]
 
 
-def ranked(opening: Opening, loads: dict[uuid.UUID, int]) -> list[Ranked]:
+def ranked(opening: Opening, loads: Mapping[uuid.UUID, int]) -> Sequence[Ranked]:
     """Один и тот же порядок для всех: сверху — те же кандидаты, рынок перегревается."""
     return [Ranked(c, 1 - i / len(CANDIDATES)) for i, c in enumerate(CANDIDATES)]
 
@@ -128,7 +129,7 @@ def test_answer_load_includes_the_invitation_being_answered() -> None:
 
 def test_more_needs_than_budget_cannot_overspend() -> None:
     openings = budgets(NEEDS, Counter(e for _, e in NEEDS), 1)
-    assigned = Counter()
+    assigned: Counter[uuid.UUID] = Counter()
     for opening in openings:
         assigned[opening.employer] += opening.budget
     assert all(value <= 1 for value in assigned.values())

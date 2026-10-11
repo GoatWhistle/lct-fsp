@@ -18,7 +18,8 @@ from app.domain.account import (
     sign_in,
     verification_token_hash,
 )
-from app.domain.errors import EmailTaken, NotAuthenticated
+from app.domain.errors import EmailTaken, InvalidCredentials, NotAuthenticated
+from app.domain.jury import SEED_DOMAIN
 from app.domain.locale import DEFAULT_LOCALE, Locale
 from app.domain.mail import Mail
 from app.usecase.interface import (
@@ -59,6 +60,8 @@ class Accounts:
         clock: Clock,
         links: VerificationLinks,
         templates: MailTemplates,
+        *,
+        seeded_logins_open: bool = False,
     ) -> None:
         self._uow = uow
         self._accounts = accounts
@@ -69,6 +72,7 @@ class Accounts:
         self._clock = clock
         self._links = links
         self._templates = templates
+        self._seeded_logins_open = seeded_logins_open
 
     def register(
         self, email: str, password: str, role: Role, locale: Locale = DEFAULT_LOCALE
@@ -105,7 +109,10 @@ class Accounts:
             return account
 
     def sign_in(self, email: str, password: str) -> SignedIn:
-        """Вход: учётка и токен входа со сроком от текущего момента."""
+        """Вход: учётка и токен входа со сроком от текущего момента. Учётки демо-засева с
+        известным паролем открыты только в режиме жюри."""
+        if not self._seeded_logins_open and normalize_email(email).endswith(f"@{SEED_DOMAIN}"):
+            raise InvalidCredentials()
         with self._uow:
             credentials = self._accounts.credentials(normalize_email(email))
         password_hash = credentials.password_hash if credentials else None

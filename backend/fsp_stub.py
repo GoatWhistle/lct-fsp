@@ -27,9 +27,12 @@ REALM = "fsp-id"
 CLIENT_ID = "lct-platform"
 # Секрет клиента стенда — тот же, что значение по умолчанию `FSP_ID_CLIENT_SECRET`.
 CLIENT_SECRET = "dev-only-fsp-id-client-secret"
+# Порты 3000/8000 — основной стенд, 3100/8100 — изолированный демо-стенд (`scripts/demo.sh`).
 REDIRECT_URIS = (
     "http://localhost:3000/api/auth/fsp/callback",
     "http://localhost:8000/api/auth/fsp/callback",
+    "http://localhost:3100/api/auth/fsp/callback",
+    "http://localhost:8100/api/auth/fsp/callback",
 )
 # Пароль всех тестовых участников ФСП ID.
 PASSWORD = "fsp-demo-2026"

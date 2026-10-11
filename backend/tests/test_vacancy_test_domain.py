@@ -1,10 +1,11 @@
 """План теста по вакансии — чистая функция потребности (mechanics.md, §6)."""
 
+import uuid
 from datetime import UTC, datetime
 
 from app.domain.catalog import CatalogRef
 from app.domain.importance import TopicImportance
-from app.domain.selection import NeedContent
+from app.domain.selection import Need
 from app.domain.skill import Normal
 from app.domain.vacancy_test import (
     example_family,
@@ -21,8 +22,9 @@ CATALOG = catalog()
 T0 = datetime(2026, 10, 10, 12, tzinfo=UTC)
 
 
-def need(specialization: str, stack: list[str], grade: str = "middle") -> NeedContent:
-    return NeedContent(
+def need(specialization: str, stack: list[str], grade: str = "middle") -> Need:
+    return Need(
+        id=uuid.UUID(int=1),
         title=f"{specialization} {grade}",
         specialization=CATALOG.specializations[specialization],
         grade=CATALOG.grades[grade],

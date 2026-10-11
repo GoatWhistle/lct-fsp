@@ -93,6 +93,18 @@
     "source": "docs/validation-report.md#m10-совпадение-грейда-с-истиной",
     "note": "M10 завышение, D1, заявка кандидата"
   },
+  "over_ours_d2": {
+    "value": 0.067,
+    "digits": 3,
+    "source": "docs/validation-report.md#m10-совпадение-грейда-с-истиной",
+    "note": "M10 завышение, D2, наш тест, порог 0,05 не выполнен"
+  },
+  "over_limit": {
+    "value": 0.05,
+    "digits": 2,
+    "source": "docs/validation-plan.md#тестирование-и-категоризация",
+    "note": "M10 порог завышения"
+  },
   "under_ours": {
     "value": 0.394,
     "digits": 3,

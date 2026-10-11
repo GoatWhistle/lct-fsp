@@ -1,7 +1,7 @@
 {
   "name": "calibr от ФСП",
   "short_name": "calibr",
-  "description": "Подбор, который нельзя накрутить",
+  "description": "Подбор по подтверждённому тестом уровню, а не по резюме",
   "lang": "ru",
   "start_url": "/",
   "display": "standalone",

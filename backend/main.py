@@ -116,7 +116,8 @@ def description() -> str:
 Платформа подбора ИТ-специалистов с обратной механикой.
 
 Ошибки приходят телом `{"code", "message"}`: `code` — для кода фронта, `message` — для
-пользователя. Вход — cookie `access_token` (httpOnly), её ставит `POST /api/auth/login`.
+пользователя. Вход — cookie `calibr_session` (httpOnly, имя — `SESSION_COOKIE_NAME`), её ставит
+`POST /api/auth/login`.
 Разделы `/api/candidate` и `/api/employer` доступны только своей роли. Время — в UTC,
 ISO 8601 с `Z`.
 """
@@ -190,7 +191,9 @@ def create_app(
     session_factory = sessionmaker(engine)
     session_ttl = timedelta(hours=settings.session_ttl_hours)
     app.state.session_cookie = SessionCookie(
-        max_age=int(session_ttl.total_seconds()), secure=settings.cookie_secure
+        max_age=int(session_ttl.total_seconds()),
+        secure=settings.cookie_secure,
+        name=settings.session_cookie_name,
     )
 
     def unit_of_work() -> SqlUnitOfWork:
@@ -282,6 +285,7 @@ def create_app(
         mail_templates=BrandMailTemplates(),
         clock=clock,
         links=VerificationLinks(settings.frontend_url, settings.email_token_ttl_hours),
+        seeded_logins_open=settings.demo_mode,
         skill_model=skill_model,
         fsp_id=fsp_id
         or OidcFspId(

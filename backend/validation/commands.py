@@ -720,6 +720,11 @@ def main() -> None:
     )
     parser.add_argument("--report", type=Path, default=REPORT, help="report: куда писать отчёт")
     parser.add_argument(
+        "--sets",
+        default=",".join(SETS),
+        help="report: наборы через запятую, по умолчанию d1,d2; отложенные — d9,d10",
+    )
+    parser.add_argument(
         "--model",
         help="для parsing: модель разбора по имени, как TEXT_UNDERSTANDING; без него — правила; "
         "для llm, report и b3 — модель, по умолчанию agent_sdk",
@@ -831,6 +836,7 @@ def main() -> None:
             runs = collect(
                 mechanics,
                 scale,
+                sets=tuple(args.sets.split(",")),
                 baselines=baseline_source(b3_dir=b3_dir),
                 protection=None if args.no_protection else PLAN_PROTECTION,
                 llm=Recording(path) if path.exists() else None,

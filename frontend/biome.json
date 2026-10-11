@@ -80,7 +80,12 @@
   },
   "overrides": [
     {
-      "includes": ["vite.config.ts", "playwright.config.ts", "vitest.config.ts"],
+      "includes": [
+        "vite.config.ts",
+        "playwright.config.ts",
+        "playwright.demo.config.ts",
+        "vitest.config.ts"
+      ],
       "linter": {
         "rules": {
           "style": {

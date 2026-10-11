@@ -60,6 +60,10 @@ select = ["E", "F", "I", "B", "UP", "SIM", "RUF", "TID251"]
 # Тексты по-русски: кириллица — не опечатка в латинице.
 ignore = ["RUF001", "RUF002", "RUF003"]
 
+# Фикстура из другого файла тестов подключается импортом и приходит в тест параметром.
+[tool.ruff.lint.per-file-ignores]
+"tests/test_contact_negative.py" = ["F811"]
+
 [tool.ruff.lint.flake8-tidy-imports.banned-api]
 "sqlalchemy.create_engine".msg = "движок — через app.repository.database.create_db_engine: время из базы в UTC"
 

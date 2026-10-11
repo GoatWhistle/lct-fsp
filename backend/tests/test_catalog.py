@@ -24,6 +24,15 @@ def test_mvp_specializations_have_topics(client: TestClient) -> None:
     assert {"code": "backend.databases", "name": "Базы данных и SQL"} in backend["topics"]
 
 
+# Технологии мобильной, игровой, встраиваемой и блокчейн-разработки: в банке заданий нет
+# специализаций под них, поэтому они значатся в стеке, но ни к какой теме теста не привязаны.
+STACK_ONLY = {
+    *("swift", "objective-c", "dart", "verilog", "vhdl", "flutter", "swiftui", "uikit"),
+    *("jetpack-compose", "android-sdk", "kotlin-multiplatform", "rxswift", "core-data"),
+    *("confluence", "unity", "unreal", "godot", "arduino", "stm32", "freertos", "ros", "hardhat"),
+}
+
+
 def test_technologies_point_to_topics_of_specializations(client: TestClient) -> None:
     topics = {
         t["code"] for s in client.get("/api/catalog/specializations").json() for t in s["topics"]
@@ -32,7 +41,8 @@ def test_technologies_point_to_topics_of_specializations(client: TestClient) -> 
 
     assert set(technologies["postgresql"]["topics"]) >= {"backend.databases", "data-ml.sql"}
     for tech in technologies.values():
-        assert tech["topics"], f"технология {tech['code']} не связана с темами"
+        if tech["code"] not in STACK_ONLY:
+            assert tech["topics"], f"технология {tech['code']} не связана с темами"
         assert set(tech["topics"]) <= topics
 
 

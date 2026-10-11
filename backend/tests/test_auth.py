@@ -212,10 +212,10 @@ def test_session_is_an_http_only_cookie_and_logout_clears_it(
     )
 
     cookie = response.headers["set-cookie"]
-    assert cookie.startswith("access_token=")
+    assert cookie.startswith("calibr_session=")
     assert "HttpOnly" in cookie
     assert "samesite=lax" in cookie.lower()
-    assert "access_token" not in response.text
+    assert "calibr_session" not in response.text
 
     assert client.post("/api/auth/logout").status_code == 204
     assert client.get("/api/auth/me").status_code == 401
@@ -246,7 +246,7 @@ def test_session_survives_server_clock_stepping_back(
 
 
 def test_forged_session_cookie_is_rejected(client: TestClient) -> None:
-    client.cookies.set("access_token", "not-a-token")
+    client.cookies.set("calibr_session", "not-a-token")
 
     assert client.get("/api/auth/me").status_code == 401
 

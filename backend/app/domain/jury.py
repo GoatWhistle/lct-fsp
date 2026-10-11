@@ -9,6 +9,9 @@ from app.domain.importance import TopicImportance
 from app.domain.need import NeedForm
 from app.domain.work import WorkFormat
 
+# Демо-засев (`seed_demo.py`) заводит учётки с известным паролем на этом домене. `.example`
+# зарезервирован RFC 2606: реальный адрес на нём не подтвердить, значит, учётки — только засев.
+SEED_DOMAIN = "demo.example"
 DEMO_DOMAIN = "jury.example"
 DEMO_EMPLOYER_EMAIL = f"employer@{DEMO_DOMAIN}"
 

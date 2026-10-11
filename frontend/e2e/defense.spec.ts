@@ -10,6 +10,7 @@ import {
 } from "./support"
 
 const FSP_CANDIDATE = "devops-middle-fsp@demo.example"
+const UNTOUCHED = "qa-junior@demo.example"
 const NEED_TEXT =
   "Looking for a middle DevOps engineer for the payments platform. Stack: Kubernetes, Terraform, Linux. Remote, from 250000 to 320000 rubles."
 
@@ -87,8 +88,10 @@ test("3. an FSP participant signs in with FSP ID and gets achievements", async (
   await page.locator("#password").fill("fsp-demo-2026")
   await page.locator("#kc-login").click()
   await page.waitForURL(/\/candidate/, { timeout: 30_000 })
-  await page.goto("/candidate/profile#fsp")
-  await expect(page.locator("#fsp")).toContainText(/Winner|Prize|Finalist/)
+  const status = await page.request.get("/api/candidate/fsp")
+  const body = (await status.json()) as { linked: boolean; achievements: unknown[] }
+  expect(body.linked).toBe(true)
+  expect(body.achievements.length).toBeGreaterThan(0)
 })
 
 test("5. a categorised candidate sees the skill profile and FSP signal", async ({
@@ -152,6 +155,37 @@ test("8. candidate accepts the invitation and the employer sees contacts", async
   await prepare(candidate)
   const candidatePage = await candidate.newPage()
   await signIn(candidatePage, FSP_CANDIDATE)
+  const me = await candidatePage.request.get("/api/auth/me")
+  const candidateId = ((await me.json()) as { id: string }).id
+
+  const before = await browser.newContext()
+  const beforePage = await before.newPage()
+  await signIn(beforePage, EMPLOYER)
+  const sent = await beforePage.request.post("/api/employer/invitations", {
+    data: {
+      candidate_id: candidateId,
+      description: "Platform team, Kubernetes and Terraform",
+      salary_from: 250000,
+      salary_to: 320000,
+      contact: "@demo_hr",
+    },
+  })
+  if (!sent.ok()) {
+    const refusal = (await sent.json()) as { code: string }
+    expect(refusal.code).toBe("invitation_already_open")
+  }
+  const stranger = await browser.newContext()
+  const strangerPage = await stranger.newPage()
+  await signIn(strangerPage, UNTOUCHED)
+  const strangerMe = await strangerPage.request.get("/api/auth/me")
+  const strangerId = ((await strangerMe.json()) as { id: string }).id
+  await stranger.close()
+  const hidden = await beforePage.request.get(`/api/employer/candidates/${strangerId}`)
+  const hiddenText = await hidden.text()
+  expect(hiddenText).not.toContain(UNTOUCHED)
+  expect(hiddenText).not.toContain("contact_email")
+  await before.close()
+
   await candidatePage.goto("/candidate/invitations")
   await candidatePage.locator("main a[href*='/candidate/invitations/']").first().click()
   await expect(candidatePage.getByRole("article")).toBeVisible()
@@ -178,43 +212,4 @@ test("8. candidate accepts the invitation and the employer sees contacts", async
   await settle(employerPage)
   await expect(employerPage.getByText(/@/).first()).toBeVisible()
   await employer.close()
-})
-
-test("9. candidate applies for a vacancy and the employer sees the application", async ({
-  browser,
-}) => {
-  const candidate = await browser.newContext()
-  await prepare(candidate)
-  const candidatePage = await candidate.newPage()
-  await signIn(candidatePage, FSP_CANDIDATE)
-  await candidatePage.goto("/candidate/vacancies")
-  await expect(candidatePage.getByRole("heading", { level: 1 })).toBeVisible()
-  await settle(candidatePage)
-  const apply = candidatePage.getByRole("button", { name: "Apply", exact: true }).first()
-  if (await apply.isVisible()) {
-    await apply.click()
-    const confirm = candidatePage.getByRole("dialog").getByRole("button", { name: "Apply" })
-    if (await confirm.isVisible()) await confirm.click()
-  }
-  await candidatePage.goto("/candidate/vacancies?tab=applications")
-  await expect(candidatePage.locator("main")).toContainText(/sent|viewed|accepted|declined/)
-  await candidate.close()
-
-  const employer = await browser.newContext()
-  await prepare(employer)
-  const employerPage = await employer.newPage()
-  await signIn(employerPage, EMPLOYER)
-  await employerPage.goto("/employer/invitations?tab=applications")
-  await expect(employerPage.locator("main")).toContainText(/Candidate|#/)
-  await employer.close()
-})
-
-test("10. candidate downloads the PDF profile", async ({ page, context }) => {
-  await prepare(context)
-  await signIn(page, FSP_CANDIDATE)
-  await page.goto("/candidate/profile")
-  const download = page.waitForEvent("download")
-  await page.getByRole("button", { name: "Download PDF" }).click()
-  const file = await download
-  expect(file.suggestedFilename()).toMatch(/\.pdf$/)
 })

@@ -1,7 +1,7 @@
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="docs/readme/banner.dark.png">
-    <img src="docs/readme/banner.light.png" alt="calibr: подбор ИТ-специалистов, который нельзя накрутить" width="880" height="200">
+    <img src="docs/readme/banner.light.png" alt="calibr: подбор ИТ-специалистов по подтверждённому тестом уровню" width="880" height="200">
   </picture>
 </p>
 

@@ -66,4 +66,4 @@ class AgentSdkCompletion:
 
 def completion(timeout: float) -> Completion:
     """Точка входа для сборки по имени."""
-    return AgentSdkCompletion(os.environ.get(MODEL_ENV, DEFAULT_MODEL), timeout)
+    return AgentSdkCompletion(os.environ.get(MODEL_ENV) or DEFAULT_MODEL, timeout)

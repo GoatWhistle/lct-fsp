@@ -1,0 +1,15 @@
+# Стенд показа с Claude через Agent SDK: второй файл поверх docker-compose.yml. Проще всего — в .env
+#   COMPOSE_FILE=docker-compose.yml:backend/app/adapter/demo/compose.yml
+#   ANTHROPIC_API_KEY=<ключ Anthropic API>
+# и обычный docker compose up -d --build. Без ключа compose не стартует.
+services:
+  backend:
+    build:
+      args:
+        UV_EXTRA_GROUPS: models
+    environment:
+      TEXT_UNDERSTANDING: ${TEXT_UNDERSTANDING:-agent_sdk}
+      # Agent SDK на каждый запрос поднимает свой процесс и делает отдельный ход ради JSON.
+      TEXT_UNDERSTANDING_TIMEOUT_SECONDS: ${TEXT_UNDERSTANDING_TIMEOUT_SECONDS:-30}
+      AGENT_SDK_MODEL: ${AGENT_SDK_MODEL:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:?задайте ANTHROPIC_API_KEY в .env}

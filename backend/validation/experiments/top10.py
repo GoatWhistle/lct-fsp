@@ -6,17 +6,26 @@
 """
 
 import argparse
+import uuid
 from collections import Counter
 
 from settings import MECHANICS_FILE, Mechanics
-from validation.report import NAIVE, OURS, collect, ranked_lists
+from validation.report import NAIVE, OURS, DatasetRuns, collect, ranked_lists
 from validation.simulate import Scale
 from validation.truth import Persona
 
 TOP = 10
 
 
-def classify(data, need_grade, need, c, placed_block, pair_grade, method):  # type: ignore[no-untyped-def]
+def classify(
+    data: DatasetRuns,
+    need_grade: str,
+    need: uuid.UUID,
+    c: uuid.UUID,
+    placed_block: str,
+    pair_grade: int,
+    method: str,
+) -> str:
     truth = data.truth()[c]
     if pair_grade >= 2:
         return "relevant"
@@ -24,8 +33,6 @@ def classify(data, need_grade, need, c, placed_block, pair_grade, method):  # ty
         return f"persona:{truth.persona.value}"
     if method == OURS and placed_block != "exact":
         return f"block:{placed_block}"
-    spec_run = data.runs[truth.specialization]
-    assigned = spec_run.outcomes[c].first.grade
     order = [None, "intern", "junior", "middle", "senior"]
     if truth.grade is not None and order.index(truth.grade) < order.index(need_grade):
         return "honest:true-grade-below-need"
@@ -53,11 +60,13 @@ def main() -> None:
         counts: Counter[str] = Counter()
         blocks: Counter[str] = Counter()
         for _, need, ranked, _ in ranked_lists(data, method):
-            placed = {x.candidate: x.block for run in data.runs.values() for x in run.placed.get(need, ())}
+            rows = (x for run in data.runs.values() for x in run.placed.get(need, ()))
+            placed = {x.candidate: x.block for x in rows}
             for c in ranked[:TOP]:
                 block = placed.get(c, "outside")
                 blocks[block] += 1
-                counts[classify(data, grades[need], need, c, block, data.pairs[need, c].grade, method)] += 1
+                grade = data.pairs[need, c].grade
+                counts[classify(data, grades[need], need, c, block, grade, method)] += 1
         total = sum(counts.values())
         print(f"{method} {update or 'config'} set={args.set} top{TOP} slots={total}")
         for k, v in sorted(counts.items(), key=lambda kv: -kv[1]):

@@ -13,9 +13,7 @@
 
 <p align="center">
   <!-- readme:buttons -->
-  <a href="http://lct-fsp.goatwhistle.ru"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/readme/cta-live.dark.png"><img src="docs/readme/cta-live.light.png" alt="Открыть стенд" width="178" height="44"></picture></a>
   <a href="#запуск"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/readme/cta-run.dark.png"><img src="docs/readme/cta-run.light.png" alt="Запустить локально" width="220" height="44"></picture></a>
-  <br>
   <a href="docs/for-jury.md"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/readme/cta-jury.dark.png"><img src="docs/readme/cta-jury.light.png" alt="Маршрут для жюри" width="217" height="44"></picture></a>
   <a href="docs/README.md"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/readme/cta-docs.dark.png"><img src="docs/readme/cta-docs.light.png" alt="Документация" width="176" height="44"></picture></a>
   <!-- /readme:buttons -->
@@ -130,7 +128,7 @@ flowchart LR
 
 ## Попробовать за пять минут
 
-На [стенде](http://lct-fsp.goatwhistle.ru) или после [запуска](#запуск). Пароль демо-учёток
+Поднимите стенд по разделу [Запуск](#запуск). Пароль демо-учёток
 `demo-2026`, участников ФСП ID `fsp-demo-2026`. В режиме жюри (`DEMO_MODE=true`) на странице входа
 есть «Войти как работодатель» и «Новый тестовый кандидат» с экспресс-тестом.
 
@@ -272,5 +270,5 @@ cd frontend && npm install --silent && npm run dev
 <p align="center">
   <picture><source media="(prefers-color-scheme: dark)" srcset="docs/readme/mark.dark.png"><img src="docs/readme/mark.light.png" alt="" width="34" height="33"></picture>
   <br>
-  <sub>Команда GoatWhistle, спецтрек ФСП хакатона «Лидеры цифровой трансформации», 2026.</sub>
+  <sub>Спецтрек ФСП хакатона «Лидеры цифровой трансформации», 2026.</sub>
 </p>

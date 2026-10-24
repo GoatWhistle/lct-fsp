@@ -14,7 +14,6 @@
 <p align="center">
   <!-- readme:buttons -->
   <a href="#запуск"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/readme/cta-run.dark.png"><img src="docs/readme/cta-run.light.png" alt="Запустить локально" width="220" height="44"></picture></a>
-  <a href="docs/for-jury.md"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/readme/cta-jury.dark.png"><img src="docs/readme/cta-jury.light.png" alt="Маршрут для жюри" width="217" height="44"></picture></a>
   <a href="docs/README.md"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/readme/cta-docs.dark.png"><img src="docs/readme/cta-docs.light.png" alt="Документация" width="176" height="44"></picture></a>
   <!-- /readme:buttons -->
 </p>
@@ -98,7 +97,7 @@ flowchart LR
 экземпляр. Грейд присваивается, когда P(уровень ≥ порога грейда) ≥ 0,8. Не хватило уверенности, и
 тест сразу предлагает грейд ниже, без новых заданий.
 
-<sub>M9 и M10 в <a href="docs/validation-report.md">отчёте валидации</a>, шаги 2–4 <a href="docs/for-jury.md">маршрута</a></sub>
+<sub>M9 и M10 в <a href="docs/validation-report.md">отчёте валидации</a></sub>
 
 </td>
 <td valign="top" width="33%">
@@ -109,7 +108,7 @@ flowchart LR
 задания работодателей 0,4. Самоописание в уровень не входит, только стек отдельным слагаемым с
 потолком. Кандидат без истории ФСП ничего не теряет.
 
-<sub><a href="docs/mechanics.md#11-профиль-навыков-и-уровни-доверия">Механики, §11</a>, шаги 5–6 маршрута</sub>
+<sub><a href="docs/mechanics.md#11-профиль-навыков-и-уровни-доверия">Механики, §11</a></sub>
 
 </td>
 <td valign="top" width="33%">
@@ -120,7 +119,7 @@ flowchart LR
 сумма вкладов равна скору, обнуление фактора уменьшает скор ровно на его вклад. Объяснение не
 расходится с порядком выдачи.
 
-<sub><a href="docs/mechanics.md#12-подбор">Механики, §12</a>, шаг 9 маршрута</sub>
+<sub><a href="docs/mechanics.md#12-подбор">Механики, §12</a></sub>
 
 </td>
 </tr>
@@ -140,9 +139,6 @@ flowchart LR
 | 4 | `employer@demo.example` → «Потребности» → «Сформировать подборку» | Блоки выдачи, соответствие, вероятность принятия и разбор по темам |
 | 5 | «Пригласить» без вилки | Приглашение не отправляется: вилка «от и до» обязательна |
 | 6 | Принять приглашение кандидатом | Работодателю открываются имя, контакты и переписка |
-
-Полный маршрут, что доказывает каждый шаг и где ответ на каждый критерий оценки, в
-[маршруте для жюри](docs/for-jury.md).
 
 ## Результаты
 

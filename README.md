@@ -266,5 +266,5 @@ cd frontend && npm install --silent && npm run dev
 <p align="center">
   <picture><source media="(prefers-color-scheme: dark)" srcset="docs/readme/mark.dark.png"><img src="docs/readme/mark.light.png" alt="" width="34" height="33"></picture>
   <br>
-  <sub>Спецтрек ФСП хакатона «Лидеры цифровой трансформации», 2026.</sub>
+  <sub>Команда Ullax, спецтрек ФСП хакатона «Лидеры цифровой трансформации», 2026. Лицензия <a href="LICENSE">MIT</a>.</sub>
 </p>
